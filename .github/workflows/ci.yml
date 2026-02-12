@@ -89,4 +89,9 @@ jobs:
         run: dart pub get
 
       - name: Run Flutter tests
-        run: flutter test
+        run: |
+          if [ -d "test" ]; then
+            flutter test
+          else
+            echo "No test directory found, skipping tests"
+          fi
