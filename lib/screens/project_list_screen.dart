@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -14,7 +15,36 @@ class ProjectListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Deadbolt')),
+      appBar: AppBar(
+        title: const Text('Deadbolt'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'about') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AboutScreen(),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'about',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 8),
+                    Text('About'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: BlocBuilder<ProjectListCubit, ProjectListState>(
           builder: (context, state) {
