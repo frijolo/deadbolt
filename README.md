@@ -4,8 +4,8 @@
 
 Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descriptors to extract network information, public keys, and spend paths with fee weight estimates. Built with Flutter (UI) and Rust (core logic), it provides a secure, offline way to understand complex Bitcoin wallet setups.
 
-[![CI](https://github.com/USERNAME/deadbolt/actions/workflows/ci.yml/badge.svg)](https://github.com/USERNAME/deadbolt/actions/workflows/ci.yml)
-[![Release](https://github.com/USERNAME/deadbolt/actions/workflows/release.yml/badge.svg)](https://github.com/USERNAME/deadbolt/releases)
+[![CI](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml/badge.svg)](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml)
+[![Release](https://github.com/frijolo/deadbolt/actions/workflows/release.yml/badge.svg)](https://github.com/frijolo/deadbolt/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Features
@@ -27,11 +27,11 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 
 ### Android
 
-Download the latest APK from [Releases](https://github.com/USERNAME/deadbolt/releases):
+Download the latest APK from [Releases](https://github.com/frijolo/deadbolt/releases):
 
 ```bash
 # Download
-wget https://github.com/USERNAME/deadbolt/releases/download/v1.0.0/deadbolt-android.apk
+wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-android.apk
 
 # Install via ADB
 adb install deadbolt-android.apk
@@ -45,7 +45,7 @@ Download and extract the tarball:
 
 ```bash
 # Download
-wget https://github.com/USERNAME/deadbolt/releases/download/v1.0.0/deadbolt-linux-x64.tar.gz
+wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-linux-x64.tar.gz
 
 # Extract
 tar -xzf deadbolt-linux-x64.tar.gz
@@ -57,7 +57,7 @@ cd deadbolt
 
 ### Windows
 
-1. Download `deadbolt-windows-x64.zip` from [Releases](https://github.com/USERNAME/deadbolt/releases)
+1. Download `deadbolt-windows-x64.zip` from [Releases](https://github.com/frijolo/deadbolt/releases)
 2. Extract the ZIP file
 3. Run `deadbolt.exe`
 
@@ -69,7 +69,7 @@ Quick verification:
 
 ```bash
 # Import GPG key
-curl -sL https://raw.githubusercontent.com/USERNAME/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
+curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
 
 # Verify signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -133,7 +133,7 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 
 ```bash
 # Clone repository
-git clone https://github.com/USERNAME/deadbolt.git
+git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Get Flutter dependencies
@@ -275,8 +275,8 @@ This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/USERNAME/deadbolt/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/USERNAME/deadbolt/discussions)
+- **Issues**: [GitHub Issues](https://github.com/frijolo/deadbolt/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/frijolo/deadbolt/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for security-related concerns
 
 ## Disclaimer

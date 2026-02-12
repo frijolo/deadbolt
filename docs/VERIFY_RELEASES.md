@@ -33,13 +33,13 @@ You only need to do this **once** (unless the key changes).
 
 ```bash
 # Download the public key from the repository
-curl -sL https://raw.githubusercontent.com/USERNAME/deadbolt/main/GPG_PUBLIC_KEY.asc -o deadbolt-gpg-key.asc
+curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc -o deadbolt-gpg-key.asc
 
 # Import the key
 gpg --import deadbolt-gpg-key.asc
 ```
 
-Replace `USERNAME` with the actual GitHub username.
+Replace `frijolo` with the actual GitHub username.
 
 #### Option B: Import from Keyserver
 
@@ -77,7 +77,7 @@ If the fingerprints don't match, **DO NOT PROCEED** - the key may be fake.
 
 ### Step 3: Download Release Files
 
-Go to the [Releases page](https://github.com/USERNAME/deadbolt/releases) and download:
+Go to the [Releases page](https://github.com/frijolo/deadbolt/releases) and download:
 
 1. **Binary for your platform**:
    - `deadbolt-android.apk` (Android)
@@ -93,7 +93,7 @@ Example using `wget`:
 ```bash
 # Replace VERSION with the actual version (e.g., v1.0.0)
 VERSION="v1.0.0"
-REPO="https://github.com/USERNAME/deadbolt/releases/download/${VERSION}"
+REPO="https://github.com/frijolo/deadbolt/releases/download/${VERSION}"
 
 # Download verification files
 wget ${REPO}/SHA256SUMS
@@ -174,7 +174,7 @@ set -e
 
 VERSION="${1:-v1.0.0}"
 PLATFORM="${2:-linux-x64}"
-REPO="https://github.com/USERNAME/deadbolt/releases/download"
+REPO="https://github.com/frijolo/deadbolt/releases/download"
 
 echo "Verifying Deadbolt ${VERSION} (${PLATFORM})"
 echo "================================================"
@@ -289,7 +289,7 @@ If you encounter:
 - Suspicious or unexpected verification results
 
 **Report immediately**:
-- GitHub Issues: https://github.com/USERNAME/deadbolt/issues
+- GitHub Issues: https://github.com/frijolo/deadbolt/issues
 - Email: security@example.com (if available)
 - Do NOT use the binary
 
