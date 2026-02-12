@@ -19,10 +19,10 @@ We recommend always using the latest stable release.
 
 ### GPG Key Information
 
-**Maintainer**: [MAINTAINER_NAME]
-**Email**: [MAINTAINER_EMAIL]
-**Key ID**: `[GPG_KEY_ID]`
-**Fingerprint**: `[GPG_FINGERPRINT]`
+**Maintainer**: frijolo
+**Email**: frijolin@proton.me
+**Key ID**: `593FBBED4849293C`
+**Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`
 
 The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PUBLIC_KEY.asc)
 
@@ -30,12 +30,12 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 
 ```bash
 # 1. Import the public key
-curl -sL https://raw.githubusercontent.com/USERNAME/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
+curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
-wget https://github.com/USERNAME/deadbolt/releases/download/v1.0.0/SHA256SUMS
-wget https://github.com/USERNAME/deadbolt/releases/download/v1.0.0/SHA256SUMS.asc
-wget https://github.com/USERNAME/deadbolt/releases/download/v1.0.0/deadbolt-<platform>.<ext>
+wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/SHA256SUMS
+wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/SHA256SUMS.asc
+wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-<platform>.<ext>
 
 # 3. Verify GPG signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -87,7 +87,7 @@ We take all security bugs seriously. If you discover a security vulnerability in
 **Preferred methods** (in order):
 
 1. **GitHub Security Advisories** (recommended)
-   - Go to: https://github.com/USERNAME/deadbolt/security/advisories
+   - Go to: https://github.com/frijolo/deadbolt/security/advisories
    - Click "Report a vulnerability"
    - Provide detailed information
 
@@ -135,7 +135,7 @@ We will credit you in the security advisory unless you prefer to remain anonymou
 ### Installation
 
 1. **Download only from official sources**
-   - GitHub Releases: https://github.com/USERNAME/deadbolt/releases
+   - GitHub Releases: https://github.com/frijolo/deadbolt/releases
    - Verify the repository URL carefully
    - Avoid third-party download sites
 
@@ -172,7 +172,7 @@ For maximum trust, build Deadbolt from source:
 
 ```bash
 # Clone repository
-git clone https://github.com/USERNAME/deadbolt.git
+git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Verify latest signed tag
@@ -241,7 +241,7 @@ We follow these practices:
 ## Security Advisories
 
 Published security advisories will be available at:
-- GitHub Security Advisories: https://github.com/USERNAME/deadbolt/security/advisories
+- GitHub Security Advisories: https://github.com/frijolo/deadbolt/security/advisories
 - Releases page (for patched versions)
 
 ## Contact

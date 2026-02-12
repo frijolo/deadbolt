@@ -73,7 +73,7 @@ if [ ! -f "$SHA256SUMS_FILE" ]; then
     echo -e "${RED}Error: SHA256SUMS not found in the same directory${NC}"
     echo ""
     echo "Please download SHA256SUMS from the same release:"
-    echo "  https://github.com/USERNAME/deadbolt/releases"
+    echo "  https://github.com/frijolo/deadbolt/releases"
     echo ""
     exit 1
 fi
@@ -83,7 +83,7 @@ if [ ! -f "$SHA256SUMS_ASC_FILE" ]; then
     echo -e "${RED}Error: SHA256SUMS.asc not found in the same directory${NC}"
     echo ""
     echo "Please download SHA256SUMS.asc from the same release:"
-    echo "  https://github.com/USERNAME/deadbolt/releases"
+    echo "  https://github.com/frijolo/deadbolt/releases"
     echo ""
     exit 1
 fi
@@ -102,13 +102,13 @@ if gpg --verify "$SHA256SUMS_ASC_FILE" "$SHA256SUMS_FILE" 2>&1 | grep -q "public
     echo "Importing public key from repository..."
 
     # Try to download from GitHub
-    if curl -sL https://raw.githubusercontent.com/USERNAME/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import; then
+    if curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import; then
         echo -e "${GREEN}✓ GPG key imported successfully${NC}"
     else
         echo -e "${RED}✗ Failed to import GPG key automatically${NC}"
         echo ""
         echo "Please import manually:"
-        echo "  curl -sL https://raw.githubusercontent.com/USERNAME/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import"
+        echo "  curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import"
         echo ""
         exit 1
     fi
