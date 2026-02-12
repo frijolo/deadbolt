@@ -1,0 +1,841 @@
+import 'dart:convert';
+
+import 'package:deadbolt/errors.dart';
+import 'package:drift/drift.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/src/rust/api/analyzer.dart';
+import 'package:deadbolt/src/rust/api/model.dart';
+
+// --- Editable models ---
+
+class EditableKey {
+  int? originalDbId;
+  String mfp;
+  String derivationPath;
+  String xpub;
+  String? customName;
+
+  EditableKey({
+    this.originalDbId,
+    required this.mfp,
+    required this.derivationPath,
+    required this.xpub,
+    this.customName,
+  });
+
+  EditableKey copyWith({
+    String? mfp,
+    String? derivationPath,
+    String? xpub,
+    String? customName,
+  }) {
+    return EditableKey(
+      originalDbId: originalDbId,
+      mfp: mfp ?? this.mfp,
+      derivationPath: derivationPath ?? this.derivationPath,
+      xpub: xpub ?? this.xpub,
+      customName: customName ?? this.customName,
+    );
+  }
+
+  static EditableKey fromDb(ProjectKey key) {
+    return EditableKey(
+      originalDbId: key.id,
+      mfp: key.mfp,
+      derivationPath: key.derivationPath,
+      xpub: key.xpub,
+      customName: key.customName,
+    );
+  }
+
+  ProjectKey toProjectKey(int projectId) {
+    return ProjectKey(
+      id: originalDbId ?? 0,
+      projectId: projectId,
+      mfp: mfp,
+      derivationPath: derivationPath,
+      xpub: xpub,
+      customName: customName,
+    );
+  }
+}
+
+class EditableSpendPath {
+  int? originalDbId;
+  int threshold;
+  List<String> mfps;
+  int relTimelock;
+  int absTimelock;
+  String? customName;
+  bool isKeyPath;
+
+  EditableSpendPath({
+    this.originalDbId,
+    this.threshold = 1,
+    List<String>? mfps,
+    this.relTimelock = 0,
+    this.absTimelock = 0,
+    this.customName,
+    this.isKeyPath = false,
+  }) : mfps = mfps ?? [];
+
+  EditableSpendPath copyWith({
+    int? threshold,
+    List<String>? mfps,
+    int? relTimelock,
+    int? absTimelock,
+    String? customName,
+    bool? isKeyPath,
+  }) {
+    return EditableSpendPath(
+      originalDbId: originalDbId,
+      threshold: threshold ?? this.threshold,
+      mfps: mfps ?? List.of(this.mfps),
+      relTimelock: relTimelock ?? this.relTimelock,
+      absTimelock: absTimelock ?? this.absTimelock,
+      customName: customName ?? this.customName,
+      isKeyPath: isKeyPath ?? this.isKeyPath,
+    );
+  }
+
+  static EditableSpendPath fromDb(ProjectSpendPath sp) {
+    // Key-path is detected if trDepth == -1 (not a script path)
+    final isKeyPath = sp.trDepth == -1;
+    return EditableSpendPath(
+      originalDbId: sp.id,
+      threshold: sp.threshold,
+      mfps: (jsonDecode(sp.mfps) as List).cast<String>(),
+      relTimelock: sp.relTimelock,
+      absTimelock: sp.absTimelock,
+      customName: sp.customName,
+      isKeyPath: isKeyPath,
+    );
+  }
+
+  /// Check if this path is eligible to be a key-path (singlesig, no timelocks)
+  bool get canBeKeyPath => threshold == 1 && mfps.length == 1 && relTimelock == 0 && absTimelock == 0;
+}
+
+// --- States ---
+
+sealed class ProjectDetailState {}
+
+class ProjectDetailLoading extends ProjectDetailState {}
+
+class ProjectDetailLoaded extends ProjectDetailState {
+  final Project project;
+  final List<ProjectKey> keys;
+  final List<ProjectSpendPath> spendPaths;
+  final List<EditableSpendPath>? editedPaths;
+  final List<EditableKey>? editedKeys;
+  final APIWalletType? editedWalletType;
+  final bool isDirty;
+  final bool keysExpanded;
+  final bool spendPathsExpanded;
+  final String? errorMessage;
+
+  ProjectDetailLoaded({
+    required this.project,
+    required this.keys,
+    required this.spendPaths,
+    this.editedPaths,
+    this.editedKeys,
+    this.editedWalletType,
+    this.isDirty = false,
+    this.keysExpanded = false,
+    this.spendPathsExpanded = true,
+    this.errorMessage,
+  });
+
+  bool get isEditing => editedPaths != null && editedKeys != null;
+
+  ProjectDetailLoaded copyWith({
+    List<EditableSpendPath>? editedPaths,
+    List<EditableKey>? editedKeys,
+    APIWalletType? editedWalletType,
+    bool? isDirty,
+    bool? keysExpanded,
+    bool? spendPathsExpanded,
+    String? errorMessage,
+    bool clearError = false,
+  }) {
+    return ProjectDetailLoaded(
+      project: project,
+      keys: keys,
+      spendPaths: spendPaths,
+      editedPaths: editedPaths ?? this.editedPaths,
+      editedKeys: editedKeys ?? this.editedKeys,
+      editedWalletType: editedWalletType ?? this.editedWalletType,
+      isDirty: isDirty ?? this.isDirty,
+      keysExpanded: keysExpanded ?? this.keysExpanded,
+      spendPathsExpanded: spendPathsExpanded ?? this.spendPathsExpanded,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+    );
+  }
+}
+
+class ProjectDetailError extends ProjectDetailState {
+  final String message;
+  ProjectDetailError(this.message);
+}
+
+// --- Cubit ---
+
+class ProjectDetailCubit extends Cubit<ProjectDetailState> {
+  final AppDatabase _db;
+  final int projectId;
+
+  final Map<String, Color> _mfpColorMap = {};
+
+  static const List<Color> _palette = [
+    Color(0xFFE53935), // red 600
+    Color(0xFF43A047), // green 600
+    Color(0xFF1E88E5), // blue 600
+    Color(0xFFFFB300), // amber 600
+    Color(0xFF00ACC1), // cyan 600
+    Color(0xFF8E24AA), // purple 600
+    Color(0xFFFB8C00), // orange 600
+    Color(0xFF7CB342), // lightGreen 600
+    Color(0xFF00897B), // teal 600
+    Color(0xFF3949AB), // indigo 600
+    Color(0xFF5E35B1), // deepPurple 600
+    Color(0xFFD81B60), // pink 600
+    Color(0xFFFF7043), // deepOrange 400
+    Color(0xFFFDD835), // yellow 700
+    Color(0xFFC0CA33), // lime 700
+    Color(0xFF2E7D32), // green 800
+    Color(0xFF26A69A), // teal 400
+    Color(0xFF00838F), // cyan 800
+    Color(0xFF1565C0), // blue 800
+    Color(0xFF29B6F6), // lightBlue 400
+    Color(0xFF9FA8DA), // indigo 300
+    Color(0xFFCE93D8), // purple 300
+    Color(0xFFF48FB1), // pink 300
+    Color(0xFFE57373), // red 300
+  ];
+
+  ProjectDetailCubit(this._db, this.projectId)
+      : super(ProjectDetailLoading()) {
+    load();
+  }
+
+  Color getMfpColor(String mfp) {
+    return _mfpColorMap.putIfAbsent(mfp, () {
+      return _palette[_mfpColorMap.length % _palette.length];
+    });
+  }
+
+  Future<void> load() async {
+    try {
+      // Preserve expansion states if reloading
+      final currentState = state;
+      final preserveKeysExpanded = currentState is ProjectDetailLoaded
+          ? currentState.keysExpanded
+          : false;
+      final preserveSpendPathsExpanded = currentState is ProjectDetailLoaded
+          ? currentState.spendPathsExpanded
+          : true;
+
+      emit(ProjectDetailLoading());
+      final project = await _db.getProject(projectId);
+      final keys = await _db.getKeysForProject(projectId);
+      final spendPaths = await _db.getSpendPathsForProject(projectId);
+
+      // Build color map from keys
+      for (final key in keys) {
+        getMfpColor(key.mfp);
+      }
+
+      emit(ProjectDetailLoaded(
+        project: project,
+        keys: keys,
+        spendPaths: spendPaths,
+        keysExpanded: preserveKeysExpanded,
+        spendPathsExpanded: preserveSpendPathsExpanded,
+      ));
+
+      // Auto-enter edit mode for empty projects
+      if (project.descriptor.isEmpty) {
+        enterEditMode();
+      }
+    } catch (e) {
+      emit(ProjectDetailError(formatRustError(e)));
+    }
+  }
+
+  void toggleKeysExpanded(bool expanded) {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
+    emit(s.copyWith(keysExpanded: expanded));
+  }
+
+  void toggleSpendPathsExpanded(bool expanded) {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
+    emit(s.copyWith(spendPathsExpanded: expanded));
+  }
+
+  Future<void> updateProjectName(String name) async {
+    await (_db.update(_db.projects)
+          ..where((t) => t.id.equals(projectId)))
+        .write(ProjectsCompanion(
+      name: Value(name),
+      updatedAt: Value(DateTime.now()),
+    ));
+    await load();
+  }
+
+  Future<void> updateKeyName(int keyId, String? name) async {
+    await _db.updateKeyName(keyId, name);
+    await load();
+  }
+
+  Future<void> updateSpendPathName(int pathId, String? name) async {
+    await _db.updateSpendPathName(pathId, name);
+    await load();
+  }
+
+  // --- Edit mode ---
+
+  void enterEditMode() {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.isEditing) return;
+    final editablePaths = s.spendPaths.map(EditableSpendPath.fromDb).toList();
+    final editableKeys = s.keys.map(EditableKey.fromDb).toList();
+    final currentWalletType = APIWalletType.values.byName(s.project.walletType);
+    emit(s.copyWith(
+      editedPaths: editablePaths,
+      editedKeys: editableKeys,
+      editedWalletType: currentWalletType,
+      isDirty: false,
+    ));
+  }
+
+  void discardEdits() {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
+    emit(ProjectDetailLoaded(
+      project: s.project,
+      keys: s.keys,
+      spendPaths: s.spendPaths,
+      keysExpanded: s.keysExpanded,
+      spendPathsExpanded: s.spendPathsExpanded,
+    ));
+  }
+
+  void updatePathThreshold(int pathIndex, int value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final updatedPath = paths[pathIndex].copyWith(threshold: value);
+
+    // If path is no longer eligible for keypath, unmark it
+    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
+      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
+    } else {
+      paths[pathIndex] = updatedPath;
+    }
+
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void addMfpToPath(int pathIndex, String mfp) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final newMfps = List.of(paths[pathIndex].mfps)..add(mfp);
+    final updatedPath = paths[pathIndex].copyWith(mfps: newMfps);
+
+    // If path is no longer eligible for keypath, unmark it
+    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
+      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
+    } else {
+      paths[pathIndex] = updatedPath;
+    }
+
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void removeMfpFromPath(int pathIndex, String mfp) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final newMfps = List.of(paths[pathIndex].mfps)..remove(mfp);
+    paths[pathIndex] = paths[pathIndex].copyWith(mfps: newMfps);
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathRelTimelock(int pathIndex, int value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final updatedPath = paths[pathIndex].copyWith(relTimelock: value);
+
+    // If path is no longer eligible for keypath, unmark it
+    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
+      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
+    } else {
+      paths[pathIndex] = updatedPath;
+    }
+
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathAbsTimelock(int pathIndex, int value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final updatedPath = paths[pathIndex].copyWith(absTimelock: value);
+
+    // If path is no longer eligible for keypath, unmark it
+    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
+      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
+    } else {
+      paths[pathIndex] = updatedPath;
+    }
+
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathIsKeyPath(int pathIndex, bool value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+
+    // If marking as key-path, unmark all other paths
+    if (value) {
+      for (int i = 0; i < paths.length; i++) {
+        if (i != pathIndex) {
+          paths[i] = paths[i].copyWith(isKeyPath: false);
+        }
+      }
+    }
+
+    paths[pathIndex] = paths[pathIndex].copyWith(isKeyPath: value);
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathCustomName(int pathIndex, String? customName) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final oldPath = paths[pathIndex];
+    paths[pathIndex] = EditableSpendPath(
+      originalDbId: oldPath.originalDbId,
+      threshold: oldPath.threshold,
+      mfps: oldPath.mfps,
+      relTimelock: oldPath.relTimelock,
+      absTimelock: oldPath.absTimelock,
+      customName: customName,
+      isKeyPath: oldPath.isKeyPath,
+    );
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  /// Update the wallet type in edit mode
+  void updateWalletType(APIWalletType walletType) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || !s.isEditing) return;
+
+    List<EditableSpendPath>? updatedPaths;
+    final currentWalletType = s.editedWalletType ?? APIWalletType.values.byName(s.project.walletType);
+
+    // When changing wallet type, handle keypath states
+    if (s.editedPaths != null) {
+      // If changing FROM Taproot to another type, clear all keypath flags
+      if (currentWalletType == APIWalletType.p2Tr && walletType != APIWalletType.p2Tr) {
+        updatedPaths = s.editedPaths!
+            .map((p) => p.copyWith(isKeyPath: false))
+            .toList();
+      }
+      // If changing TO Taproot from another type, ensure all keypath flags start as false
+      // (user can manually select which one should be keypath)
+      else if (currentWalletType != APIWalletType.p2Tr && walletType == APIWalletType.p2Tr) {
+        updatedPaths = s.editedPaths!
+            .map((p) => p.copyWith(isKeyPath: false))
+            .toList();
+      }
+    }
+
+    emit(s.copyWith(
+      editedWalletType: walletType,
+      editedPaths: updatedPaths,
+      isDirty: true,
+    ));
+  }
+
+  /// Check if current spend paths represent single-sig (only one path with threshold=1, mfps.length=1)
+  bool _isSingleSig(List<EditableSpendPath> paths) {
+    return paths.length == 1 &&
+           paths[0].threshold == 1 &&
+           paths[0].mfps.length == 1;
+  }
+
+  /// Get compatible wallet types based on current spend paths
+  List<APIWalletType> getCompatibleWalletTypes() {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) {
+      return [];
+    }
+
+    final isSingleSig = _isSingleSig(s.editedPaths!);
+
+    if (isSingleSig) {
+      // Single-sig: all types are compatible
+      return [
+        APIWalletType.p2Wpkh,
+        APIWalletType.p2ShWpkh,
+        APIWalletType.p2Wsh,
+        APIWalletType.p2ShWsh,
+        APIWalletType.p2Sh,
+        APIWalletType.p2Tr,
+      ];
+    } else {
+      // Multi-sig: only complex types are compatible (no wpkh)
+      return [
+        APIWalletType.p2Wsh,
+        APIWalletType.p2ShWsh,
+        APIWalletType.p2Sh,
+        APIWalletType.p2Tr,
+      ];
+    }
+  }
+
+  void addSpendPath() {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!)..add(EditableSpendPath());
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void removeSpendPath(int pathIndex) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!)..removeAt(pathIndex);
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  // --- Key management methods ---
+
+  Future<void> addKey(EditableKey key) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedKeys == null) return;
+
+    // Save the key to the database immediately
+    final keyId = await _db.into(_db.projectKeys).insert(
+      ProjectKeysCompanion.insert(
+        projectId: projectId,
+        mfp: key.mfp,
+        derivationPath: key.derivationPath,
+        xpub: key.xpub,
+        customName: Value(key.customName),
+      ),
+    );
+
+    // Update the editable key with the database ID
+    final keyWithId = EditableKey(
+      originalDbId: keyId,
+      mfp: key.mfp,
+      derivationPath: key.derivationPath,
+      xpub: key.xpub,
+      customName: key.customName,
+    );
+
+    final keys = List.of(s.editedKeys!)..add(keyWithId);
+    emit(s.copyWith(editedKeys: keys, isDirty: true));
+  }
+
+  Future<void> removeKey(String mfp) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedKeys == null || s.editedPaths == null) return;
+
+    // Note: This validation is also done in the UI (button is disabled),
+    // but we keep it here as defensive programming
+    final isInUse = s.editedPaths!.any((path) => path.mfps.contains(mfp));
+    if (isInUse) return;
+
+    // Find the key to get its database ID
+    final keyToRemove = s.editedKeys!.firstWhere((k) => k.mfp == mfp);
+
+    // Remove from database if it has a database ID
+    if (keyToRemove.originalDbId != null) {
+      await (_db.delete(_db.projectKeys)
+            ..where((k) => k.id.equals(keyToRemove.originalDbId!)))
+          .go();
+    }
+
+    final keys = List.of(s.editedKeys!)..removeWhere((k) => k.mfp == mfp);
+    emit(s.copyWith(editedKeys: keys, isDirty: true));
+  }
+
+  Future<void> updateKeyCustomName(String mfp, String? customName) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedKeys == null) return;
+
+    final keys = List.of(s.editedKeys!);
+    final index = keys.indexWhere((k) => k.mfp == mfp);
+    if (index == -1) return;
+
+    final oldKey = keys[index];
+
+    // Update in database if it has a database ID
+    if (oldKey.originalDbId != null) {
+      await (_db.update(_db.projectKeys)
+            ..where((k) => k.id.equals(oldKey.originalDbId!)))
+          .write(ProjectKeysCompanion(
+        customName: Value(customName),
+      ));
+    }
+
+    keys[index] = EditableKey(
+      originalDbId: oldKey.originalDbId,
+      mfp: oldKey.mfp,
+      derivationPath: oldKey.derivationPath,
+      xpub: oldKey.xpub,
+      customName: customName,
+    );
+    emit(s.copyWith(editedKeys: keys, isDirty: true));
+  }
+
+  Future<void> regenerateDescriptor() async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null || s.editedKeys == null) return;
+
+    try {
+      // Validate all paths before proceeding
+      final validationErrors = <String>[];
+      final walletType = s.editedWalletType ?? APIWalletType.values.byName(s.project.walletType);
+      final isTaproot = walletType == APIWalletType.p2Tr;
+
+      // Validate that all referenced MFPs exist in edited keys
+      final availableMfps = s.editedKeys!.map((k) => k.mfp).toSet();
+      for (var i = 0; i < s.editedPaths!.length; i++) {
+        final path = s.editedPaths![i];
+        if (path.mfps.isEmpty) {
+          validationErrors.add('Spend path ${i + 1}: Must have at least one key');
+        }
+        // Check that all MFPs in path exist in available keys
+        for (var mfp in path.mfps) {
+          if (!availableMfps.contains(mfp)) {
+            validationErrors.add('Spend path ${i + 1}: Key $mfp not found');
+          }
+        }
+        if (path.threshold < 1) {
+          validationErrors.add('Spend path ${i + 1}: Threshold must be at least 1');
+        }
+        if (path.threshold > path.mfps.length) {
+          validationErrors
+              .add('Spend path ${i + 1}: Threshold cannot exceed number of keys');
+        }
+      }
+
+      // Taproot-specific validation: ensure only one key-path
+      if (isTaproot) {
+        final keyPathCount = s.editedPaths!.where((p) => p.isKeyPath).length;
+        if (keyPathCount > 1) {
+          validationErrors.add(
+            'Only one spend path can be marked as key-path in Taproot descriptors.'
+          );
+        }
+      }
+
+      if (validationErrors.isNotEmpty) {
+        // Show validation errors as toast, don't change state
+        emit(s.copyWith(errorMessage: validationErrors.join('\n')));
+        return;
+      }
+
+      emit(ProjectDetailLoading());
+
+      // Build maps to preserve labels across regeneration
+      // 1. Spend path names (by rustId)
+      final editedPathNames = <int, String?>{};
+      for (final ep in s.editedPaths!) {
+        if (ep.customName != null) {
+          final rustId = await calculateSpendPathId(
+            threshold: ep.threshold,
+            mfps: ep.mfps,
+            relTimelock: ep.relTimelock,
+            absTimelock: ep.absTimelock,
+          );
+          editedPathNames[rustId] = ep.customName;
+        }
+      }
+
+      // 2. Key names (by MFP) - including edited names not yet saved
+      final editedKeyNames = <String, String?>{
+        for (final k in s.editedKeys!) k.mfp: k.customName,
+      };
+
+      // Convert edited keys to API keys (only keys used in spend paths)
+      final usedMfps = s.editedPaths!
+          .expand((p) => p.mfps)
+          .toSet();
+      final apiKeys = s.editedKeys!
+          .where((k) => usedMfps.contains(k.mfp))
+          .map((k) => APIPubKey(
+                mfp: k.mfp,
+                derivationPath: k.derivationPath,
+                xpub: k.xpub,
+              ))
+          .toList();
+
+      // Convert edited paths to API spend path defs
+      final apiPaths = s.editedPaths!
+          .map((ep) => APISpendPathDef(
+                threshold: ep.threshold,
+                mfps: ep.mfps,
+                relTimelock: ep.relTimelock,
+                absTimelock: ep.absTimelock,
+                isKeyPath: ep.isKeyPath,
+              ))
+          .toList();
+
+      // Build new descriptor via Rust (walletType already declared above)
+      final newDescriptor = await buildDescriptor(
+        walletType: walletType,
+        keys: apiKeys,
+        spendPaths: apiPaths,
+      );
+
+      // Re-analyze and persist, passing edited names and unused keys
+      final unusedKeys = s.editedKeys!
+          .where((k) => !usedMfps.contains(k.mfp))
+          .toList();
+
+      await updateDescriptorAndReanalyze(
+        newDescriptor,
+        editedPathNames: editedPathNames,
+        editedKeyNames: editedKeyNames,
+        unusedKeys: unusedKeys,
+      );
+    } catch (e) {
+      emit(ProjectDetailError(formatRustError(e)));
+    }
+  }
+
+  Future<void> updateDescriptorAndReanalyze(
+    String newDescriptor, {
+    Map<int, String?>? editedPathNames,
+    Map<String, String?>? editedKeyNames,
+    List<EditableKey>? unusedKeys,
+  }) async {
+    try {
+      emit(ProjectDetailLoading());
+
+      // Load existing keys and paths to preserve custom names
+      final existingKeys = await _db.getKeysForProject(projectId);
+      final existingPaths = await _db.getSpendPathsForProject(projectId);
+
+      // Build maps: MFP -> customName for keys
+      final keyNameMap = <String, String?>{
+        for (var k in existingKeys) k.mfp: k.customName,
+      };
+
+      // Build map for spend paths: rustId -> customName
+      // (paths are identified by their rustId which comes from Rust analysis)
+      final pathNameMap = <int, String?>{
+        for (var p in existingPaths) p.rustId: p.customName,
+      };
+
+      final result =
+          await analyzeDescriptor(descriptor: newDescriptor.trim());
+
+      // Create key entries, preserving customName from:
+      // 1. Edited key names (priority - includes unsaved edits)
+      // 2. Existing DB key names (fallback)
+      final keyEntries = result.keys
+          .map((k) {
+            final customName = editedKeyNames?.containsKey(k.mfp) == true
+                ? editedKeyNames![k.mfp]
+                : keyNameMap[k.mfp];
+            return ProjectKeysCompanion.insert(
+              projectId: projectId,
+              mfp: k.mfp,
+              derivationPath: k.derivationPath,
+              xpub: k.xpub,
+              customName: Value(customName),
+            );
+          })
+          .toList();
+
+      // Add unused keys (keys not in any spend path but kept in project)
+      if (unusedKeys != null) {
+        for (final key in unusedKeys) {
+          keyEntries.add(ProjectKeysCompanion.insert(
+            projectId: projectId,
+            mfp: key.mfp,
+            derivationPath: key.derivationPath,
+            xpub: key.xpub,
+            customName: Value(key.customName),
+          ));
+        }
+      }
+
+      // Create path entries, preserving customName from:
+      // 1. Existing DB paths (by rustId)
+      // 2. Edited paths (by calculated rustId) if provided
+      final pathEntries = result.spendPaths.map((sp) {
+        String? customName;
+
+        // First, try to match by rustId from existing DB paths
+        customName = pathNameMap[sp.id];
+
+        // If not found and we have edited path names, use them directly
+        // (they're already keyed by rustId)
+        if (customName == null && editedPathNames != null) {
+          customName = editedPathNames[sp.id];
+        }
+
+        return ProjectSpendPathsCompanion.insert(
+          projectId: projectId,
+          rustId: sp.id,
+          threshold: sp.threshold,
+          mfps: jsonEncode(sp.mfps),
+          relTimelock: sp.relTimelock,
+          absTimelock: sp.absTimelock,
+          wuBase: sp.wuBase,
+          wuIn: sp.wuIn,
+          wuOut: sp.wuOut,
+          trDepth: sp.trDepth,
+          vbSweep: sp.vbSweep,
+          customName: Value(customName),
+        );
+      }).toList();
+
+      await _db.replaceAnalysisData(
+        projectId: projectId,
+        projectUpdate: ProjectsCompanion(
+          descriptor: Value(result.descriptor),
+          network: Value(result.network.name),
+          walletType: Value(result.walletType.name),
+          updatedAt: Value(DateTime.now()),
+        ),
+        newKeys: keyEntries,
+        newPaths: pathEntries,
+      );
+
+      _mfpColorMap.clear();
+      await load();
+    } catch (e) {
+      // Show error as toast, restore previous state
+      final currentState = state;
+      if (currentState is ProjectDetailLoaded) {
+        emit(currentState.copyWith(errorMessage: formatRustError(e)));
+      } else {
+        // Fallback to error state if not in loaded state
+        emit(ProjectDetailError(formatRustError(e)));
+      }
+    }
+  }
+
+  void clearError() {
+    final s = state;
+    if (s is ProjectDetailLoaded && s.errorMessage != null) {
+      emit(s.copyWith(clearError: true));
+    }
+  }
+}

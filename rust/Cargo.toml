@@ -1,0 +1,21 @@
+[package]
+name = "rust_lib_deadbolt"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.11.1"
+bdk_wallet = { version = "2.3.0", features = ["rusqlite", "keys-bip39", "compiler"] }
+anyhow = {version = "1.0", features = ["backtrace"]}
+rand = { version = "0.9.2", features = ["os_rng"] }
+secp256k1 = "0.29.1"
+thiserror = "2.0.18"
+bdk_electrum = "0.23.2"
+regex = "1.12.2"
+hex = "0.4.3"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

@@ -1,0 +1,233 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FLUTTER_VERSION: 'stable'
+
+jobs:
+  build-release:
+    name: Build Release Binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+            artifact-name: deadbolt-android.apk
+            build-command: flutter build apk --release
+            artifact-path: build/app/outputs/flutter-apk/app-release.apk
+
+          - os: ubuntu-latest
+            platform: linux
+            artifact-name: deadbolt-linux-x64.tar.gz
+            build-command: flutter build linux --release
+            artifact-path: deadbolt-linux-x64.tar.gz
+
+          - os: windows-latest
+            platform: windows
+            artifact-name: deadbolt-windows-x64.zip
+            build-command: flutter build windows --release
+            artifact-path: deadbolt-windows-x64.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Android-specific setup
+      - name: Setup Java (Android)
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install Android NDK
+        if: matrix.platform == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+
+      # Linux-specific setup
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      # Common setup for all platforms
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      # Build
+      - name: Build ${{ matrix.platform }}
+        run: ${{ matrix.build-command }}
+
+      # Package Linux tarball
+      - name: Package Linux tarball
+        if: matrix.platform == 'linux'
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../../../${{ matrix.artifact-name }} .
+
+      # Package Windows ZIP
+      - name: Package Windows ZIP
+        if: matrix.platform == 'windows'
+        run: |
+          cd build/windows/x64/runner/Release
+          Compress-Archive -Path * -DestinationPath ../../../../../${{ matrix.artifact-name }}
+
+      # Rename Android APK
+      - name: Copy Android APK
+        if: matrix.platform == 'android'
+        run: cp ${{ matrix.artifact-path }} ${{ matrix.artifact-name }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-build
+          path: ${{ matrix.artifact-name }}
+          retention-days: 1
+
+  create-release:
+    name: Create Signed Release
+    needs: build-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Organize artifacts
+        run: |
+          mkdir -p release
+          find release-artifacts -type f -exec cp {} release/ \;
+          ls -lh release/
+
+      - name: Generate SHA256 checksums
+        working-directory: release
+        run: |
+          sha256sum *.apk *.tar.gz *.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          echo "GPG keys imported:"
+          gpg --list-secret-keys --keyid-format=long
+
+      - name: Sign checksums with GPG
+        working-directory: release
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          export GPG_TTY=$(tty)
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+          echo "Signature created:"
+          ls -lh SHA256SUMS.asc
+          gpg --verify SHA256SUMS.asc SHA256SUMS
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create release notes
+        id: release_notes
+        run: |
+          cat << 'EOF' > release-notes.md
+          ## Deadbolt ${{ steps.version.outputs.version }}
+
+          ### Release Files
+
+          - **deadbolt-android.apk** - Android application
+          - **deadbolt-linux-x64.tar.gz** - Linux x64 binary
+          - **deadbolt-windows-x64.zip** - Windows x64 binary
+          - **SHA256SUMS** - Checksums for all binaries
+          - **SHA256SUMS.asc** - GPG signature of checksums
+
+          ### Verification
+
+          **IMPORTANT**: Always verify releases before use. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for detailed verification instructions.
+
+          Quick verification:
+
+          ```bash
+          # Import maintainer's public key (first time only)
+          curl -sL https://github.com/${{ github.repository }}/raw/main/GPG_PUBLIC_KEY.asc | gpg --import
+
+          # Download release files
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SHA256SUMS
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SHA256SUMS.asc
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/deadbolt-<platform>.<ext>
+
+          # Verify GPG signature
+          gpg --verify SHA256SUMS.asc SHA256SUMS
+
+          # Verify checksum
+          sha256sum -c SHA256SUMS --ignore-missing
+          ```
+
+          ### Installation
+
+          **Android**: Install the APK directly or via ADB:
+          ```bash
+          adb install deadbolt-android.apk
+          ```
+
+          **Linux**:
+          ```bash
+          tar -xzf deadbolt-linux-x64.tar.gz
+          cd deadbolt
+          ./deadbolt
+          ```
+
+          **Windows**:
+          1. Extract `deadbolt-windows-x64.zip`
+          2. Run `deadbolt.exe`
+
+          ---
+
+          **Security Notice**: This release is GPG-signed by the Deadbolt maintainer. Never run binaries without verifying signatures first.
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Deadbolt ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            release/deadbolt-android.apk
+            release/deadbolt-linux-x64.tar.gz
+            release/deadbolt-windows-x64.zip
+            release/SHA256SUMS
+            release/SHA256SUMS.asc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
