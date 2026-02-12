@@ -1,0 +1,105 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Rust
+/rust/target/
+/rust/Cargo.lock
+rust/**/*.rs.bk
+*.pdb
+
+# Claude Code / AI Development Tools
+GETTING_STARTED.md
+CLAUDE.md
+.claude/
+*.jsonl
+
+# GPG / Security
+*.key
+*.gpg
+*_PRIVATE_KEY*
+.gnupg/
+
+# Local release builds
+/release/
+*.apk
+*.tar.gz
+*.zip
+SHA256SUMS
+SHA256SUMS.asc
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*~
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# OS specific
+Thumbs.db
+desktop.ini
+.Spotlight-V100
+.Trashes
+
+# IDE
+.vscode/
+*.code-workspace
+.fleet/
+
+# Test coverage
+lcov.info
+/test/.test_coverage.dart
+
+# Database files (drift generates these during dev)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
