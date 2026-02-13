@@ -67,12 +67,16 @@ impl PubKey {
     pub fn derivation_path(&self) -> Result<DerivationPath> {
         // Get the origin/master derivation path (the fixed part before wildcards)
         match &self.inner {
-            DescriptorPublicKey::XPub(k) => {
-                Ok(k.origin.as_ref().map(|(_, path)| path.clone()).unwrap_or_default())
-            }
-            DescriptorPublicKey::MultiXPub(k) => {
-                Ok(k.origin.as_ref().map(|(_, path)| path.clone()).unwrap_or_default())
-            }
+            DescriptorPublicKey::XPub(k) => Ok(k
+                .origin
+                .as_ref()
+                .map(|(_, path)| path.clone())
+                .unwrap_or_default()),
+            DescriptorPublicKey::MultiXPub(k) => Ok(k
+                .origin
+                .as_ref()
+                .map(|(_, path)| path.clone())
+                .unwrap_or_default()),
             DescriptorPublicKey::Single(_) => Err(WalletError::UnsupportedKey.into()),
         }
     }
@@ -124,7 +128,7 @@ impl PubKey {
     /// that uses APIWallet. Internally delegates to extract_from_descriptor().
     pub fn extract_pub_keys(wallet: &Wallet) -> Result<Vec<PubKey>> {
         let descriptor = wallet.public_descriptor(KeychainKind::External);
-        Self::extract_from_descriptor(&descriptor)
+        Self::extract_from_descriptor(descriptor)
     }
 }
 

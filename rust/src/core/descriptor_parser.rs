@@ -88,9 +88,10 @@ impl DescriptorParser {
             Network::Testnet4,
             Network::Regtest,
         ] {
-            if let Ok(_) = Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
+            if Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
                 .network(network)
                 .create_wallet_no_persist()
+                .is_ok()
             {
                 return Ok(network);
             }
@@ -110,9 +111,10 @@ impl DescriptorParser {
             Network::Signet,
             Network::Regtest,
         ] {
-            if let Ok(_) = Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
+            if Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
                 .network(network)
                 .create_wallet_no_persist()
+                .is_ok()
             {
                 return Ok(network);
             }

@@ -41,35 +41,35 @@ pub enum WalletType {
 }
 
 impl CoreWallet {
-    pub fn new_temporal(network: Network, descriptor: &String) -> Result<CoreWallet> {
-        let wallet = Wallet::create_from_two_path_descriptor(descriptor.clone())
+    pub fn new_temporal(network: Network, descriptor: &str) -> Result<CoreWallet> {
+        let wallet = Wallet::create_from_two_path_descriptor(descriptor.to_owned())
             .network(network)
             .create_wallet_no_persist()?;
 
         Ok(CoreWallet {
-            descriptor: descriptor.clone(),
+            descriptor: descriptor.to_owned(),
             bdk_wallet: BDKWallet::Temporal(wallet),
             spend_paths: None,
-            keys: None
+            keys: None,
         })
     }
 
-    pub fn new_persisted(network: Network, descriptor: &String) -> Result<CoreWallet> {
+    pub fn new_persisted(network: Network, descriptor: &str) -> Result<CoreWallet> {
         let mut mem = Connection::open("")?;
 
-        let wallet = Wallet::create_from_two_path_descriptor(descriptor.clone())
+        let wallet = Wallet::create_from_two_path_descriptor(descriptor.to_owned())
             .network(network)
             .create_wallet(&mut mem)?;
 
         Ok(CoreWallet {
-            descriptor: descriptor.clone(),
+            descriptor: descriptor.to_owned(),
             bdk_wallet: BDKWallet::Rusqlite(wallet),
             spend_paths: None,
-            keys:None
+            keys: None,
         })
     }
 
-    pub fn network_from_descriptor(descriptor: &String) -> Result<Network> {
+    pub fn network_from_descriptor(descriptor: &str) -> Result<Network> {
         // NEW: Use DescriptorParser for network detection
         // This eliminates up to 5 wallet creations (one per network variant)
         // For mainnet descriptors: 0 wallets created (uses xpub prefix)
@@ -107,7 +107,7 @@ impl CoreWallet {
 
     pub fn spend_paths(&mut self) -> Result<&Vec<SpendPath>> {
         if self.spend_paths.is_none() {
-            self.spend_paths = Some(SpendPath::extract_spend_paths(&self.wallet())?);
+            self.spend_paths = Some(SpendPath::extract_spend_paths(self.wallet())?);
         }
         Ok(self
             .spend_paths
@@ -117,11 +117,8 @@ impl CoreWallet {
 
     pub fn keys(&mut self) -> Result<&Vec<PubKey>> {
         if self.keys.is_none() {
-            self.keys = Some(PubKey::extract_pub_keys(&self.wallet())?);
+            self.keys = Some(PubKey::extract_pub_keys(self.wallet())?);
         }
-        Ok(self
-            .keys
-            .as_ref()
-            .ok_or(WalletError::MissingFingerprint)?)
+        Ok(self.keys.as_ref().ok_or(WalletError::MissingFingerprint)?)
     }
 }
