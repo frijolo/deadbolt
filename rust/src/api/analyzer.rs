@@ -92,10 +92,14 @@ pub fn validate_key(
 
     // Validate MFP format (8 hex characters)
     if mfp.len() != 8 {
-        return Err(anyhow::anyhow!("Master fingerprint must be exactly 8 characters"));
+        return Err(anyhow::anyhow!(
+            "Master fingerprint must be exactly 8 characters"
+        ));
     }
     if !mfp.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(anyhow::anyhow!("Master fingerprint must contain only hexadecimal characters (0-9, a-f)"));
+        return Err(anyhow::anyhow!(
+            "Master fingerprint must contain only hexadecimal characters (0-9, a-f)"
+        ));
     }
 
     // Try to create the PubKey (validates format)
@@ -111,7 +115,6 @@ pub fn validate_key(
             Network::Testnet4 => "tpub (testnet4)",
             Network::Signet => "tpub (signet)",
             Network::Regtest => "tpub (regtest)",
-            _ => "appropriate prefix for this network",
         };
         return Err(anyhow::anyhow!(
             "Key is not compatible with {} network. Expected {}",
@@ -131,7 +134,6 @@ fn network_display_name(network: bdk_wallet::bitcoin::Network) -> &'static str {
         Network::Testnet4 => "testnet4",
         Network::Signet => "signet",
         Network::Regtest => "regtest",
-        _ => "unknown",
     }
 }
 
@@ -158,7 +160,10 @@ mod tests {
         assert_eq!(result.keys[0].mfp, "c449c5c5");
         assert_eq!(result.keys[1].mfp, "c61af686");
 
-        let sp = result.spend_paths.first().ok_or(WalletError::MissingPolicy)?;
+        let sp = result
+            .spend_paths
+            .first()
+            .ok_or(WalletError::MissingPolicy)?;
         assert_eq!(sp.threshold, 2);
         assert_eq!(sp.mfps.len(), 2);
         assert_eq!((sp.wu_base + sp.wu_in + sp.wu_out) / 4, 149);

@@ -10,8 +10,7 @@ use crate::core::pubkey::PubKey;
 use crate::core::wallet::WalletType;
 
 /// BIP341 NUMS (nothing-up-my-sleeve) point for unspendable taproot internal key
-const NUMS_KEY: &str =
-    "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+const NUMS_KEY: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
 /// Definition of a spend path for descriptor building
 pub struct SpendPathDef {
@@ -47,9 +46,7 @@ pub fn build_descriptor(
         WalletType::P2SH_WSH => build_sh_wsh(keys, spend_paths),
         WalletType::P2TR => build_tr(keys, spend_paths),
         WalletType::P2SH => build_sh(keys, spend_paths),
-        WalletType::Unknown => {
-            Err(WalletError::BuilderError("Unknown wallet type".into()).into())
-        }
+        WalletType::Unknown => Err(WalletError::BuilderError("Unknown wallet type".into()).into()),
     }
 }
 
@@ -72,9 +69,7 @@ fn key_with_derivation(key: &PubKey, branch_idx: usize) -> String {
 fn resolve_key<'a>(mfp: &str, keys: &'a [PubKey]) -> Result<&'a PubKey> {
     keys.iter()
         .find(|k| k.mfp().to_string() == mfp)
-        .ok_or_else(|| {
-            WalletError::BuilderError(format!("Key not found for MFP: {}", mfp)).into()
-        })
+        .ok_or_else(|| WalletError::BuilderError(format!("Key not found for MFP: {}", mfp)).into())
 }
 
 /// Resolve MFPs to key strings with standard <0;1>/* wildcard
@@ -97,11 +92,7 @@ fn parse_dpk(key_str: &str, mfp: &str) -> Result<DescriptorPublicKey> {
 // --- Simple descriptor types (single path, no policy compiler) ---
 
 /// Single-key types: pkh(...), wpkh(...)
-fn build_single_key(
-    prefix: &str,
-    keys: &[PubKey],
-    spend_paths: &[SpendPathDef],
-) -> Result<String> {
+fn build_single_key(prefix: &str, keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
     let sp = &spend_paths[0];
     if sp.threshold != 1 || sp.mfps.len() != 1 {
         return Err(WalletError::BuilderError(format!(
@@ -129,9 +120,7 @@ fn build_sh_wpkh(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String
 
 /// Check if spend paths represent a simple multisig (1 path, no timelocks)
 fn is_simple_multisig(spend_paths: &[SpendPathDef]) -> bool {
-    spend_paths.len() == 1
-        && spend_paths[0].rel_timelock == 0
-        && spend_paths[0].abs_timelock == 0
+    spend_paths.len() == 1 && spend_paths[0].rel_timelock == 0 && spend_paths[0].abs_timelock == 0
 }
 
 // --- Complex descriptor types (policy compiler) ---
@@ -202,8 +191,7 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
     // Validate key-path if present
     if let Some(&idx) = key_path_indices.first() {
         let kp = &spend_paths[idx];
-        if kp.threshold != 1 || kp.mfps.len() != 1 || kp.rel_timelock != 0 || kp.abs_timelock != 0
-        {
+        if kp.threshold != 1 || kp.mfps.len() != 1 || kp.rel_timelock != 0 || kp.abs_timelock != 0 {
             return Err(WalletError::BuilderError(
                 "Key-path must be singlesig with no timelocks".into(),
             )
@@ -239,7 +227,8 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         let descriptor_str = format!("tr({})", internal_key_str);
 
         // Validate by parsing and return with checksum
-        let validated: Descriptor<DescriptorPublicKey> = descriptor_str.parse()
+        let validated: Descriptor<DescriptorPublicKey> = descriptor_str
+            .parse()
             .map_err(|e| WalletError::BuilderError(format!("Invalid descriptor: {}", e)))?;
 
         Ok(validated.to_string())
@@ -261,7 +250,8 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         };
 
         // Validate by parsing with BDK and return with checksum
-        let validated: Descriptor<DescriptorPublicKey> = descriptor_str.parse()
+        let validated: Descriptor<DescriptorPublicKey> = descriptor_str
+            .parse()
             .map_err(|e| WalletError::BuilderError(format!("Invalid descriptor: {}", e)))?;
 
         Ok(validated.to_string())
@@ -275,15 +265,15 @@ fn build_taproot_script_path(
     keys: &[PubKey],
     branch_idx: usize,
 ) -> Result<String> {
-    use bdk_wallet::miniscript::{Tap, Miniscript};
+    use bdk_wallet::miniscript::{Miniscript, Tap};
 
     // Build policy for this single path
     let policy = build_path_policy(sp, keys, branch_idx)?;
 
     // Compile to miniscript using Tap context for Taproot
-    let miniscript: Miniscript<DescriptorPublicKey, Tap> =
-        policy.compile()
-            .map_err(|e| WalletError::BuilderError(format!("Failed to compile script path: {}", e)))?;
+    let miniscript: Miniscript<DescriptorPublicKey, Tap> = policy
+        .compile()
+        .map_err(|e| WalletError::BuilderError(format!("Failed to compile script path: {}", e)))?;
 
     Ok(miniscript.to_string())
 }
@@ -395,22 +385,17 @@ fn build_path_policy(
     };
 
     // Combine with timelocks using AND
-    let mut conditions: Vec<Arc<ConcretePolicy<DescriptorPublicKey>>> =
-        vec![Arc::new(keys_policy)];
+    let mut conditions: Vec<Arc<ConcretePolicy<DescriptorPublicKey>>> = vec![Arc::new(keys_policy)];
 
     if sp.rel_timelock > 0 {
         let rel = bdk_wallet::miniscript::RelLockTime::from_consensus(sp.rel_timelock)
-            .map_err(|e| {
-                WalletError::BuilderError(format!("Invalid relative timelock: {}", e))
-            })?;
+            .map_err(|e| WalletError::BuilderError(format!("Invalid relative timelock: {}", e)))?;
         conditions.push(Arc::new(ConcretePolicy::Older(rel)));
     }
 
     if sp.abs_timelock > 0 {
         let abs = bdk_wallet::miniscript::AbsLockTime::from_consensus(sp.abs_timelock)
-            .map_err(|e| {
-                WalletError::BuilderError(format!("Invalid absolute timelock: {}", e))
-            })?;
+            .map_err(|e| WalletError::BuilderError(format!("Invalid absolute timelock: {}", e)))?;
         conditions.push(Arc::new(ConcretePolicy::After(abs)));
     }
 
@@ -479,14 +464,14 @@ mod tests {
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: 144,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
         ];
 
@@ -511,14 +496,14 @@ mod tests {
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: 144,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
         ];
 
@@ -649,21 +634,21 @@ mod tests {
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 144, // ~1 day
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: 1008, // ~1 week
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
         ];
 
@@ -693,7 +678,7 @@ mod tests {
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
@@ -729,14 +714,14 @@ mod tests {
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: 144,
                 abs_timelock: 0,
-            is_key_path: false,
+                is_key_path: false,
             },
         ];
 
@@ -854,7 +839,9 @@ mod tests {
         assert_eq!(paths.len(), 2);
 
         // One should be key-path (no timelocks, trDepth=-1)
-        let key_path = paths.iter().find(|p| p.rel_timelock == 0 && p.abs_timelock == 0);
+        let key_path = paths
+            .iter()
+            .find(|p| p.rel_timelock == 0 && p.abs_timelock == 0);
         assert!(key_path.is_some());
 
         // One should be script path with timelock
@@ -869,15 +856,13 @@ mod tests {
         let keys = mainnet_keys();
 
         // Taproot with only key-path, no script tree
-        let spend_paths = vec![
-            SpendPathDef {
-                threshold: 1,
-                mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
-                is_key_path: true,
-            },
-        ];
+        let spend_paths = vec![SpendPathDef {
+            threshold: 1,
+            mfps: vec!["c449c5c5".into()],
+            rel_timelock: 0,
+            abs_timelock: 0,
+            is_key_path: true,
+        }];
 
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
         assert!(descriptor.starts_with("tr("));
@@ -902,48 +887,56 @@ mod tests {
         let keys = mainnet_keys();
 
         // Error: Multiple paths marked as key-path
-        let result = build_descriptor(WalletType::P2TR, &keys, &vec![
-            SpendPathDef {
-                threshold: 1,
-                mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
-                is_key_path: true,
-            },
-            SpendPathDef {
-                threshold: 1,
-                mfps: vec!["c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
-                is_key_path: true, // Second key-path - error
-            },
-        ]);
+        let result = build_descriptor(
+            WalletType::P2TR,
+            &keys,
+            &vec![
+                SpendPathDef {
+                    threshold: 1,
+                    mfps: vec!["c449c5c5".into()],
+                    rel_timelock: 0,
+                    abs_timelock: 0,
+                    is_key_path: true,
+                },
+                SpendPathDef {
+                    threshold: 1,
+                    mfps: vec!["c61af686".into()],
+                    rel_timelock: 0,
+                    abs_timelock: 0,
+                    is_key_path: true, // Second key-path - error
+                },
+            ],
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Only one"));
 
         // Error: Key-path with multisig
-        let result = build_descriptor(WalletType::P2TR, &keys, &vec![
-            SpendPathDef {
+        let result = build_descriptor(
+            WalletType::P2TR,
+            &keys,
+            &vec![SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: 0,
                 abs_timelock: 0,
                 is_key_path: true, // Multisig cannot be key-path
-            },
-        ]);
+            }],
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("singlesig"));
 
         // Error: Key-path with timelock
-        let result = build_descriptor(WalletType::P2TR, &keys, &vec![
-            SpendPathDef {
+        let result = build_descriptor(
+            WalletType::P2TR,
+            &keys,
+            &vec![SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: 144,
                 abs_timelock: 0,
                 is_key_path: true, // Timelock cannot be key-path
-            },
-        ]);
+            }],
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("no timelocks"));
     }
@@ -987,13 +980,17 @@ mod tests {
         let keys = mainnet_keys();
 
         // Error: no keys provided
-        let result = build_descriptor(WalletType::P2WSH, &[], &vec![SpendPathDef {
-            threshold: 1,
-            mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
-            is_key_path: false,
-        }]);
+        let result = build_descriptor(
+            WalletType::P2WSH,
+            &[],
+            &vec![SpendPathDef {
+                threshold: 1,
+                mfps: vec!["c449c5c5".into()],
+                rel_timelock: 0,
+                abs_timelock: 0,
+                is_key_path: false,
+            }],
+        );
         assert!(result.is_err());
 
         // Error: no spend paths provided
@@ -1001,33 +998,45 @@ mod tests {
         assert!(result.is_err());
 
         // Error: WPKH requires exactly 1 key with threshold 1
-        let result = build_descriptor(WalletType::P2WPKH, &keys, &vec![SpendPathDef {
-            threshold: 2,
-            mfps: vec!["c449c5c5".into(), "c61af686".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
-            is_key_path: false,
-        }]);
+        let result = build_descriptor(
+            WalletType::P2WPKH,
+            &keys,
+            &vec![SpendPathDef {
+                threshold: 2,
+                mfps: vec!["c449c5c5".into(), "c61af686".into()],
+                rel_timelock: 0,
+                abs_timelock: 0,
+                is_key_path: false,
+            }],
+        );
         assert!(result.is_err());
 
         // Error: Unknown wallet type
-        let result = build_descriptor(WalletType::Unknown, &keys, &vec![SpendPathDef {
-            threshold: 1,
-            mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
-            is_key_path: false,
-        }]);
+        let result = build_descriptor(
+            WalletType::Unknown,
+            &keys,
+            &vec![SpendPathDef {
+                threshold: 1,
+                mfps: vec!["c449c5c5".into()],
+                rel_timelock: 0,
+                abs_timelock: 0,
+                is_key_path: false,
+            }],
+        );
         assert!(result.is_err());
 
         // Error: MFP not found in keys
-        let result = build_descriptor(WalletType::P2WSH, &keys, &vec![SpendPathDef {
-            threshold: 1,
-            mfps: vec!["deadbeef".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
-            is_key_path: false,
-        }]);
+        let result = build_descriptor(
+            WalletType::P2WSH,
+            &keys,
+            &vec![SpendPathDef {
+                threshold: 1,
+                mfps: vec!["deadbeef".into()],
+                rel_timelock: 0,
+                abs_timelock: 0,
+                is_key_path: false,
+            }],
+        );
         assert!(result.is_err());
     }
 
@@ -1056,7 +1065,9 @@ mod tests {
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
 
         // Should use NUMS key (50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0)
-        assert!(descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"));
+        assert!(
+            descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0")
+        );
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         assert_eq!(analyzer.wallet_type(), WalletType::P2TR);
@@ -1068,12 +1079,19 @@ mod tests {
 
         // All paths should be script paths (tr_depth > 0, not 0 which is key-path)
         for path in &paths {
-            assert!(path.tr_depth > 0, "All paths should be script paths with NUMS");
+            assert!(
+                path.tr_depth > 0,
+                "All paths should be script paths with NUMS"
+            );
         }
 
         // Verify we have both keys represented
-        let has_key1 = paths.iter().any(|p| p.mfps.contains(&"c449c5c5".to_string()));
-        let has_key2 = paths.iter().any(|p| p.mfps.contains(&"c61af686".to_string()));
+        let has_key1 = paths
+            .iter()
+            .any(|p| p.mfps.contains(&"c449c5c5".to_string()));
+        let has_key2 = paths
+            .iter()
+            .any(|p| p.mfps.contains(&"c61af686".to_string()));
         assert!(has_key1, "Should have path with key c449c5c5");
         assert!(has_key2, "Should have path with key c61af686");
 
@@ -1108,7 +1126,6 @@ mod tests {
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         let paths = analyzer.spend_paths()?;
 
-
         // CRITICAL: Should have 2 paths, not lose any
         assert_eq!(paths.len(), 2, "Should preserve all input paths");
 
@@ -1119,11 +1136,15 @@ mod tests {
         }
 
         // Verify both original keys are present
-        let mfps: Vec<String> = paths.iter()
-            .flat_map(|p| p.mfps.clone())
-            .collect();
-        assert!(mfps.contains(&"c449c5c5".to_string()), "Should have key c449c5c5");
-        assert!(mfps.contains(&"c61af686".to_string()), "Should have key c61af686");
+        let mfps: Vec<String> = paths.iter().flat_map(|p| p.mfps.clone()).collect();
+        assert!(
+            mfps.contains(&"c449c5c5".to_string()),
+            "Should have key c449c5c5"
+        );
+        assert!(
+            mfps.contains(&"c61af686".to_string()),
+            "Should have key c61af686"
+        );
 
         Ok(())
     }
@@ -1154,13 +1175,18 @@ mod tests {
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
 
         // Should use the key-path key (c449c5c5), NOT NUMS
-        assert!(descriptor.contains("c449c5c5"), "Should use explicit key-path key");
-        assert!(!descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
-            "Should NOT use NUMS when key-path is specified");
+        assert!(
+            descriptor.contains("c449c5c5"),
+            "Should use explicit key-path key"
+        );
+        assert!(
+            !descriptor
+                .contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
+            "Should NOT use NUMS when key-path is specified"
+        );
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         let paths = analyzer.spend_paths()?;
-
 
         // CRITICAL: Should have 2 paths - key-path + script path
         assert_eq!(paths.len(), 2, "Should have both key-path and script path");
@@ -1175,11 +1201,17 @@ mod tests {
 
         // One should be script path (tr_depth > 0)
         let script_path = paths.iter().find(|p| p.tr_depth > 0);
-        assert!(script_path.is_some(), "Should have a script path (trDepth>=0)");
+        assert!(
+            script_path.is_some(),
+            "Should have a script path (trDepth>=0)"
+        );
         let script_path = script_path.unwrap();
         assert_eq!(script_path.threshold, 1);
         assert_eq!(script_path.mfps.len(), 1);
-        assert_eq!(script_path.mfps[0], "c61af686", "Script path should use c61af686");
+        assert_eq!(
+            script_path.mfps[0], "c61af686",
+            "Script path should use c61af686"
+        );
 
         Ok(())
     }
@@ -1217,7 +1249,6 @@ mod tests {
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         let paths = analyzer.spend_paths()?;
-
 
         // Should have 3 paths
         assert_eq!(paths.len(), 3, "Should have all 3 paths");
@@ -1290,7 +1321,6 @@ mod tests {
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         let paths = analyzer.spend_paths()?;
 
-
         // CRITICAL: All 3 paths should be preserved
         assert_eq!(paths.len(), 3, "All 3 singlesig paths should be preserved");
 
@@ -1301,9 +1331,7 @@ mod tests {
         }
 
         // Verify all 3 keys are present
-        let all_mfps: Vec<String> = paths.iter()
-            .flat_map(|p| p.mfps.clone())
-            .collect();
+        let all_mfps: Vec<String> = paths.iter().flat_map(|p| p.mfps.clone()).collect();
         assert!(all_mfps.contains(&"aaaaaaaa".to_string()));
         assert!(all_mfps.contains(&"bbbbbbbb".to_string()));
         assert!(all_mfps.contains(&"cccccccc".to_string()));
@@ -1346,7 +1374,6 @@ mod tests {
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         let paths = analyzer.spend_paths()?;
 
-
         // Should have 3 paths total
         assert_eq!(paths.len(), 3);
 
@@ -1355,8 +1382,11 @@ mod tests {
         assert!(key_path.is_some(), "Should have key-path");
 
         // CRITICAL: Key-path must be c61af686, the one we marked
-        assert_eq!(key_path.unwrap().mfps[0], "c61af686",
-            "Key-path should be c61af686 as explicitly marked, not arbitrarily chosen");
+        assert_eq!(
+            key_path.unwrap().mfps[0],
+            "c61af686",
+            "Key-path should be c61af686 as explicitly marked, not arbitrarily chosen"
+        );
 
         // Should have 2 script paths (tr_depth > 0)
         let script_paths: Vec<_> = paths.iter().filter(|p| p.tr_depth > 0).collect();

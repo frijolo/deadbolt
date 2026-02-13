@@ -27,9 +27,9 @@ impl From<Network> for APINetwork {
     }
 }
 
-impl Into<Network> for APINetwork {
-    fn into(self) -> Network {
-        match self {
+impl From<APINetwork> for Network {
+    fn from(val: APINetwork) -> Self {
+        match val {
             APINetwork::Bitcoin => Network::Bitcoin,
             APINetwork::Testnet => Network::Testnet,
             APINetwork::Testnet4 => Network::Testnet4,
@@ -71,9 +71,9 @@ impl From<WalletType> for APIWalletType {
     }
 }
 
-impl Into<WalletType> for APIWalletType {
-    fn into(self) -> WalletType {
-        match self {
+impl From<APIWalletType> for WalletType {
+    fn from(val: APIWalletType) -> Self {
+        match val {
             APIWalletType::P2PKH => WalletType::P2PKH,
             APIWalletType::P2WPKH => WalletType::P2WPKH,
             APIWalletType::P2SH => WalletType::P2SH,
@@ -129,9 +129,11 @@ impl TryFrom<&SpendPath> for APISpendPath {
 }
 
 impl APISpendPath {
-    pub fn from_sorted(core_spend_paths: &Vec<SpendPath>) -> Result<Vec<APISpendPath>> {
-        let mut api_spend_paths: Vec<APISpendPath> =
-            core_spend_paths.iter().map(APISpendPath::try_from).collect::<Result<Vec<APISpendPath>>>()?;
+    pub fn from_sorted(core_spend_paths: &[SpendPath]) -> Result<Vec<APISpendPath>> {
+        let mut api_spend_paths: Vec<APISpendPath> = core_spend_paths
+            .iter()
+            .map(APISpendPath::try_from)
+            .collect::<Result<Vec<APISpendPath>>>()?;
 
         api_spend_paths.sort_by(|a, b| {
             let tl_a = a.rel_timelock + a.abs_timelock;
@@ -158,7 +160,7 @@ impl APIPolicyPath {
         let mut res = Vec::new();
         for (policy_id, path) in &spend_path.policy_path {
             let path_u32: Vec<u32> = path
-                .into_iter()
+                .iter()
                 .map(|&x| u32::try_from(x))
                 .collect::<Result<Vec<u32>, _>>()?;
             res.push(APIPolicyPath {

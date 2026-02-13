@@ -18,7 +18,7 @@ use bdk_wallet::rusqlite::Connection;
 #[expect(deprecated)]
 use bdk_wallet::SignOptions;
 use bdk_wallet::{KeychainKind, PersistedWallet, Update, Wallet};
-use secp256k1::hashes::{Hash, sha256, HashEngine};
+use secp256k1::hashes::{sha256, Hash, HashEngine};
 
 use crate::core::error::WalletError;
 
@@ -36,7 +36,7 @@ pub fn calculate_spend_path_id(
     engine.input(&threshold.to_le_bytes());
 
     // Hash MFPs in sorted order for consistency
-    let mut sorted_mfps: Vec<String> = mfps.iter().cloned().collect();
+    let mut sorted_mfps: Vec<String> = mfps.to_vec();
     sorted_mfps.sort();
     for mfp in sorted_mfps {
         engine.input(mfp.as_bytes());
@@ -73,10 +73,11 @@ struct SpendPathBuilder {
 
 impl SpendPathBuilder {
     fn new() -> Self {
-        let mut new = Self::default();
-        new.is_tr_script = false;
-        new.threshold_setted = false;
-        new
+        Self {
+            is_tr_script: false,
+            threshold_setted: false,
+            ..Default::default()
+        }
     }
 
     fn policy_path(&mut self, policy_path: BTreeMap<String, Vec<usize>>) -> &mut Self {
@@ -84,8 +85,8 @@ impl SpendPathBuilder {
         self
     }
 
-    fn add_policy_path(&mut self, root_id: &String, path: &Vec<usize>) -> &mut Self {
-        self.policy_path.insert(root_id.clone(), path.clone());
+    fn add_policy_path(&mut self, root_id: &str, path: &[usize]) -> &mut Self {
+        self.policy_path.insert(root_id.to_owned(), path.to_owned());
         self
     }
 
@@ -94,7 +95,7 @@ impl SpendPathBuilder {
     }
 
     fn threshold(&mut self, threshold: usize) -> Result<&mut Self> {
-        if let Some(_) = self.threshold {
+        if self.threshold.is_some() {
             return Err(WalletError::UnsupportedDescriptor.into());
         }
 
@@ -155,7 +156,12 @@ impl SpendPathBuilder {
     fn calculate_id(&self) -> Result<u32> {
         let threshold = self.threshold.ok_or(WalletError::MissingThreshold)?;
         let mfps_vec: Vec<String> = self.mfps.iter().cloned().collect();
-        Ok(calculate_spend_path_id(threshold, &mfps_vec, self.rel_timelock, self.abs_timelock))
+        Ok(calculate_spend_path_id(
+            threshold,
+            &mfps_vec,
+            self.rel_timelock,
+            self.abs_timelock,
+        ))
     }
 
     fn build(self, id: u32) -> Result<SpendPath> {
@@ -221,7 +227,7 @@ impl SpendPathBuilder {
                         }
                     }
                     SatisfiableItem::SchnorrSignature(_) | SatisfiableItem::EcdsaSignature(_) => {
-                        policy_finder(&policy, policy_path, sps, false)?;
+                        policy_finder(policy, policy_path, sps, false)?;
                     }
                     _ => {
                         Err(WalletError::UnsupportedDescriptor)?;
@@ -308,7 +314,7 @@ pub struct SpendPath {
 
 impl SpendPath {
     pub fn estimate_tx_vb(&self, inputs: usize, outputs: usize) -> f32 {
-        WeightCalc::to_vbytes(Self::estimate_tx_wu(&self, inputs, outputs))
+        WeightCalc::to_vbytes(Self::estimate_tx_wu(self, inputs, outputs))
     }
 
     pub fn estimate_tx_wu(&self, inputs: usize, outputs: usize) -> u32 {
@@ -362,7 +368,7 @@ impl SpendPath {
     pub fn extract_spend_paths(wallet: &Wallet) -> Result<Vec<SpendPath>> {
         let descriptor = wallet.public_descriptor(KeychainKind::External);
         let network = wallet.network();
-        Self::extract_from_descriptor(&descriptor, network)
+        Self::extract_from_descriptor(descriptor, network)
     }
 
     fn from_pkh_to_spend_paths(
@@ -370,7 +376,7 @@ impl SpendPath {
         wallet: &Wallet,
     ) -> Result<Vec<SpendPath>> {
         let mut spb = SpendPathBuilder::new();
-        spb.add_policy_path(&get_unique_policy_id(wallet)?, &vec![0])
+        spb.add_policy_path(&get_unique_policy_id(wallet)?, &[0])
             .threshold(1)?
             .add_mfp(pkh.as_inner().master_fingerprint().to_string())
             .addr_type(String::from("P2PKH"));
@@ -401,7 +407,7 @@ impl SpendPath {
         wallet: &Wallet,
     ) -> Result<Vec<SpendPath>> {
         let mut spb = SpendPathBuilder::new();
-        spb.add_policy_path(&get_unique_policy_id(wallet)?, &vec![0])
+        spb.add_policy_path(&get_unique_policy_id(wallet)?, &[0])
             .threshold(1)?
             .add_mfp(wpkh.as_inner().master_fingerprint().to_string());
 
@@ -681,7 +687,7 @@ impl WeightCalc {
 
         if !keys_to_sign.is_empty() {
             for pk in keys_to_sign {
-                input.partial_sigs.insert(PublicKey::from(pk), dummy_ecdsa);
+                input.partial_sigs.insert(pk, dummy_ecdsa);
             }
             return Ok(());
         }
@@ -703,7 +709,7 @@ impl WeightCalc {
         }
 
         // Taproot ScriptPath
-        for (_, (leaf_script, leaf_ver)) in &input.tap_scripts {
+        for (leaf_script, leaf_ver) in input.tap_scripts.values() {
             let leaf_hash = TapLeafHash::from_script(leaf_script, *leaf_ver);
 
             let leaf_mfps: BTreeSet<String> = input
@@ -745,8 +751,8 @@ fn fingerprint_of(key: &PkOrF) -> Result<String> {
             let mut compressed = [0u8; 33];
             compressed[0] = 0x02;
             compressed[1..].copy_from_slice(&xpk.serialize());
-            let pk = PublicKey::from_slice(&compressed)
-                .map_err(|_| WalletError::MissingFingerprint)?;
+            let pk =
+                PublicKey::from_slice(&compressed).map_err(|_| WalletError::MissingFingerprint)?;
             let hash = pk.pubkey_hash();
             let bytes: [u8; 4] = hash.to_byte_array()[..4].try_into().unwrap();
             Ok(bdk_wallet::bitcoin::bip32::Fingerprint::from(bytes).to_string())
@@ -764,6 +770,6 @@ fn get_unique_policy_id(wallet: &Wallet) -> Result<String> {
     let policy = get_policy(wallet)?;
 
     (!policy.requires_path())
-        .then(|| policy.id)
+        .then_some(policy.id)
         .ok_or(WalletError::MissingPolicy.into())
 }
