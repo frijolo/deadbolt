@@ -189,8 +189,6 @@ deadbolt/
 - **FFI Bridge** (flutter_rust_bridge): Type-safe Dart ↔ Rust communication
 - **Core Layer** (Rust): Bitcoin descriptor parsing via BDK, wallet analysis, fee calculation
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
-
 ### Contributing
 
 Contributions are welcome! Please:
