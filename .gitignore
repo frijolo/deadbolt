@@ -69,6 +69,7 @@ CLAUDE.md
 *.zip
 SHA256SUMS
 SHA256SUMS.asc
+serve_apk.sh
 
 # Environment files
 .env
