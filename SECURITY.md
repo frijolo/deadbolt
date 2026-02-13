@@ -258,5 +258,5 @@ We appreciate responsible disclosure and will acknowledge security researchers w
 
 ---
 
-**Last updated**: 2026-02-12
-**GPG Fingerprint**: `[TO_BE_FILLED_AFTER_KEY_GENERATION]`
+**Last updated**: 2026-02-13
+**GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`

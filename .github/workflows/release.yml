@@ -52,6 +52,23 @@ jobs:
         with:
           ndk-version: r26d
 
+      - name: Setup Android signing
+        if: matrix.platform == 'android'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode keystore from base64 and save it
+          echo "$KEYSTORE_BASE64" | base64 -d > "${GITHUB_WORKSPACE}/android/release.jks"
+
+          # Export environment variables for Gradle
+          echo "KEYSTORE_FILE=${GITHUB_WORKSPACE}/android/release.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${KEY_ALIAS}" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=${KEY_PASSWORD}" >> $GITHUB_ENV
+
       # Linux-specific setup
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
