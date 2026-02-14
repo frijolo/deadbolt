@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -23363396;
+  int get rustContentHash => 1693999108;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -83,13 +83,27 @@ abstract class RustLibApi extends BaseApi {
     required String descriptor,
   });
 
+  Future<APIAbsoluteTimelock> crateApiModelApiAbsoluteTimelockFromConsensus({
+    required int consensus,
+  });
+
+  Future<int> crateApiModelApiAbsoluteTimelockToConsensus({
+    required APIAbsoluteTimelock that,
+  });
+
   Future<APIPolicyPath> crateApiModelApiPolicyPathDefault();
 
   Future<List<APIPolicyPath>> crateApiModelApiPolicyPathFromSpendpath({
     required SpendPath spendPath,
   });
 
-  Future<APISpendPath> crateApiModelApiSpendPathDefault();
+  Future<APIRelativeTimelock> crateApiModelApiRelativeTimelockFromConsensus({
+    required int consensus,
+  });
+
+  Future<int> crateApiModelApiRelativeTimelockToConsensus({
+    required APIRelativeTimelock that,
+  });
 
   Future<List<APISpendPath>> crateApiModelApiSpendPathFromSorted({
     required List<SpendPath> coreSpendPaths,
@@ -101,11 +115,26 @@ abstract class RustLibApi extends BaseApi {
     required List<APISpendPathDef> spendPaths,
   });
 
+  Future<int> crateApiAnalyzerCalculateRustidFromTimelocks({
+    required int threshold,
+    required List<String> mfps,
+    required APIRelativeTimelock relTimelock,
+    required APIAbsoluteTimelock absTimelock,
+  });
+
   Future<int> crateApiAnalyzerCalculateSpendPathId({
     required int threshold,
     required List<String> mfps,
     required int relTimelock,
     required int absTimelock,
+  });
+
+  Future<APIAbsoluteTimelock> crateApiAnalyzerDecodeLegacyAbsTimelock({
+    required int consensus,
+  });
+
+  Future<APIRelativeTimelock> crateApiAnalyzerDecodeLegacyRelTimelock({
+    required int consensus,
   });
 
   Future<void> crateApiAnalyzerInitApp();
@@ -168,6 +197,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<APIAbsoluteTimelock> crateApiModelApiAbsoluteTimelockFromConsensus({
+    required int consensus,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(consensus, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_absolute_timelock,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiModelApiAbsoluteTimelockFromConsensusConstMeta,
+        argValues: [consensus],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiModelApiAbsoluteTimelockFromConsensusConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_absolute_timelock_from_consensus",
+        argNames: ["consensus"],
+      );
+
+  @override
+  Future<int> crateApiModelApiAbsoluteTimelockToConsensus({
+    required APIAbsoluteTimelock that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_api_absolute_timelock(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiModelApiAbsoluteTimelockToConsensusConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiModelApiAbsoluteTimelockToConsensusConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_absolute_timelock_to_consensus",
+        argNames: ["that"],
+      );
+
+  @override
   Future<APIPolicyPath> crateApiModelApiPolicyPathDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -176,7 +271,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 4,
             port: port_,
           );
         },
@@ -209,7 +304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 5,
             port: port_,
           );
         },
@@ -231,31 +326,70 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<APISpendPath> crateApiModelApiSpendPathDefault() {
+  Future<APIRelativeTimelock> crateApiModelApiRelativeTimelockFromConsensus({
+    required int consensus,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(consensus, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 6,
             port: port_,
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_api_spend_path,
+          decodeSuccessData: sse_decode_api_relative_timelock,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiModelApiSpendPathDefaultConstMeta,
-        argValues: [],
+        constMeta: kCrateApiModelApiRelativeTimelockFromConsensusConstMeta,
+        argValues: [consensus],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiModelApiSpendPathDefaultConstMeta =>
-      const TaskConstMeta(debugName: "api_spend_path_default", argNames: []);
+  TaskConstMeta get kCrateApiModelApiRelativeTimelockFromConsensusConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_relative_timelock_from_consensus",
+        argNames: ["consensus"],
+      );
+
+  @override
+  Future<int> crateApiModelApiRelativeTimelockToConsensus({
+    required APIRelativeTimelock that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_api_relative_timelock(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiModelApiRelativeTimelockToConsensusConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiModelApiRelativeTimelockToConsensusConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_relative_timelock_to_consensus",
+        argNames: ["that"],
+      );
 
   @override
   Future<List<APISpendPath>> crateApiModelApiSpendPathFromSorted({
@@ -272,7 +406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 8,
             port: port_,
           );
         },
@@ -309,7 +443,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 9,
             port: port_,
           );
         },
@@ -331,6 +465,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<int> crateApiAnalyzerCalculateRustidFromTimelocks({
+    required int threshold,
+    required List<String> mfps,
+    required APIRelativeTimelock relTimelock,
+    required APIAbsoluteTimelock absTimelock,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(threshold, serializer);
+          sse_encode_list_String(mfps, serializer);
+          sse_encode_box_autoadd_api_relative_timelock(relTimelock, serializer);
+          sse_encode_box_autoadd_api_absolute_timelock(absTimelock, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiAnalyzerCalculateRustidFromTimelocksConstMeta,
+        argValues: [threshold, mfps, relTimelock, absTimelock],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAnalyzerCalculateRustidFromTimelocksConstMeta =>
+      const TaskConstMeta(
+        debugName: "calculate_rustid_from_timelocks",
+        argNames: ["threshold", "mfps", "relTimelock", "absTimelock"],
+      );
+
+  @override
   Future<int> crateApiAnalyzerCalculateSpendPathId({
     required int threshold,
     required List<String> mfps,
@@ -348,7 +521,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 11,
             port: port_,
           );
         },
@@ -370,6 +543,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<APIAbsoluteTimelock> crateApiAnalyzerDecodeLegacyAbsTimelock({
+    required int consensus,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(consensus, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_absolute_timelock,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAnalyzerDecodeLegacyAbsTimelockConstMeta,
+        argValues: [consensus],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAnalyzerDecodeLegacyAbsTimelockConstMeta =>
+      const TaskConstMeta(
+        debugName: "decode_legacy_abs_timelock",
+        argNames: ["consensus"],
+      );
+
+  @override
+  Future<APIRelativeTimelock> crateApiAnalyzerDecodeLegacyRelTimelock({
+    required int consensus,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(consensus, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_relative_timelock,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAnalyzerDecodeLegacyRelTimelockConstMeta,
+        argValues: [consensus],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAnalyzerDecodeLegacyRelTimelockConstMeta =>
+      const TaskConstMeta(
+        debugName: "decode_legacy_rel_timelock",
+        argNames: ["consensus"],
+      );
+
+  @override
   Future<void> crateApiAnalyzerInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -378,7 +617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 14,
             port: port_,
           );
         },
@@ -414,7 +653,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 15,
             port: port_,
           );
         },
@@ -483,6 +722,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIAbsoluteTimelock dco_decode_api_absolute_timelock(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return APIAbsoluteTimelock(
+      timelockType: dco_decode_api_absolute_timelock_type(arr[0]),
+      value: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  APIAbsoluteTimelockType dco_decode_api_absolute_timelock_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return APIAbsoluteTimelockType.values[raw as int];
+  }
+
+  @protected
   APIAnalysisResult dco_decode_api_analysis_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -529,6 +786,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIRelativeTimelock dco_decode_api_relative_timelock(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return APIRelativeTimelock(
+      timelockType: dco_decode_api_relative_timelock_type(arr[0]),
+      value: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  APIRelativeTimelockType dco_decode_api_relative_timelock_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return APIRelativeTimelockType.values[raw as int];
+  }
+
+  @protected
   APISpendPath dco_decode_api_spend_path(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -539,8 +814,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       policyPath: dco_decode_list_api_policy_path(arr[1]),
       threshold: dco_decode_u_32(arr[2]),
       mfps: dco_decode_list_String(arr[3]),
-      relTimelock: dco_decode_u_32(arr[4]),
-      absTimelock: dco_decode_u_32(arr[5]),
+      relTimelock: dco_decode_api_relative_timelock(arr[4]),
+      absTimelock: dco_decode_api_absolute_timelock(arr[5]),
       wuBase: dco_decode_u_32(arr[6]),
       wuIn: dco_decode_u_32(arr[7]),
       wuOut: dco_decode_u_32(arr[8]),
@@ -558,8 +833,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return APISpendPathDef(
       threshold: dco_decode_u_32(arr[0]),
       mfps: dco_decode_list_String(arr[1]),
-      relTimelock: dco_decode_u_32(arr[2]),
-      absTimelock: dco_decode_u_32(arr[3]),
+      relTimelock: dco_decode_api_relative_timelock(arr[2]),
+      absTimelock: dco_decode_api_absolute_timelock(arr[3]),
       isKeyPath: dco_decode_bool(arr[4]),
     );
   }
@@ -574,6 +849,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  APIAbsoluteTimelock dco_decode_box_autoadd_api_absolute_timelock(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_absolute_timelock(raw);
+  }
+
+  @protected
+  APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_relative_timelock(raw);
   }
 
   @protected
@@ -718,6 +1009,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIAbsoluteTimelock sse_decode_api_absolute_timelock(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timelockType = sse_decode_api_absolute_timelock_type(deserializer);
+    var var_value = sse_decode_u_32(deserializer);
+    return APIAbsoluteTimelock(
+      timelockType: var_timelockType,
+      value: var_value,
+    );
+  }
+
+  @protected
+  APIAbsoluteTimelockType sse_decode_api_absolute_timelock_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return APIAbsoluteTimelockType.values[inner];
+  }
+
+  @protected
   APIAnalysisResult sse_decode_api_analysis_result(
     SseDeserializer deserializer,
   ) {
@@ -765,14 +1078,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIRelativeTimelock sse_decode_api_relative_timelock(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timelockType = sse_decode_api_relative_timelock_type(deserializer);
+    var var_value = sse_decode_u_32(deserializer);
+    return APIRelativeTimelock(
+      timelockType: var_timelockType,
+      value: var_value,
+    );
+  }
+
+  @protected
+  APIRelativeTimelockType sse_decode_api_relative_timelock_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return APIRelativeTimelockType.values[inner];
+  }
+
+  @protected
   APISpendPath sse_decode_api_spend_path(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_u_32(deserializer);
     var var_policyPath = sse_decode_list_api_policy_path(deserializer);
     var var_threshold = sse_decode_u_32(deserializer);
     var var_mfps = sse_decode_list_String(deserializer);
-    var var_relTimelock = sse_decode_u_32(deserializer);
-    var var_absTimelock = sse_decode_u_32(deserializer);
+    var var_relTimelock = sse_decode_api_relative_timelock(deserializer);
+    var var_absTimelock = sse_decode_api_absolute_timelock(deserializer);
     var var_wuBase = sse_decode_u_32(deserializer);
     var var_wuIn = sse_decode_u_32(deserializer);
     var var_wuOut = sse_decode_u_32(deserializer);
@@ -798,8 +1133,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_threshold = sse_decode_u_32(deserializer);
     var var_mfps = sse_decode_list_String(deserializer);
-    var var_relTimelock = sse_decode_u_32(deserializer);
-    var var_absTimelock = sse_decode_u_32(deserializer);
+    var var_relTimelock = sse_decode_api_relative_timelock(deserializer);
+    var var_absTimelock = sse_decode_api_absolute_timelock(deserializer);
     var var_isKeyPath = sse_decode_bool(deserializer);
     return APISpendPathDef(
       threshold: var_threshold,
@@ -821,6 +1156,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  APIAbsoluteTimelock sse_decode_box_autoadd_api_absolute_timelock(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_absolute_timelock(deserializer));
+  }
+
+  @protected
+  APIRelativeTimelock sse_decode_box_autoadd_api_relative_timelock(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_relative_timelock(deserializer));
   }
 
   @protected
@@ -1012,6 +1363,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_absolute_timelock(
+    APIAbsoluteTimelock self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_absolute_timelock_type(self.timelockType, serializer);
+    sse_encode_u_32(self.value, serializer);
+  }
+
+  @protected
+  void sse_encode_api_absolute_timelock_type(
+    APIAbsoluteTimelockType self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_api_analysis_result(
     APIAnalysisResult self,
     SseSerializer serializer,
@@ -1049,14 +1419,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_relative_timelock(
+    APIRelativeTimelock self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_relative_timelock_type(self.timelockType, serializer);
+    sse_encode_u_32(self.value, serializer);
+  }
+
+  @protected
+  void sse_encode_api_relative_timelock_type(
+    APIRelativeTimelockType self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_api_spend_path(APISpendPath self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.id, serializer);
     sse_encode_list_api_policy_path(self.policyPath, serializer);
     sse_encode_u_32(self.threshold, serializer);
     sse_encode_list_String(self.mfps, serializer);
-    sse_encode_u_32(self.relTimelock, serializer);
-    sse_encode_u_32(self.absTimelock, serializer);
+    sse_encode_api_relative_timelock(self.relTimelock, serializer);
+    sse_encode_api_absolute_timelock(self.absTimelock, serializer);
     sse_encode_u_32(self.wuBase, serializer);
     sse_encode_u_32(self.wuIn, serializer);
     sse_encode_u_32(self.wuOut, serializer);
@@ -1072,8 +1461,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.threshold, serializer);
     sse_encode_list_String(self.mfps, serializer);
-    sse_encode_u_32(self.relTimelock, serializer);
-    sse_encode_u_32(self.absTimelock, serializer);
+    sse_encode_api_relative_timelock(self.relTimelock, serializer);
+    sse_encode_api_absolute_timelock(self.absTimelock, serializer);
     sse_encode_bool(self.isKeyPath, serializer);
   }
 
@@ -1090,6 +1479,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_api_absolute_timelock(
+    APIAbsoluteTimelock self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_absolute_timelock(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_api_relative_timelock(
+    APIRelativeTimelock self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_relative_timelock(self, serializer);
   }
 
   @protected

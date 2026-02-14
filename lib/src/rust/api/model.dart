@@ -7,7 +7,35 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`
+
+class APIAbsoluteTimelock {
+  final APIAbsoluteTimelockType timelockType;
+  final int value;
+
+  const APIAbsoluteTimelock({required this.timelockType, required this.value});
+
+  static Future<APIAbsoluteTimelock> fromConsensus({required int consensus}) =>
+      RustLib.instance.api.crateApiModelApiAbsoluteTimelockFromConsensus(
+        consensus: consensus,
+      );
+
+  Future<int> toConsensus() => RustLib.instance.api
+      .crateApiModelApiAbsoluteTimelockToConsensus(that: this);
+
+  @override
+  int get hashCode => timelockType.hashCode ^ value.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAbsoluteTimelock &&
+          runtimeType == other.runtimeType &&
+          timelockType == other.timelockType &&
+          value == other.value;
+}
+
+enum APIAbsoluteTimelockType { blocks, timestamp }
 
 enum APINetwork { bitcoin, testnet, testnet4, signet, regtest }
 
@@ -62,13 +90,41 @@ class APIPubKey {
           xpub == other.xpub;
 }
 
+class APIRelativeTimelock {
+  final APIRelativeTimelockType timelockType;
+  final int value;
+
+  const APIRelativeTimelock({required this.timelockType, required this.value});
+
+  static Future<APIRelativeTimelock> fromConsensus({required int consensus}) =>
+      RustLib.instance.api.crateApiModelApiRelativeTimelockFromConsensus(
+        consensus: consensus,
+      );
+
+  Future<int> toConsensus() => RustLib.instance.api
+      .crateApiModelApiRelativeTimelockToConsensus(that: this);
+
+  @override
+  int get hashCode => timelockType.hashCode ^ value.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRelativeTimelock &&
+          runtimeType == other.runtimeType &&
+          timelockType == other.timelockType &&
+          value == other.value;
+}
+
+enum APIRelativeTimelockType { blocks, time }
+
 class APISpendPath {
   final int id;
   final List<APIPolicyPath> policyPath;
   final int threshold;
   final List<String> mfps;
-  final int relTimelock;
-  final int absTimelock;
+  final APIRelativeTimelock relTimelock;
+  final APIAbsoluteTimelock absTimelock;
   final int wuBase;
   final int wuIn;
   final int wuOut;
@@ -88,9 +144,6 @@ class APISpendPath {
     required this.trDepth,
     required this.vbSweep,
   });
-
-  static Future<APISpendPath> default_() =>
-      RustLib.instance.api.crateApiModelApiSpendPathDefault();
 
   static Future<List<APISpendPath>> fromSorted({
     required List<SpendPath> coreSpendPaths,
@@ -133,8 +186,8 @@ class APISpendPath {
 class APISpendPathDef {
   final int threshold;
   final List<String> mfps;
-  final int relTimelock;
-  final int absTimelock;
+  final APIRelativeTimelock relTimelock;
+  final APIAbsoluteTimelock absTimelock;
   final bool isKeyPath;
 
   const APISpendPathDef({

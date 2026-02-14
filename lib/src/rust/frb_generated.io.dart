@@ -49,6 +49,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  APIAbsoluteTimelock dco_decode_api_absolute_timelock(dynamic raw);
+
+  @protected
+  APIAbsoluteTimelockType dco_decode_api_absolute_timelock_type(dynamic raw);
+
+  @protected
   APIAnalysisResult dco_decode_api_analysis_result(dynamic raw);
 
   @protected
@@ -61,6 +67,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPubKey dco_decode_api_pub_key(dynamic raw);
 
   @protected
+  APIRelativeTimelock dco_decode_api_relative_timelock(dynamic raw);
+
+  @protected
+  APIRelativeTimelockType dco_decode_api_relative_timelock_type(dynamic raw);
+
+  @protected
   APISpendPath dco_decode_api_spend_path(dynamic raw);
 
   @protected
@@ -71,6 +83,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  APIAbsoluteTimelock dco_decode_box_autoadd_api_absolute_timelock(dynamic raw);
+
+  @protected
+  APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -142,6 +160,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  APIAbsoluteTimelock sse_decode_api_absolute_timelock(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIAbsoluteTimelockType sse_decode_api_absolute_timelock_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIAnalysisResult sse_decode_api_analysis_result(
     SseDeserializer deserializer,
   );
@@ -156,6 +184,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPubKey sse_decode_api_pub_key(SseDeserializer deserializer);
 
   @protected
+  APIRelativeTimelock sse_decode_api_relative_timelock(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIRelativeTimelockType sse_decode_api_relative_timelock_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APISpendPath sse_decode_api_spend_path(SseDeserializer deserializer);
 
   @protected
@@ -166,6 +204,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  APIAbsoluteTimelock sse_decode_box_autoadd_api_absolute_timelock(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIRelativeTimelock sse_decode_box_autoadd_api_relative_timelock(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -249,6 +297,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_absolute_timelock(
+    APIAbsoluteTimelock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_absolute_timelock_type(
+    APIAbsoluteTimelockType self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_analysis_result(
     APIAnalysisResult self,
     SseSerializer serializer,
@@ -264,6 +324,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_pub_key(APIPubKey self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_relative_timelock(
+    APIRelativeTimelock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_relative_timelock_type(
+    APIRelativeTimelockType self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_spend_path(APISpendPath self, SseSerializer serializer);
 
   @protected
@@ -277,6 +349,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_api_absolute_timelock(
+    APIAbsoluteTimelock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_api_relative_timelock(
+    APIRelativeTimelock self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);

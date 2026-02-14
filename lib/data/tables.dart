@@ -25,8 +25,13 @@ class ProjectSpendPaths extends Table {
   IntColumn get rustId => integer()();
   IntColumn get threshold => integer()();
   TextColumn get mfps => text()(); // JSON array
-  IntColumn get relTimelock => integer()();
-  IntColumn get absTimelock => integer()();
+
+  // Semantic timelock storage (type + decoded value)
+  TextColumn get relTimelockType => text().withDefault(const Constant('blocks'))();
+  IntColumn get relTimelockValue => integer().withDefault(const Constant(0))();
+  TextColumn get absTimelockType => text().withDefault(const Constant('blocks'))();
+  IntColumn get absTimelockValue => integer().withDefault(const Constant(0))();
+
   IntColumn get wuBase => integer()();
 
   IntColumn get wuIn => integer()();

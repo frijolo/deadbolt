@@ -5,6 +5,7 @@ use bdk_wallet::keys::DescriptorPublicKey;
 use bdk_wallet::miniscript::policy::concrete::{DescriptorCtx, Policy as ConcretePolicy};
 use bdk_wallet::miniscript::{Legacy, Segwitv0};
 
+use crate::api::model::{APIAbsoluteTimelock, APIRelativeTimelock};
 use crate::core::error::WalletError;
 use crate::core::pubkey::PubKey;
 use crate::core::wallet::WalletType;
@@ -13,8 +14,8 @@ use crate::core::wallet::WalletType;
 pub struct SpendPathDef {
     pub threshold: usize,
     pub mfps: Vec<String>,
-    pub rel_timelock: u32,
-    pub abs_timelock: u32,
+    pub rel_timelock: APIRelativeTimelock,
+    pub abs_timelock: APIAbsoluteTimelock,
     pub is_key_path: bool,
 }
 
@@ -117,7 +118,7 @@ fn build_sh_wpkh(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String
 
 /// Check if spend paths represent a simple multisig (1 path, no timelocks)
 fn is_simple_multisig(spend_paths: &[SpendPathDef]) -> bool {
-    spend_paths.len() == 1 && spend_paths[0].rel_timelock == 0 && spend_paths[0].abs_timelock == 0
+    spend_paths.len() == 1 && spend_paths[0].rel_timelock.value == 0 && spend_paths[0].abs_timelock.value == 0
 }
 
 // --- Complex descriptor types (policy compiler) ---
@@ -188,7 +189,7 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
     // Validate key-path if present
     if let Some(&idx) = key_path_indices.first() {
         let kp = &spend_paths[idx];
-        if kp.threshold != 1 || kp.mfps.len() != 1 || kp.rel_timelock != 0 || kp.abs_timelock != 0 {
+        if kp.threshold != 1 || kp.mfps.len() != 1 || kp.rel_timelock.value != 0 || kp.abs_timelock.value != 0 {
             return Err(WalletError::BuilderError(
                 "Key-path must be singlesig with no timelocks".into(),
             )
@@ -396,14 +397,17 @@ fn build_path_policy(
     // Combine with timelocks using AND
     let mut conditions: Vec<Arc<ConcretePolicy<DescriptorPublicKey>>> = vec![Arc::new(keys_policy)];
 
-    if sp.rel_timelock > 0 {
-        let rel = bdk_wallet::miniscript::RelLockTime::from_consensus(sp.rel_timelock)
+    let rel_consensus = sp.rel_timelock.to_consensus()?;
+    let abs_consensus = sp.abs_timelock.to_consensus()?;
+
+    if rel_consensus > 0 {
+        let rel = bdk_wallet::miniscript::RelLockTime::from_consensus(rel_consensus)
             .map_err(|e| WalletError::BuilderError(format!("Invalid relative timelock: {}", e)))?;
         conditions.push(Arc::new(ConcretePolicy::Older(rel)));
     }
 
-    if sp.abs_timelock > 0 {
-        let abs = bdk_wallet::miniscript::AbsLockTime::from_consensus(sp.abs_timelock)
+    if abs_consensus > 0 {
+        let abs = bdk_wallet::miniscript::AbsLockTime::from_consensus(abs_consensus)
             .map_err(|e| WalletError::BuilderError(format!("Invalid absolute timelock: {}", e)))?;
         conditions.push(Arc::new(ConcretePolicy::After(abs)));
     }
@@ -444,8 +448,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 2,
             mfps: vec!["c449c5c5".into(), "c61af686".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -471,15 +475,15 @@ mod tests {
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -503,15 +507,15 @@ mod tests {
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -534,8 +538,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 1,
             mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -555,8 +559,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 2,
             mfps: vec!["c449c5c5".into(), "c61af686".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -613,8 +617,8 @@ mod tests {
                 "ddeeff00".into(),
                 "eeff0011".into(),
             ],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -641,22 +645,22 @@ mod tests {
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 144, // ~1 day
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144), // ~1 day
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 1008, // ~1 week
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(1008), // ~1 week
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -685,15 +689,15 @@ mod tests {
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 800000, // Block height
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(800000), // Block height
                 is_key_path: false,
             },
         ];
@@ -721,15 +725,15 @@ mod tests {
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -747,8 +751,8 @@ mod tests {
             .map(|sp| SpendPathDef {
                 threshold: sp.threshold,
                 mfps: sp.mfps.clone(),
-                rel_timelock: sp.rel_timelock,
-                abs_timelock: sp.abs_timelock,
+                rel_timelock: APIRelativeTimelock::from_consensus(sp.rel_timelock),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(sp.abs_timelock),
                 is_key_path: false,
             })
             .collect();
@@ -776,8 +780,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 1,
             mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -797,8 +801,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 1,
             mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
         }];
 
@@ -821,15 +825,15 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Mark as key-path
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -868,8 +872,8 @@ mod tests {
         let spend_paths = vec![SpendPathDef {
             threshold: 1,
             mfps: vec!["c449c5c5".into()],
-            rel_timelock: 0,
-            abs_timelock: 0,
+            rel_timelock: APIRelativeTimelock::from_consensus(0),
+            abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: true,
         }];
 
@@ -903,15 +907,15 @@ mod tests {
                 SpendPathDef {
                     threshold: 1,
                     mfps: vec!["c449c5c5".into()],
-                    rel_timelock: 0,
-                    abs_timelock: 0,
+                    rel_timelock: APIRelativeTimelock::from_consensus(0),
+                    abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true,
                 },
                 SpendPathDef {
                     threshold: 1,
                     mfps: vec!["c61af686".into()],
-                    rel_timelock: 0,
-                    abs_timelock: 0,
+                    rel_timelock: APIRelativeTimelock::from_consensus(0),
+                    abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true, // Second key-path - error
                 },
             ],
@@ -926,8 +930,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Multisig cannot be key-path
             }],
         );
@@ -941,8 +945,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Timelock cannot be key-path
             }],
         );
@@ -959,15 +963,15 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
             },
         ];
@@ -995,8 +999,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             }],
         );
@@ -1013,8 +1017,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             }],
         );
@@ -1027,8 +1031,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             }],
         );
@@ -1041,8 +1045,8 @@ mod tests {
             &vec![SpendPathDef {
                 threshold: 1,
                 mfps: vec!["deadbeef".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             }],
         );
@@ -1058,15 +1062,15 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -1124,15 +1128,15 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -1175,15 +1179,15 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Explicit key-path
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Singlesig script path, no timelock
             },
         ];
@@ -1241,22 +1245,22 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true,
             },
             SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 1008, // ~1 week
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(1008), // ~1 week
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -1312,22 +1316,22 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["aaaaaaaa".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["bbbbbbbb".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["cccccccc".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];
@@ -1364,22 +1368,22 @@ mod tests {
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c61af686".into()],
-                rel_timelock: 0,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // THIS is the key-path
             },
             SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
-                rel_timelock: 144,
-                abs_timelock: 0,
+                rel_timelock: APIRelativeTimelock::from_consensus(144),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
             },
         ];

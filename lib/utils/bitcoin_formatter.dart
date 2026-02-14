@@ -1,8 +1,41 @@
-class BitcoinFormatter {
-  static String formatBitcoinTime(int blocks) {
-    if (blocks <= 0) return "0min";
+import 'package:deadbolt/models/timelock_types.dart';
 
-    int totalMins = blocks * 10;
+class BitcoinFormatter {
+  static String formatRelativeTimelock(
+      RelativeTimelockType type, int value) {
+    if (value == 0) return '0';
+
+    switch (type) {
+      case RelativeTimelockType.blocks:
+        final totalMins = value * 10;
+        return '+$value blocks (~${_formatDuration(totalMins)})';
+      case RelativeTimelockType.time:
+        final units = value ~/ 512;
+        final totalMins = value ~/ 60;
+        return '+$units × 512s (~${_formatDuration(totalMins)})';
+    }
+  }
+
+  static String formatAbsoluteTimelock(
+      AbsoluteTimelockType type, int value) {
+    if (value == 0) return '0';
+
+    switch (type) {
+      case AbsoluteTimelockType.blocks:
+        // Approximate date: Genesis block (0) = 2009-01-03, ~144 blocks/day
+        final genesisDate = DateTime(2009, 1, 3);
+        final daysFromGenesis = value / 144;
+        final approxDate = genesisDate.add(Duration(days: daysFromGenesis.round()));
+        return 'Block #$value (~${approxDate.year}-${approxDate.month.toString().padLeft(2, '0')}-${approxDate.day.toString().padLeft(2, '0')})';
+      case AbsoluteTimelockType.timestamp:
+        final date = DateTime.fromMillisecondsSinceEpoch(value * 1000);
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
+  static String _formatDuration(int totalMins) {
+    if (totalMins <= 0) return "0min";
+
     const int minInHour = 60;
     const int minInDay = 1440;
     const int minInWeek = 10080;
