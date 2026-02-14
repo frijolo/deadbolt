@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
@@ -137,6 +139,69 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     } catch (e, stackTrace) {
       debugPrint('════════════════════════════════════════════════════════════');
       debugPrint('ERROR in ProjectListCubit.deleteProject():');
+      debugPrint('$e');
+      debugPrint('Stack trace:');
+      debugPrint('$stackTrace');
+      debugPrint('════════════════════════════════════════════════════════════');
+      rethrow;
+    }
+  }
+
+  /// Import project from JSON string
+  Future<int> importProject(String jsonString) async {
+    try {
+      // Parse export data
+      final exportData = ProjectExport.fromJsonString(jsonString);
+
+      // Analyze the descriptor
+      final result = await analyzeDescriptor(descriptor: exportData.descriptor.trim());
+
+      // Create project
+      final projectId = await _db.insertProject(ProjectsCompanion.insert(
+        name: exportData.name,
+        descriptor: result.descriptor,
+        network: result.network.name,
+        walletType: result.walletType.name,
+      ));
+
+      // Create key entries with labels mapped by MFP
+      final keyEntries = result.keys
+          .map((k) => ProjectKeysCompanion.insert(
+                projectId: projectId,
+                mfp: k.mfp,
+                derivationPath: k.derivationPath,
+                xpub: k.xpub,
+                customName: Value(exportData.keyLabels[k.mfp]),
+              ))
+          .toList();
+
+      // Create path entries with labels mapped by rustId
+      final pathEntries = result.spendPaths
+          .map((sp) => ProjectSpendPathsCompanion.insert(
+                projectId: projectId,
+                rustId: sp.id,
+                threshold: sp.threshold,
+                mfps: jsonEncode(sp.mfps),
+                relTimelock: sp.relTimelock,
+                absTimelock: sp.absTimelock,
+                wuBase: sp.wuBase,
+                wuIn: sp.wuIn,
+                wuOut: sp.wuOut,
+                trDepth: sp.trDepth,
+                vbSweep: sp.vbSweep,
+                customName: Value(exportData.pathLabels[sp.id.toString()]),
+              ))
+          .toList();
+
+      await _db.batch((batch) {
+        batch.insertAll(_db.projectKeys, keyEntries);
+        batch.insertAll(_db.projectSpendPaths, pathEntries);
+      });
+
+      return projectId;
+    } catch (e, stackTrace) {
+      debugPrint('════════════════════════════════════════════════════════════');
+      debugPrint('ERROR in ProjectListCubit.importProject():');
       debugPrint('$e');
       debugPrint('Stack trace:');
       debugPrint('$stackTrace');

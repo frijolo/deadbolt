@@ -8,6 +8,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/editable_key_card.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
@@ -39,25 +40,18 @@ class _ProjectDetailView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<ProjectDetailCubit, ProjectDetailState>(
       listener: (context, state) {
-        // Show error as SnackBar when errorMessage is set
-        if (state is ProjectDetailLoaded && state.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.errorMessage!),
-              backgroundColor: Colors.red.shade900,
-              duration: const Duration(seconds: 5),
-              behavior: SnackBarBehavior.floating,
-              action: SnackBarAction(
-                label: 'Dismiss',
-                textColor: Colors.white,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                },
-              ),
-            ),
-          );
-          // Clear error after showing
+        if (state is! ProjectDetailLoaded) return;
+
+        // Show error toast
+        if (state.errorMessage != null) {
+          showErrorToast(context, state.errorMessage!);
           context.read<ProjectDetailCubit>().clearError();
+        }
+
+        // Show success toast
+        if (state.successMessage != null) {
+          showSuccessToast(context, state.successMessage!);
+          context.read<ProjectDetailCubit>().clearSuccess();
         }
       },
       child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
@@ -97,18 +91,47 @@ class _ProjectDetailView extends StatelessWidget {
               onPressed: () => _confirmDiscardEdits(context, cubit, state),
             )
           else
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit',
-              onPressed: cubit.enterEditMode,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'More options',
+              offset: const Offset(0, 40),
+              onSelected: (value) async {
+                if (value == 'edit') {
+                  cubit.enterEditMode();
+                } else if (value == 'export') {
+                  await cubit.exportProject();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Edit'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'export',
+                  child: Row(
+                    children: [
+                      Icon(Icons.file_upload_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Export'),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),
       floatingActionButton: state.isDirty
           ? FloatingActionButton.extended(
               onPressed: cubit.regenerateDescriptor,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Regenerate'),
+              icon: const Icon(Icons.build_outlined),
+              label: const Text('Build'),
               backgroundColor: Colors.orange,
             )
           : null,
@@ -564,12 +587,7 @@ class _ProjectDetailView extends StatelessWidget {
             tooltip: 'Copy descriptor',
             onPressed: () {
               Clipboard.setData(ClipboardData(text: descriptor));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Descriptor copied'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
+              showSuccessToast(context, 'Descriptor copied');
             },
             visualDensity: VisualDensity.compact,
           ),

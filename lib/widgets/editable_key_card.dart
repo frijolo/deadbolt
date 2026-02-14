@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 
 class EditableKeyCard extends StatelessWidget {
   final EditableKey keyData;
@@ -65,12 +66,7 @@ class EditableKeyCard extends StatelessWidget {
                     final keyspec =
                         '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}';
                     Clipboard.setData(ClipboardData(text: keyspec));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Key copied'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                    showSuccessToast(context, 'Key copied');
                   },
                 ),
                 const SizedBox(width: 8),

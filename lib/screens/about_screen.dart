@@ -26,10 +26,13 @@ class AboutScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 24),
                 // App icon and name
-                const Icon(
-                  Icons.lock,
-                  size: 96,
-                  color: Colors.orange,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    width: 96,
+                    height: 96,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -49,16 +52,30 @@ class AboutScreen extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 // Version info card
-                _buildInfoCard(
-                  context,
-                  title: 'Version',
-                  children: [
-                    _buildInfoRow(
-                      'Version',
-                      '${info.version} (Build ${info.buildNumber})',
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Version',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                        ),
+                        Text(
+                          '${info.version} (Build ${info.buildNumber})',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    _buildInfoRow('Package', info.packageName),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -136,7 +153,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value, {Color? labelColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -146,8 +163,8 @@ class AboutScreen extends StatelessWidget {
             width: 140,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.white70,
+              style: TextStyle(
+                color: labelColor ?? Colors.white70,
                 fontSize: 14,
               ),
             ),
@@ -209,7 +226,7 @@ class AboutScreen extends StatelessWidget {
   Future<void> _launchUrl(String urlString) async {
     final url = Uri.parse(urlString);
     if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      await launchUrl(url);
     }
   }
 }
