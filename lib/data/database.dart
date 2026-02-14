@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../src/rust/api/model.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -21,7 +22,66 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // Read all spend paths with legacy consensus values
+          final legacyPaths = await customSelect(
+            'SELECT id, rel_timelock, abs_timelock FROM project_spend_paths',
+          ).get();
+
+          // Drop old columns
+          await customStatement(
+              'ALTER TABLE project_spend_paths DROP COLUMN rel_timelock');
+          await customStatement(
+              'ALTER TABLE project_spend_paths DROP COLUMN abs_timelock');
+
+          // Add new columns
+          await m.addColumn(
+              projectSpendPaths, projectSpendPaths.relTimelockType);
+          await m.addColumn(
+              projectSpendPaths, projectSpendPaths.relTimelockValue);
+          await m.addColumn(
+              projectSpendPaths, projectSpendPaths.absTimelockType);
+          await m.addColumn(
+              projectSpendPaths, projectSpendPaths.absTimelockValue);
+
+          // Decode legacy values using Rust helpers
+          for (final row in legacyPaths) {
+            final id = row.read<int>('id');
+            final relConsensus = row.read<int>('rel_timelock');
+            final absConsensus = row.read<int>('abs_timelock');
+
+            final relDecoded =
+                await APIRelativeTimelock.fromConsensus(consensus: relConsensus);
+            final absDecoded =
+                await APIAbsoluteTimelock.fromConsensus(consensus: absConsensus);
+
+            await customStatement(
+              'UPDATE project_spend_paths SET '
+              'rel_timelock_type = ?, rel_timelock_value = ?, '
+              'abs_timelock_type = ?, abs_timelock_value = ? '
+              'WHERE id = ?',
+              [
+                relDecoded.timelockType.name,
+                relDecoded.value,
+                absDecoded.timelockType.name,
+                absDecoded.value,
+                id,
+              ],
+            );
+          }
+        }
+      },
+    );
+  }
 
   // --- Projects ---
 
