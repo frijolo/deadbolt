@@ -923,27 +923,53 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _relTimelockMeta = const VerificationMeta(
-    'relTimelock',
+  static const VerificationMeta _relTimelockTypeMeta = const VerificationMeta(
+    'relTimelockType',
   );
   @override
-  late final GeneratedColumn<int> relTimelock = GeneratedColumn<int>(
-    'rel_timelock',
+  late final GeneratedColumn<String> relTimelockType = GeneratedColumn<String>(
+    'rel_timelock_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('blocks'),
+  );
+  static const VerificationMeta _relTimelockValueMeta = const VerificationMeta(
+    'relTimelockValue',
+  );
+  @override
+  late final GeneratedColumn<int> relTimelockValue = GeneratedColumn<int>(
+    'rel_timelock_value',
     aliasedName,
     false,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
-  static const VerificationMeta _absTimelockMeta = const VerificationMeta(
-    'absTimelock',
+  static const VerificationMeta _absTimelockTypeMeta = const VerificationMeta(
+    'absTimelockType',
   );
   @override
-  late final GeneratedColumn<int> absTimelock = GeneratedColumn<int>(
-    'abs_timelock',
+  late final GeneratedColumn<String> absTimelockType = GeneratedColumn<String>(
+    'abs_timelock_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('blocks'),
+  );
+  static const VerificationMeta _absTimelockValueMeta = const VerificationMeta(
+    'absTimelockValue',
+  );
+  @override
+  late final GeneratedColumn<int> absTimelockValue = GeneratedColumn<int>(
+    'abs_timelock_value',
     aliasedName,
     false,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _wuBaseMeta = const VerificationMeta('wuBase');
   @override
@@ -1012,8 +1038,10 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     rustId,
     threshold,
     mfps,
-    relTimelock,
-    absTimelock,
+    relTimelockType,
+    relTimelockValue,
+    absTimelockType,
+    absTimelockValue,
     wuBase,
     wuIn,
     wuOut,
@@ -1068,27 +1096,41 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     } else if (isInserting) {
       context.missing(_mfpsMeta);
     }
-    if (data.containsKey('rel_timelock')) {
+    if (data.containsKey('rel_timelock_type')) {
       context.handle(
-        _relTimelockMeta,
-        relTimelock.isAcceptableOrUnknown(
-          data['rel_timelock']!,
-          _relTimelockMeta,
+        _relTimelockTypeMeta,
+        relTimelockType.isAcceptableOrUnknown(
+          data['rel_timelock_type']!,
+          _relTimelockTypeMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_relTimelockMeta);
     }
-    if (data.containsKey('abs_timelock')) {
+    if (data.containsKey('rel_timelock_value')) {
       context.handle(
-        _absTimelockMeta,
-        absTimelock.isAcceptableOrUnknown(
-          data['abs_timelock']!,
-          _absTimelockMeta,
+        _relTimelockValueMeta,
+        relTimelockValue.isAcceptableOrUnknown(
+          data['rel_timelock_value']!,
+          _relTimelockValueMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_absTimelockMeta);
+    }
+    if (data.containsKey('abs_timelock_type')) {
+      context.handle(
+        _absTimelockTypeMeta,
+        absTimelockType.isAcceptableOrUnknown(
+          data['abs_timelock_type']!,
+          _absTimelockTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('abs_timelock_value')) {
+      context.handle(
+        _absTimelockValueMeta,
+        absTimelockValue.isAcceptableOrUnknown(
+          data['abs_timelock_value']!,
+          _absTimelockValueMeta,
+        ),
+      );
     }
     if (data.containsKey('wu_base')) {
       context.handle(
@@ -1165,13 +1207,21 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
         DriftSqlType.string,
         data['${effectivePrefix}mfps'],
       )!,
-      relTimelock: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rel_timelock'],
+      relTimelockType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rel_timelock_type'],
       )!,
-      absTimelock: attachedDatabase.typeMapping.read(
+      relTimelockValue: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}abs_timelock'],
+        data['${effectivePrefix}rel_timelock_value'],
+      )!,
+      absTimelockType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}abs_timelock_type'],
+      )!,
+      absTimelockValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}abs_timelock_value'],
       )!,
       wuBase: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -1213,8 +1263,10 @@ class ProjectSpendPath extends DataClass
   final int rustId;
   final int threshold;
   final String mfps;
-  final int relTimelock;
-  final int absTimelock;
+  final String relTimelockType;
+  final int relTimelockValue;
+  final String absTimelockType;
+  final int absTimelockValue;
   final int wuBase;
   final int wuIn;
   final int wuOut;
@@ -1227,8 +1279,10 @@ class ProjectSpendPath extends DataClass
     required this.rustId,
     required this.threshold,
     required this.mfps,
-    required this.relTimelock,
-    required this.absTimelock,
+    required this.relTimelockType,
+    required this.relTimelockValue,
+    required this.absTimelockType,
+    required this.absTimelockValue,
     required this.wuBase,
     required this.wuIn,
     required this.wuOut,
@@ -1244,8 +1298,10 @@ class ProjectSpendPath extends DataClass
     map['rust_id'] = Variable<int>(rustId);
     map['threshold'] = Variable<int>(threshold);
     map['mfps'] = Variable<String>(mfps);
-    map['rel_timelock'] = Variable<int>(relTimelock);
-    map['abs_timelock'] = Variable<int>(absTimelock);
+    map['rel_timelock_type'] = Variable<String>(relTimelockType);
+    map['rel_timelock_value'] = Variable<int>(relTimelockValue);
+    map['abs_timelock_type'] = Variable<String>(absTimelockType);
+    map['abs_timelock_value'] = Variable<int>(absTimelockValue);
     map['wu_base'] = Variable<int>(wuBase);
     map['wu_in'] = Variable<int>(wuIn);
     map['wu_out'] = Variable<int>(wuOut);
@@ -1264,8 +1320,10 @@ class ProjectSpendPath extends DataClass
       rustId: Value(rustId),
       threshold: Value(threshold),
       mfps: Value(mfps),
-      relTimelock: Value(relTimelock),
-      absTimelock: Value(absTimelock),
+      relTimelockType: Value(relTimelockType),
+      relTimelockValue: Value(relTimelockValue),
+      absTimelockType: Value(absTimelockType),
+      absTimelockValue: Value(absTimelockValue),
       wuBase: Value(wuBase),
       wuIn: Value(wuIn),
       wuOut: Value(wuOut),
@@ -1288,8 +1346,10 @@ class ProjectSpendPath extends DataClass
       rustId: serializer.fromJson<int>(json['rustId']),
       threshold: serializer.fromJson<int>(json['threshold']),
       mfps: serializer.fromJson<String>(json['mfps']),
-      relTimelock: serializer.fromJson<int>(json['relTimelock']),
-      absTimelock: serializer.fromJson<int>(json['absTimelock']),
+      relTimelockType: serializer.fromJson<String>(json['relTimelockType']),
+      relTimelockValue: serializer.fromJson<int>(json['relTimelockValue']),
+      absTimelockType: serializer.fromJson<String>(json['absTimelockType']),
+      absTimelockValue: serializer.fromJson<int>(json['absTimelockValue']),
       wuBase: serializer.fromJson<int>(json['wuBase']),
       wuIn: serializer.fromJson<int>(json['wuIn']),
       wuOut: serializer.fromJson<int>(json['wuOut']),
@@ -1307,8 +1367,10 @@ class ProjectSpendPath extends DataClass
       'rustId': serializer.toJson<int>(rustId),
       'threshold': serializer.toJson<int>(threshold),
       'mfps': serializer.toJson<String>(mfps),
-      'relTimelock': serializer.toJson<int>(relTimelock),
-      'absTimelock': serializer.toJson<int>(absTimelock),
+      'relTimelockType': serializer.toJson<String>(relTimelockType),
+      'relTimelockValue': serializer.toJson<int>(relTimelockValue),
+      'absTimelockType': serializer.toJson<String>(absTimelockType),
+      'absTimelockValue': serializer.toJson<int>(absTimelockValue),
       'wuBase': serializer.toJson<int>(wuBase),
       'wuIn': serializer.toJson<int>(wuIn),
       'wuOut': serializer.toJson<int>(wuOut),
@@ -1324,8 +1386,10 @@ class ProjectSpendPath extends DataClass
     int? rustId,
     int? threshold,
     String? mfps,
-    int? relTimelock,
-    int? absTimelock,
+    String? relTimelockType,
+    int? relTimelockValue,
+    String? absTimelockType,
+    int? absTimelockValue,
     int? wuBase,
     int? wuIn,
     int? wuOut,
@@ -1338,8 +1402,10 @@ class ProjectSpendPath extends DataClass
     rustId: rustId ?? this.rustId,
     threshold: threshold ?? this.threshold,
     mfps: mfps ?? this.mfps,
-    relTimelock: relTimelock ?? this.relTimelock,
-    absTimelock: absTimelock ?? this.absTimelock,
+    relTimelockType: relTimelockType ?? this.relTimelockType,
+    relTimelockValue: relTimelockValue ?? this.relTimelockValue,
+    absTimelockType: absTimelockType ?? this.absTimelockType,
+    absTimelockValue: absTimelockValue ?? this.absTimelockValue,
     wuBase: wuBase ?? this.wuBase,
     wuIn: wuIn ?? this.wuIn,
     wuOut: wuOut ?? this.wuOut,
@@ -1354,12 +1420,18 @@ class ProjectSpendPath extends DataClass
       rustId: data.rustId.present ? data.rustId.value : this.rustId,
       threshold: data.threshold.present ? data.threshold.value : this.threshold,
       mfps: data.mfps.present ? data.mfps.value : this.mfps,
-      relTimelock: data.relTimelock.present
-          ? data.relTimelock.value
-          : this.relTimelock,
-      absTimelock: data.absTimelock.present
-          ? data.absTimelock.value
-          : this.absTimelock,
+      relTimelockType: data.relTimelockType.present
+          ? data.relTimelockType.value
+          : this.relTimelockType,
+      relTimelockValue: data.relTimelockValue.present
+          ? data.relTimelockValue.value
+          : this.relTimelockValue,
+      absTimelockType: data.absTimelockType.present
+          ? data.absTimelockType.value
+          : this.absTimelockType,
+      absTimelockValue: data.absTimelockValue.present
+          ? data.absTimelockValue.value
+          : this.absTimelockValue,
       wuBase: data.wuBase.present ? data.wuBase.value : this.wuBase,
       wuIn: data.wuIn.present ? data.wuIn.value : this.wuIn,
       wuOut: data.wuOut.present ? data.wuOut.value : this.wuOut,
@@ -1379,8 +1451,10 @@ class ProjectSpendPath extends DataClass
           ..write('rustId: $rustId, ')
           ..write('threshold: $threshold, ')
           ..write('mfps: $mfps, ')
-          ..write('relTimelock: $relTimelock, ')
-          ..write('absTimelock: $absTimelock, ')
+          ..write('relTimelockType: $relTimelockType, ')
+          ..write('relTimelockValue: $relTimelockValue, ')
+          ..write('absTimelockType: $absTimelockType, ')
+          ..write('absTimelockValue: $absTimelockValue, ')
           ..write('wuBase: $wuBase, ')
           ..write('wuIn: $wuIn, ')
           ..write('wuOut: $wuOut, ')
@@ -1398,8 +1472,10 @@ class ProjectSpendPath extends DataClass
     rustId,
     threshold,
     mfps,
-    relTimelock,
-    absTimelock,
+    relTimelockType,
+    relTimelockValue,
+    absTimelockType,
+    absTimelockValue,
     wuBase,
     wuIn,
     wuOut,
@@ -1416,8 +1492,10 @@ class ProjectSpendPath extends DataClass
           other.rustId == this.rustId &&
           other.threshold == this.threshold &&
           other.mfps == this.mfps &&
-          other.relTimelock == this.relTimelock &&
-          other.absTimelock == this.absTimelock &&
+          other.relTimelockType == this.relTimelockType &&
+          other.relTimelockValue == this.relTimelockValue &&
+          other.absTimelockType == this.absTimelockType &&
+          other.absTimelockValue == this.absTimelockValue &&
           other.wuBase == this.wuBase &&
           other.wuIn == this.wuIn &&
           other.wuOut == this.wuOut &&
@@ -1432,8 +1510,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
   final Value<int> rustId;
   final Value<int> threshold;
   final Value<String> mfps;
-  final Value<int> relTimelock;
-  final Value<int> absTimelock;
+  final Value<String> relTimelockType;
+  final Value<int> relTimelockValue;
+  final Value<String> absTimelockType;
+  final Value<int> absTimelockValue;
   final Value<int> wuBase;
   final Value<int> wuIn;
   final Value<int> wuOut;
@@ -1446,8 +1526,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     this.rustId = const Value.absent(),
     this.threshold = const Value.absent(),
     this.mfps = const Value.absent(),
-    this.relTimelock = const Value.absent(),
-    this.absTimelock = const Value.absent(),
+    this.relTimelockType = const Value.absent(),
+    this.relTimelockValue = const Value.absent(),
+    this.absTimelockType = const Value.absent(),
+    this.absTimelockValue = const Value.absent(),
     this.wuBase = const Value.absent(),
     this.wuIn = const Value.absent(),
     this.wuOut = const Value.absent(),
@@ -1461,8 +1543,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     required int rustId,
     required int threshold,
     required String mfps,
-    required int relTimelock,
-    required int absTimelock,
+    this.relTimelockType = const Value.absent(),
+    this.relTimelockValue = const Value.absent(),
+    this.absTimelockType = const Value.absent(),
+    this.absTimelockValue = const Value.absent(),
     required int wuBase,
     required int wuIn,
     required int wuOut,
@@ -1473,8 +1557,6 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
        rustId = Value(rustId),
        threshold = Value(threshold),
        mfps = Value(mfps),
-       relTimelock = Value(relTimelock),
-       absTimelock = Value(absTimelock),
        wuBase = Value(wuBase),
        wuIn = Value(wuIn),
        wuOut = Value(wuOut),
@@ -1486,8 +1568,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     Expression<int>? rustId,
     Expression<int>? threshold,
     Expression<String>? mfps,
-    Expression<int>? relTimelock,
-    Expression<int>? absTimelock,
+    Expression<String>? relTimelockType,
+    Expression<int>? relTimelockValue,
+    Expression<String>? absTimelockType,
+    Expression<int>? absTimelockValue,
     Expression<int>? wuBase,
     Expression<int>? wuIn,
     Expression<int>? wuOut,
@@ -1501,8 +1585,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
       if (rustId != null) 'rust_id': rustId,
       if (threshold != null) 'threshold': threshold,
       if (mfps != null) 'mfps': mfps,
-      if (relTimelock != null) 'rel_timelock': relTimelock,
-      if (absTimelock != null) 'abs_timelock': absTimelock,
+      if (relTimelockType != null) 'rel_timelock_type': relTimelockType,
+      if (relTimelockValue != null) 'rel_timelock_value': relTimelockValue,
+      if (absTimelockType != null) 'abs_timelock_type': absTimelockType,
+      if (absTimelockValue != null) 'abs_timelock_value': absTimelockValue,
       if (wuBase != null) 'wu_base': wuBase,
       if (wuIn != null) 'wu_in': wuIn,
       if (wuOut != null) 'wu_out': wuOut,
@@ -1518,8 +1604,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     Value<int>? rustId,
     Value<int>? threshold,
     Value<String>? mfps,
-    Value<int>? relTimelock,
-    Value<int>? absTimelock,
+    Value<String>? relTimelockType,
+    Value<int>? relTimelockValue,
+    Value<String>? absTimelockType,
+    Value<int>? absTimelockValue,
     Value<int>? wuBase,
     Value<int>? wuIn,
     Value<int>? wuOut,
@@ -1533,8 +1621,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
       rustId: rustId ?? this.rustId,
       threshold: threshold ?? this.threshold,
       mfps: mfps ?? this.mfps,
-      relTimelock: relTimelock ?? this.relTimelock,
-      absTimelock: absTimelock ?? this.absTimelock,
+      relTimelockType: relTimelockType ?? this.relTimelockType,
+      relTimelockValue: relTimelockValue ?? this.relTimelockValue,
+      absTimelockType: absTimelockType ?? this.absTimelockType,
+      absTimelockValue: absTimelockValue ?? this.absTimelockValue,
       wuBase: wuBase ?? this.wuBase,
       wuIn: wuIn ?? this.wuIn,
       wuOut: wuOut ?? this.wuOut,
@@ -1562,11 +1652,17 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     if (mfps.present) {
       map['mfps'] = Variable<String>(mfps.value);
     }
-    if (relTimelock.present) {
-      map['rel_timelock'] = Variable<int>(relTimelock.value);
+    if (relTimelockType.present) {
+      map['rel_timelock_type'] = Variable<String>(relTimelockType.value);
     }
-    if (absTimelock.present) {
-      map['abs_timelock'] = Variable<int>(absTimelock.value);
+    if (relTimelockValue.present) {
+      map['rel_timelock_value'] = Variable<int>(relTimelockValue.value);
+    }
+    if (absTimelockType.present) {
+      map['abs_timelock_type'] = Variable<String>(absTimelockType.value);
+    }
+    if (absTimelockValue.present) {
+      map['abs_timelock_value'] = Variable<int>(absTimelockValue.value);
     }
     if (wuBase.present) {
       map['wu_base'] = Variable<int>(wuBase.value);
@@ -1597,8 +1693,10 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
           ..write('rustId: $rustId, ')
           ..write('threshold: $threshold, ')
           ..write('mfps: $mfps, ')
-          ..write('relTimelock: $relTimelock, ')
-          ..write('absTimelock: $absTimelock, ')
+          ..write('relTimelockType: $relTimelockType, ')
+          ..write('relTimelockValue: $relTimelockValue, ')
+          ..write('absTimelockType: $absTimelockType, ')
+          ..write('absTimelockValue: $absTimelockValue, ')
           ..write('wuBase: $wuBase, ')
           ..write('wuIn: $wuIn, ')
           ..write('wuOut: $wuOut, ')
@@ -2413,8 +2511,10 @@ typedef $$ProjectSpendPathsTableCreateCompanionBuilder =
       required int rustId,
       required int threshold,
       required String mfps,
-      required int relTimelock,
-      required int absTimelock,
+      Value<String> relTimelockType,
+      Value<int> relTimelockValue,
+      Value<String> absTimelockType,
+      Value<int> absTimelockValue,
       required int wuBase,
       required int wuIn,
       required int wuOut,
@@ -2429,8 +2529,10 @@ typedef $$ProjectSpendPathsTableUpdateCompanionBuilder =
       Value<int> rustId,
       Value<int> threshold,
       Value<String> mfps,
-      Value<int> relTimelock,
-      Value<int> absTimelock,
+      Value<String> relTimelockType,
+      Value<int> relTimelockValue,
+      Value<String> absTimelockType,
+      Value<int> absTimelockValue,
       Value<int> wuBase,
       Value<int> wuIn,
       Value<int> wuOut,
@@ -2501,13 +2603,23 @@ class $$ProjectSpendPathsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get relTimelock => $composableBuilder(
-    column: $table.relTimelock,
+  ColumnFilters<String> get relTimelockType => $composableBuilder(
+    column: $table.relTimelockType,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get absTimelock => $composableBuilder(
-    column: $table.absTimelock,
+  ColumnFilters<int> get relTimelockValue => $composableBuilder(
+    column: $table.relTimelockValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get absTimelockType => $composableBuilder(
+    column: $table.absTimelockType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get absTimelockValue => $composableBuilder(
+    column: $table.absTimelockValue,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2594,13 +2706,23 @@ class $$ProjectSpendPathsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get relTimelock => $composableBuilder(
-    column: $table.relTimelock,
+  ColumnOrderings<String> get relTimelockType => $composableBuilder(
+    column: $table.relTimelockType,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get absTimelock => $composableBuilder(
-    column: $table.absTimelock,
+  ColumnOrderings<int> get relTimelockValue => $composableBuilder(
+    column: $table.relTimelockValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get absTimelockType => $composableBuilder(
+    column: $table.absTimelockType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get absTimelockValue => $composableBuilder(
+    column: $table.absTimelockValue,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2679,13 +2801,23 @@ class $$ProjectSpendPathsTableAnnotationComposer
   GeneratedColumn<String> get mfps =>
       $composableBuilder(column: $table.mfps, builder: (column) => column);
 
-  GeneratedColumn<int> get relTimelock => $composableBuilder(
-    column: $table.relTimelock,
+  GeneratedColumn<String> get relTimelockType => $composableBuilder(
+    column: $table.relTimelockType,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get absTimelock => $composableBuilder(
-    column: $table.absTimelock,
+  GeneratedColumn<int> get relTimelockValue => $composableBuilder(
+    column: $table.relTimelockValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get absTimelockType => $composableBuilder(
+    column: $table.absTimelockType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get absTimelockValue => $composableBuilder(
+    column: $table.absTimelockValue,
     builder: (column) => column,
   );
 
@@ -2771,8 +2903,10 @@ class $$ProjectSpendPathsTableTableManager
                 Value<int> rustId = const Value.absent(),
                 Value<int> threshold = const Value.absent(),
                 Value<String> mfps = const Value.absent(),
-                Value<int> relTimelock = const Value.absent(),
-                Value<int> absTimelock = const Value.absent(),
+                Value<String> relTimelockType = const Value.absent(),
+                Value<int> relTimelockValue = const Value.absent(),
+                Value<String> absTimelockType = const Value.absent(),
+                Value<int> absTimelockValue = const Value.absent(),
                 Value<int> wuBase = const Value.absent(),
                 Value<int> wuIn = const Value.absent(),
                 Value<int> wuOut = const Value.absent(),
@@ -2785,8 +2919,10 @@ class $$ProjectSpendPathsTableTableManager
                 rustId: rustId,
                 threshold: threshold,
                 mfps: mfps,
-                relTimelock: relTimelock,
-                absTimelock: absTimelock,
+                relTimelockType: relTimelockType,
+                relTimelockValue: relTimelockValue,
+                absTimelockType: absTimelockType,
+                absTimelockValue: absTimelockValue,
                 wuBase: wuBase,
                 wuIn: wuIn,
                 wuOut: wuOut,
@@ -2801,8 +2937,10 @@ class $$ProjectSpendPathsTableTableManager
                 required int rustId,
                 required int threshold,
                 required String mfps,
-                required int relTimelock,
-                required int absTimelock,
+                Value<String> relTimelockType = const Value.absent(),
+                Value<int> relTimelockValue = const Value.absent(),
+                Value<String> absTimelockType = const Value.absent(),
+                Value<int> absTimelockValue = const Value.absent(),
                 required int wuBase,
                 required int wuIn,
                 required int wuOut,
@@ -2815,8 +2953,10 @@ class $$ProjectSpendPathsTableTableManager
                 rustId: rustId,
                 threshold: threshold,
                 mfps: mfps,
-                relTimelock: relTimelock,
-                absTimelock: absTimelock,
+                relTimelockType: relTimelockType,
+                relTimelockValue: relTimelockValue,
+                absTimelockType: absTimelockType,
+                absTimelockValue: absTimelockValue,
                 wuBase: wuBase,
                 wuIn: wuIn,
                 wuOut: wuOut,

@@ -38,6 +38,32 @@ Future<int> calculateSpendPathId({
   absTimelock: absTimelock,
 );
 
+/// Decode legacy relative timelock consensus value (for database migration)
+Future<APIRelativeTimelock> decodeLegacyRelTimelock({required int consensus}) =>
+    RustLib.instance.api.crateApiAnalyzerDecodeLegacyRelTimelock(
+      consensus: consensus,
+    );
+
+/// Decode legacy absolute timelock consensus value (for database migration)
+Future<APIAbsoluteTimelock> decodeLegacyAbsTimelock({required int consensus}) =>
+    RustLib.instance.api.crateApiAnalyzerDecodeLegacyAbsTimelock(
+      consensus: consensus,
+    );
+
+/// Calculate spend path rustId from semantic timelock values
+/// Used when Flutter needs to compute rustId from type+value storage
+Future<int> calculateRustidFromTimelocks({
+  required int threshold,
+  required List<String> mfps,
+  required APIRelativeTimelock relTimelock,
+  required APIAbsoluteTimelock absTimelock,
+}) => RustLib.instance.api.crateApiAnalyzerCalculateRustidFromTimelocks(
+  threshold: threshold,
+  mfps: mfps,
+  relTimelock: relTimelock,
+  absTimelock: absTimelock,
+);
+
 /// Validate a key and check network compatibility
 ///
 /// Returns Ok(()) if the key is valid and compatible with the network,

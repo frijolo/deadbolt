@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 
 class PathCard extends StatelessWidget {
@@ -203,21 +204,27 @@ class PathCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ],
-            if (path.relTimelock > 0) ...[
+            if (path.relTimelockValue > 0) ...[
               _buildSeparator(),
               const Icon(Icons.update, size: 14, color: Colors.orange),
               const SizedBox(width: 4),
               Text(
-                "+${path.relTimelock} (~${BitcoinFormatter.formatBitcoinTime(path.relTimelock)})",
+                BitcoinFormatter.formatRelativeTimelock(
+                  RelativeTimelockType.fromString(path.relTimelockType),
+                  path.relTimelockValue,
+                ),
                 style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ],
-            if (path.absTimelock > 0) ...[
+            if (path.absTimelockValue > 0) ...[
               _buildSeparator(),
               const Icon(Icons.event_available, size: 14, color: Colors.orange),
               const SizedBox(width: 4),
               Text(
-                "${path.absTimelock} (~${BitcoinFormatter.formatBitcoinTime(path.absTimelock)})",
+                BitcoinFormatter.formatAbsoluteTimelock(
+                  AbsoluteTimelockType.fromString(path.absTimelockType),
+                  path.absTimelockValue,
+                ),
                 style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ],

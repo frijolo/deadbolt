@@ -451,8 +451,15 @@ class _ProjectDetailView extends StatelessWidget {
               onThresholdChanged: (v) => cubit.updatePathThreshold(i, v),
               onMfpAdded: (mfp) => cubit.addMfpToPath(i, mfp),
               onMfpRemoved: (mfp) => cubit.removeMfpFromPath(i, mfp),
-              onRelTimelockChanged: (v) => cubit.updatePathRelTimelock(i, v),
-              onAbsTimelockChanged: (v) => cubit.updatePathAbsTimelock(i, v),
+              onTimelockModeChanged: (m) => cubit.updatePathTimelockMode(i, m),
+              onRelTimelockTypeChanged: (t) =>
+                  cubit.updatePathRelTimelockType(i, t),
+              onRelTimelockValueChanged: (v) =>
+                  cubit.updatePathRelTimelockValue(i, v),
+              onAbsTimelockTypeChanged: (t) =>
+                  cubit.updatePathAbsTimelockType(i, t),
+              onAbsTimelockValueChanged: (v) =>
+                  cubit.updatePathAbsTimelockValue(i, v),
               onDelete: () => cubit.removeSpendPath(i),
               isTaproot: (state.editedWalletType ??
                          APIWalletType.values.byName(state.project.walletType)) ==

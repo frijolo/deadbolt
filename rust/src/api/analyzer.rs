@@ -1,7 +1,10 @@
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
-use crate::api::model::{APINetwork, APIPubKey, APISpendPath, APISpendPathDef, APIWalletType};
+use crate::api::model::{
+    APIAbsoluteTimelock, APINetwork, APIPubKey, APIRelativeTimelock, APISpendPath,
+    APISpendPathDef, APIWalletType,
+};
 use crate::core::descriptor::DescriptorAnalyzer;
 use crate::core::descriptor_builder::{self, SpendPathDef};
 use crate::core::pubkey::PubKey;
@@ -76,6 +79,35 @@ pub fn calculate_spend_path_id(
     abs_timelock: u32,
 ) -> u32 {
     spend_path::calculate_spend_path_id(threshold as usize, &mfps, rel_timelock, abs_timelock)
+}
+
+/// Decode legacy relative timelock consensus value (for database migration)
+pub fn decode_legacy_rel_timelock(consensus: u32) -> APIRelativeTimelock {
+    APIRelativeTimelock::from_consensus(consensus)
+}
+
+/// Decode legacy absolute timelock consensus value (for database migration)
+pub fn decode_legacy_abs_timelock(consensus: u32) -> APIAbsoluteTimelock {
+    APIAbsoluteTimelock::from_consensus(consensus)
+}
+
+/// Calculate spend path rustId from semantic timelock values
+/// Used when Flutter needs to compute rustId from type+value storage
+pub fn calculate_rustid_from_timelocks(
+    threshold: u32,
+    mfps: Vec<String>,
+    rel_timelock: APIRelativeTimelock,
+    abs_timelock: APIAbsoluteTimelock,
+) -> Result<u32> {
+    let rel_consensus = rel_timelock.to_consensus()?;
+    let abs_consensus = abs_timelock.to_consensus()?;
+
+    Ok(spend_path::calculate_spend_path_id(
+        threshold as usize,
+        &mfps,
+        rel_consensus,
+        abs_consensus,
+    ))
 }
 
 /// Validate a key and check network compatibility
@@ -167,8 +199,8 @@ mod tests {
         assert_eq!(sp.threshold, 2);
         assert_eq!(sp.mfps.len(), 2);
         assert_eq!((sp.wu_base + sp.wu_in + sp.wu_out) / 4, 149);
-        assert_eq!(sp.abs_timelock, 0);
-        assert_eq!(sp.rel_timelock, 0);
+        assert_eq!(sp.abs_timelock.value, 0);
+        assert_eq!(sp.rel_timelock.value, 0);
         assert_eq!(sp.tr_depth, -1);
 
         Ok(())
@@ -210,8 +242,8 @@ mod tests {
                 // Determine if this is a key-path (singlesig with no timelocks at depth 0)
                 let is_key_path = sp.threshold == 1
                     && sp.mfps.len() == 1
-                    && sp.rel_timelock == 0
-                    && sp.abs_timelock == 0
+                    && sp.rel_timelock.value == 0
+                    && sp.abs_timelock.value == 0
                     && sp.tr_depth == -1; // tr_depth is 0-1 for keypath
 
                 APISpendPathDef {

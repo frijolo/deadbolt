@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
+import 'package:deadbolt/models/timelock_types.dart';
 import 'package:drift/drift.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -72,8 +73,18 @@ class EditableSpendPath {
   int? originalDbId;
   int threshold;
   List<String> mfps;
-  int relTimelock;
-  int absTimelock;
+
+  // Timelock configuration - only one can be active at a time
+  TimelockMode timelockMode;
+
+  // Relative timelock (used when timelockMode = relative)
+  RelativeTimelockType relTimelockType;
+  int relTimelockValue;
+
+  // Absolute timelock (used when timelockMode = absolute)
+  AbsoluteTimelockType absTimelockType;
+  int absTimelockValue;
+
   String? customName;
   bool isKeyPath;
 
@@ -81,8 +92,11 @@ class EditableSpendPath {
     this.originalDbId,
     this.threshold = 1,
     List<String>? mfps,
-    this.relTimelock = 0,
-    this.absTimelock = 0,
+    this.timelockMode = TimelockMode.none,
+    this.relTimelockType = RelativeTimelockType.blocks,
+    this.relTimelockValue = 0,
+    this.absTimelockType = AbsoluteTimelockType.blocks,
+    this.absTimelockValue = 0,
     this.customName,
     this.isKeyPath = false,
   }) : mfps = mfps ?? [];
@@ -90,8 +104,11 @@ class EditableSpendPath {
   EditableSpendPath copyWith({
     int? threshold,
     List<String>? mfps,
-    int? relTimelock,
-    int? absTimelock,
+    TimelockMode? timelockMode,
+    RelativeTimelockType? relTimelockType,
+    int? relTimelockValue,
+    AbsoluteTimelockType? absTimelockType,
+    int? absTimelockValue,
     String? customName,
     bool? isKeyPath,
   }) {
@@ -99,8 +116,11 @@ class EditableSpendPath {
       originalDbId: originalDbId,
       threshold: threshold ?? this.threshold,
       mfps: mfps ?? List.of(this.mfps),
-      relTimelock: relTimelock ?? this.relTimelock,
-      absTimelock: absTimelock ?? this.absTimelock,
+      timelockMode: timelockMode ?? this.timelockMode,
+      relTimelockType: relTimelockType ?? this.relTimelockType,
+      relTimelockValue: relTimelockValue ?? this.relTimelockValue,
+      absTimelockType: absTimelockType ?? this.absTimelockType,
+      absTimelockValue: absTimelockValue ?? this.absTimelockValue,
       customName: customName ?? this.customName,
       isKeyPath: isKeyPath ?? this.isKeyPath,
     );
@@ -109,19 +129,39 @@ class EditableSpendPath {
   static EditableSpendPath fromDb(ProjectSpendPath sp) {
     // Key-path is detected if trDepth == -1 (not a script path)
     final isKeyPath = sp.trDepth == -1;
+
+    // Detect timelock mode based on values
+    final TimelockMode mode;
+    if (sp.relTimelockValue > 0 && sp.absTimelockValue > 0) {
+      // Both set - prefer relative (shouldn't happen with new UI, but handle legacy data)
+      mode = TimelockMode.relative;
+    } else if (sp.relTimelockValue > 0) {
+      mode = TimelockMode.relative;
+    } else if (sp.absTimelockValue > 0) {
+      mode = TimelockMode.absolute;
+    } else {
+      mode = TimelockMode.none;
+    }
+
     return EditableSpendPath(
       originalDbId: sp.id,
       threshold: sp.threshold,
       mfps: (jsonDecode(sp.mfps) as List).cast<String>(),
-      relTimelock: sp.relTimelock,
-      absTimelock: sp.absTimelock,
+      timelockMode: mode,
+      relTimelockType: RelativeTimelockType.fromString(sp.relTimelockType),
+      relTimelockValue: sp.relTimelockValue,
+      absTimelockType: AbsoluteTimelockType.fromString(sp.absTimelockType),
+      absTimelockValue: sp.absTimelockValue,
       customName: sp.customName,
       isKeyPath: isKeyPath,
     );
   }
 
   /// Check if this path is eligible to be a key-path (singlesig, no timelocks)
-  bool get canBeKeyPath => threshold == 1 && mfps.length == 1 && relTimelock == 0 && absTimelock == 0;
+  bool get canBeKeyPath =>
+      threshold == 1 &&
+      mfps.length == 1 &&
+      timelockMode == TimelockMode.none;
 }
 
 // --- States ---
@@ -378,11 +418,11 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
-  void updatePathRelTimelock(int pathIndex, int value) {
+  void updatePathTimelockMode(int pathIndex, TimelockMode mode) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(relTimelock: value);
+    final updatedPath = paths[pathIndex].copyWith(timelockMode: mode);
 
     // If path is no longer eligible for keypath, unmark it
     if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
@@ -394,11 +434,43 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
-  void updatePathAbsTimelock(int pathIndex, int value) {
+  void updatePathRelTimelockType(int pathIndex, RelativeTimelockType type) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(absTimelock: value);
+    paths[pathIndex] = paths[pathIndex].copyWith(relTimelockType: type);
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathRelTimelockValue(int pathIndex, int value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final updatedPath = paths[pathIndex].copyWith(relTimelockValue: value);
+
+    // If path is no longer eligible for keypath, unmark it
+    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
+      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
+    } else {
+      paths[pathIndex] = updatedPath;
+    }
+
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathAbsTimelockType(int pathIndex, AbsoluteTimelockType type) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    paths[pathIndex] = paths[pathIndex].copyWith(absTimelockType: type);
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
+  void updatePathAbsTimelockValue(int pathIndex, int value) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    final updatedPath = paths[pathIndex].copyWith(absTimelockValue: value);
 
     // If path is no longer eligible for keypath, unmark it
     if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
@@ -437,8 +509,10 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       originalDbId: oldPath.originalDbId,
       threshold: oldPath.threshold,
       mfps: oldPath.mfps,
-      relTimelock: oldPath.relTimelock,
-      absTimelock: oldPath.absTimelock,
+      relTimelockType: oldPath.relTimelockType,
+      relTimelockValue: oldPath.relTimelockValue,
+      absTimelockType: oldPath.absTimelockType,
+      absTimelockValue: oldPath.absTimelockValue,
       customName: customName,
       isKeyPath: oldPath.isKeyPath,
     );
@@ -614,6 +688,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null || s.editedKeys == null) return;
 
+    // Save current state to restore on error
+    final previousState = s;
+
     try {
       // Validate all paths before proceeding
       final validationErrors = <String>[];
@@ -665,11 +742,32 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       final editedPathNames = <int, String?>{};
       for (final ep in s.editedPaths!) {
         if (ep.customName != null) {
-          final rustId = await calculateSpendPathId(
+          // Only send the active timelock based on mode
+          final relTimelock = ep.timelockMode == TimelockMode.relative
+              ? APIRelativeTimelock(
+                  timelockType: ep.relTimelockType.toRust(),
+                  value: ep.relTimelockValue,
+                )
+              : APIRelativeTimelock(
+                  timelockType: APIRelativeTimelockType.blocks,
+                  value: 0,
+                );
+
+          final absTimelock = ep.timelockMode == TimelockMode.absolute
+              ? APIAbsoluteTimelock(
+                  timelockType: ep.absTimelockType.toRust(),
+                  value: ep.absTimelockValue,
+                )
+              : APIAbsoluteTimelock(
+                  timelockType: APIAbsoluteTimelockType.blocks,
+                  value: 0,
+                );
+
+          final rustId = await calculateRustidFromTimelocks(
             threshold: ep.threshold,
             mfps: ep.mfps,
-            relTimelock: ep.relTimelock,
-            absTimelock: ep.absTimelock,
+            relTimelock: relTimelock,
+            absTimelock: absTimelock,
           );
           editedPathNames[rustId] = ep.customName;
         }
@@ -695,13 +793,36 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
       // Convert edited paths to API spend path defs
       final apiPaths = s.editedPaths!
-          .map((ep) => APISpendPathDef(
-                threshold: ep.threshold,
-                mfps: ep.mfps,
-                relTimelock: ep.relTimelock,
-                absTimelock: ep.absTimelock,
-                isKeyPath: ep.isKeyPath,
-              ))
+          .map((ep) {
+            // Only send the active timelock based on mode
+            final relTimelock = ep.timelockMode == TimelockMode.relative
+                ? APIRelativeTimelock(
+                    timelockType: ep.relTimelockType.toRust(),
+                    value: ep.relTimelockValue,
+                  )
+                : APIRelativeTimelock(
+                    timelockType: APIRelativeTimelockType.blocks,
+                    value: 0,
+                  );
+
+            final absTimelock = ep.timelockMode == TimelockMode.absolute
+                ? APIAbsoluteTimelock(
+                    timelockType: ep.absTimelockType.toRust(),
+                    value: ep.absTimelockValue,
+                  )
+                : APIAbsoluteTimelock(
+                    timelockType: APIAbsoluteTimelockType.blocks,
+                    value: 0,
+                  );
+
+            return APISpendPathDef(
+              threshold: ep.threshold,
+              mfps: ep.mfps,
+              relTimelock: relTimelock,
+              absTimelock: absTimelock,
+              isKeyPath: ep.isKeyPath,
+            );
+          })
           .toList();
 
       // Build new descriptor via Rust (walletType already declared above)
@@ -723,7 +844,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         unusedKeys: unusedKeys,
       );
     } catch (e) {
-      emit(ProjectDetailError(formatRustError(e)));
+      // Show error as toast by restoring previous state with error message
+      emit(previousState.copyWith(errorMessage: formatRustError(e)));
     }
   }
 
@@ -733,6 +855,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     Map<String, String?>? editedKeyNames,
     List<EditableKey>? unusedKeys,
   }) async {
+    // Save current state to restore on error
+    final previousState = state;
+
     try {
       emit(ProjectDetailLoading());
 
@@ -805,8 +930,10 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
           rustId: sp.id,
           threshold: sp.threshold,
           mfps: jsonEncode(sp.mfps),
-          relTimelock: sp.relTimelock,
-          absTimelock: sp.absTimelock,
+          relTimelockType: Value(sp.relTimelock.timelockType.name),
+          relTimelockValue: Value(sp.relTimelock.value),
+          absTimelockType: Value(sp.absTimelock.timelockType.name),
+          absTimelockValue: Value(sp.absTimelock.value),
           wuBase: sp.wuBase,
           wuIn: sp.wuIn,
           wuOut: sp.wuOut,
@@ -831,10 +958,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       _mfpColorMap.clear();
       await load();
     } catch (e) {
-      // Show error as toast, restore previous state
-      final currentState = state;
-      if (currentState is ProjectDetailLoaded) {
-        emit(currentState.copyWith(errorMessage: formatRustError(e)));
+      // Show error as toast by restoring previous state
+      if (previousState is ProjectDetailLoaded) {
+        emit(previousState.copyWith(errorMessage: formatRustError(e)));
       } else {
         // Fallback to error state if not in loaded state
         emit(ProjectDetailError(formatRustError(e)));

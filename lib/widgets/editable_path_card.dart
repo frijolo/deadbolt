@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/utils/bitcoin_formatter.dart';
 
 class EditablePathCard extends StatelessWidget {
   final int index;
@@ -11,8 +13,11 @@ class EditablePathCard extends StatelessWidget {
   final ValueChanged<int> onThresholdChanged;
   final void Function(String mfp) onMfpAdded;
   final void Function(String mfp) onMfpRemoved;
-  final ValueChanged<int> onRelTimelockChanged;
-  final ValueChanged<int> onAbsTimelockChanged;
+  final ValueChanged<TimelockMode> onTimelockModeChanged;
+  final ValueChanged<RelativeTimelockType> onRelTimelockTypeChanged;
+  final ValueChanged<int> onRelTimelockValueChanged;
+  final ValueChanged<AbsoluteTimelockType> onAbsTimelockTypeChanged;
+  final ValueChanged<int> onAbsTimelockValueChanged;
   final VoidCallback onDelete;
   final bool isTaproot;
   final ValueChanged<bool>? onKeyPathChanged;
@@ -27,8 +32,11 @@ class EditablePathCard extends StatelessWidget {
     required this.onThresholdChanged,
     required this.onMfpAdded,
     required this.onMfpRemoved,
-    required this.onRelTimelockChanged,
-    required this.onAbsTimelockChanged,
+    required this.onTimelockModeChanged,
+    required this.onRelTimelockTypeChanged,
+    required this.onRelTimelockValueChanged,
+    required this.onAbsTimelockTypeChanged,
+    required this.onAbsTimelockValueChanged,
     required this.onDelete,
     this.isTaproot = false,
     this.onKeyPathChanged,
@@ -88,9 +96,7 @@ class EditablePathCard extends StatelessWidget {
             const SizedBox(height: 12),
             _buildKeysSection(context),
             const SizedBox(height: 12),
-            _buildThresholdRow(),
-            const SizedBox(height: 8),
-            _buildTimelockRow(context),
+            _buildThresholdAndTimelockRow(context),
           ],
         ),
       ),
@@ -327,12 +333,38 @@ class EditablePathCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThresholdRow() {
+  Widget _buildThresholdAndTimelockRow(BuildContext context) {
     final maxThreshold = path.mfps.isEmpty ? 1 : path.mfps.length;
     final currentThreshold = path.threshold.clamp(1, maxThreshold);
 
+    // Timelock display logic
+    final hasTimelock = path.timelockMode != TimelockMode.none &&
+        ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
+         (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
+
+    final IconData timelockIcon;
+    final String timelockText;
+
+    if (!hasTimelock) {
+      timelockIcon = Icons.lock_clock;
+      timelockText = 'No timelock';
+    } else if (path.timelockMode == TimelockMode.relative) {
+      timelockIcon = Icons.update;
+      timelockText = BitcoinFormatter.formatRelativeTimelock(
+        path.relTimelockType,
+        path.relTimelockValue,
+      );
+    } else {
+      timelockIcon = Icons.event_available;
+      timelockText = BitcoinFormatter.formatAbsoluteTimelock(
+        path.absTimelockType,
+        path.absTimelockValue,
+      );
+    }
+
     return Row(
       children: [
+        // Threshold section
         const Text(
           'Threshold',
           style: TextStyle(fontSize: 11, color: Colors.white54),
@@ -378,28 +410,53 @@ class EditablePathCard extends StatelessWidget {
           'of ${path.mfps.length}',
           style: const TextStyle(fontSize: 12, color: Colors.white70),
         ),
-      ],
-    );
-  }
 
-  Widget _buildTimelockRow(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _TimelockField(
-            label: 'Relative timelock',
-            icon: Icons.update,
-            value: path.relTimelock,
-            onChanged: onRelTimelockChanged,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _TimelockField(
-            label: 'Absolute timelock',
-            icon: Icons.event_available,
-            value: path.absTimelock,
-            onChanged: onAbsTimelockChanged,
+        const Spacer(),
+
+        // Timelock section (on the right)
+        InkWell(
+          onTap: () => _showTimelockDialog(context),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: hasTimelock
+                  ? Colors.orange.withAlpha(32)
+                  : Colors.white10,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hasTimelock
+                    ? Colors.orange.withAlpha(64)
+                    : Colors.white24,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  timelockIcon,
+                  size: 14,
+                  color: hasTimelock ? Colors.orange : Colors.white54,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  timelockText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: hasTimelock ? Colors.white : Colors.white54,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.edit,
+                  size: 12,
+                  color: hasTimelock
+                      ? Colors.orange.withAlpha(180)
+                      : Colors.white38,
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -448,56 +505,443 @@ class EditablePathCard extends StatelessWidget {
       ),
     );
   }
+
+  void _showTimelockDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _TimelockDialog(
+        initialMode: path.timelockMode,
+        initialRelType: path.relTimelockType,
+        initialRelValue: path.relTimelockValue,
+        initialAbsType: path.absTimelockType,
+        initialAbsValue: path.absTimelockValue,
+        onSave: (mode, relType, relValue, absType, absValue) {
+          if (mode != path.timelockMode) {
+            onTimelockModeChanged(mode);
+          }
+          if (relType != path.relTimelockType) {
+            onRelTimelockTypeChanged(relType);
+          }
+          if (relValue != path.relTimelockValue) {
+            onRelTimelockValueChanged(relValue);
+          }
+          if (absType != path.absTimelockType) {
+            onAbsTimelockTypeChanged(absType);
+          }
+          if (absValue != path.absTimelockValue) {
+            onAbsTimelockValueChanged(absValue);
+          }
+        },
+      ),
+    );
+  }
 }
 
-class _TimelockField extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final int value;
-  final ValueChanged<int> onChanged;
+class _TimelockDialog extends StatefulWidget {
+  final TimelockMode initialMode;
+  final RelativeTimelockType initialRelType;
+  final int initialRelValue;
+  final AbsoluteTimelockType initialAbsType;
+  final int initialAbsValue;
+  final void Function(
+    TimelockMode mode,
+    RelativeTimelockType relType,
+    int relValue,
+    AbsoluteTimelockType absType,
+    int absValue,
+  ) onSave;
 
-  const _TimelockField({
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.onChanged,
+  const _TimelockDialog({
+    required this.initialMode,
+    required this.initialRelType,
+    required this.initialRelValue,
+    required this.initialAbsType,
+    required this.initialAbsValue,
+    required this.onSave,
   });
 
   @override
+  State<_TimelockDialog> createState() => _TimelockDialogState();
+}
+
+class _TimelockDialogState extends State<_TimelockDialog> {
+  late TimelockMode _mode;
+  late RelativeTimelockType _relType;
+  late int _relValue;
+  late AbsoluteTimelockType _absType;
+  late int _absValue;
+  final _textController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // If initial mode is none, default to relative
+    _mode = widget.initialMode == TimelockMode.none
+        ? TimelockMode.relative
+        : widget.initialMode;
+    _relType = widget.initialRelType;
+    _absType = widget.initialAbsType;
+
+    // For relative Time type, convert seconds to units
+    _relValue = _relType == RelativeTimelockType.time
+        ? widget.initialRelValue ~/ 512
+        : widget.initialRelValue;
+
+    _absValue = widget.initialAbsValue;
+
+    _updateTextField();
+  }
+
+  void _updateTextField() {
+    if (_mode == TimelockMode.relative) {
+      _textController.text = _relValue == 0 ? '' : _relValue.toString();
+    } else {
+      // Absolute with timestamp uses date picker, not text field
+      if (_absType == AbsoluteTimelockType.blocks) {
+        _textController.text = _absValue == 0 ? '' : _absValue.toString();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  double get _maxSliderValue {
+    if (_mode == TimelockMode.relative) {
+      return 65535;
+    } else if (_mode == TimelockMode.absolute && _absType == AbsoluteTimelockType.blocks) {
+      return 499999999;
+    }
+    return 0;
+  }
+
+  String? get _validationError {
+    if (_mode == TimelockMode.none) return null;
+
+    if (_mode == TimelockMode.relative) {
+      // Value 0 is now allowed (represents no timelock)
+      if (_relValue > 65535) {
+        return 'Value must be ≤ 65,535';
+      }
+    } else if (_mode == TimelockMode.absolute) {
+      // Value 0 is now allowed (represents no timelock)
+      if (_absType == AbsoluteTimelockType.blocks) {
+        if (_absValue > 0 && _absValue >= 500000000) {
+          return 'Block height must be < 500,000,000';
+        }
+      } else {
+        if (_absValue > 0 && _absValue < 500000000) {
+          return 'Timestamp must be ≥ 500,000,000';
+        }
+      }
+    }
+    return null;
+  }
+
+  String _formatDateTime(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return AlertDialog(
+      title: const Text('Timelock'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(icon, size: 12, color: Colors.white54),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Colors.white54),
+            // Mode selector (Relative/Absolute only)
+            SegmentedButton<TimelockMode>(
+              segments: const [
+                ButtonSegment(
+                  value: TimelockMode.relative,
+                  label: Text('Relative'),
+                  icon: Icon(Icons.update, size: 16),
+                ),
+                ButtonSegment(
+                  value: TimelockMode.absolute,
+                  label: Text('Absolute'),
+                  icon: Icon(Icons.event_available, size: 16),
+                ),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (Set<TimelockMode> selection) {
+                setState(() {
+                  _mode = selection.first;
+                  _updateTextField();
+                });
+              },
             ),
+
+            const SizedBox(height: 20),
+            // Type selector (Blocks/Time)
+            if (_mode == TimelockMode.relative)
+              SegmentedButton<RelativeTimelockType>(
+                segments: const [
+                  ButtonSegment(
+                    value: RelativeTimelockType.blocks,
+                    label: Text('Blocks'),
+                    icon: Icon(Icons.grid_on, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: RelativeTimelockType.time,
+                    label: Text('Time'),
+                    icon: Icon(Icons.access_time, size: 16),
+                  ),
+                ],
+                selected: {_relType},
+                onSelectionChanged: (Set<RelativeTimelockType> selection) {
+                  setState(() {
+                    _relType = selection.first;
+                    if (_relType == RelativeTimelockType.time && _relValue > 65535) {
+                      _relValue = 0;
+                    }
+                    _updateTextField();
+                  });
+                },
+              )
+            else
+              SegmentedButton<AbsoluteTimelockType>(
+                segments: const [
+                  ButtonSegment(
+                    value: AbsoluteTimelockType.blocks,
+                    label: Text('Blocks'),
+                    icon: Icon(Icons.grid_on, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: AbsoluteTimelockType.timestamp,
+                    label: Text('Timestamp'),
+                    icon: Icon(Icons.calendar_today, size: 16),
+                  ),
+                ],
+                selected: {_absType},
+                onSelectionChanged: (Set<AbsoluteTimelockType> selection) {
+                  setState(() {
+                    _absType = selection.first;
+                    _updateTextField();
+                  });
+                },
+              ),
+
+              const SizedBox(height: 20),
+              // Value input
+              // Show appropriate input based on mode and type
+              if (_mode == TimelockMode.absolute && _absType == AbsoluteTimelockType.timestamp)
+                // Date/time picker for timestamp
+                InkWell(
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final initialDate = _absValue > 0
+                        ? DateTime.fromMillisecondsSinceEpoch(_absValue * 1000)
+                        : now;
+
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(1985, 11, 5),
+                      lastDate: DateTime(2038, 1, 19),
+                    );
+
+                    if (date != null && context.mounted) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(initialDate),
+                      );
+
+                      if (time != null && context.mounted) {
+                        final dateTime = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
+                        setState(() {
+                          _absValue = dateTime.millisecondsSinceEpoch ~/ 1000;
+                        });
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _validationError != null ? Colors.red : Colors.white24),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _absValue > 0
+                                ? _formatDateTime(_absValue)
+                                : 'Select date and time',
+                            style: TextStyle(
+                              color: _absValue > 0 ? Colors.white : Colors.white54,
+                            ),
+                          ),
+                        ),
+                        if (_absValue > 0)
+                          IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _absValue = 0;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                // Text field for other types
+                TextField(
+                  controller: _textController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: _mode == TimelockMode.relative
+                        ? (_relType == RelativeTimelockType.blocks
+                            ? 'Blocks (0-65,535)'
+                            : 'Units × 512s (0-65,535)')
+                        : 'Blocks (0-499,999,999)',
+                    errorText: _validationError,
+                    suffixIcon: (_mode == TimelockMode.relative ? _relValue : _absValue) > 0
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                if (_mode == TimelockMode.relative) {
+                                  _relValue = 0;
+                                } else {
+                                  _absValue = 0;
+                                }
+                                _textController.text = '';
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: (text) {
+                    final parsed = int.tryParse(text) ?? 0;
+                    setState(() {
+                      if (_mode == TimelockMode.relative) {
+                        _relValue = parsed;
+                      } else {
+                        _absValue = parsed;
+                      }
+                    });
+                  },
+                ),
+
+              // Slider (not for timestamp)
+              if (!(_mode == TimelockMode.absolute && _absType == AbsoluteTimelockType.timestamp)) ...[
+                const SizedBox(height: 16),
+                Slider(
+                  value: (_mode == TimelockMode.relative ? _relValue : _absValue)
+                      .toDouble()
+                      .clamp(0, _maxSliderValue),
+                  max: _maxSliderValue,
+                  divisions: _mode == TimelockMode.relative ? 655 : 499,
+                  label: (_mode == TimelockMode.relative ? _relValue : _absValue).toString(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      if (_mode == TimelockMode.relative) {
+                        _relValue = newValue.toInt();
+                        _textController.text = _relValue == 0 ? '' : _relValue.toString();
+                      } else {
+                        // Absolute blocks with million-rounding
+                        if (newValue >= 499000000) {
+                          _absValue = _maxSliderValue.toInt();
+                        } else {
+                          _absValue = (newValue / 1000000).round() * 1000000;
+                        }
+                        _textController.text = _absValue == 0 ? '' : _absValue.toString();
+                      }
+                    });
+                  },
+                ),
+              ],
+
+              const SizedBox(height: 8),
+              // User-friendly display
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withAlpha(32),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withAlpha(64)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _mode == TimelockMode.relative
+                            ? (_relValue > 0
+                                ? BitcoinFormatter.formatRelativeTimelock(
+                                    _relType,
+                                    _relType == RelativeTimelockType.time
+                                        ? _relValue * 512
+                                        : _relValue)
+                                : 'No timelock')
+                            : (_absValue > 0
+                                ? BitcoinFormatter.formatAbsoluteTimelock(
+                                    _absType,
+                                    _absValue)
+                                : 'No timelock'),
+                        style: const TextStyle(fontSize: 13, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 36,
-          child: TextFormField(
-            initialValue: value == 0 ? '' : value.toString(),
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 12),
-            decoration: const InputDecoration(
-              isDense: true,
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              border: OutlineInputBorder(),
-              hintText: '0',
-              hintStyle: TextStyle(color: Colors.white24),
-            ),
-            onChanged: (text) {
-              final parsed = int.tryParse(text) ?? 0;
-              onChanged(parsed);
-            },
-          ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _relValue = 0;
+              _absValue = 0;
+              _textController.text = '';
+            });
+          },
+          child: const Text('Clear'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _validationError != null
+              ? null
+              : () {
+                  // Convert units to seconds for relative Time type
+                  final relValueToSave = _relType == RelativeTimelockType.time
+                      ? _relValue * 512
+                      : _relValue;
+
+                  widget.onSave(
+                    _mode,
+                    _relType,
+                    relValueToSave,
+                    _absType,
+                    _absValue,
+                  );
+                  Navigator.pop(context);
+                },
+          child: const Text('Save'),
         ),
       ],
     );

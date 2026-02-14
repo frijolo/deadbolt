@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -23363396;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1693999108;
 
 // Section: executor
 
@@ -74,6 +74,77 @@ fn wire__crate__api__analyzer__analyze_descriptor_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::analyzer::analyze_descriptor(api_descriptor)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__model__api_absolute_timelock_from_consensus_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_absolute_timelock_from_consensus",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_consensus = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::model::APIAbsoluteTimelock::from_consensus(api_consensus),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__model__api_absolute_timelock_to_consensus_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_absolute_timelock_to_consensus",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::api::model::APIAbsoluteTimelock>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::model::APIAbsoluteTimelock::to_consensus(&api_that)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -172,7 +243,7 @@ fn wire__crate__api__model__api_policy_path_from_spendpath_impl(
         },
     )
 }
-fn wire__crate__api__model__api_spend_path_default_impl(
+fn wire__crate__api__model__api_relative_timelock_from_consensus_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -180,7 +251,7 @@ fn wire__crate__api__model__api_spend_path_default_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_spend_path_default",
+            debug_name: "api_relative_timelock_from_consensus",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -194,13 +265,51 @@ fn wire__crate__api__model__api_spend_path_default_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_consensus = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::model::APISpendPath::default())?;
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::model::APIRelativeTimelock::from_consensus(api_consensus),
+                    )?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__model__api_relative_timelock_to_consensus_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_relative_timelock_to_consensus",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::api::model::APIRelativeTimelock>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::model::APIRelativeTimelock::to_consensus(&api_that)?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -283,6 +392,51 @@ fn wire__crate__api__analyzer__build_descriptor_impl(
         },
     )
 }
+fn wire__crate__api__analyzer__calculate_rustid_from_timelocks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "calculate_rustid_from_timelocks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_threshold = <u32>::sse_decode(&mut deserializer);
+            let api_mfps = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_rel_timelock =
+                <crate::api::model::APIRelativeTimelock>::sse_decode(&mut deserializer);
+            let api_abs_timelock =
+                <crate::api::model::APIAbsoluteTimelock>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::analyzer::calculate_rustid_from_timelocks(
+                            api_threshold,
+                            api_mfps,
+                            api_rel_timelock,
+                            api_abs_timelock,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__analyzer__calculate_spend_path_id_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -319,6 +473,76 @@ fn wire__crate__api__analyzer__calculate_spend_path_id_impl(
                             api_rel_timelock,
                             api_abs_timelock,
                         ))?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__analyzer__decode_legacy_abs_timelock_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "decode_legacy_abs_timelock",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_consensus = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::analyzer::decode_legacy_abs_timelock(api_consensus),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__analyzer__decode_legacy_rel_timelock_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "decode_legacy_rel_timelock",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_consensus = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::analyzer::decode_legacy_rel_timelock(api_consensus),
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -447,6 +671,31 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::api::model::APIAbsoluteTimelock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_timelockType =
+            <crate::api::model::APIAbsoluteTimelockType>::sse_decode(deserializer);
+        let mut var_value = <u32>::sse_decode(deserializer);
+        return crate::api::model::APIAbsoluteTimelock {
+            timelock_type: var_timelockType,
+            value: var_value,
+        };
+    }
+}
+
+impl SseDecode for crate::api::model::APIAbsoluteTimelockType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::model::APIAbsoluteTimelockType::Blocks,
+            1 => crate::api::model::APIAbsoluteTimelockType::Timestamp,
+            _ => unreachable!("Invalid variant for APIAbsoluteTimelockType: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::analyzer::APIAnalysisResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -506,6 +755,31 @@ impl SseDecode for crate::api::model::APIPubKey {
     }
 }
 
+impl SseDecode for crate::api::model::APIRelativeTimelock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_timelockType =
+            <crate::api::model::APIRelativeTimelockType>::sse_decode(deserializer);
+        let mut var_value = <u32>::sse_decode(deserializer);
+        return crate::api::model::APIRelativeTimelock {
+            timelock_type: var_timelockType,
+            value: var_value,
+        };
+    }
+}
+
+impl SseDecode for crate::api::model::APIRelativeTimelockType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::model::APIRelativeTimelockType::Blocks,
+            1 => crate::api::model::APIRelativeTimelockType::Time,
+            _ => unreachable!("Invalid variant for APIRelativeTimelockType: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::model::APISpendPath {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -513,8 +787,10 @@ impl SseDecode for crate::api::model::APISpendPath {
         let mut var_policyPath = <Vec<crate::api::model::APIPolicyPath>>::sse_decode(deserializer);
         let mut var_threshold = <u32>::sse_decode(deserializer);
         let mut var_mfps = <Vec<String>>::sse_decode(deserializer);
-        let mut var_relTimelock = <u32>::sse_decode(deserializer);
-        let mut var_absTimelock = <u32>::sse_decode(deserializer);
+        let mut var_relTimelock =
+            <crate::api::model::APIRelativeTimelock>::sse_decode(deserializer);
+        let mut var_absTimelock =
+            <crate::api::model::APIAbsoluteTimelock>::sse_decode(deserializer);
         let mut var_wuBase = <u32>::sse_decode(deserializer);
         let mut var_wuIn = <u32>::sse_decode(deserializer);
         let mut var_wuOut = <u32>::sse_decode(deserializer);
@@ -541,8 +817,10 @@ impl SseDecode for crate::api::model::APISpendPathDef {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_threshold = <u32>::sse_decode(deserializer);
         let mut var_mfps = <Vec<String>>::sse_decode(deserializer);
-        let mut var_relTimelock = <u32>::sse_decode(deserializer);
-        let mut var_absTimelock = <u32>::sse_decode(deserializer);
+        let mut var_relTimelock =
+            <crate::api::model::APIRelativeTimelock>::sse_decode(deserializer);
+        let mut var_absTimelock =
+            <crate::api::model::APIAbsoluteTimelock>::sse_decode(deserializer);
         let mut var_isKeyPath = <bool>::sse_decode(deserializer);
         return crate::api::model::APISpendPathDef {
             threshold: var_threshold,
@@ -727,33 +1005,72 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__analyzer__analyze_descriptor_impl(port, ptr, rust_vec_len, data_len),
-        2 => {
-            wire__crate__api__model__api_policy_path_default_impl(port, ptr, rust_vec_len, data_len)
-        }
-        3 => wire__crate__api__model__api_policy_path_from_spendpath_impl(
+        2 => wire__crate__api__model__api_absolute_timelock_from_consensus_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        3 => wire__crate__api__model__api_absolute_timelock_to_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         4 => {
-            wire__crate__api__model__api_spend_path_default_impl(port, ptr, rust_vec_len, data_len)
+            wire__crate__api__model__api_policy_path_default_impl(port, ptr, rust_vec_len, data_len)
         }
-        5 => wire__crate__api__model__api_spend_path_from_sorted_impl(
+        5 => wire__crate__api__model__api_policy_path_from_spendpath_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__analyzer__build_descriptor_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__analyzer__calculate_spend_path_id_impl(
+        6 => wire__crate__api__model__api_relative_timelock_from_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__analyzer__init_app_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__model__api_relative_timelock_to_consensus_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        8 => wire__crate__api__model__api_spend_path_from_sorted_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        9 => wire__crate__api__analyzer__build_descriptor_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__analyzer__calculate_rustid_from_timelocks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        11 => wire__crate__api__analyzer__calculate_spend_path_id_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        12 => wire__crate__api__analyzer__decode_legacy_abs_timelock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        13 => wire__crate__api__analyzer__decode_legacy_rel_timelock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        14 => wire__crate__api__analyzer__init_app_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -787,6 +1104,48 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SpendPath>> for SpendPath {
     }
 }
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIAbsoluteTimelock {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.timelock_type.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIAbsoluteTimelock
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIAbsoluteTimelock>
+    for crate::api::model::APIAbsoluteTimelock
+{
+    fn into_into_dart(self) -> crate::api::model::APIAbsoluteTimelock {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIAbsoluteTimelockType {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Blocks => 0.into_dart(),
+            Self::Timestamp => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIAbsoluteTimelockType
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIAbsoluteTimelockType>
+    for crate::api::model::APIAbsoluteTimelockType
+{
+    fn into_into_dart(self) -> crate::api::model::APIAbsoluteTimelockType {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::analyzer::APIAnalysisResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -869,6 +1228,48 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIPubKey>
     for crate::api::model::APIPubKey
 {
     fn into_into_dart(self) -> crate::api::model::APIPubKey {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelativeTimelock {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.timelock_type.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIRelativeTimelock
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIRelativeTimelock>
+    for crate::api::model::APIRelativeTimelock
+{
+    fn into_into_dart(self) -> crate::api::model::APIRelativeTimelock {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelativeTimelockType {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Blocks => 0.into_dart(),
+            Self::Time => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIRelativeTimelockType
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIRelativeTimelockType>
+    for crate::api::model::APIRelativeTimelockType
+{
+    fn into_into_dart(self) -> crate::api::model::APIRelativeTimelockType {
         self
     }
 }
@@ -986,6 +1387,30 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for crate::api::model::APIAbsoluteTimelock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::model::APIAbsoluteTimelockType>::sse_encode(self.timelock_type, serializer);
+        <u32>::sse_encode(self.value, serializer);
+    }
+}
+
+impl SseEncode for crate::api::model::APIAbsoluteTimelockType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::model::APIAbsoluteTimelockType::Blocks => 0,
+                crate::api::model::APIAbsoluteTimelockType::Timestamp => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::analyzer::APIAnalysisResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1033,6 +1458,30 @@ impl SseEncode for crate::api::model::APIPubKey {
     }
 }
 
+impl SseEncode for crate::api::model::APIRelativeTimelock {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::model::APIRelativeTimelockType>::sse_encode(self.timelock_type, serializer);
+        <u32>::sse_encode(self.value, serializer);
+    }
+}
+
+impl SseEncode for crate::api::model::APIRelativeTimelockType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::model::APIRelativeTimelockType::Blocks => 0,
+                crate::api::model::APIRelativeTimelockType::Time => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::model::APISpendPath {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1040,8 +1489,8 @@ impl SseEncode for crate::api::model::APISpendPath {
         <Vec<crate::api::model::APIPolicyPath>>::sse_encode(self.policy_path, serializer);
         <u32>::sse_encode(self.threshold, serializer);
         <Vec<String>>::sse_encode(self.mfps, serializer);
-        <u32>::sse_encode(self.rel_timelock, serializer);
-        <u32>::sse_encode(self.abs_timelock, serializer);
+        <crate::api::model::APIRelativeTimelock>::sse_encode(self.rel_timelock, serializer);
+        <crate::api::model::APIAbsoluteTimelock>::sse_encode(self.abs_timelock, serializer);
         <u32>::sse_encode(self.wu_base, serializer);
         <u32>::sse_encode(self.wu_in, serializer);
         <u32>::sse_encode(self.wu_out, serializer);
@@ -1055,8 +1504,8 @@ impl SseEncode for crate::api::model::APISpendPathDef {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.threshold, serializer);
         <Vec<String>>::sse_encode(self.mfps, serializer);
-        <u32>::sse_encode(self.rel_timelock, serializer);
-        <u32>::sse_encode(self.abs_timelock, serializer);
+        <crate::api::model::APIRelativeTimelock>::sse_encode(self.rel_timelock, serializer);
+        <crate::api::model::APIAbsoluteTimelock>::sse_encode(self.abs_timelock, serializer);
         <bool>::sse_encode(self.is_key_path, serializer);
     }
 }
