@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 
 class ProjectListScreen extends StatelessWidget {
   const ProjectListScreen({super.key});
@@ -16,12 +19,16 @@ class ProjectListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deadbolt'),
+        title: const Text('Projects'),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'about') {
+            onSelected: (value) async {
+              if (value == 'new') {
+                _showCreateDialog(context);
+              } else if (value == 'import') {
+                await _showImportDialog(context);
+              } else if (value == 'about') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -31,6 +38,26 @@ class ProjectListScreen extends StatelessWidget {
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'new',
+                child: Row(
+                  children: [
+                    Icon(Icons.add),
+                    SizedBox(width: 8),
+                    Text('New'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'import',
+                child: Row(
+                  children: [
+                    Icon(Icons.file_download_outlined),
+                    SizedBox(width: 8),
+                    Text('Import'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'about',
                 child: Row(
@@ -191,5 +218,54 @@ class ProjectListScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showImportDialog(BuildContext context) async {
+    try {
+      // Get references before async gap
+      final cubit = context.read<ProjectListCubit>();
+      final db = context.read<AppDatabase>();
+
+      // Pick file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) {
+        if (context.mounted) {
+          showErrorToast(context, 'Could not read file');
+        }
+        return;
+      }
+
+      final jsonString = String.fromCharCodes(file.bytes!);
+
+      // Import project
+      final projectId = await cubit.importProject(jsonString);
+
+      if (context.mounted) {
+        showSuccessToast(context, 'Project imported successfully');
+
+        // Navigate to imported project
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProjectDetailScreen(
+              db: db,
+              projectId: projectId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showErrorToast(context, 'Import failed: ${formatRustError(e)}');
+      }
+    }
   }
 }

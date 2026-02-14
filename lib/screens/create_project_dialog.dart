@@ -20,7 +20,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   final _descriptorController = TextEditingController();
   final _nameController = TextEditingController();
   CreateMode _mode = CreateMode.importDescriptor;
-  APINetwork _selectedNetwork = APINetwork.bitcoin;
+  APINetwork _selectedNetwork = APINetwork.testnet;
   APIWalletType _selectedWalletType = APIWalletType.p2Tr;
   bool _loading = false;
   String? _error;
@@ -68,111 +68,129 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
               ),
               const SizedBox(height: 16),
               // Project name
+              const Text(
+                'Project name',
+                style: TextStyle(fontSize: 11, color: Colors.white54),
+              ),
+              const SizedBox(height: 4),
               TextField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: _mode == CreateMode.fromScratch
-                      ? 'Project name'
-                      : 'Project name (optional)',
-                  border: const OutlineInputBorder(),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
               const SizedBox(height: 16),
               // Mode-specific content
               if (_mode == CreateMode.importDescriptor)
                 Expanded(
-                  child: TextField(
-                    controller: _descriptorController,
-                    decoration: const InputDecoration(
-                      labelText: 'Descriptor',
-                      hintText: 'Paste your Bitcoin descriptor here...',
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Descriptor',
+                        style: TextStyle(fontSize: 11, color: Colors.white54),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: _descriptorController,
+                          decoration: const InputDecoration(
+                            hintText: 'Paste your Bitcoin descriptor here...',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.all(12),
+                          ),
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Network',
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: TextStyle(fontSize: 11, color: Colors.white54),
                     ),
-                    const SizedBox(height: 8),
-                    InputDecorator(
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                    const SizedBox(height: 4),
+                    PopupMenuButton<APINetwork>(
+                      offset: const Offset(0, 32),
+                      onSelected: (value) => setState(() => _selectedNetwork = value),
+                      tooltip: 'Select network',
+                      itemBuilder: (context) => [
+                        APINetwork.bitcoin,
+                        APINetwork.testnet,
+                      ].map((network) => PopupMenuItem(
+                            value: network,
+                            child: Text(network.displayName),
+                          ))
+                          .toList(),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white24),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<APINetwork>(
-                          value: _selectedNetwork,
-                          isExpanded: true,
-                          isDense: true,
-                          items: [
-                            APINetwork.bitcoin,
-                            APINetwork.testnet,
-                          ].map((network) => DropdownMenuItem(
-                                value: network,
-                                child: Text(network.displayName),
-                              ))
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _selectedNetwork = value);
-                            }
-                          },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _selectedNetwork.displayName,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 24),
+                          ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       'Wallet type',
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: TextStyle(fontSize: 11, color: Colors.white54),
                     ),
-                    const SizedBox(height: 8),
-                    InputDecorator(
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                    const SizedBox(height: 4),
+                    PopupMenuButton<APIWalletType>(
+                      offset: const Offset(0, 32),
+                      onSelected: (value) => setState(() => _selectedWalletType = value),
+                      tooltip: 'Select wallet type',
+                      itemBuilder: (context) => [
+                        APIWalletType.p2Tr,
+                        APIWalletType.p2Wsh,
+                        APIWalletType.p2ShWsh,
+                        APIWalletType.p2Sh,
+                        APIWalletType.p2Wpkh,
+                        APIWalletType.p2ShWpkh,
+                        APIWalletType.p2Pkh,
+                      ].map((type) => PopupMenuItem(
+                            value: type,
+                            child: Text(type.displayName),
+                          ))
+                          .toList(),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white24),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<APIWalletType>(
-                          value: _selectedWalletType,
-                          isExpanded: true,
-                          isDense: true,
-                          items: [
-                            APIWalletType.p2Tr,
-                            APIWalletType.p2Wsh,
-                            APIWalletType.p2ShWsh,
-                            APIWalletType.p2Sh,
-                            APIWalletType.p2Wpkh,
-                            APIWalletType.p2ShWpkh,
-                            APIWalletType.p2Pkh,
-                          ].map((type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type.displayName),
-                              ))
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _selectedWalletType = value);
-                            }
-                          },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _selectedWalletType.displayName,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 24),
+                          ],
                         ),
                       ),
                     ),
@@ -207,6 +225,13 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   }
 
   Future<void> _createProject() async {
+    // Validate project name (required for both modes)
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Project name is required');
+      return;
+    }
+
     if (_mode == CreateMode.importDescriptor) {
       // Import from descriptor
       final descriptor = _descriptorController.text.trim();
@@ -223,7 +248,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       try {
         final projectId = await widget.cubit.createProject(
           descriptor: descriptor,
-          name: _nameController.text.trim(),
+          name: name,
         );
         if (mounted) {
           Navigator.pop(context, projectId);
@@ -238,12 +263,6 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       }
     } else {
       // Start from scratch
-      final name = _nameController.text.trim();
-      if (name.isEmpty) {
-        setState(() => _error = 'Project name is required');
-        return;
-      }
-
       setState(() {
         _loading = true;
         _error = null;

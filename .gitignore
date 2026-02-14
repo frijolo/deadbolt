@@ -69,13 +69,14 @@ CLAUDE.md
 .gnupg/
 
 # Local release builds
-/release/
+/releases/
 *.apk
 *.tar.gz
 *.zip
 SHA256SUMS
 SHA256SUMS.asc
-serve_apk.sh
+build_release.sh
+serve_releases.sh
 
 # Environment files
 .env
