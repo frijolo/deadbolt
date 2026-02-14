@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/models/project_export.dart';
 import 'package:drift/drift.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
@@ -136,6 +141,7 @@ class ProjectDetailLoaded extends ProjectDetailState {
   final bool keysExpanded;
   final bool spendPathsExpanded;
   final String? errorMessage;
+  final String? successMessage;
 
   ProjectDetailLoaded({
     required this.project,
@@ -148,6 +154,7 @@ class ProjectDetailLoaded extends ProjectDetailState {
     this.keysExpanded = false,
     this.spendPathsExpanded = true,
     this.errorMessage,
+    this.successMessage,
   });
 
   bool get isEditing => editedPaths != null && editedKeys != null;
@@ -160,7 +167,9 @@ class ProjectDetailLoaded extends ProjectDetailState {
     bool? keysExpanded,
     bool? spendPathsExpanded,
     String? errorMessage,
+    String? successMessage,
     bool clearError = false,
+    bool clearSuccess = false,
   }) {
     return ProjectDetailLoaded(
       project: project,
@@ -173,6 +182,7 @@ class ProjectDetailLoaded extends ProjectDetailState {
       keysExpanded: keysExpanded ?? this.keysExpanded,
       spendPathsExpanded: spendPathsExpanded ?? this.spendPathsExpanded,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -836,6 +846,89 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is ProjectDetailLoaded && s.errorMessage != null) {
       emit(s.copyWith(clearError: true));
+    }
+  }
+
+  void clearSuccess() {
+    final s = state;
+    if (s is ProjectDetailLoaded && s.successMessage != null) {
+      emit(s.copyWith(clearSuccess: true));
+    }
+  }
+
+  /// Export project as JSON file
+  Future<void> exportProject() async {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
+
+    try {
+      // Collect key labels (mfp -> customName)
+      final keyLabels = <String, String>{};
+      for (final key in s.keys) {
+        if (key.customName != null) {
+          keyLabels[key.mfp] = key.customName!;
+        }
+      }
+
+      // Collect path labels (rustId -> customName)
+      final pathLabels = <String, String>{};
+      for (final path in s.spendPaths) {
+        if (path.customName != null) {
+          pathLabels[path.rustId.toString()] = path.customName!;
+        }
+      }
+
+      // Create export model
+      final exportData = ProjectExport(
+        version: 1,
+        exportedAt: DateTime.now(),
+        name: s.project.name,
+        descriptor: s.project.descriptor,
+        keyLabels: keyLabels,
+        pathLabels: pathLabels,
+      );
+
+      // Convert to JSON
+      final jsonString = exportData.toJsonString();
+      final fileName = '${s.project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
+
+      // Different behavior for mobile vs desktop
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Mobile: Use share sheet
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsString(jsonString);
+
+        final result = await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Export: ${s.project.name}',
+        );
+
+        if (result.status == ShareResultStatus.success) {
+          emit(s.copyWith(successMessage: 'Project exported successfully'));
+        }
+      } else {
+        // Desktop: Use file picker
+        final outputPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Export project',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['json'],
+        );
+
+        if (outputPath == null) {
+          // User cancelled
+          return;
+        }
+
+        // Write to chosen location
+        final file = File(outputPath);
+        await file.writeAsString(jsonString);
+
+        emit(s.copyWith(successMessage: 'Project exported successfully'));
+      }
+    } catch (e) {
+      emit(s.copyWith(errorMessage: 'Export failed: ${formatRustError(e)}'));
     }
   }
 }
