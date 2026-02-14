@@ -447,9 +447,21 @@ impl SpendPath {
             spb.addr_type(String::from("P2TR"));
         }
 
-        // If the internal key is a raw (Single) key (e.g. NUMS unspendable point),
-        // remove the key-path spend path — it's not actually spendable.
-        let skip_key_path = matches!(tr.internal_key(), DescriptorPublicKey::Single(_));
+        // If the internal key is a raw (Single) key (e.g. NUMS unspendable point)
+        // or an unspendable xpub, remove the key-path spend path — it's not actually spendable.
+        use crate::core::pubkey::PubKey;
+        let internal_key = tr.internal_key();
+        let skip_key_path = match internal_key {
+            DescriptorPublicKey::Single(_) => true,
+            DescriptorPublicKey::XPub(_) | DescriptorPublicKey::MultiXPub(_) => {
+                // Check if internal key is an unspendable NUMS xpub
+                match PubKey::try_from(internal_key.clone()) {
+                    std::result::Result::Ok(pk) => pk.is_unspendable(),
+                    std::result::Result::Err(_) => false,
+                }
+            }
+        };
+
         if skip_key_path && !spbs.is_empty() {
             spbs.remove(0);
             for spb in spbs.iter_mut() {
