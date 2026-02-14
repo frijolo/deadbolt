@@ -9,9 +9,6 @@ use crate::core::error::WalletError;
 use crate::core::pubkey::PubKey;
 use crate::core::wallet::WalletType;
 
-/// BIP341 NUMS (nothing-up-my-sleeve) point for unspendable taproot internal key
-const NUMS_KEY: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
-
 /// Definition of a spend path for descriptor building
 pub struct SpendPathDef {
     pub threshold: usize,
@@ -217,8 +214,20 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
             .map(|(_, sp)| sp)
             .collect();
     } else {
-        // No key-path: use NUMS and put all paths in script tree
-        internal_key_str = NUMS_KEY.to_string();
+        // No key-path: generate NUMS xpub from script path keys
+        // Infer network from first key
+        use crate::core::pubkey::PubKey;
+        use bdk_wallet::bitcoin::{Network, NetworkKind};
+
+        let network_kind = keys[0].xpub()?.network;
+        let network = match network_kind {
+            NetworkKind::Main => Network::Bitcoin,
+            NetworkKind::Test => Network::Testnet,
+        };
+
+        // Generate NUMS xpub (without fingerprint/derivation path, but with wildcard)
+        let nums_xpub = PubKey::generate_unspendable_xpub(keys, network)?;
+        internal_key_str = format!("{}/<0;1>/*", nums_xpub);
         script_paths = spend_paths.iter().collect();
     }
 
@@ -1064,10 +1073,17 @@ mod tests {
 
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
 
-        // Should use NUMS key (50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0)
-        assert!(
-            descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0")
-        );
+        // Should use NUMS xpub with wildcard, without fingerprint/derivation
+        assert!(descriptor.starts_with("tr(xpub") || descriptor.starts_with("tr(tpub"),
+            "Should start with NUMS xpub without fingerprint");
+
+        // Should contain wildcard after NUMS xpub
+        assert!(descriptor.contains("/<0;1>/*,{"),
+            "NUMS xpub should have wildcard /<0;1>/*");
+
+        // Should NOT contain raw NUMS point
+        assert!(!descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
+            "Should not contain raw NUMS point");
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         assert_eq!(analyzer.wallet_type(), WalletType::P2TR);
