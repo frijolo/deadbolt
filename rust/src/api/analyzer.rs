@@ -187,4 +187,68 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_taproot_without_keypath_roundtrip() -> Result<()> {
+        // Descriptor with raw NUMS point (no keypath spend)
+        let original_descriptor = "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,{pk([c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*),pk([73c5da0a/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*)})#kvpt6nlf";
+
+        // Analyze descriptor
+        let result = analyze_descriptor(String::from(original_descriptor))?;
+
+        // Should extract only 2 script path keys (NUMS excluded)
+        assert_eq!(result.keys.len(), 2, "Should have only 2 script path keys");
+
+        // No NUMS key should be present
+        let nums_key = result.keys.iter().find(|k| k.mfp == "00000000");
+        assert!(nums_key.is_none(), "NUMS key should not be in keys list");
+
+        // Convert APISpendPath to APISpendPathDef for rebuild
+        let spend_path_defs: Vec<APISpendPathDef> = result.spend_paths
+            .iter()
+            .map(|sp| {
+                // Determine if this is a key-path (singlesig with no timelocks at depth 0)
+                let is_key_path = sp.threshold == 1
+                    && sp.mfps.len() == 1
+                    && sp.rel_timelock == 0
+                    && sp.abs_timelock == 0
+                    && sp.tr_depth == -1; // tr_depth is 0-1 for keypath
+
+                APISpendPathDef {
+                    threshold: sp.threshold,
+                    mfps: sp.mfps.clone(),
+                    rel_timelock: sp.rel_timelock,
+                    abs_timelock: sp.abs_timelock,
+                    is_key_path,
+                }
+            })
+            .collect();
+
+        // Rebuild descriptor using extracted keys and spend paths
+        let rebuilt = build_descriptor(
+            result.wallet_type,
+            result.keys.clone(),
+            spend_path_defs,
+        )?;
+
+        // Rebuilt descriptor should NOT contain raw NUMS point
+        assert!(!rebuilt.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
+            "Rebuilt descriptor should not contain raw NUMS point");
+
+        // Rebuilt descriptor should contain NUMS xpub with wildcard (without fingerprint/derivation)
+        // Format: tr(xpub.../<0;1>/*,{...})
+        assert!(rebuilt.starts_with("tr(xpub") || rebuilt.starts_with("tr(tpub"),
+            "Rebuilt descriptor should start with NUMS xpub (no fingerprint)");
+
+        assert!(rebuilt.contains("/<0;1>/*,{"),
+            "NUMS xpub should have wildcard /<0;1>/*");
+
+        // Re-analyze the rebuilt descriptor to verify it's valid
+        let reanalyzed = analyze_descriptor(rebuilt)?;
+        assert_eq!(reanalyzed.keys.len(), 2, "Reanalyzed should still have 2 keys");
+        assert_eq!(reanalyzed.spend_paths.len(), result.spend_paths.len(),
+            "Spend paths should match");
+
+        Ok(())
+    }
 }
