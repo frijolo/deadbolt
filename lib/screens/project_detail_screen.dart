@@ -57,9 +57,27 @@ class _ProjectDetailView extends StatelessWidget {
       child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
         builder: (context, state) {
           return switch (state) {
-            ProjectDetailLoading() => Scaffold(
+            ProjectDetailLoading(:final message) => Scaffold(
                 appBar: AppBar(),
-                body: const Center(child: CircularProgressIndicator()),
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      if (message != null) ...[
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            message,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ProjectDetailError(:final message) => Scaffold(
                 appBar: AppBar(),

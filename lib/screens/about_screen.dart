@@ -15,7 +15,19 @@ class AboutScreen extends StatelessWidget {
         future: PackageInfo.fromPlatform(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading app info...',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            );
           }
 
           final info = snapshot.data!;

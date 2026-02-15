@@ -168,7 +168,10 @@ class EditableSpendPath {
 
 sealed class ProjectDetailState {}
 
-class ProjectDetailLoading extends ProjectDetailState {}
+class ProjectDetailLoading extends ProjectDetailState {
+  final String? message;
+  ProjectDetailLoading({this.message});
+}
 
 class ProjectDetailLoaded extends ProjectDetailState {
   final Project project;
@@ -735,7 +738,27 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         return;
       }
 
-      emit(ProjectDetailLoading());
+      // Show progress message for complex descriptors
+      final pathCount = s.editedPaths!.length;
+      final hasTimelocks = s.editedPaths!.any((p) =>
+        p.timelockMode != TimelockMode.none
+      );
+
+      String buildMessage;
+      String analyzeMessage;
+
+      if (s.editedWalletType != APIWalletType.p2Tr && pathCount > 3 && hasTimelocks) {
+        buildMessage = 'Building complex descriptor...\nThis may take some time';
+        analyzeMessage = 'Analyzing complex descriptor...';
+      } else if (pathCount > 3) {
+        buildMessage = 'Building descriptor with multiple paths...';
+        analyzeMessage = 'Analyzing descriptor...';
+      } else {
+        buildMessage = 'Building descriptor...';
+        analyzeMessage = 'Analyzing descriptor...';
+      }
+
+      emit(ProjectDetailLoading(message: buildMessage));
 
       // Build maps to preserve labels across regeneration
       // 1. Spend path names (by rustId)
@@ -842,6 +865,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         editedPathNames: editedPathNames,
         editedKeyNames: editedKeyNames,
         unusedKeys: unusedKeys,
+        loadingMessage: analyzeMessage,
       );
     } catch (e) {
       // Show error as toast by restoring previous state with error message
@@ -854,12 +878,13 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     Map<int, String?>? editedPathNames,
     Map<String, String?>? editedKeyNames,
     List<EditableKey>? unusedKeys,
+    String? loadingMessage,
   }) async {
     // Save current state to restore on error
     final previousState = state;
 
     try {
-      emit(ProjectDetailLoading());
+      emit(ProjectDetailLoading(message: loadingMessage ?? 'Analyzing and saving...'));
 
       // Load existing keys and paths to preserve custom names
       final existingKeys = await _db.getKeysForProject(projectId);

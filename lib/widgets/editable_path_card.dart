@@ -516,6 +516,9 @@ class EditablePathCard extends StatelessWidget {
         initialAbsType: path.absTimelockType,
         initialAbsValue: path.absTimelockValue,
         onSave: (mode, relType, relValue, absType, absValue) {
+          if (relValue == 0 && absValue == 0) {
+            mode = TimelockMode.none;
+          }
           if (mode != path.timelockMode) {
             onTimelockModeChanged(mode);
           }

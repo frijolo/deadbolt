@@ -76,8 +76,21 @@ class ProjectListScreen extends StatelessWidget {
         child: BlocBuilder<ProjectListCubit, ProjectListState>(
           builder: (context, state) {
             return switch (state) {
-            ProjectListLoading() =>
-              const Center(child: CircularProgressIndicator()),
+            ProjectListLoading(:final message) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    if (message != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        message,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ProjectListError(:final message) =>
               Center(child: Text(message)),
             ProjectListLoaded(:final projects) => projects.isEmpty
