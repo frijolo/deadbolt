@@ -24,6 +24,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   APIWalletType _selectedWalletType = APIWalletType.p2Tr;
   bool _loading = false;
   String? _error;
+  String? _loadingMessage;
 
   @override
   void dispose() {
@@ -204,6 +205,15 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
+              if (_loadingMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _loadingMessage!,
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _loading ? null : _createProject,
@@ -243,6 +253,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       setState(() {
         _loading = true;
         _error = null;
+        _loadingMessage = 'Analyzing descriptor...';
       });
 
       try {
@@ -257,6 +268,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         if (mounted) {
           setState(() {
             _loading = false;
+            _loadingMessage = null;
             _error = formatRustError(e);
           });
         }
@@ -266,6 +278,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       setState(() {
         _loading = true;
         _error = null;
+        _loadingMessage = 'Creating project...';
       });
 
       try {
@@ -281,6 +294,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         if (mounted) {
           setState(() {
             _loading = false;
+            _loadingMessage = null;
             _error = formatRustError(e);
           });
         }

@@ -14,7 +14,10 @@ import 'package:deadbolt/src/rust/api/model.dart';
 
 sealed class ProjectListState {}
 
-class ProjectListLoading extends ProjectListState {}
+class ProjectListLoading extends ProjectListState {
+  final String? message;
+  ProjectListLoading({this.message});
+}
 
 class ProjectListLoaded extends ProjectListState {
   final List<Project> projects;
@@ -32,7 +35,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
   final AppDatabase _db;
   StreamSubscription<List<Project>>? _subscription;
 
-  ProjectListCubit(this._db) : super(ProjectListLoading()) {
+  ProjectListCubit(this._db) : super(ProjectListLoading(message: 'Loading projects...')) {
     _watch();
   }
 
