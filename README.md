@@ -30,9 +30,6 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 Download the latest APK from [Releases](https://github.com/frijolo/deadbolt/releases):
 
 ```bash
-# Download
-wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-android.apk
-
 # Install via ADB
 adb install deadbolt-android.apk
 ```
@@ -44,9 +41,6 @@ Or install directly on your device.
 Download and extract the tarball:
 
 ```bash
-# Download
-wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-linux-x64.tar.gz
-
 # Extract
 tar -xzf deadbolt-linux-x64.tar.gz
 
