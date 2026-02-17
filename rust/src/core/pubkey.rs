@@ -25,8 +25,7 @@ static NUMS_PUBKEY: OnceLock<PublicKey> = OnceLock::new();
 /// Panics if NUMS_PUBKEY_HEX is invalid (should never happen as it's a hardcoded constant)
 fn get_nums_pubkey() -> &'static PublicKey {
     NUMS_PUBKEY.get_or_init(|| {
-        let bytes = hex::decode(NUMS_PUBKEY_HEX)
-            .expect("NUMS_PUBKEY_HEX should be valid hex");
+        let bytes = hex::decode(NUMS_PUBKEY_HEX).expect("NUMS_PUBKEY_HEX should be valid hex");
         PublicKey::from_slice(&bytes)
             .expect("NUMS_PUBKEY_HEX should be a valid compressed public key")
     })
@@ -318,7 +317,10 @@ mod tests {
         // Create a PubKey from the NUMS xpub and verify it's detected as unspendable
         let nums_key_str = format!("[00000000]{}", nums_xpub.to_string());
         let nums_key = PubKey::try_from(nums_key_str.as_str())?;
-        assert!(nums_key.is_unspendable(), "NUMS key should be detected as unspendable");
+        assert!(
+            nums_key.is_unspendable(),
+            "NUMS key should be detected as unspendable"
+        );
 
         Ok(())
     }
@@ -329,7 +331,10 @@ mod tests {
         let regular_key = PubKey::try_from(
             "[73c5da0a/44'/1'/0']tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"
         )?;
-        assert!(!regular_key.is_unspendable(), "Regular key should not be unspendable");
+        assert!(
+            !regular_key.is_unspendable(),
+            "Regular key should not be unspendable"
+        );
 
         Ok(())
     }
@@ -348,7 +353,11 @@ mod tests {
         let extracted_keys = PubKey::extract_from_descriptor(&descriptor)?;
 
         // Should have only 2 script path keys, NUMS excluded
-        assert_eq!(extracted_keys.len(), 2, "Should extract only 2 script keys, NUMS excluded");
+        assert_eq!(
+            extracted_keys.len(),
+            2,
+            "Should extract only 2 script keys, NUMS excluded"
+        );
 
         // No keys should be unspendable
         let nums_count = extracted_keys.iter().filter(|k| k.is_unspendable()).count();
@@ -371,7 +380,11 @@ mod tests {
         let extracted_keys = PubKey::extract_from_descriptor(&descriptor)?;
 
         // Should have only 2 keys (script paths), NUMS excluded
-        assert_eq!(extracted_keys.len(), 2, "Should extract only 2 script keys, NUMS excluded");
+        assert_eq!(
+            extracted_keys.len(),
+            2,
+            "Should extract only 2 script keys, NUMS excluded"
+        );
 
         // No unspendable keys
         let nums_count = extracted_keys.iter().filter(|k| k.is_unspendable()).count();

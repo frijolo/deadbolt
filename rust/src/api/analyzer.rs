@@ -2,8 +2,8 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAbsoluteTimelock, APINetwork, APIPubKey, APIRelativeTimelock, APISpendPath,
-    APISpendPathDef, APIWalletType,
+    APIAbsoluteTimelock, APINetwork, APIPubKey, APIRelativeTimelock, APISpendPath, APISpendPathDef,
+    APIWalletType,
 };
 use crate::core::descriptor::DescriptorAnalyzer;
 use crate::core::descriptor_builder::{self, SpendPathDef};
@@ -237,7 +237,8 @@ mod tests {
         assert!(nums_key.is_none(), "NUMS key should not be in keys list");
 
         // Convert APISpendPath to APISpendPathDef for rebuild
-        let spend_path_defs: Vec<APISpendPathDef> = result.spend_paths
+        let spend_path_defs: Vec<APISpendPathDef> = result
+            .spend_paths
             .iter()
             .map(|sp| {
                 // Determine if this is a key-path (singlesig with no timelocks at depth 0)
@@ -259,29 +260,38 @@ mod tests {
             .collect();
 
         // Rebuild descriptor using extracted keys and spend paths
-        let rebuilt = build_descriptor(
-            result.wallet_type,
-            result.keys.clone(),
-            spend_path_defs,
-        )?;
+        let rebuilt = build_descriptor(result.wallet_type, result.keys.clone(), spend_path_defs)?;
 
         // Rebuilt descriptor should NOT contain raw NUMS point
-        assert!(!rebuilt.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
-            "Rebuilt descriptor should not contain raw NUMS point");
+        assert!(
+            !rebuilt.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
+            "Rebuilt descriptor should not contain raw NUMS point"
+        );
 
         // Rebuilt descriptor should contain NUMS xpub with wildcard (without fingerprint/derivation)
         // Format: tr(xpub.../<0;1>/*,{...})
-        assert!(rebuilt.starts_with("tr(xpub") || rebuilt.starts_with("tr(tpub"),
-            "Rebuilt descriptor should start with NUMS xpub (no fingerprint)");
+        assert!(
+            rebuilt.starts_with("tr(xpub") || rebuilt.starts_with("tr(tpub"),
+            "Rebuilt descriptor should start with NUMS xpub (no fingerprint)"
+        );
 
-        assert!(rebuilt.contains("/<0;1>/*,{"),
-            "NUMS xpub should have wildcard /<0;1>/*");
+        assert!(
+            rebuilt.contains("/<0;1>/*,{"),
+            "NUMS xpub should have wildcard /<0;1>/*"
+        );
 
         // Re-analyze the rebuilt descriptor to verify it's valid
         let reanalyzed = analyze_descriptor(rebuilt)?;
-        assert_eq!(reanalyzed.keys.len(), 2, "Reanalyzed should still have 2 keys");
-        assert_eq!(reanalyzed.spend_paths.len(), result.spend_paths.len(),
-            "Spend paths should match");
+        assert_eq!(
+            reanalyzed.keys.len(),
+            2,
+            "Reanalyzed should still have 2 keys"
+        );
+        assert_eq!(
+            reanalyzed.spend_paths.len(),
+            result.spend_paths.len(),
+            "Spend paths should match"
+        );
 
         Ok(())
     }
