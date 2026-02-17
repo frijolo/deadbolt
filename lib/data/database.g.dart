@@ -1020,6 +1020,18 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _customNameMeta = const VerificationMeta(
     'customName',
   );
@@ -1047,6 +1059,7 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     wuOut,
     trDepth,
     vbSweep,
+    priority,
     customName,
   ];
   @override
@@ -1172,6 +1185,12 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
     } else if (isInserting) {
       context.missing(_vbSweepMeta);
     }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
     if (data.containsKey('custom_name')) {
       context.handle(
         _customNameMeta,
@@ -1243,6 +1262,10 @@ class $ProjectSpendPathsTable extends ProjectSpendPaths
         DriftSqlType.double,
         data['${effectivePrefix}vb_sweep'],
       )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
       customName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}custom_name'],
@@ -1272,6 +1295,7 @@ class ProjectSpendPath extends DataClass
   final int wuOut;
   final int trDepth;
   final double vbSweep;
+  final int priority;
   final String? customName;
   const ProjectSpendPath({
     required this.id,
@@ -1288,6 +1312,7 @@ class ProjectSpendPath extends DataClass
     required this.wuOut,
     required this.trDepth,
     required this.vbSweep,
+    required this.priority,
     this.customName,
   });
   @override
@@ -1307,6 +1332,7 @@ class ProjectSpendPath extends DataClass
     map['wu_out'] = Variable<int>(wuOut);
     map['tr_depth'] = Variable<int>(trDepth);
     map['vb_sweep'] = Variable<double>(vbSweep);
+    map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || customName != null) {
       map['custom_name'] = Variable<String>(customName);
     }
@@ -1329,6 +1355,7 @@ class ProjectSpendPath extends DataClass
       wuOut: Value(wuOut),
       trDepth: Value(trDepth),
       vbSweep: Value(vbSweep),
+      priority: Value(priority),
       customName: customName == null && nullToAbsent
           ? const Value.absent()
           : Value(customName),
@@ -1355,6 +1382,7 @@ class ProjectSpendPath extends DataClass
       wuOut: serializer.fromJson<int>(json['wuOut']),
       trDepth: serializer.fromJson<int>(json['trDepth']),
       vbSweep: serializer.fromJson<double>(json['vbSweep']),
+      priority: serializer.fromJson<int>(json['priority']),
       customName: serializer.fromJson<String?>(json['customName']),
     );
   }
@@ -1376,6 +1404,7 @@ class ProjectSpendPath extends DataClass
       'wuOut': serializer.toJson<int>(wuOut),
       'trDepth': serializer.toJson<int>(trDepth),
       'vbSweep': serializer.toJson<double>(vbSweep),
+      'priority': serializer.toJson<int>(priority),
       'customName': serializer.toJson<String?>(customName),
     };
   }
@@ -1395,6 +1424,7 @@ class ProjectSpendPath extends DataClass
     int? wuOut,
     int? trDepth,
     double? vbSweep,
+    int? priority,
     Value<String?> customName = const Value.absent(),
   }) => ProjectSpendPath(
     id: id ?? this.id,
@@ -1411,6 +1441,7 @@ class ProjectSpendPath extends DataClass
     wuOut: wuOut ?? this.wuOut,
     trDepth: trDepth ?? this.trDepth,
     vbSweep: vbSweep ?? this.vbSweep,
+    priority: priority ?? this.priority,
     customName: customName.present ? customName.value : this.customName,
   );
   ProjectSpendPath copyWithCompanion(ProjectSpendPathsCompanion data) {
@@ -1437,6 +1468,7 @@ class ProjectSpendPath extends DataClass
       wuOut: data.wuOut.present ? data.wuOut.value : this.wuOut,
       trDepth: data.trDepth.present ? data.trDepth.value : this.trDepth,
       vbSweep: data.vbSweep.present ? data.vbSweep.value : this.vbSweep,
+      priority: data.priority.present ? data.priority.value : this.priority,
       customName: data.customName.present
           ? data.customName.value
           : this.customName,
@@ -1460,6 +1492,7 @@ class ProjectSpendPath extends DataClass
           ..write('wuOut: $wuOut, ')
           ..write('trDepth: $trDepth, ')
           ..write('vbSweep: $vbSweep, ')
+          ..write('priority: $priority, ')
           ..write('customName: $customName')
           ..write(')'))
         .toString();
@@ -1481,6 +1514,7 @@ class ProjectSpendPath extends DataClass
     wuOut,
     trDepth,
     vbSweep,
+    priority,
     customName,
   );
   @override
@@ -1501,6 +1535,7 @@ class ProjectSpendPath extends DataClass
           other.wuOut == this.wuOut &&
           other.trDepth == this.trDepth &&
           other.vbSweep == this.vbSweep &&
+          other.priority == this.priority &&
           other.customName == this.customName);
 }
 
@@ -1519,6 +1554,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
   final Value<int> wuOut;
   final Value<int> trDepth;
   final Value<double> vbSweep;
+  final Value<int> priority;
   final Value<String?> customName;
   const ProjectSpendPathsCompanion({
     this.id = const Value.absent(),
@@ -1535,6 +1571,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     this.wuOut = const Value.absent(),
     this.trDepth = const Value.absent(),
     this.vbSweep = const Value.absent(),
+    this.priority = const Value.absent(),
     this.customName = const Value.absent(),
   });
   ProjectSpendPathsCompanion.insert({
@@ -1552,6 +1589,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     required int wuOut,
     required int trDepth,
     required double vbSweep,
+    this.priority = const Value.absent(),
     this.customName = const Value.absent(),
   }) : projectId = Value(projectId),
        rustId = Value(rustId),
@@ -1577,6 +1615,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     Expression<int>? wuOut,
     Expression<int>? trDepth,
     Expression<double>? vbSweep,
+    Expression<int>? priority,
     Expression<String>? customName,
   }) {
     return RawValuesInsertable({
@@ -1594,6 +1633,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
       if (wuOut != null) 'wu_out': wuOut,
       if (trDepth != null) 'tr_depth': trDepth,
       if (vbSweep != null) 'vb_sweep': vbSweep,
+      if (priority != null) 'priority': priority,
       if (customName != null) 'custom_name': customName,
     });
   }
@@ -1613,6 +1653,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     Value<int>? wuOut,
     Value<int>? trDepth,
     Value<double>? vbSweep,
+    Value<int>? priority,
     Value<String?>? customName,
   }) {
     return ProjectSpendPathsCompanion(
@@ -1630,6 +1671,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
       wuOut: wuOut ?? this.wuOut,
       trDepth: trDepth ?? this.trDepth,
       vbSweep: vbSweep ?? this.vbSweep,
+      priority: priority ?? this.priority,
       customName: customName ?? this.customName,
     );
   }
@@ -1679,6 +1721,9 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
     if (vbSweep.present) {
       map['vb_sweep'] = Variable<double>(vbSweep.value);
     }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
     if (customName.present) {
       map['custom_name'] = Variable<String>(customName.value);
     }
@@ -1702,6 +1747,7 @@ class ProjectSpendPathsCompanion extends UpdateCompanion<ProjectSpendPath> {
           ..write('wuOut: $wuOut, ')
           ..write('trDepth: $trDepth, ')
           ..write('vbSweep: $vbSweep, ')
+          ..write('priority: $priority, ')
           ..write('customName: $customName')
           ..write(')'))
         .toString();
@@ -2520,6 +2566,7 @@ typedef $$ProjectSpendPathsTableCreateCompanionBuilder =
       required int wuOut,
       required int trDepth,
       required double vbSweep,
+      Value<int> priority,
       Value<String?> customName,
     });
 typedef $$ProjectSpendPathsTableUpdateCompanionBuilder =
@@ -2538,6 +2585,7 @@ typedef $$ProjectSpendPathsTableUpdateCompanionBuilder =
       Value<int> wuOut,
       Value<int> trDepth,
       Value<double> vbSweep,
+      Value<int> priority,
       Value<String?> customName,
     });
 
@@ -2648,6 +2696,11 @@ class $$ProjectSpendPathsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get customName => $composableBuilder(
     column: $table.customName,
     builder: (column) => ColumnFilters(column),
@@ -2751,6 +2804,11 @@ class $$ProjectSpendPathsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get customName => $composableBuilder(
     column: $table.customName,
     builder: (column) => ColumnOrderings(column),
@@ -2836,6 +2894,9 @@ class $$ProjectSpendPathsTableAnnotationComposer
   GeneratedColumn<double> get vbSweep =>
       $composableBuilder(column: $table.vbSweep, builder: (column) => column);
 
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
   GeneratedColumn<String> get customName => $composableBuilder(
     column: $table.customName,
     builder: (column) => column,
@@ -2912,6 +2973,7 @@ class $$ProjectSpendPathsTableTableManager
                 Value<int> wuOut = const Value.absent(),
                 Value<int> trDepth = const Value.absent(),
                 Value<double> vbSweep = const Value.absent(),
+                Value<int> priority = const Value.absent(),
                 Value<String?> customName = const Value.absent(),
               }) => ProjectSpendPathsCompanion(
                 id: id,
@@ -2928,6 +2990,7 @@ class $$ProjectSpendPathsTableTableManager
                 wuOut: wuOut,
                 trDepth: trDepth,
                 vbSweep: vbSweep,
+                priority: priority,
                 customName: customName,
               ),
           createCompanionCallback:
@@ -2946,6 +3009,7 @@ class $$ProjectSpendPathsTableTableManager
                 required int wuOut,
                 required int trDepth,
                 required double vbSweep,
+                Value<int> priority = const Value.absent(),
                 Value<String?> customName = const Value.absent(),
               }) => ProjectSpendPathsCompanion.insert(
                 id: id,
@@ -2962,6 +3026,7 @@ class $$ProjectSpendPathsTableTableManager
                 wuOut: wuOut,
                 trDepth: trDepth,
                 vbSweep: vbSweep,
+                priority: priority,
                 customName: customName,
               ),
           withReferenceMapper: (p0) => p0

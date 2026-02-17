@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -17,6 +18,9 @@ pub struct SpendPathDef {
     pub rel_timelock: APIRelativeTimelock,
     pub abs_timelock: APIAbsoluteTimelock,
     pub is_key_path: bool,
+    /// Taproot script tree priority (0 = deepest/least likely, higher = shallower/more likely).
+    /// Ignored for non-Taproot descriptors.
+    pub priority: usize,
 }
 
 /// Build a descriptor string from wallet type, keys, and spend path definitions.
@@ -55,11 +59,12 @@ fn key_with_wildcard(key: &PubKey) -> String {
     format!("{}/<0;1>/*", key)
 }
 
-/// Construct key string with branch-specific derivation pair.
-/// Branch 0 → <0;1>/*, branch 1 → <2;3>/*, branch 2 → <4;5>/*, etc.
-fn key_with_derivation(key: &PubKey, branch_idx: usize) -> String {
-    let ext = branch_idx * 2;
+/// Construct key string with an unused derivation pair.
+fn key_with_derivation(key: &PubKey, keys_uses: &mut HashMap<String, usize>) -> String {
+    let uses: &mut usize = keys_uses.entry(key.mfp().to_string()).or_insert(0);
+    let ext = *uses * 2;
     let int = ext + 1;
+    *uses += 1;
     format!("{}/<{};{}>/*", key, ext, int)
 }
 
@@ -118,7 +123,7 @@ fn build_sh_wpkh(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String
 
 /// Check if spend paths represent a simple multisig (1 path, no timelocks)
 fn is_simple_multisig(spend_paths: &[SpendPathDef]) -> bool {
-    spend_paths.len() == 1 && spend_paths[0].rel_timelock.value == 0 && spend_paths[0].abs_timelock.value == 0
+    spend_paths.len() == 1 && spend_paths[0].rel_timelock.value == 0 && spend_paths[0].abs_timelock.value == 0 && spend_paths[0].mfps.len() > 1
 }
 
 // --- Complex descriptor types (policy compiler) ---
@@ -186,26 +191,24 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         .into());
     }
 
-    // Validate key-path if present
-    if let Some(&idx) = key_path_indices.first() {
-        let kp = &spend_paths[idx];
-        if kp.threshold != 1 || kp.mfps.len() != 1 || kp.rel_timelock.value != 0 || kp.abs_timelock.value != 0 {
+    let mut keys_uses: HashMap<String, usize> = HashMap::new();
+    let internal_key_str: String;
+    let script_paths: Vec<&SpendPathDef>;
+
+    if let Some(&key_path_idx) = key_path_indices.first() {
+        // Validate key-path constraints
+        let key_path_sp = &spend_paths[key_path_idx];
+
+        if key_path_sp.threshold != 1 || key_path_sp.mfps.len() != 1 || key_path_sp.rel_timelock.value != 0 || key_path_sp.abs_timelock.value != 0 {
             return Err(WalletError::BuilderError(
                 "Key-path must be singlesig with no timelocks".into(),
             )
             .into());
         }
-    }
 
-    let internal_key_str: String;
-    let script_paths: Vec<&SpendPathDef>;
-
-    if let Some(&key_path_idx) = key_path_indices.first() {
         // Use the key-path's key as internal key
-        let key_path_sp = &spend_paths[key_path_idx];
-
         let key = resolve_key(&key_path_sp.mfps[0], keys)?;
-        internal_key_str = key_with_wildcard(key);
+        internal_key_str = key_with_derivation(key, &mut keys_uses);
 
         // All other paths go to script tree
         script_paths = spend_paths
@@ -243,21 +246,18 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
 
         Ok(validated.to_string())
     } else {
-        // Build each script path separately and concatenate
-        let mut script_strings = Vec::new();
-        for (idx, sp) in script_paths.iter().enumerate() {
-            let script_str = build_taproot_script_path(sp, keys, idx)?;
-            script_strings.push(script_str);
+        // Build each script path separately and group by priority
+        let mut scripts_by_priority: BTreeMap<usize, Vec<String>> = BTreeMap::new();
+        for sp in script_paths.iter() {
+            let script_str = build_taproot_script_path(sp, keys, &mut keys_uses)?;
+            scripts_by_priority.entry(sp.priority).or_default().push(script_str);
         }
 
-        // Build descriptor string manually
-        // For multiple scripts, we need to build a balanced binary tree
-        let descriptor_str = if script_strings.len() == 1 {
-            format!("tr({},{})", internal_key_str, script_strings[0])
-        } else {
-            let tree_str = build_taproot_tree(&script_strings);
-            format!("tr({},{})", internal_key_str, tree_str)
-        };
+        let scripts_layered = scripts_by_priority.into_values().collect();
+
+        // Build descriptor string
+        let tree_str = build_layered_tree(scripts_layered);
+        let descriptor_str = format!("tr({},{})", internal_key_str, tree_str);
 
         // Validate by parsing with BDK and return with checksum
         let validated: Descriptor<DescriptorPublicKey> = descriptor_str
@@ -269,16 +269,16 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
 }
 
 /// Build a single Taproot script path as a miniscript string.
-/// Each script path gets a unique derivation index to avoid duplicate key errors.
+/// Each key usage gets a unique derivation index to avoid duplicate key errors.
 fn build_taproot_script_path(
     sp: &SpendPathDef,
     keys: &[PubKey],
-    branch_idx: usize,
+    keys_uses: &mut HashMap<String, usize>,
 ) -> Result<String> {
     use bdk_wallet::miniscript::{Miniscript, Tap};
 
     // Build policy for this single path
-    let policy = build_path_policy(sp, keys, branch_idx)?;
+    let policy = build_path_policy(sp, keys, keys_uses)?;
 
     // Compile to miniscript using Tap context for Taproot
     let miniscript: Miniscript<DescriptorPublicKey, Tap> = policy
@@ -306,18 +306,29 @@ fn build_taproot_tree(scripts: &[String]) -> String {
     }
 }
 
-// --- Policy construction ---
+fn build_layered_tree(layered_scripts: Vec<Vec<String>>) -> String {
+    layered_scripts
+        .into_iter()
+        .fold(None, |acc, mut current_level| {
+            if let Some(prev_subtree) = acc {
+                current_level.push(prev_subtree);
+            }
+            Some(build_taproot_tree(&current_level))
+        })
+        .expect("Cannot build tree with no scripts")
+}
 
 /// Build a concrete policy from spend path definitions.
-/// Each branch gets a distinct derivation pair to avoid duplicate-key errors.
+/// Each key usage gets a distinct derivation pair to avoid duplicate-key errors.
 fn build_policy(
     keys: &[PubKey],
     spend_paths: &[SpendPathDef],
 ) -> Result<ConcretePolicy<DescriptorPublicKey>> {
+    let mut keys_uses: HashMap<String, usize> = HashMap::new();
+
     let path_policies: Vec<ConcretePolicy<DescriptorPublicKey>> = spend_paths
         .iter()
-        .enumerate()
-        .map(|(branch_idx, sp)| build_path_policy(sp, keys, branch_idx))
+        .map(|sp| build_path_policy(sp, keys, &mut keys_uses))
         .collect::<Result<Vec<_>>>()?;
 
     if path_policies.is_empty() {
@@ -326,16 +337,7 @@ fn build_policy(
 
     if path_policies.len() == 1 {
         Ok(path_policies.into_iter().next().unwrap())
-    } else if path_policies.len() == 2 {
-        // Binary OR with equal probability
-        let or_items = vec![
-            (1usize, Arc::new(path_policies[0].clone())),
-            (1usize, Arc::new(path_policies[1].clone())),
-        ];
-        Ok(ConcretePolicy::Or(or_items))
     } else {
-        // For 3+ paths, build a balanced binary tree of ORs
-        // This is a workaround since Miniscript's compiler only handles binary ORs
         Ok(build_balanced_or_tree(path_policies))
     }
 }
@@ -367,32 +369,27 @@ fn build_balanced_or_tree(
     policies.into_iter().next().unwrap()
 }
 
-/// Build a policy for a single spend path using the given branch derivation index
+/// Build a policy for a single spend path
 fn build_path_policy(
     sp: &SpendPathDef,
     keys: &[PubKey],
-    branch_idx: usize,
+    keys_uses: &mut HashMap<String, usize>,
 ) -> Result<ConcretePolicy<DescriptorPublicKey>> {
-    // Parse keys with branch-specific derivation
+    // Parse keys with unique derivation
     let key_policies: Vec<Arc<ConcretePolicy<DescriptorPublicKey>>> = sp
         .mfps
         .iter()
         .map(|mfp| {
             let key = resolve_key(mfp, keys)?;
-            let dpk = parse_dpk(&key_with_derivation(key, branch_idx), mfp)?;
+            let dpk = parse_dpk(&key_with_derivation(key, keys_uses), mfp)?;
             Ok(Arc::new(ConcretePolicy::Key(dpk)))
         })
         .collect::<Result<Vec<_>>>()?;
 
     // Build key threshold
-    let keys_policy = if key_policies.len() == 1 && sp.threshold == 1 {
-        Arc::try_unwrap(key_policies.into_iter().next().unwrap())
-            .unwrap_or_else(|arc| (*arc).clone())
-    } else {
-        let threshold = bdk_wallet::miniscript::Threshold::new(sp.threshold, key_policies)
-            .map_err(|e| WalletError::BuilderError(format!("Invalid threshold: {}", e)))?;
-        ConcretePolicy::Thresh(threshold)
-    };
+    let threshold = bdk_wallet::miniscript::Threshold::new(sp.threshold, key_policies)
+        .map_err(|e| WalletError::BuilderError(format!("Invalid threshold: {}", e)))?;
+    let keys_policy = ConcretePolicy::Thresh(threshold);
 
     // Combine with timelocks using AND
     let mut conditions: Vec<Arc<ConcretePolicy<DescriptorPublicKey>>> = vec![Arc::new(keys_policy)];
@@ -451,6 +448,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WSH, &keys, &spend_paths)?;
@@ -478,6 +476,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -485,6 +484,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -510,6 +510,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -517,6 +518,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -541,6 +543,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WPKH, &keys, &spend_paths)?;
@@ -562,6 +565,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2SH_WSH, &keys, &spend_paths)?;
@@ -620,6 +624,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WSH, &keys, &spend_paths)?;
@@ -648,6 +653,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -655,6 +661,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144), // ~1 day
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -662,6 +669,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(1008), // ~1 week
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -692,6 +700,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -699,6 +708,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(800000), // Block height
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -728,6 +738,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -735,6 +746,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -754,6 +766,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(sp.rel_timelock),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(sp.abs_timelock),
                 is_key_path: false,
+                priority: 0,
             })
             .collect();
 
@@ -783,6 +796,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2SH_WPKH, &keys, &spend_paths)?;
@@ -804,6 +818,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2PKH, &keys, &spend_paths)?;
@@ -828,6 +843,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Mark as key-path
+            priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -835,6 +851,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -875,6 +892,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: true,
+                priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
@@ -910,6 +928,7 @@ mod tests {
                     rel_timelock: APIRelativeTimelock::from_consensus(0),
                     abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true,
+                priority: 0,
                 },
                 SpendPathDef {
                     threshold: 1,
@@ -917,6 +936,7 @@ mod tests {
                     rel_timelock: APIRelativeTimelock::from_consensus(0),
                     abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true, // Second key-path - error
+                priority: 0,
                 },
             ],
         );
@@ -933,6 +953,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Multisig cannot be key-path
+            priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -948,6 +969,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Timelock cannot be key-path
+            priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -966,6 +988,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
+            priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -973,6 +996,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
+            priority: 0,
             },
         ];
 
@@ -1002,6 +1026,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -1020,6 +1045,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -1034,6 +1060,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -1048,6 +1075,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -1065,6 +1093,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1072,6 +1101,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -1131,6 +1161,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1138,6 +1169,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -1182,6 +1214,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Explicit key-path
+            priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1189,6 +1222,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Singlesig script path, no timelock
+            priority: 0,
             },
         ];
 
@@ -1248,6 +1282,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 2,
@@ -1255,6 +1290,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1262,6 +1298,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(1008), // ~1 week
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -1319,6 +1356,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1326,6 +1364,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1333,6 +1372,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 
@@ -1371,6 +1411,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1378,6 +1419,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // THIS is the key-path
+            priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1385,6 +1427,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false,
+                priority: 0,
             },
         ];
 

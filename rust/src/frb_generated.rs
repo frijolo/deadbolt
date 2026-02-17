@@ -822,12 +822,14 @@ impl SseDecode for crate::api::model::APISpendPathDef {
         let mut var_absTimelock =
             <crate::api::model::APIAbsoluteTimelock>::sse_decode(deserializer);
         let mut var_isKeyPath = <bool>::sse_decode(deserializer);
+        let mut var_priority = <u32>::sse_decode(deserializer);
         return crate::api::model::APISpendPathDef {
             threshold: var_threshold,
             mfps: var_mfps,
             rel_timelock: var_relTimelock,
             abs_timelock: var_absTimelock,
             is_key_path: var_isKeyPath,
+            priority: var_priority,
         };
     }
 }
@@ -1312,6 +1314,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APISpendPathDef {
             self.rel_timelock.into_into_dart().into_dart(),
             self.abs_timelock.into_into_dart().into_dart(),
             self.is_key_path.into_into_dart().into_dart(),
+            self.priority.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1507,6 +1510,7 @@ impl SseEncode for crate::api::model::APISpendPathDef {
         <crate::api::model::APIRelativeTimelock>::sse_encode(self.rel_timelock, serializer);
         <crate::api::model::APIAbsoluteTimelock>::sse_encode(self.abs_timelock, serializer);
         <bool>::sse_encode(self.is_key_path, serializer);
+        <u32>::sse_encode(self.priority, serializer);
     }
 }
 

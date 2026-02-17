@@ -828,14 +828,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APISpendPathDef dco_decode_api_spend_path_def(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return APISpendPathDef(
       threshold: dco_decode_u_32(arr[0]),
       mfps: dco_decode_list_String(arr[1]),
       relTimelock: dco_decode_api_relative_timelock(arr[2]),
       absTimelock: dco_decode_api_absolute_timelock(arr[3]),
       isKeyPath: dco_decode_bool(arr[4]),
+      priority: dco_decode_u_32(arr[5]),
     );
   }
 
@@ -1136,12 +1137,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_relTimelock = sse_decode_api_relative_timelock(deserializer);
     var var_absTimelock = sse_decode_api_absolute_timelock(deserializer);
     var var_isKeyPath = sse_decode_bool(deserializer);
+    var var_priority = sse_decode_u_32(deserializer);
     return APISpendPathDef(
       threshold: var_threshold,
       mfps: var_mfps,
       relTimelock: var_relTimelock,
       absTimelock: var_absTimelock,
       isKeyPath: var_isKeyPath,
+      priority: var_priority,
     );
   }
 
@@ -1464,6 +1467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_api_relative_timelock(self.relTimelock, serializer);
     sse_encode_api_absolute_timelock(self.absTimelock, serializer);
     sse_encode_bool(self.isKeyPath, serializer);
+    sse_encode_u_32(self.priority, serializer);
   }
 
   @protected

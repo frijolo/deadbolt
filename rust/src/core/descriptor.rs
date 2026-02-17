@@ -15,15 +15,6 @@ use crate::core::wallet::WalletType;
 /// - Wallet type detection
 /// - Public key extraction
 /// - Spend path analysis (creates temporary wallet for weight calculation)
-///
-/// Usage:
-/// ```ignore
-/// let analyzer = DescriptorAnalyzer::analyze(descriptor_str)?;
-/// let network = analyzer.network();
-/// let wallet_type = analyzer.wallet_type();
-/// let keys = analyzer.public_keys()?;
-/// let paths = analyzer.spend_paths()?;
-/// ```
 pub struct DescriptorAnalyzer {
     parser: DescriptorParser,
     network: Network,
