@@ -296,6 +296,9 @@ pub struct APISpendPathDef {
     pub rel_timelock: APIRelativeTimelock,
     pub abs_timelock: APIAbsoluteTimelock,
     pub is_key_path: bool,
+    /// Taproot script tree priority (0 = deepest/least likely, higher = shallower/more likely).
+    /// Ignored for non-Taproot descriptors.
+    pub priority: u32,
 }
 
 ///////////////

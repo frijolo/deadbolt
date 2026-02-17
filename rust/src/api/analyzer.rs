@@ -64,6 +64,7 @@ pub fn build_descriptor(
             rel_timelock: sp.rel_timelock,
             abs_timelock: sp.abs_timelock,
             is_key_path: sp.is_key_path,
+            priority: sp.priority as usize,
         })
         .collect();
 
@@ -252,6 +253,7 @@ mod tests {
                     rel_timelock: sp.rel_timelock,
                     abs_timelock: sp.abs_timelock,
                     is_key_path,
+                    priority: 0,
                 }
             })
             .collect();

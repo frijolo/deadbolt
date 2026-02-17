@@ -87,6 +87,7 @@ class EditableSpendPath {
 
   String? customName;
   bool isKeyPath;
+  int priority;
 
   EditableSpendPath({
     this.originalDbId,
@@ -99,6 +100,7 @@ class EditableSpendPath {
     this.absTimelockValue = 0,
     this.customName,
     this.isKeyPath = false,
+    this.priority = 0,
   }) : mfps = mfps ?? [];
 
   EditableSpendPath copyWith({
@@ -111,6 +113,7 @@ class EditableSpendPath {
     int? absTimelockValue,
     String? customName,
     bool? isKeyPath,
+    int? priority,
   }) {
     return EditableSpendPath(
       originalDbId: originalDbId,
@@ -123,6 +126,7 @@ class EditableSpendPath {
       absTimelockValue: absTimelockValue ?? this.absTimelockValue,
       customName: customName ?? this.customName,
       isKeyPath: isKeyPath ?? this.isKeyPath,
+      priority: priority ?? this.priority,
     );
   }
 
@@ -154,6 +158,7 @@ class EditableSpendPath {
       absTimelockValue: sp.absTimelockValue,
       customName: sp.customName,
       isKeyPath: isKeyPath,
+      priority: sp.priority,
     );
   }
 
@@ -503,6 +508,14 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
+  void updatePathPriority(int pathIndex, int priority) {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    paths[pathIndex] = paths[pathIndex].copyWith(priority: priority.clamp(0, 9));
+    emit(s.copyWith(editedPaths: paths, isDirty: true));
+  }
+
   void updatePathCustomName(int pathIndex, String? customName) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
@@ -518,6 +531,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       absTimelockValue: oldPath.absTimelockValue,
       customName: customName,
       isKeyPath: oldPath.isKeyPath,
+      priority: oldPath.priority,
     );
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
@@ -760,40 +774,42 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
       emit(ProjectDetailLoading(message: buildMessage));
 
-      // Build maps to preserve labels across regeneration
-      // 1. Spend path names (by rustId)
+      // Build maps to preserve labels and priorities across regeneration
+      // 1. Spend path names and priorities (by rustId)
       final editedPathNames = <int, String?>{};
+      final editedPathPriorities = <int, int>{};
       for (final ep in s.editedPaths!) {
+        // Only send the active timelock based on mode
+        final relTimelock = ep.timelockMode == TimelockMode.relative
+            ? APIRelativeTimelock(
+                timelockType: ep.relTimelockType.toRust(),
+                value: ep.relTimelockValue,
+              )
+            : APIRelativeTimelock(
+                timelockType: APIRelativeTimelockType.blocks,
+                value: 0,
+              );
+
+        final absTimelock = ep.timelockMode == TimelockMode.absolute
+            ? APIAbsoluteTimelock(
+                timelockType: ep.absTimelockType.toRust(),
+                value: ep.absTimelockValue,
+              )
+            : APIAbsoluteTimelock(
+                timelockType: APIAbsoluteTimelockType.blocks,
+                value: 0,
+              );
+
+        final rustId = await calculateRustidFromTimelocks(
+          threshold: ep.threshold,
+          mfps: ep.mfps,
+          relTimelock: relTimelock,
+          absTimelock: absTimelock,
+        );
         if (ep.customName != null) {
-          // Only send the active timelock based on mode
-          final relTimelock = ep.timelockMode == TimelockMode.relative
-              ? APIRelativeTimelock(
-                  timelockType: ep.relTimelockType.toRust(),
-                  value: ep.relTimelockValue,
-                )
-              : APIRelativeTimelock(
-                  timelockType: APIRelativeTimelockType.blocks,
-                  value: 0,
-                );
-
-          final absTimelock = ep.timelockMode == TimelockMode.absolute
-              ? APIAbsoluteTimelock(
-                  timelockType: ep.absTimelockType.toRust(),
-                  value: ep.absTimelockValue,
-                )
-              : APIAbsoluteTimelock(
-                  timelockType: APIAbsoluteTimelockType.blocks,
-                  value: 0,
-                );
-
-          final rustId = await calculateRustidFromTimelocks(
-            threshold: ep.threshold,
-            mfps: ep.mfps,
-            relTimelock: relTimelock,
-            absTimelock: absTimelock,
-          );
           editedPathNames[rustId] = ep.customName;
         }
+        editedPathPriorities[rustId] = ep.priority;
       }
 
       // 2. Key names (by MFP) - including edited names not yet saved
@@ -844,6 +860,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
               relTimelock: relTimelock,
               absTimelock: absTimelock,
               isKeyPath: ep.isKeyPath,
+              priority: ep.priority,
             );
           })
           .toList();
@@ -863,6 +880,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       await updateDescriptorAndReanalyze(
         newDescriptor,
         editedPathNames: editedPathNames,
+        editedPathPriorities: editedPathPriorities,
         editedKeyNames: editedKeyNames,
         unusedKeys: unusedKeys,
         loadingMessage: analyzeMessage,
@@ -876,6 +894,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   Future<void> updateDescriptorAndReanalyze(
     String newDescriptor, {
     Map<int, String?>? editedPathNames,
+    Map<int, int>? editedPathPriorities,
     Map<String, String?>? editedKeyNames,
     List<EditableKey>? unusedKeys,
     String? loadingMessage,
@@ -895,10 +914,12 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         for (var k in existingKeys) k.mfp: k.customName,
       };
 
-      // Build map for spend paths: rustId -> customName
-      // (paths are identified by their rustId which comes from Rust analysis)
+      // Build maps for spend paths: rustId -> customName, rustId -> priority
       final pathNameMap = <int, String?>{
         for (var p in existingPaths) p.rustId: p.customName,
+      };
+      final pathPriorityMap = <int, int>{
+        for (var p in existingPaths) p.rustId: p.priority,
       };
 
       final result =
@@ -935,19 +956,23 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         }
       }
 
-      // Create path entries, preserving customName from:
+      // Create path entries, preserving customName and priority from:
       // 1. Existing DB paths (by rustId)
       // 2. Edited paths (by calculated rustId) if provided
       final pathEntries = result.spendPaths.map((sp) {
         String? customName;
+        int priority = 0;
 
         // First, try to match by rustId from existing DB paths
         customName = pathNameMap[sp.id];
+        priority = pathPriorityMap[sp.id] ?? 0;
 
-        // If not found and we have edited path names, use them directly
-        // (they're already keyed by rustId)
-        if (customName == null && editedPathNames != null) {
+        // Edited values take precedence over DB values (include unsaved edits)
+        if (editedPathNames != null && editedPathNames.containsKey(sp.id)) {
           customName = editedPathNames[sp.id];
+        }
+        if (editedPathPriorities != null && editedPathPriorities.containsKey(sp.id)) {
+          priority = editedPathPriorities[sp.id]!;
         }
 
         return ProjectSpendPathsCompanion.insert(
@@ -964,6 +989,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
           wuOut: sp.wuOut,
           trDepth: sp.trDepth,
           vbSweep: sp.vbSweep,
+          priority: Value(priority),
           customName: Value(customName),
         );
       }).toList();
