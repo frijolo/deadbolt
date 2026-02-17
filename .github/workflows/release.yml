@@ -164,8 +164,7 @@ jobs:
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          export GPG_TTY=$(tty)
-          echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
           echo "Signature created:"
           ls -lh SHA256SUMS.asc
           gpg --verify SHA256SUMS.asc SHA256SUMS
