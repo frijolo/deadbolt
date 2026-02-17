@@ -111,11 +111,20 @@ pub struct APIAbsoluteTimelock {
 impl APIAbsoluteTimelock {
     pub fn from_consensus(consensus: u32) -> Self {
         if consensus == 0 {
-            Self { timelock_type: APIAbsoluteTimelockType::Blocks, value: 0 }
+            Self {
+                timelock_type: APIAbsoluteTimelockType::Blocks,
+                value: 0,
+            }
         } else if consensus < 500_000_000 {
-            Self { timelock_type: APIAbsoluteTimelockType::Blocks, value: consensus }
+            Self {
+                timelock_type: APIAbsoluteTimelockType::Blocks,
+                value: consensus,
+            }
         } else {
-            Self { timelock_type: APIAbsoluteTimelockType::Timestamp, value: consensus }
+            Self {
+                timelock_type: APIAbsoluteTimelockType::Timestamp,
+                value: consensus,
+            }
         }
     }
 
@@ -129,16 +138,18 @@ impl APIAbsoluteTimelock {
             APIAbsoluteTimelockType::Blocks => {
                 if self.value >= 500_000_000 {
                     return Err(crate::core::error::WalletError::BuilderError(
-                        "Block height must be < 500,000,000".into()
-                    ).into());
+                        "Block height must be < 500,000,000".into(),
+                    )
+                    .into());
                 }
                 Ok(self.value)
             }
             APIAbsoluteTimelockType::Timestamp => {
                 if self.value < 500_000_000 {
                     return Err(crate::core::error::WalletError::BuilderError(
-                        "Timestamp must be >= 500,000,000".into()
-                    ).into());
+                        "Timestamp must be >= 500,000,000".into(),
+                    )
+                    .into());
                 }
                 Ok(self.value)
             }
@@ -158,14 +169,23 @@ impl APIRelativeTimelock {
 
     pub fn from_consensus(consensus: u32) -> Self {
         if consensus == 0 {
-            Self { timelock_type: APIRelativeTimelockType::Blocks, value: 0 }
+            Self {
+                timelock_type: APIRelativeTimelockType::Blocks,
+                value: 0,
+            }
         } else if (consensus & Self::TYPE_FLAG) == 0 {
             let blocks = consensus & Self::SEQUENCE_LOCKTIME_MASK;
-            Self { timelock_type: APIRelativeTimelockType::Blocks, value: blocks }
+            Self {
+                timelock_type: APIRelativeTimelockType::Blocks,
+                value: blocks,
+            }
         } else {
             let units = consensus & Self::SEQUENCE_LOCKTIME_MASK;
             let seconds = units * 512;
-            Self { timelock_type: APIRelativeTimelockType::Time, value: seconds }
+            Self {
+                timelock_type: APIRelativeTimelockType::Time,
+                value: seconds,
+            }
         }
     }
 
@@ -178,18 +198,22 @@ impl APIRelativeTimelock {
         match self.timelock_type {
             APIRelativeTimelockType::Blocks => {
                 if self.value > Self::SEQUENCE_LOCKTIME_MASK {
-                    return Err(crate::core::error::WalletError::BuilderError(
-                        format!("Block count must be <= {}", Self::SEQUENCE_LOCKTIME_MASK)
-                    ).into());
+                    return Err(crate::core::error::WalletError::BuilderError(format!(
+                        "Block count must be <= {}",
+                        Self::SEQUENCE_LOCKTIME_MASK
+                    ))
+                    .into());
                 }
                 Ok(self.value)
             }
             APIRelativeTimelockType::Time => {
                 let units = (self.value + 511) / 512; // Round up
                 if units > Self::SEQUENCE_LOCKTIME_MASK {
-                    return Err(crate::core::error::WalletError::BuilderError(
-                        format!("Time value too large (max {} seconds)", Self::SEQUENCE_LOCKTIME_MASK * 512)
-                    ).into());
+                    return Err(crate::core::error::WalletError::BuilderError(format!(
+                        "Time value too large (max {} seconds)",
+                        Self::SEQUENCE_LOCKTIME_MASK * 512
+                    ))
+                    .into());
                 }
                 Ok(units | Self::TYPE_FLAG)
             }
@@ -249,9 +273,9 @@ impl APISpendPath {
         api_spend_paths.sort_by(|a, b| {
             // Use consensus values for sorting
             let tl_a = a.rel_timelock.to_consensus().unwrap_or(0)
-                     + a.abs_timelock.to_consensus().unwrap_or(0);
+                + a.abs_timelock.to_consensus().unwrap_or(0);
             let tl_b = b.rel_timelock.to_consensus().unwrap_or(0)
-                     + b.abs_timelock.to_consensus().unwrap_or(0);
+                + b.abs_timelock.to_consensus().unwrap_or(0);
             tl_a.cmp(&tl_b).then_with(|| {
                 let wu_a = a.wu_base + a.wu_in + a.wu_out;
                 let wu_b = b.wu_base + b.wu_in + b.wu_out;

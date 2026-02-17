@@ -129,7 +129,10 @@ fn build_sh_wpkh(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String
 
 /// Check if spend paths represent a simple multisig (1 path, no timelocks)
 fn is_simple_multisig(spend_paths: &[SpendPathDef]) -> bool {
-    spend_paths.len() == 1 && spend_paths[0].rel_timelock.value == 0 && spend_paths[0].abs_timelock.value == 0 && spend_paths[0].mfps.len() > 1
+    spend_paths.len() == 1
+        && spend_paths[0].rel_timelock.value == 0
+        && spend_paths[0].abs_timelock.value == 0
+        && spend_paths[0].mfps.len() > 1
 }
 
 // --- Complex descriptor types (policy compiler) ---
@@ -205,7 +208,11 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         // Validate key-path constraints
         let key_path_sp = &spend_paths[key_path_idx];
 
-        if key_path_sp.threshold != 1 || key_path_sp.mfps.len() != 1 || key_path_sp.rel_timelock.value != 0 || key_path_sp.abs_timelock.value != 0 {
+        if key_path_sp.threshold != 1
+            || key_path_sp.mfps.len() != 1
+            || key_path_sp.rel_timelock.value != 0
+            || key_path_sp.abs_timelock.value != 0
+        {
             return Err(WalletError::BuilderError(
                 "Key-path must be singlesig with no timelocks".into(),
             )
@@ -256,7 +263,10 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         let mut scripts_by_priority: BTreeMap<usize, Vec<String>> = BTreeMap::new();
         for sp in script_paths.iter() {
             let script_str = build_taproot_script_path(sp, keys, &mut keys_uses)?;
-            scripts_by_priority.entry(sp.priority).or_default().push(script_str);
+            scripts_by_priority
+                .entry(sp.priority)
+                .or_default()
+                .push(script_str);
         }
 
         let scripts_layered = scripts_by_priority.into_values().collect();
@@ -454,7 +464,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WSH, &keys, &spend_paths)?;
@@ -549,7 +559,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WPKH, &keys, &spend_paths)?;
@@ -571,7 +581,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2SH_WSH, &keys, &spend_paths)?;
@@ -630,7 +640,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2WSH, &keys, &spend_paths)?;
@@ -802,7 +812,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2SH_WPKH, &keys, &spend_paths)?;
@@ -824,7 +834,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: false,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2PKH, &keys, &spend_paths)?;
@@ -849,7 +859,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Mark as key-path
-            priority: 0,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -898,7 +908,7 @@ mod tests {
             rel_timelock: APIRelativeTimelock::from_consensus(0),
             abs_timelock: APIAbsoluteTimelock::from_consensus(0),
             is_key_path: true,
-                priority: 0,
+            priority: 0,
         }];
 
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
@@ -934,7 +944,7 @@ mod tests {
                     rel_timelock: APIRelativeTimelock::from_consensus(0),
                     abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true,
-                priority: 0,
+                    priority: 0,
                 },
                 SpendPathDef {
                     threshold: 1,
@@ -942,7 +952,7 @@ mod tests {
                     rel_timelock: APIRelativeTimelock::from_consensus(0),
                     abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                     is_key_path: true, // Second key-path - error
-                priority: 0,
+                    priority: 0,
                 },
             ],
         );
@@ -959,7 +969,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Multisig cannot be key-path
-            priority: 0,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -975,7 +985,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Timelock cannot be key-path
-            priority: 0,
+                priority: 0,
             }],
         );
         assert!(result.is_err());
@@ -994,7 +1004,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
-            priority: 0,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1002,7 +1012,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Script path
-            priority: 0,
+                priority: 0,
             },
         ];
 
@@ -1114,16 +1124,23 @@ mod tests {
         let descriptor = build_descriptor(WalletType::P2TR, &keys, &spend_paths)?;
 
         // Should use NUMS xpub with wildcard, without fingerprint/derivation
-        assert!(descriptor.starts_with("tr(xpub") || descriptor.starts_with("tr(tpub"),
-            "Should start with NUMS xpub without fingerprint");
+        assert!(
+            descriptor.starts_with("tr(xpub") || descriptor.starts_with("tr(tpub"),
+            "Should start with NUMS xpub without fingerprint"
+        );
 
         // Should contain wildcard after NUMS xpub
-        assert!(descriptor.contains("/<0;1>/*,{"),
-            "NUMS xpub should have wildcard /<0;1>/*");
+        assert!(
+            descriptor.contains("/<0;1>/*,{"),
+            "NUMS xpub should have wildcard /<0;1>/*"
+        );
 
         // Should NOT contain raw NUMS point
-        assert!(!descriptor.contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
-            "Should not contain raw NUMS point");
+        assert!(
+            !descriptor
+                .contains("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"),
+            "Should not contain raw NUMS point"
+        );
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         assert_eq!(analyzer.wallet_type(), WalletType::P2TR);
@@ -1220,7 +1237,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // Explicit key-path
-            priority: 0,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
@@ -1228,7 +1245,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: false, // Singlesig script path, no timelock
-            priority: 0,
+                priority: 0,
             },
         ];
 
@@ -1425,7 +1442,7 @@ mod tests {
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
                 abs_timelock: APIAbsoluteTimelock::from_consensus(0),
                 is_key_path: true, // THIS is the key-path
-            priority: 0,
+                priority: 0,
             },
             SpendPathDef {
                 threshold: 1,
