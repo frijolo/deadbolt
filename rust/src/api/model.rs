@@ -207,7 +207,7 @@ impl APIRelativeTimelock {
                 Ok(self.value)
             }
             APIRelativeTimelockType::Time => {
-                let units = (self.value + 511) / 512; // Round up
+                let units = self.value.div_ceil(512);
                 if units > Self::SEQUENCE_LOCKTIME_MASK {
                     return Err(crate::core::error::WalletError::BuilderError(format!(
                         "Time value too large (max {} seconds)",
