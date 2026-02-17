@@ -484,6 +484,7 @@ class _ProjectDetailView extends StatelessWidget {
                          APIWalletType.p2Tr,
               onKeyPathChanged: (v) => cubit.updatePathIsKeyPath(i, v),
               onNameEdit: (name) => cubit.updatePathCustomName(i, name),
+              onPriorityChanged: (p) => cubit.updatePathPriority(i, p),
             ),
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),

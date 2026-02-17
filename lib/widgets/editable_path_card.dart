@@ -22,6 +22,7 @@ class EditablePathCard extends StatelessWidget {
   final bool isTaproot;
   final ValueChanged<bool>? onKeyPathChanged;
   final ValueChanged<String?>? onNameEdit;
+  final ValueChanged<int>? onPriorityChanged;
 
   const EditablePathCard({
     super.key,
@@ -41,6 +42,7 @@ class EditablePathCard extends StatelessWidget {
     this.isTaproot = false,
     this.onKeyPathChanged,
     this.onNameEdit,
+    this.onPriorityChanged,
   });
 
   String? get _validationError {
@@ -94,9 +96,11 @@ class EditablePathCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
+            _buildTimelockAndPriorityRow(context),
+            const SizedBox(height: 12),
             _buildKeysSection(context),
             const SizedBox(height: 12),
-            _buildThresholdAndTimelockRow(context),
+            _buildThresholdRow(context),
           ],
         ),
       ),
@@ -333,38 +337,25 @@ class EditablePathCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThresholdAndTimelockRow(BuildContext context) {
+  Widget _buildTimelockAndPriorityRow(BuildContext context) {
+    final isScriptPath = isTaproot && !path.isKeyPath;
+    return Row(
+      children: [
+        _buildTimelockButton(context),
+        if (isScriptPath) ...[
+          const Spacer(),
+          _buildPriorityBadge(context),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildThresholdRow(BuildContext context) {
     final maxThreshold = path.mfps.isEmpty ? 1 : path.mfps.length;
     final currentThreshold = path.threshold.clamp(1, maxThreshold);
 
-    // Timelock display logic
-    final hasTimelock = path.timelockMode != TimelockMode.none &&
-        ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
-         (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
-
-    final IconData timelockIcon;
-    final String timelockText;
-
-    if (!hasTimelock) {
-      timelockIcon = Icons.lock_clock;
-      timelockText = 'No timelock';
-    } else if (path.timelockMode == TimelockMode.relative) {
-      timelockIcon = Icons.update;
-      timelockText = BitcoinFormatter.formatRelativeTimelock(
-        path.relTimelockType,
-        path.relTimelockValue,
-      );
-    } else {
-      timelockIcon = Icons.event_available;
-      timelockText = BitcoinFormatter.formatAbsoluteTimelock(
-        path.absTimelockType,
-        path.absTimelockValue,
-      );
-    }
-
     return Row(
       children: [
-        // Threshold section
         const Text(
           'Threshold',
           style: TextStyle(fontSize: 11, color: Colors.white54),
@@ -396,11 +387,7 @@ class EditablePathCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
                 const SizedBox(width: 4),
-                const Icon(
-                  Icons.edit,
-                  size: 12,
-                  color: Colors.orange,
-                ),
+                const Icon(Icons.edit, size: 12, color: Colors.orange),
               ],
             ),
           ),
@@ -410,56 +397,108 @@ class EditablePathCard extends StatelessWidget {
           'of ${path.mfps.length}',
           style: const TextStyle(fontSize: 12, color: Colors.white70),
         ),
+      ],
+    );
+  }
 
-        const Spacer(),
+  Widget _buildTimelockButton(BuildContext context) {
+    final hasTimelock = path.timelockMode != TimelockMode.none &&
+        ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
+         (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
 
-        // Timelock section (on the right)
-        InkWell(
-          onTap: () => _showTimelockDialog(context),
+    final IconData timelockIcon;
+    final String timelockText;
+
+    if (!hasTimelock) {
+      timelockIcon = Icons.lock_clock;
+      timelockText = 'No timelock';
+    } else if (path.timelockMode == TimelockMode.relative) {
+      timelockIcon = Icons.update;
+      timelockText = BitcoinFormatter.formatRelativeTimelock(
+        path.relTimelockType,
+        path.relTimelockValue,
+      );
+    } else {
+      timelockIcon = Icons.event_available;
+      timelockText = BitcoinFormatter.formatAbsoluteTimelock(
+        path.absTimelockType,
+        path.absTimelockValue,
+      );
+    }
+
+    return InkWell(
+      onTap: () => _showTimelockDialog(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: hasTimelock ? Colors.orange.withAlpha(32) : Colors.white10,
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: hasTimelock
-                  ? Colors.orange.withAlpha(32)
-                  : Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: hasTimelock
-                    ? Colors.orange.withAlpha(64)
-                    : Colors.white24,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  timelockIcon,
-                  size: 14,
-                  color: hasTimelock ? Colors.orange : Colors.white54,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  timelockText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: hasTimelock ? Colors.white : Colors.white54,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.edit,
-                  size: 12,
-                  color: hasTimelock
-                      ? Colors.orange.withAlpha(180)
-                      : Colors.white38,
-                ),
-              ],
-            ),
+          border: Border.all(
+            color: hasTimelock ? Colors.orange.withAlpha(64) : Colors.white24,
+            width: 1,
           ),
         ),
-      ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(timelockIcon, size: 14,
+                color: hasTimelock ? Colors.orange : Colors.white54),
+            const SizedBox(width: 4),
+            Text(
+              timelockText,
+              style: TextStyle(
+                fontSize: 11,
+                color: hasTimelock ? Colors.white : Colors.white54,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.edit, size: 12,
+                color: hasTimelock ? Colors.orange.withAlpha(180) : Colors.white38),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriorityBadge(BuildContext context) {
+    final p = path.priority;
+    final maxOption = (p + 1).clamp(0, 9);
+    final active = p > 0;
+
+    return PopupMenuButton<int>(
+      offset: const Offset(0, 32),
+      onSelected: (value) => onPriorityChanged?.call(value),
+      tooltip: 'Change priority',
+      itemBuilder: (context) => List.generate(
+        maxOption + 1,
+        (i) => PopupMenuItem(value: i, child: Text('$i')),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? Colors.orange.withAlpha(32) : Colors.white10,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active ? Colors.orange.withAlpha(64) : Colors.white24,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Priority $p',
+              style: TextStyle(
+                fontSize: 12,
+                color: active ? Colors.white70 : Colors.white38,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.edit, size: 12,
+                color: active ? Colors.orange : Colors.white38),
+          ],
+        ),
+      ),
     );
   }
 

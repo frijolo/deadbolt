@@ -84,6 +84,9 @@ class PathCard extends StatelessWidget {
   Widget _buildTitle(BuildContext context) {
     final mfps = _mfps;
     final isKeyPath = path.trDepth == -1;
+    final hasRelTimelock = path.relTimelockValue > 0;
+    final hasAbsTimelock = path.absTimelockValue > 0;
+    final hasTimelock = hasRelTimelock || hasAbsTimelock;
 
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
@@ -114,6 +117,46 @@ class PathCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (hasTimelock)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withAlpha(24),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.orange.withAlpha(80)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            hasRelTimelock ? Icons.update : Icons.event_available,
+                            size: 10,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            hasRelTimelock
+                                ? BitcoinFormatter.formatRelativeTimelock(
+                                    RelativeTimelockType.fromString(path.relTimelockType),
+                                    path.relTimelockValue,
+                                  )
+                                : BitcoinFormatter.formatAbsoluteTimelock(
+                                    AbsoluteTimelockType.fromString(path.absTimelockType),
+                                    path.absTimelockValue,
+                                  ),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (isTaproot && isKeyPath)
                   Padding(
                     padding: const EdgeInsets.only(left: 6),
@@ -204,27 +247,12 @@ class PathCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ],
-            if (path.relTimelockValue > 0) ...[
+            if (path.priority > 0) ...[
               _buildSeparator(),
-              const Icon(Icons.update, size: 14, color: Colors.orange),
-              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_double_arrow_up, size: 14, color: Colors.orange),
+              const SizedBox(width: 2),
               Text(
-                BitcoinFormatter.formatRelativeTimelock(
-                  RelativeTimelockType.fromString(path.relTimelockType),
-                  path.relTimelockValue,
-                ),
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
-              ),
-            ],
-            if (path.absTimelockValue > 0) ...[
-              _buildSeparator(),
-              const Icon(Icons.event_available, size: 14, color: Colors.orange),
-              const SizedBox(width: 4),
-              Text(
-                BitcoinFormatter.formatAbsoluteTimelock(
-                  AbsoluteTimelockType.fromString(path.absTimelockType),
-                  path.absTimelockValue,
-                ),
+                '${path.priority}',
                 style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ],

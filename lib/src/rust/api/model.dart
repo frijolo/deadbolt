@@ -190,12 +190,17 @@ class APISpendPathDef {
   final APIAbsoluteTimelock absTimelock;
   final bool isKeyPath;
 
+  /// Taproot script tree priority (0 = deepest/least likely, higher = shallower/more likely).
+  /// Ignored for non-Taproot descriptors.
+  final int priority;
+
   const APISpendPathDef({
     required this.threshold,
     required this.mfps,
     required this.relTimelock,
     required this.absTimelock,
     required this.isKeyPath,
+    required this.priority,
   });
 
   @override
@@ -204,7 +209,8 @@ class APISpendPathDef {
       mfps.hashCode ^
       relTimelock.hashCode ^
       absTimelock.hashCode ^
-      isKeyPath.hashCode;
+      isKeyPath.hashCode ^
+      priority.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -215,7 +221,8 @@ class APISpendPathDef {
           mfps == other.mfps &&
           relTimelock == other.relTimelock &&
           absTimelock == other.absTimelock &&
-          isKeyPath == other.isKeyPath;
+          isKeyPath == other.isKeyPath &&
+          priority == other.priority;
 }
 
 enum APIWalletType {
