@@ -60,8 +60,14 @@ fn key_with_wildcard(key: &PubKey) -> String {
 }
 
 /// Construct key string with an unused derivation pair.
+/// Tracks usage by xpub (not MFP) so that two different MFPs sharing the
+/// same xpub receive different derivation slots and don't produce duplicates.
 fn key_with_derivation(key: &PubKey, keys_uses: &mut HashMap<String, usize>) -> String {
-    let uses: &mut usize = keys_uses.entry(key.mfp().to_string()).or_insert(0);
+    let xpub_id = key
+        .xpub()
+        .map(|x| x.to_string())
+        .unwrap_or_else(|_| key.to_string());
+    let uses: &mut usize = keys_uses.entry(xpub_id).or_insert(0);
     let ext = *uses * 2;
     let int = ext + 1;
     *uses += 1;
