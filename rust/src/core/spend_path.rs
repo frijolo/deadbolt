@@ -182,14 +182,13 @@ impl SpendPathBuilder {
         })
     }
 
-    fn build_many(mut spbs: Vec<Self>) -> Result<Vec<SpendPath>> {
-        let mut sps = Vec::new();
-        while !spbs.is_empty() {
-            let spb = spbs.pop().ok_or(WalletError::MissingPolicy)?;
-            let id = spb.calculate_id()?;
-            sps.push(spb.build(id)?);
-        }
-        Ok(sps)
+    fn build_many(spbs: Vec<Self>) -> Result<Vec<SpendPath>> {
+        spbs.into_iter()
+            .map(|spb| {
+                let id = spb.calculate_id()?;
+                spb.build(id)
+            })
+            .collect()
     }
 
     fn from_policies(policy: &Policy) -> Result<Vec<SpendPathBuilder>> {
@@ -478,6 +477,11 @@ impl SpendPath {
     }
 }
 
+/// Taproot control block: 1 byte version + 32 bytes internal key
+const TAPROOT_CB_BASE_LEN: usize = 33;
+/// Each node in the Merkle path adds 32 bytes to the control block
+const TAPROOT_CB_NODE_LEN: usize = 32;
+
 pub struct WeightCalc;
 
 impl WeightCalc {
@@ -649,8 +653,10 @@ impl WeightCalc {
             let cb_len = control_block_bytes.len();
 
             // Control block size check
-            if cb_len >= 33 && (cb_len - 33) % 32 == 0 {
-                spb.tr_depth = ((cb_len - 33) / 32) + 1;
+            if cb_len >= TAPROOT_CB_BASE_LEN
+                && (cb_len - TAPROOT_CB_BASE_LEN).is_multiple_of(TAPROOT_CB_NODE_LEN)
+            {
+                spb.tr_depth = ((cb_len - TAPROOT_CB_BASE_LEN) / TAPROOT_CB_NODE_LEN) + 1;
             } else {
                 Err(WalletError::UnsupportedDescriptor)?;
             }

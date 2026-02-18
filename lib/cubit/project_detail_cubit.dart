@@ -384,19 +384,25 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     ));
   }
 
+  // Assigns [updated] to [paths[index]], clearing isKeyPath if the path is no
+  // longer eligible (e.g. became multisig or gained a timelock).
+  void _updatePathAndCheckKeyPath(
+    List<EditableSpendPath> paths,
+    int index,
+    EditableSpendPath updated,
+  ) {
+    if (!updated.canBeKeyPath && updated.isKeyPath) {
+      paths[index] = updated.copyWith(isKeyPath: false);
+    } else {
+      paths[index] = updated;
+    }
+  }
+
   void updatePathThreshold(int pathIndex, int value) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(threshold: value);
-
-    // If path is no longer eligible for keypath, unmark it
-    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
-      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
-    } else {
-      paths[pathIndex] = updatedPath;
-    }
-
+    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(threshold: value));
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
@@ -405,15 +411,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
     final newMfps = List.of(paths[pathIndex].mfps)..add(mfp);
-    final updatedPath = paths[pathIndex].copyWith(mfps: newMfps);
-
-    // If path is no longer eligible for keypath, unmark it
-    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
-      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
-    } else {
-      paths[pathIndex] = updatedPath;
-    }
-
+    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(mfps: newMfps));
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
@@ -430,15 +428,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(timelockMode: mode);
-
-    // If path is no longer eligible for keypath, unmark it
-    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
-      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
-    } else {
-      paths[pathIndex] = updatedPath;
-    }
-
+    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(timelockMode: mode));
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
@@ -454,15 +444,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(relTimelockValue: value);
-
-    // If path is no longer eligible for keypath, unmark it
-    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
-      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
-    } else {
-      paths[pathIndex] = updatedPath;
-    }
-
+    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(relTimelockValue: value));
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
@@ -478,15 +460,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    final updatedPath = paths[pathIndex].copyWith(absTimelockValue: value);
-
-    // If path is no longer eligible for keypath, unmark it
-    if (!updatedPath.canBeKeyPath && updatedPath.isKeyPath) {
-      paths[pathIndex] = updatedPath.copyWith(isKeyPath: false);
-    } else {
-      paths[pathIndex] = updatedPath;
-    }
-
+    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(absTimelockValue: value));
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 

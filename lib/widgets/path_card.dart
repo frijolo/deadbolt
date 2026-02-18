@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/widgets/edit_name_dialog.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 
 class PathCard extends StatelessWidget {
   final ProjectSpendPath path;
@@ -186,36 +188,14 @@ class PathCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               for (var mfp in mfps)
-                _buildMfpBadge(
-                  _getKeyLabel(mfp),
-                  mfpColorProvider(mfp),
-                  mfp,
+                MfpBadge(
+                  label: _getKeyLabel(mfp),
+                  color: mfpColorProvider(mfp),
+                  letterSpacing: _getKeyLabel(mfp) == mfp.toUpperCase() ? 0.5 : 0.0,
                 ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMfpBadge(String label, Color backgroundColor, String mfp) {
-    return Container(
-      margin: const EdgeInsets.only(right: 6, bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor.withAlpha(32),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: backgroundColor.withAlpha(64), width: 2),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Colors.white.withAlpha(230),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
-        ),
       ),
     );
   }
@@ -270,44 +250,11 @@ class PathCard extends StatelessWidget {
   }
 
   void _showNameDialog(BuildContext context) {
-    final controller = TextEditingController(text: path.customName);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Spend path name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(hintText: 'Enter a name'),
-          onSubmitted: (_) {
-            final name = controller.text.trim();
-            onNameEdit?.call(name.isEmpty ? null : name);
-            Navigator.pop(ctx);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              onNameEdit?.call(null);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Clear'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              onNameEdit?.call(name.isEmpty ? null : name);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    showEditNameDialog(
+      context,
+      title: 'Spend path name',
+      currentName: path.customName,
+      onSave: (name) => onNameEdit?.call(name),
     );
   }
 }

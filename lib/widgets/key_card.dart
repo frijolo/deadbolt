@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/edit_name_dialog.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 
 class KeyCard extends StatelessWidget {
   final ProjectKey keyData;
@@ -30,7 +32,7 @@ class KeyCard extends StatelessWidget {
             // MFP badge + custom name + copy button row
             Row(
               children: [
-                _buildMfpBadge(),
+                MfpBadge(label: keyData.mfp.toUpperCase(), color: mfpColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: GestureDetector(
@@ -124,90 +126,16 @@ class KeyCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMfpBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: mfpColor.withAlpha(32),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: mfpColor.withAlpha(64), width: 2),
-      ),
-      child: Text(
-        keyData.mfp.toUpperCase(),
-        style: TextStyle(
-          color: Colors.white.withAlpha(230),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
   void _showNameDialog(BuildContext context) {
-    final controller = TextEditingController(text: keyData.customName);
-    String? errorText;
-
-    void saveName(StateSetter setState, BuildContext dialogContext) {
-      final name = controller.text.trim();
-
-      // Check if name is already used by another key
-      if (name.isNotEmpty) {
-        final duplicate = allKeys.any((k) =>
-            k.id != keyData.id &&
-            k.customName != null &&
-            k.customName!.toLowerCase() == name.toLowerCase());
-
-        if (duplicate) {
-          setState(() =>
-              errorText = 'This name is already used by another key');
-          return;
-        }
-      }
-
-      onNameEdit?.call(name.isEmpty ? null : name);
-      Navigator.pop(dialogContext);
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Key name'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: 'Enter a name',
-              errorText: errorText,
-            ),
-            onChanged: (_) {
-              if (errorText != null) {
-                setState(() => errorText = null);
-              }
-            },
-            onSubmitted: (_) => saveName(setState, ctx),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                onNameEdit?.call(null);
-                Navigator.pop(ctx);
-              },
-              child: const Text('Clear'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => saveName(setState, ctx),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+    showEditNameDialog(
+      context,
+      title: 'Key name',
+      currentName: keyData.customName,
+      onSave: (name) => onNameEdit?.call(name),
+      isDuplicate: (name) => allKeys.any((k) =>
+          k.id != keyData.id &&
+          k.customName != null &&
+          k.customName!.toLowerCase() == name.toLowerCase()),
     );
   }
 }

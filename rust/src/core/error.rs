@@ -25,7 +25,7 @@ pub enum WalletError {
     #[error("BuilderError: {0}")]
     BuilderError(String),
 
-    // Captura errores directos de BDK
+    // Capture direct errors from BDK
     #[error("MiniscriptError: {0}")]
     MiniscriptError(#[from] bdk_wallet::miniscript::Error),
     #[error("DescriptorError: {0}")]

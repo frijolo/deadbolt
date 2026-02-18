@@ -39,16 +39,20 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     _watch();
   }
 
+  void _logError(String context, Object error, StackTrace stackTrace) {
+    debugPrint('════════════════════════════════════════════════════════════');
+    debugPrint('ERROR in $context:');
+    debugPrint('$error');
+    debugPrint('Stack trace:');
+    debugPrint('$stackTrace');
+    debugPrint('════════════════════════════════════════════════════════════');
+  }
+
   void _watch() {
     _subscription = _db.watchAllProjects().listen(
       (projects) => emit(ProjectListLoaded(projects)),
       onError: (e, stackTrace) {
-        debugPrint('════════════════════════════════════════════════════════════');
-        debugPrint('ERROR in ProjectListCubit stream:');
-        debugPrint('$e');
-        debugPrint('Stack trace:');
-        debugPrint('$stackTrace');
-        debugPrint('════════════════════════════════════════════════════════════');
+        _logError('ProjectListCubit stream', e, stackTrace);
         emit(ProjectListError(e.toString()));
       },
     );
@@ -102,12 +106,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
 
       return projectId;
     } catch (e, stackTrace) {
-      debugPrint('════════════════════════════════════════════════════════════');
-      debugPrint('ERROR in ProjectListCubit.createProject():');
-      debugPrint('$e');
-      debugPrint('Stack trace:');
-      debugPrint('$stackTrace');
-      debugPrint('════════════════════════════════════════════════════════════');
+      _logError('ProjectListCubit.createProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -128,12 +127,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
 
       return projectId;
     } catch (e, stackTrace) {
-      debugPrint('════════════════════════════════════════════════════════════');
-      debugPrint('ERROR in ProjectListCubit.createEmptyProject():');
-      debugPrint('$e');
-      debugPrint('Stack trace:');
-      debugPrint('$stackTrace');
-      debugPrint('════════════════════════════════════════════════════════════');
+      _logError('ProjectListCubit.createEmptyProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -142,12 +136,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     try {
       await _db.deleteProject(id);
     } catch (e, stackTrace) {
-      debugPrint('════════════════════════════════════════════════════════════');
-      debugPrint('ERROR in ProjectListCubit.deleteProject():');
-      debugPrint('$e');
-      debugPrint('Stack trace:');
-      debugPrint('$stackTrace');
-      debugPrint('════════════════════════════════════════════════════════════');
+      _logError('ProjectListCubit.deleteProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -207,12 +196,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
 
       return projectId;
     } catch (e, stackTrace) {
-      debugPrint('════════════════════════════════════════════════════════════');
-      debugPrint('ERROR in ProjectListCubit.importProject():');
-      debugPrint('$e');
-      debugPrint('Stack trace:');
-      debugPrint('$stackTrace');
-      debugPrint('════════════════════════════════════════════════════════════');
+      _logError('ProjectListCubit.importProject()', e, stackTrace);
       rethrow;
     }
   }
