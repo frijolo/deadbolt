@@ -249,7 +249,11 @@ class _ProjectDetailView extends StatelessWidget {
     );
   }
 
-  void _showAddKeyDialog(BuildContext context, ProjectDetailCubit cubit) {
+  void _showAddKeyDialog(
+    BuildContext context,
+    ProjectDetailCubit cubit, {
+    void Function(String mfp)? onKeyAdded,
+  }) {
     final mfpController = TextEditingController();
     final pathController = TextEditingController();
     final xpubController = TextEditingController();
@@ -423,7 +427,9 @@ class _ProjectDetailView extends StatelessWidget {
                   xpub: xpub,
                 );
 
-                cubit.addKey(newKey);
+                await cubit.addKey(newKey);
+                if (!ctx.mounted) return;
+                onKeyAdded?.call(mfp);
                 Navigator.pop(ctx);
               },
               child: const Text('Add'),
@@ -479,6 +485,11 @@ class _ProjectDetailView extends StatelessWidget {
               onAbsTimelockValueChanged: (v) =>
                   cubit.updatePathAbsTimelockValue(i, v),
               onDelete: () => cubit.removeSpendPath(i),
+              onAddNewKey: () => _showAddKeyDialog(
+                context,
+                cubit,
+                onKeyAdded: (mfp) => cubit.addMfpToPath(i, mfp),
+              ),
               isTaproot: (state.editedWalletType ??
                          APIWalletType.values.byName(state.project.walletType)) ==
                          APIWalletType.p2Tr,
