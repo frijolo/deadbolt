@@ -91,14 +91,10 @@ We take all security bugs seriously. If you discover a security vulnerability in
    - Click "Report a vulnerability"
    - Provide detailed information
 
-2. **Email** (if you prefer private disclosure)
-   - Email: `security@example.com` (if available)
-   - Encrypt your message with the maintainer's GPG key
+2. **Encrypted Email**
+   - Email: `frijolin@proton.me`
+   - Encrypt your message with the maintainer's GPG key (see above)
    - Subject: `[SECURITY] Deadbolt Vulnerability Report`
-
-3. **Encrypted Communication**
-   - PGP Key: Use the same GPG key as releases (see above)
-   - Signal/other encrypted messaging (contact maintainer for details)
 
 ### What to Include
 
@@ -250,13 +246,7 @@ Published security advisories will be available at:
 - **Security concerns**: Use the reporting process above
 - **GPG key verification**: Check multiple sources (this file, project website, maintainer's social media)
 
-## Acknowledgments
-
-We appreciate responsible disclosure and will acknowledge security researchers who help improve Deadbolt's security:
-
-- [Your name could be here!]
-
 ---
 
-**Last updated**: 2026-02-13
+**Last updated**: 2026-02-18
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`
