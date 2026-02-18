@@ -19,10 +19,6 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Cross-Platform**: Available for Android, Linux, Windows (iOS/macOS coming soon)
 - **Signed Releases**: All binaries are GPG-signed for verification
 
-## Screenshots
-
-[TODO: Add screenshots after UI is finalized]
-
 ## Installation
 
 ### Android
@@ -57,20 +53,7 @@ cd deadbolt
 
 ### Verifying Releases
 
-**IMPORTANT**: Always verify releases before installation. See [SECURITY.md](SECURITY.md) for detailed instructions.
-
-Quick verification:
-
-```bash
-# Import GPG key
-curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
-
-# Verify signature
-gpg --verify SHA256SUMS.asc SHA256SUMS
-
-# Verify checksum
-sha256sum -c SHA256SUMS --ignore-missing
-```
+Always verify releases before installation. See [SECURITY.md](SECURITY.md) for instructions.
 
 ## Usage
 
@@ -109,7 +92,7 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 - **Does NOT handle private keys** - Only analyzes descriptors (public information)
 - **Does NOT connect to the internet** - Fully offline operation
 - **Does NOT create transactions** - Read-only analysis tool
-- **Does NOT store sensitive data** - No wallet files or persistent storage (beyond app database)
+- **Does NOT store sensitive data** - Stores only descriptors and user-provided labels locally
 
 ## Building from Source
 
@@ -226,18 +209,6 @@ However, be aware:
 - Descriptors contain public keys and reveal wallet structure
 - Avoid sharing descriptors with untrusted parties
 - Use on trusted devices only
-
-## Roadmap
-
-- [x] Core descriptor parsing
-- [x] Multi-platform support (Android, Linux, Windows)
-- [x] GPG-signed releases
-- [ ] iOS and macOS builds
-- [ ] Reproducible builds
-- [ ] Advanced descriptor editing
-- [ ] PSBT (Partially Signed Bitcoin Transaction) analysis
-- [ ] Descriptor import/export
-- [ ] Third-party security audit
 
 ## Dependencies
 

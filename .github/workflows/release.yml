@@ -181,57 +181,9 @@ jobs:
           cat << 'EOF' > release-notes.md
           ## Deadbolt ${{ steps.version.outputs.version }}
 
-          ### Release Files
+          Binary releases for Android, Linux, and Windows.
 
-          - **deadbolt-android.apk** - Android application
-          - **deadbolt-linux-x64.tar.gz** - Linux x64 binary
-          - **deadbolt-windows-x64.zip** - Windows x64 binary
-          - **SHA256SUMS** - Checksums for all binaries
-          - **SHA256SUMS.asc** - GPG signature of checksums
-
-          ### Verification
-
-          **IMPORTANT**: Always verify releases before use. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for detailed verification instructions.
-
-          Quick verification:
-
-          ```bash
-          # Import maintainer's public key (first time only)
-          curl -sL https://github.com/${{ github.repository }}/raw/main/GPG_PUBLIC_KEY.asc | gpg --import
-
-          # Download release files
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SHA256SUMS
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SHA256SUMS.asc
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/deadbolt-<platform>.<ext>
-
-          # Verify GPG signature
-          gpg --verify SHA256SUMS.asc SHA256SUMS
-
-          # Verify checksum
-          sha256sum -c SHA256SUMS --ignore-missing
-          ```
-
-          ### Installation
-
-          **Android**: Install the APK directly or via ADB:
-          ```bash
-          adb install deadbolt-android.apk
-          ```
-
-          **Linux**:
-          ```bash
-          tar -xzf deadbolt-linux-x64.tar.gz
-          cd deadbolt
-          ./deadbolt
-          ```
-
-          **Windows**:
-          1. Extract `deadbolt-windows-x64.zip`
-          2. Run `deadbolt.exe`
-
-          ---
-
-          **Security Notice**: This release is GPG-signed by the Deadbolt maintainer. Never run binaries without verifying signatures first.
+          Includes `SHA256SUMS` and `SHA256SUMS.asc` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for verification instructions.
           EOF
 
       - name: Create GitHub Release
@@ -239,6 +191,7 @@ jobs:
         with:
           name: Deadbolt ${{ steps.version.outputs.version }}
           body_path: release-notes.md
+          generate_release_notes: true
           draft: false
           prerelease: false
           files: |
