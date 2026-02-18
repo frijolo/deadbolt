@@ -179,8 +179,6 @@ jobs:
         id: release_notes
         run: |
           cat << 'EOF' > release-notes.md
-          ## Deadbolt ${{ steps.version.outputs.version }}
-
           Binary releases for Android, Linux, and Windows.
 
           Includes `SHA256SUMS` and `SHA256SUMS.asc` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for verification instructions.
