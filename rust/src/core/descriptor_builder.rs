@@ -272,7 +272,7 @@ fn build_tr(keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
         let scripts_layered = scripts_by_priority.into_values().collect();
 
         // Build descriptor string
-        let tree_str = build_layered_tree(scripts_layered);
+        let tree_str = build_layered_tree(scripts_layered)?;
         let descriptor_str = format!("tr({},{})", internal_key_str, tree_str);
 
         // Validate by parsing with BDK and return with checksum
@@ -304,34 +304,41 @@ fn build_taproot_script_path(
     Ok(miniscript.to_string())
 }
 
+fn join_tree(l: String, r: String) -> String {
+    format!("{{{},{}}}", l, r)
+}
+
 /// Build a balanced binary taproot tree from script strings.
 /// For 2 scripts: {script1,script2}
 /// For 3+ scripts: build nested binary tree
-fn build_taproot_tree(scripts: &[String]) -> String {
+fn build_taproot_tree(scripts: &[String]) -> Result<String> {
     match scripts.len() {
-        0 => panic!("Cannot build tree with no scripts"),
-        1 => scripts[0].clone(),
-        2 => format!("{{{},{}}}", scripts[0], scripts[1]),
+        0 => Err(WalletError::BuilderError("Cannot build tree with no scripts".into()).into()),
+        1 => Ok(scripts[0].clone()),
+        2 => Ok(join_tree(scripts[0].clone(), scripts[1].clone())),
         _ => {
             // Split into two halves and recursively build subtrees
             let mid = scripts.len() / 2;
-            let left_tree = build_taproot_tree(&scripts[..mid]);
-            let right_tree = build_taproot_tree(&scripts[mid..]);
-            format!("{{{},{}}}", left_tree, right_tree)
+            let left_tree = build_taproot_tree(&scripts[..mid])?;
+            let right_tree = build_taproot_tree(&scripts[mid..])?;
+            Ok(join_tree(left_tree, right_tree))
         }
     }
 }
 
-fn build_layered_tree(layered_scripts: Vec<Vec<String>>) -> String {
+fn build_layered_tree(layered_scripts: Vec<Vec<String>>) -> Result<String> {
     layered_scripts
         .into_iter()
-        .fold(None, |acc, mut current_level| {
-            if let Some(prev_subtree) = acc {
-                current_level.push(prev_subtree);
-            }
-            Some(build_taproot_tree(&current_level))
-        })
-        .expect("Cannot build tree with no scripts")
+        .try_fold(
+            None::<String>,
+            |acc, mut current_level| -> Result<Option<String>> {
+                if let Some(prev_subtree) = acc {
+                    current_level.push(prev_subtree);
+                }
+                Ok(Some(build_taproot_tree(&current_level)?))
+            },
+        )?
+        .ok_or_else(|| WalletError::BuilderError("Cannot build tree with no scripts".into()).into())
 }
 
 /// Build a concrete policy from spend path definitions.
@@ -698,10 +705,12 @@ mod tests {
         let paths = analyzer.spend_paths()?;
         assert_eq!(paths.len(), 3);
 
-        // Verify paths are sorted by timelock (no timelock first)
-        assert_eq!(paths[0].rel_timelock, 0);
-        assert!(paths[1].rel_timelock > 0);
-        assert!(paths[2].rel_timelock > paths[1].rel_timelock);
+        // Verify all expected timelocks are present (order not guaranteed at core level;
+        // sorting is applied by APISpendPath::from_sorted in the API layer)
+        let timelocks: Vec<u32> = paths.iter().map(|p| p.rel_timelock).collect();
+        assert!(timelocks.contains(&0));
+        assert!(timelocks.contains(&144));
+        assert!(timelocks.contains(&1008));
 
         Ok(())
     }

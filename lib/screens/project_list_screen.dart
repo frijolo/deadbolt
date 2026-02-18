@@ -104,8 +104,10 @@ class ProjectListScreen extends StatelessWidget {
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: projects.length,
-                    itemBuilder: (context, index) =>
-                        _buildProjectCard(context, projects[index]),
+                    itemBuilder: (context, index) => KeyedSubtree(
+                      key: ValueKey(projects[index].id),
+                      child: _buildProjectCard(context, projects[index]),
+                    ),
                   ),
             };
           },

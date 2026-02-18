@@ -4,6 +4,7 @@ import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/widgets/edit_name_dialog.dart';
 
 class EditablePathCard extends StatelessWidget {
   final int index;
@@ -503,45 +504,11 @@ class EditablePathCard extends StatelessWidget {
   }
 
   void _showNameDialog(BuildContext context) {
-    final controller = TextEditingController(text: path.customName);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Spend path name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(hintText: 'Enter a name'),
-          onSubmitted: (_) {
-            final name = controller.text.trim();
-            onNameEdit?.call(name.isEmpty ? null : name);
-            Navigator.pop(ctx);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              onNameEdit?.call(null);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Clear'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              onNameEdit?.call(name.isEmpty ? null : name);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+    showEditNameDialog(
+      context,
+      title: 'Spend path name',
+      currentName: path.customName,
+      onSave: (name) => onNameEdit?.call(name),
     );
   }
 
