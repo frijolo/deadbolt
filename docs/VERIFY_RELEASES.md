@@ -290,7 +290,7 @@ If you encounter:
 
 **Report immediately**:
 - GitHub Issues: https://github.com/frijolo/deadbolt/issues
-- Email: security@example.com (if available)
+- Email: frijolin@proton.me
 - Do NOT use the binary
 
 ## Additional Security Measures
