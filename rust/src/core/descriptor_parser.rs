@@ -76,18 +76,9 @@ impl DescriptorParser {
         }
     }
 
-    /// Detect which testnet variant (Testnet, Signet, Testnet4, Regtest)
-    ///
-    /// This still requires wallet creation but only tries testnet variants,
-    /// reducing from 5 attempts to at most 4.
-    fn detect_testnet_variant(&self) -> Result<Network> {
-        // Try in order of likelihood
-        for network in [
-            Network::Testnet,
-            Network::Signet,
-            Network::Testnet4,
-            Network::Regtest,
-        ] {
+    /// Try each network in order, returning the first one that parses the descriptor successfully.
+    fn try_networks(&self, networks: &[Network]) -> Result<Network> {
+        for &network in networks {
             if Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
                 .network(network)
                 .create_wallet_no_persist()
@@ -99,27 +90,31 @@ impl DescriptorParser {
         Err(WalletError::NetworkDetectionFailed.into())
     }
 
+    /// Detect which testnet variant (Testnet, Signet, Testnet4, Regtest)
+    ///
+    /// This still requires wallet creation but only tries testnet variants,
+    /// reducing from 5 attempts to at most 4.
+    fn detect_testnet_variant(&self) -> Result<Network> {
+        self.try_networks(&[
+            Network::Testnet,
+            Network::Signet,
+            Network::Testnet4,
+            Network::Regtest,
+        ])
+    }
+
     /// Fallback: detect network by trying wallet creation on all networks
     ///
     /// This is the old approach - only used when xpub parsing fails.
     /// Kept for correctness on unusual descriptors.
     fn detect_network_via_wallet(&self) -> Result<Network> {
-        for network in [
+        self.try_networks(&[
             Network::Bitcoin,
             Network::Testnet,
             Network::Testnet4,
             Network::Signet,
             Network::Regtest,
-        ] {
-            if Wallet::create_from_two_path_descriptor(self.descriptor_str.clone())
-                .network(network)
-                .create_wallet_no_persist()
-                .is_ok()
-            {
-                return Ok(network);
-            }
-        }
-        Err(WalletError::NetworkDetectionFailed.into())
+        ])
     }
 
     /// Get wallet type by pattern matching on descriptor enum
