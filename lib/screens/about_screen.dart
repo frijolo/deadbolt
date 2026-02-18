@@ -105,7 +105,7 @@ class AboutScreen extends StatelessWidget {
                     _buildLinkRow(
                       context,
                       'Security & GPG',
-                      'https://github.com/frijolo/deadbolt/blob/main/SECURITY.md',
+                      'https://github.com/frijolo/deadbolt/blob/master/SECURITY.md',
                       Icons.security,
                     ),
                     _buildInfoRow('License', 'MIT License'),
