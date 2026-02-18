@@ -20,6 +20,7 @@ class EditablePathCard extends StatelessWidget {
   final ValueChanged<AbsoluteTimelockType> onAbsTimelockTypeChanged;
   final ValueChanged<int> onAbsTimelockValueChanged;
   final VoidCallback onDelete;
+  final VoidCallback onAddNewKey;
   final bool isTaproot;
   final ValueChanged<bool>? onKeyPathChanged;
   final ValueChanged<String?>? onNameEdit;
@@ -40,6 +41,7 @@ class EditablePathCard extends StatelessWidget {
     required this.onAbsTimelockTypeChanged,
     required this.onAbsTimelockValueChanged,
     required this.onDelete,
+    required this.onAddNewKey,
     this.isTaproot = false,
     this.onKeyPathChanged,
     this.onNameEdit,
@@ -232,8 +234,7 @@ class EditablePathCard extends StatelessWidget {
                 mfpColorProvider(mfp),
                 mfp,
               ),
-            if (unusedKeys.isNotEmpty)
-              _buildAddKeyButton(context, unusedKeys),
+            _buildAddKeyButton(context, unusedKeys),
           ],
         ),
       ],
@@ -274,46 +275,65 @@ class EditablePathCard extends StatelessWidget {
     );
   }
 
+  static const _newKeysentinel = '__new_key__';
+
   Widget _buildAddKeyButton(BuildContext context, List<ProjectKey> unusedKeys) {
     return PopupMenuButton<String>(
       offset: const Offset(0, 32),
-      onSelected: (mfp) => onMfpAdded(mfp),
-      itemBuilder: (context) => unusedKeys
-          .map((k) => PopupMenuItem<String>(
-                value: k.mfp,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: mfpColorProvider(k.mfp),
-                        shape: BoxShape.circle,
-                      ),
+      onSelected: (value) {
+        if (value == _newKeysentinel) {
+          onAddNewKey();
+        } else {
+          onMfpAdded(value);
+        }
+      },
+      itemBuilder: (context) => [
+        ...unusedKeys.map((k) => PopupMenuItem<String>(
+              value: k.mfp,
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: mfpColorProvider(k.mfp),
+                      shape: BoxShape.circle,
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    k.mfp.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  if (k.customName != null) ...[
                     const SizedBox(width: 8),
                     Text(
-                      k.mfp.toUpperCase(),
+                      k.customName!,
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                        fontSize: 11,
+                        color: Colors.white54,
                       ),
                     ),
-                    if (k.customName != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        k.customName!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              ))
-          .toList(),
+                ],
+              ),
+            )),
+        if (unusedKeys.isNotEmpty) const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: _newKeysentinel,
+          child: Row(
+            children: [
+              Icon(Icons.add, size: 16, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('New key', style: TextStyle(color: Colors.orange)),
+            ],
+          ),
+        ),
+      ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
