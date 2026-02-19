@@ -5,9 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
+import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
@@ -17,9 +19,10 @@ class ProjectListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Projects'),
+        title: Text(l10n.projectsTitle),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -35,36 +38,53 @@ class ProjectListScreen extends StatelessWidget {
                     builder: (context) => const AboutScreen(),
                   ),
                 );
+              } else if (value == 'settings') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'new',
                 child: Row(
                   children: [
-                    Icon(Icons.add),
-                    SizedBox(width: 8),
-                    Text('New'),
+                    const Icon(Icons.add),
+                    const SizedBox(width: 8),
+                    Text(l10n.menuNew),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'import',
                 child: Row(
                   children: [
-                    Icon(Icons.file_download_outlined),
-                    SizedBox(width: 8),
-                    Text('Import'),
+                    const Icon(Icons.file_download_outlined),
+                    const SizedBox(width: 8),
+                    Text(l10n.menuImport),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    const Icon(Icons.settings_outlined),
+                    const SizedBox(width: 8),
+                    Text(l10n.menuSettings),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
                 value: 'about',
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline),
-                    SizedBox(width: 8),
-                    Text('About'),
+                    const Icon(Icons.info_outline),
+                    const SizedBox(width: 8),
+                    Text(l10n.menuAbout),
                   ],
                 ),
               ),
@@ -81,24 +101,22 @@ class ProjectListScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const CircularProgressIndicator(),
-                    if (message != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        message,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
+                    const SizedBox(height: 16),
+                    Text(
+                      message ?? context.l10n.loadingProjects,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ],
                 ),
               ),
             ProjectListError(:final message) =>
               Center(child: Text(message)),
             ProjectListLoaded(:final projects) => projects.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No projects yet.\nTap + to create one.',
+                      l10n.noProjects,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54),
+                      style: const TextStyle(color: Colors.white54),
                     ),
                   )
                 : ListView.builder(
@@ -121,6 +139,7 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   Widget _buildProjectCard(BuildContext context, Project project) {
+    final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -132,10 +151,13 @@ class ProjectListScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              _buildBadge(networkDisplayName(project.network)),
+              _buildBadge(localizedNetworkDisplayName(context, project.network)),
               const SizedBox(width: 8),
               _buildBadge(
-                APIWalletType.values.byName(project.walletType).displayName,
+                localizedWalletTypeName(
+                  context,
+                  APIWalletType.values.byName(project.walletType),
+                ),
               ),
             ],
           ),
@@ -152,7 +174,7 @@ class ProjectListScreen extends StatelessWidget {
               icon: const Icon(Icons.delete_outline, size: 20),
               color: Colors.red.withAlpha(180),
               onPressed: () => _confirmDelete(context, project),
-              tooltip: 'Delete project',
+              tooltip: l10n.deleteProjectTooltip,
               visualDensity: VisualDensity.compact,
             ),
           ],
@@ -213,22 +235,23 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, Project project) {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete project'),
-        content: Text('Delete "${project.name}"?'),
+        title: Text(l10n.deleteProjectTitle),
+        content: Text(l10n.deleteProjectConfirm(project.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
               context.read<ProjectListCubit>().deleteProject(project.id);
               Navigator.pop(ctx);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -240,6 +263,7 @@ class ProjectListScreen extends StatelessWidget {
       // Get references before async gap
       final cubit = context.read<ProjectListCubit>();
       final db = context.read<AppDatabase>();
+      final l10n = context.l10n;
 
       // Pick file
       final result = await FilePicker.platform.pickFiles(
@@ -253,7 +277,7 @@ class ProjectListScreen extends StatelessWidget {
       final file = result.files.first;
       if (file.bytes == null) {
         if (context.mounted) {
-          showErrorToast(context, 'Could not read file');
+          showErrorToast(context, l10n.couldNotReadFile);
         }
         return;
       }
@@ -264,7 +288,7 @@ class ProjectListScreen extends StatelessWidget {
       final projectId = await cubit.importProject(jsonString);
 
       if (context.mounted) {
-        showSuccessToast(context, 'Project imported successfully');
+        showSuccessToast(context, l10n.projectImportedSuccess);
 
         // Navigate to imported project
         Navigator.push(
@@ -279,7 +303,7 @@ class ProjectListScreen extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, 'Import failed: ${formatRustError(e)}');
+        showErrorToast(context, context.l10n.importFailed(formatRustError(e)));
       }
     }
   }

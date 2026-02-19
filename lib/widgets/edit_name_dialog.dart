@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
+
 /// Show a dialog to edit a custom name.
 ///
 /// [title] is the dialog title (e.g. 'Key name', 'Spend path name').
@@ -16,6 +18,7 @@ void showEditNameDialog(
   bool Function(String name)? isDuplicate,
 }) {
   final controller = TextEditingController(text: currentName);
+  final l10n = context.l10n;
 
   if (isDuplicate == null) {
     // Simple dialog — no duplicate validation needed.
@@ -27,7 +30,7 @@ void showEditNameDialog(
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(hintText: 'Enter a name'),
+          decoration: InputDecoration(hintText: l10n.enterName),
           onSubmitted: (_) {
             final name = controller.text.trim();
             onSave(name.isEmpty ? null : name);
@@ -40,11 +43,11 @@ void showEditNameDialog(
               onSave(null);
               Navigator.pop(ctx);
             },
-            child: const Text('Clear'),
+            child: Text(l10n.clear),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -52,7 +55,7 @@ void showEditNameDialog(
               onSave(name.isEmpty ? null : name);
               Navigator.pop(ctx);
             },
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ],
       ),
@@ -68,7 +71,7 @@ void showEditNameDialog(
           void saveName() {
             final name = controller.text.trim();
             if (name.isNotEmpty && isDuplicate(name)) {
-              setState(() => errorText = 'This name is already used by another key');
+              setState(() => errorText = l10n.nameAlreadyUsed);
               return;
             }
             onSave(name.isEmpty ? null : name);
@@ -82,7 +85,7 @@ void showEditNameDialog(
               autofocus: true,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
-                hintText: 'Enter a name',
+                hintText: l10n.enterName,
                 errorText: errorText,
               ),
               onChanged: (_) {
@@ -98,15 +101,15 @@ void showEditNameDialog(
                   onSave(null);
                   Navigator.pop(ctx);
                 },
-                child: const Text('Clear'),
+                child: Text(l10n.clear),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               TextButton(
                 onPressed: saveName,
-                child: const Text('Save'),
+                child: Text(l10n.save),
               ),
             ],
           );

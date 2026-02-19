@@ -5,7 +5,6 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:drift/drift.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
@@ -675,7 +674,14 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedKeys: keys, isDirty: true));
   }
 
-  Future<void> regenerateDescriptor() async {
+  Future<void> regenerateDescriptor({
+    required String buildingDescriptorMessage,
+    required String buildingDescriptorMultiPathMessage,
+    required String buildingComplexDescriptorMessage,
+    required String analyzingDescriptorMessage,
+    required String analyzingComplexDescriptorMessage,
+    required String analyzingAndSavingMessage,
+  }) async {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null || s.editedKeys == null) return;
 
@@ -736,14 +742,14 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       String analyzeMessage;
 
       if (s.editedWalletType != APIWalletType.p2Tr && pathCount > 3 && hasTimelocks) {
-        buildMessage = 'Building complex descriptor...\nThis may take some time';
-        analyzeMessage = 'Analyzing complex descriptor...';
+        buildMessage = buildingComplexDescriptorMessage;
+        analyzeMessage = analyzingComplexDescriptorMessage;
       } else if (pathCount > 3) {
-        buildMessage = 'Building descriptor with multiple paths...';
-        analyzeMessage = 'Analyzing descriptor...';
+        buildMessage = buildingDescriptorMultiPathMessage;
+        analyzeMessage = analyzingDescriptorMessage;
       } else {
-        buildMessage = 'Building descriptor...';
-        analyzeMessage = 'Analyzing descriptor...';
+        buildMessage = buildingDescriptorMessage;
+        analyzeMessage = analyzingDescriptorMessage;
       }
 
       emit(ProjectDetailLoading(message: buildMessage));
@@ -877,7 +883,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final previousState = state;
 
     try {
-      emit(ProjectDetailLoading(message: loadingMessage ?? 'Analyzing and saving...'));
+      emit(ProjectDetailLoading(message: loadingMessage));
 
       // Load existing keys and paths to preserve custom names
       final existingKeys = await _db.getKeysForProject(projectId);
@@ -1007,79 +1013,85 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     }
   }
 
-  /// Export project as JSON file
-  Future<void> exportProject() async {
+  /// Build export JSON and filename from current state (helper).
+  /// Returns the export JSON string for the current state, or null if not loaded.
+  String? buildExportJson() {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return null;
+    return _buildExportPayload(s).jsonString;
+  }
+
+  ({String jsonString, String fileName}) _buildExportPayload(ProjectDetailLoaded s) {
+    final keyLabels = <String, String>{};
+    for (final key in s.keys) {
+      if (key.customName != null) keyLabels[key.mfp] = key.customName!;
+    }
+
+    final pathLabels = <String, String>{};
+    for (final path in s.spendPaths) {
+      if (path.customName != null) {
+        pathLabels[path.rustId.toString()] = path.customName!;
+      }
+    }
+
+    final exportData = ProjectExport(
+      version: 1,
+      exportedAt: DateTime.now(),
+      name: s.project.name,
+      descriptor: s.project.descriptor,
+      keyLabels: keyLabels,
+      pathLabels: pathLabels,
+    );
+
+    final fileName =
+        '${s.project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
+    return (jsonString: exportData.toJsonString(), fileName: fileName);
+  }
+
+  /// Export project — save directly to the Downloads directory.
+  Future<void> exportToDownloads({
+    required String successMessage,
+    required String Function(String) buildErrorMessage,
+  }) async {
     final s = state;
     if (s is! ProjectDetailLoaded) return;
 
     try {
-      // Collect key labels (mfp -> customName)
-      final keyLabels = <String, String>{};
-      for (final key in s.keys) {
-        if (key.customName != null) {
-          keyLabels[key.mfp] = key.customName!;
-        }
-      }
+      final (:jsonString, :fileName) = _buildExportPayload(s);
+      final dir =
+          await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(jsonString);
+      emit(s.copyWith(successMessage: successMessage));
+    } catch (e) {
+      emit(s.copyWith(errorMessage: buildErrorMessage(formatRustError(e))));
+    }
+  }
 
-      // Collect path labels (rustId -> customName)
-      final pathLabels = <String, String>{};
-      for (final path in s.spendPaths) {
-        if (path.customName != null) {
-          pathLabels[path.rustId.toString()] = path.customName!;
-        }
-      }
+  /// Export project — share via the system share sheet.
+  Future<void> shareExport({
+    required String successMessage,
+    required String Function(String) buildErrorMessage,
+  }) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
 
-      // Create export model
-      final exportData = ProjectExport(
-        version: 1,
-        exportedAt: DateTime.now(),
-        name: s.project.name,
-        descriptor: s.project.descriptor,
-        keyLabels: keyLabels,
-        pathLabels: pathLabels,
+    try {
+      final (:jsonString, :fileName) = _buildExportPayload(s);
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(jsonString);
+
+      final result = await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Export: ${s.project.name}',
       );
 
-      // Convert to JSON
-      final jsonString = exportData.toJsonString();
-      final fileName = '${s.project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
-
-      // Different behavior for mobile vs desktop
-      if (Platform.isAndroid || Platform.isIOS) {
-        // Mobile: Use share sheet
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/$fileName');
-        await file.writeAsString(jsonString);
-
-        final result = await Share.shareXFiles(
-          [XFile(file.path)],
-          subject: 'Export: ${s.project.name}',
-        );
-
-        if (result.status == ShareResultStatus.success) {
-          emit(s.copyWith(successMessage: 'Project exported successfully'));
-        }
-      } else {
-        // Desktop: Use file picker
-        final outputPath = await FilePicker.platform.saveFile(
-          dialogTitle: 'Export project',
-          fileName: fileName,
-          type: FileType.custom,
-          allowedExtensions: ['json'],
-        );
-
-        if (outputPath == null) {
-          // User cancelled
-          return;
-        }
-
-        // Write to chosen location
-        final file = File(outputPath);
-        await file.writeAsString(jsonString);
-
-        emit(s.copyWith(successMessage: 'Project exported successfully'));
+      if (result.status == ShareResultStatus.success) {
+        emit(s.copyWith(successMessage: successMessage));
       }
     } catch (e) {
-      emit(s.copyWith(errorMessage: 'Export failed: ${formatRustError(e)}'));
+      emit(s.copyWith(errorMessage: buildErrorMessage(formatRustError(e))));
     }
   }
 }

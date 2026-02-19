@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
@@ -48,18 +49,17 @@ class EditablePathCard extends StatelessWidget {
     this.onPriorityChanged,
   });
 
-  String? get _validationError {
-    if (path.mfps.isEmpty) return 'Must have at least one key';
-    if (path.threshold < 1) return 'Threshold must be at least 1';
-    if (path.threshold > path.mfps.length) {
-      return 'Threshold cannot exceed number of keys';
-    }
+  String? _getValidationError(BuildContext context) {
+    final l = context.l10n;
+    if (path.mfps.isEmpty) return l.mustHaveAtLeastOneKey;
+    if (path.threshold < 1) return l.thresholdMustBeAtLeastOne;
+    if (path.threshold > path.mfps.length) return l.thresholdCannotExceed;
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final validationError = _validationError;
+    final validationError = _getValidationError(context);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -111,6 +111,7 @@ class EditablePathCard extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final l10n = context.l10n;
     final canBeKeyPath = path.canBeKeyPath;
     final showKeyPathBadge = isTaproot && canBeKeyPath;
 
@@ -133,7 +134,7 @@ class EditablePathCard extends StatelessWidget {
           child: GestureDetector(
             onTap: () => _showNameDialog(context),
             child: Text(
-              path.customName ?? 'Tap to name',
+              path.customName ?? l10n.tapToName,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: path.customName != null
@@ -180,7 +181,7 @@ class EditablePathCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      path.isKeyPath ? 'KEY PATH' : 'Set as key path',
+                      path.isKeyPath ? l10n.keyPathBadge : l10n.setAsKeyPath,
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
@@ -197,7 +198,7 @@ class EditablePathCard extends StatelessWidget {
           icon: const Icon(Icons.delete_outline, size: 20),
           color: Colors.red.withAlpha(180),
           onPressed: onDelete,
-          tooltip: 'Remove path',
+          tooltip: l10n.removePathTooltip,
           visualDensity: VisualDensity.compact,
         ),
       ],
@@ -213,15 +214,16 @@ class EditablePathCard extends StatelessWidget {
   }
 
   Widget _buildKeysSection(BuildContext context) {
+    final l10n = context.l10n;
     final unusedKeys =
         availableKeys.where((k) => !path.mfps.contains(k.mfp)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Keys',
-          style: TextStyle(fontSize: 11, color: Colors.white54),
+        Text(
+          l10n.keysLabel,
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -278,6 +280,7 @@ class EditablePathCard extends StatelessWidget {
   static const _newKeysentinel = '__new_key__';
 
   Widget _buildAddKeyButton(BuildContext context, List<ProjectKey> unusedKeys) {
+    final l10n = context.l10n;
     return PopupMenuButton<String>(
       offset: const Offset(0, 32),
       onSelected: (value) {
@@ -323,13 +326,13 @@ class EditablePathCard extends StatelessWidget {
               ),
             )),
         if (unusedKeys.isNotEmpty) const PopupMenuDivider(),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: _newKeysentinel,
           child: Row(
             children: [
-              Icon(Icons.add, size: 16, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('New key', style: TextStyle(color: Colors.orange)),
+              const Icon(Icons.add, size: 16, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(l10n.newKey, style: const TextStyle(color: Colors.orange)),
             ],
           ),
         ),
@@ -343,14 +346,14 @@ class EditablePathCard extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add, size: 14, color: Colors.orange),
-            SizedBox(width: 4),
+            const Icon(Icons.add, size: 14, color: Colors.orange),
+            const SizedBox(width: 4),
             Text(
-              'Add key',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
+              l10n.addKeyButton,
+              style: const TextStyle(fontSize: 12, color: Colors.orange),
             ),
           ],
         ),
@@ -372,20 +375,21 @@ class EditablePathCard extends StatelessWidget {
   }
 
   Widget _buildThresholdRow(BuildContext context) {
+    final l10n = context.l10n;
     final maxThreshold = path.mfps.isEmpty ? 1 : path.mfps.length;
     final currentThreshold = path.threshold.clamp(1, maxThreshold);
 
     return Row(
       children: [
-        const Text(
-          'Threshold',
-          style: TextStyle(fontSize: 11, color: Colors.white54),
+        Text(
+          l10n.thresholdLabel,
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
         ),
         const SizedBox(width: 12),
         PopupMenuButton<int>(
           offset: const Offset(0, 32),
           onSelected: (value) => onThresholdChanged(value),
-          tooltip: 'Change threshold',
+          tooltip: l10n.changeThresholdTooltip,
           itemBuilder: (context) => List.generate(
             maxThreshold,
             (i) => PopupMenuItem(
@@ -415,7 +419,7 @@ class EditablePathCard extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          'of ${path.mfps.length}',
+          l10n.ofCount(path.mfps.length),
           style: const TextStyle(fontSize: 12, color: Colors.white70),
         ),
       ],
@@ -423,6 +427,7 @@ class EditablePathCard extends StatelessWidget {
   }
 
   Widget _buildTimelockButton(BuildContext context) {
+    final l10n = context.l10n;
     final hasTimelock = path.timelockMode != TimelockMode.none &&
         ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
          (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
@@ -432,7 +437,7 @@ class EditablePathCard extends StatelessWidget {
 
     if (!hasTimelock) {
       timelockIcon = Icons.lock_clock;
-      timelockText = 'No timelock';
+      timelockText = l10n.noTimelock;
     } else if (path.timelockMode == TimelockMode.relative) {
       timelockIcon = Icons.update;
       timelockText = BitcoinFormatter.formatRelativeTimelock(
@@ -483,6 +488,7 @@ class EditablePathCard extends StatelessWidget {
   }
 
   Widget _buildPriorityBadge(BuildContext context) {
+    final l10n = context.l10n;
     final p = path.priority;
     final maxOption = (p + 1).clamp(0, 9);
     final active = p > 0;
@@ -490,7 +496,7 @@ class EditablePathCard extends StatelessWidget {
     return PopupMenuButton<int>(
       offset: const Offset(0, 32),
       onSelected: (value) => onPriorityChanged?.call(value),
-      tooltip: 'Change priority',
+      tooltip: l10n.changePriorityTooltip,
       itemBuilder: (context) => List.generate(
         maxOption + 1,
         (i) => PopupMenuItem(value: i, child: Text('$i')),
@@ -508,7 +514,7 @@ class EditablePathCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Priority $p',
+              l10n.priorityBadge(p),
               style: TextStyle(
                 fontSize: 12,
                 color: active ? Colors.white70 : Colors.white38,
@@ -526,7 +532,7 @@ class EditablePathCard extends StatelessWidget {
   void _showNameDialog(BuildContext context) {
     showEditNameDialog(
       context,
-      title: 'Spend path name',
+      title: context.l10n.spendPathNameDialogTitle,
       currentName: path.customName,
       onSave: (name) => onNameEdit?.call(name),
     );
@@ -647,24 +653,17 @@ class _TimelockDialogState extends State<_TimelockDialog> {
     return 0;
   }
 
-  String? get _validationError {
+  String? _getValidationError(BuildContext context) {
+    final l = context.l10n;
     if (_mode == TimelockMode.none) return null;
 
     if (_mode == TimelockMode.relative) {
-      // Value 0 is now allowed (represents no timelock)
-      if (_relValue > 65535) {
-        return 'Value must be ≤ 65,535';
-      }
+      if (_relValue > 65535) return l.timelockValueMax;
     } else if (_mode == TimelockMode.absolute) {
-      // Value 0 is now allowed (represents no timelock)
       if (_absType == AbsoluteTimelockType.blocks) {
-        if (_absValue > 0 && _absValue >= 500000000) {
-          return 'Block height must be < 500,000,000';
-        }
+        if (_absValue > 0 && _absValue >= 500000000) return l.blockHeightMax;
       } else {
-        if (_absValue > 0 && _absValue < 500000000) {
-          return 'Timestamp must be ≥ 500,000,000';
-        }
+        if (_absValue > 0 && _absValue < 500000000) return l.timestampMin;
       }
     }
     return null;
@@ -678,8 +677,11 @@ class _TimelockDialogState extends State<_TimelockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final validationError = _getValidationError(context);
+
     return AlertDialog(
-      title: const Text('Timelock'),
+      title: Text(l10n.timelockDialogTitle),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -688,16 +690,16 @@ class _TimelockDialogState extends State<_TimelockDialog> {
           children: [
             // Mode selector (Relative/Absolute only)
             SegmentedButton<TimelockMode>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: TimelockMode.relative,
-                  label: Text('Relative'),
-                  icon: Icon(Icons.update, size: 16),
+                  label: Text(l10n.relativeTimelock),
+                  icon: const Icon(Icons.update, size: 16),
                 ),
                 ButtonSegment(
                   value: TimelockMode.absolute,
-                  label: Text('Absolute'),
-                  icon: Icon(Icons.event_available, size: 16),
+                  label: Text(l10n.absoluteTimelock),
+                  icon: const Icon(Icons.event_available, size: 16),
                 ),
               ],
               selected: {_mode},
@@ -713,16 +715,16 @@ class _TimelockDialogState extends State<_TimelockDialog> {
             // Type selector (Blocks/Time)
             if (_mode == TimelockMode.relative)
               SegmentedButton<RelativeTimelockType>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: RelativeTimelockType.blocks,
-                    label: Text('Blocks'),
-                    icon: Icon(Icons.grid_on, size: 16),
+                    label: Text(l10n.blocksTimelock),
+                    icon: const Icon(Icons.grid_on, size: 16),
                   ),
                   ButtonSegment(
                     value: RelativeTimelockType.time,
-                    label: Text('Time'),
-                    icon: Icon(Icons.access_time, size: 16),
+                    label: Text(l10n.timeTimelock),
+                    icon: const Icon(Icons.access_time, size: 16),
                   ),
                 ],
                 selected: {_relType},
@@ -738,16 +740,16 @@ class _TimelockDialogState extends State<_TimelockDialog> {
               )
             else
               SegmentedButton<AbsoluteTimelockType>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: AbsoluteTimelockType.blocks,
-                    label: Text('Blocks'),
-                    icon: Icon(Icons.grid_on, size: 16),
+                    label: Text(l10n.blocksTimelock),
+                    icon: const Icon(Icons.grid_on, size: 16),
                   ),
                   ButtonSegment(
                     value: AbsoluteTimelockType.timestamp,
-                    label: Text('Timestamp'),
-                    icon: Icon(Icons.calendar_today, size: 16),
+                    label: Text(l10n.timestampTimelock),
+                    icon: const Icon(Icons.calendar_today, size: 16),
                   ),
                 ],
                 selected: {_absType},
@@ -761,7 +763,6 @@ class _TimelockDialogState extends State<_TimelockDialog> {
 
               const SizedBox(height: 20),
               // Value input
-              // Show appropriate input based on mode and type
               if (_mode == TimelockMode.absolute && _absType == AbsoluteTimelockType.timestamp)
                 // Date/time picker for timestamp
                 InkWell(
@@ -801,7 +802,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: _validationError != null ? Colors.red : Colors.white24),
+                      border: Border.all(color: validationError != null ? Colors.red : Colors.white24),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -812,7 +813,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                           child: Text(
                             _absValue > 0
                                 ? _formatDateTime(_absValue)
-                                : 'Select date and time',
+                                : l10n.selectDateAndTime,
                             style: TextStyle(
                               color: _absValue > 0 ? Colors.white : Colors.white54,
                             ),
@@ -839,10 +840,10 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                   decoration: InputDecoration(
                     hintText: _mode == TimelockMode.relative
                         ? (_relType == RelativeTimelockType.blocks
-                            ? 'Blocks (0-65,535)'
-                            : 'Units × 512s (0-65,535)')
-                        : 'Blocks (0-499,999,999)',
-                    errorText: _validationError,
+                            ? l10n.blocksRelHint
+                            : l10n.timeUnitsHint)
+                        : l10n.blocksAbsHint,
+                    errorText: validationError,
                     suffixIcon: (_mode == TimelockMode.relative ? _relValue : _absValue) > 0
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -922,12 +923,12 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                                     _relType == RelativeTimelockType.time
                                         ? _relValue * 512
                                         : _relValue)
-                                : 'No timelock')
+                                : l10n.noTimelock)
                             : (_absValue > 0
                                 ? BitcoinFormatter.formatAbsoluteTimelock(
                                     _absType,
                                     _absValue)
-                                : 'No timelock'),
+                                : l10n.noTimelock),
                         style: const TextStyle(fontSize: 13, color: Colors.white),
                       ),
                     ),
@@ -946,14 +947,14 @@ class _TimelockDialogState extends State<_TimelockDialog> {
               _textController.text = '';
             });
           },
-          child: const Text('Clear'),
+          child: Text(l10n.clear),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
-          onPressed: _validationError != null
+          onPressed: validationError != null
               ? null
               : () {
                   // Convert units to seconds for relative Time type
@@ -970,7 +971,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                   );
                   Navigator.pop(context);
                 },
-          child: const Text('Save'),
+          child: Text(l10n.save),
         ),
       ],
     );

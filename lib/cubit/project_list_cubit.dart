@@ -35,7 +35,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
   final AppDatabase _db;
   StreamSubscription<List<Project>>? _subscription;
 
-  ProjectListCubit(this._db) : super(ProjectListLoading(message: 'Loading projects...')) {
+  ProjectListCubit(this._db) : super(ProjectListLoading()) {
     _watch();
   }
 

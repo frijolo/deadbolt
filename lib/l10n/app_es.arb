@@ -1,0 +1,241 @@
+{
+  "@@locale": "es",
+
+  "cancel": "Cancelar",
+  "save": "Guardar",
+  "delete": "Eliminar",
+  "clear": "Limpiar",
+  "add": "Agregar",
+  "edit": "Editar",
+  "export": "Exportar",
+  "discard": "Descartar",
+
+  "loadingProjects": "Cargando proyectos...",
+
+  "projectsTitle": "Proyectos",
+  "menuNew": "Nuevo",
+  "menuImport": "Importar",
+  "menuAbout": "Acerca de",
+  "menuSettings": "Configuración",
+  "noProjects": "No hay proyectos.\nToca + para crear uno.",
+  "deleteProjectTitle": "Eliminar proyecto",
+  "deleteProjectConfirm": "¿Eliminar \"{name}\"?",
+  "@deleteProjectConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deleteProjectTooltip": "Eliminar proyecto",
+  "couldNotReadFile": "No se pudo leer el archivo",
+  "projectImportedSuccess": "Proyecto importado exitosamente",
+  "importFailed": "Error al importar: {error}",
+  "@importFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "newProjectTitle": "Nuevo proyecto",
+  "importDescriptorMode": "Importar descriptor",
+  "fromScratchMode": "Empezar desde cero",
+  "projectNameLabel": "Nombre del proyecto",
+  "descriptorLabel": "Descriptor",
+  "descriptorHint": "Pega tu descriptor Bitcoin aquí...",
+  "networkLabel": "Red",
+  "selectNetworkTooltip": "Seleccionar red",
+  "walletTypeLabel": "Tipo de billetera",
+  "selectWalletTypeTooltip": "Seleccionar tipo de billetera",
+  "analyzeAndSave": "Analizar y Guardar",
+  "createProject": "Crear Proyecto",
+  "projectNameRequired": "El nombre del proyecto es obligatorio",
+  "descriptorEmpty": "El descriptor no puede estar vacío",
+  "analyzingDescriptor": "Analizando descriptor...",
+  "creatingProject": "Creando proyecto...",
+
+  "aboutTitle": "Acerca de",
+  "loadingAppInfo": "Cargando información de la app...",
+  "bitcoinDescriptorAnalyzer": "Analizador de Descriptores Bitcoin",
+  "versionLabel": "Versión",
+  "projectSectionTitle": "Proyecto",
+  "githubRepository": "Repositorio GitHub",
+  "securityGpg": "Seguridad y GPG",
+  "licenseLabel": "Licencia",
+  "mitLicense": "Licencia MIT",
+  "openSourceDescription": "Análisis de código abierto de descriptores Bitcoin",
+
+  "settingsTitle": "Configuración",
+  "languageLabel": "Idioma",
+  "preferredNetworkLabel": "Red preferida",
+  "preferredWalletTypeLabel": "Tipo de billetera predeterminado",
+  "settingsLanguageEn": "English",
+  "settingsLanguageEs": "Español",
+
+  "discardChangesTooltip": "Descartar cambios",
+  "moreOptionsTooltip": "Más opciones",
+  "buildFabLabel": "Construir",
+  "keysSection": "Claves ({count})",
+  "@keysSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "addKeyButton": "Agregar clave",
+  "spendPathsSection": "Rutas de gasto ({count})",
+  "@spendPathsSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "addSpendPath": "Agregar ruta de gasto",
+  "addKeyDialogTitle": "Agregar Clave",
+  "separateFieldsMode": "Campos separados",
+  "fullKeyspecMode": "Keyspec completo",
+  "mfpLabel": "Huella maestra (MFP)",
+  "mfpHint": "ej., c449c5c5",
+  "derivationPathLabel": "Ruta de derivación",
+  "derivationPathHint": "ej., 48h/0h/0h/2h",
+  "xpubLabel": "Clave pública extendida (xpub)",
+  "xpubHint": "xpub6...",
+  "fullKeyspecLabel": "Keyspec completo",
+  "fullKeyspecHint": "[c449c5c5/48h/0h/0h/2h]xpub6...",
+  "fullKeyspecHelperText": "Formato: [mfp/ruta]xpub",
+  "allFieldsRequired": "Todos los campos son obligatorios",
+  "keyspecRequired": "El keyspec es obligatorio",
+  "invalidKeyspecFormat": "Formato de keyspec inválido. Se esperaba: [mfp/ruta]xpub",
+  "duplicateMfp": "Ya existe una clave con MFP {mfp}",
+  "@duplicateMfp": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
+  "descriptorSectionTitle": "Descriptor",
+  "copyDescriptorTooltip": "Exportar descriptor",
+  "descriptorCopied": "Descriptor copiado",
+  "copyToClipboard": "Copiar al portapapeles",
+  "saveToDownloads": "Guardar en Descargas",
+  "shareFile": "Compartir",
+  "showQrCode": "Mostrar código QR",
+  "scanQrCode": "Escanear código QR",
+  "fromFile": "Desde archivo",
+  "qrNotFoundInImage": "No se encontró código QR en la imagen",
+  "qrDialogTitle": "Código QR",
+  "qrDensityLabel": "Densidad",
+  "qrPart": "{current} / {total}",
+  "close": "Cerrar",
+  "savedToDownloads": "Guardado en Descargas",
+  "copiedToClipboard": "Copiado al portapapeles",
+  "projectNameDialogTitle": "Nombre del proyecto",
+  "discardChangesDialogTitle": "¿Descartar cambios?",
+  "discardChangesContent": "Tienes cambios sin guardar. Esta acción no se puede deshacer.",
+  "changeWalletTypeTooltip": "Cambiar tipo de billetera",
+  "spendPathMustHaveKey": "Ruta de gasto {index}: Debe tener al menos una clave",
+  "@spendPathMustHaveKey": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "spendPathKeyNotFound": "Ruta de gasto {index}: Clave {mfp} no encontrada",
+  "@spendPathKeyNotFound": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "mfp": { "type": "String" }
+    }
+  },
+  "spendPathThresholdMin": "Ruta de gasto {index}: El umbral debe ser al menos 1",
+  "@spendPathThresholdMin": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "spendPathThresholdExceeds": "Ruta de gasto {index}: El umbral no puede superar el número de claves",
+  "@spendPathThresholdExceeds": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "taprootOneKeyPath": "Solo una ruta de gasto puede marcarse como key-path en descriptores Taproot.",
+  "buildingDescriptor": "Construyendo descriptor...",
+  "buildingDescriptorMultiPath": "Construyendo descriptor con múltiples rutas...",
+  "buildingComplexDescriptor": "Construyendo descriptor complejo...\nEsto puede tardar unos momentos",
+  "analyzingDescriptorLoading": "Analizando descriptor...",
+  "analyzingComplexDescriptor": "Analizando descriptor complejo...",
+  "analyzingAndSaving": "Analizando y guardando...",
+
+  "enterName": "Ingresa un nombre",
+  "nameAlreadyUsed": "Este nombre ya está en uso por otra clave",
+
+  "tapToName": "Toca para nombrar",
+  "copyKeyspecTooltip": "Copiar keyspec",
+  "keyCopied": "Clave copiada",
+  "pathPrefix": "Ruta: ",
+  "rootPath": "(raíz)",
+  "xpubPrefix": "Xpub: ",
+  "keyNameDialogTitle": "Nombre de clave",
+  "removeKeyTooltip": "Eliminar clave",
+  "keyInUseTooltip": "Clave en uso - no se puede eliminar",
+
+  "spendPathNameDialogTitle": "Nombre de ruta de gasto",
+  "keyPathBadge": "RUTA CLAVE",
+  "setAsKeyPath": "Establecer como ruta clave",
+  "removePathTooltip": "Eliminar ruta",
+  "keysLabel": "Claves",
+  "newKey": "Nueva clave",
+  "noTimelock": "Sin timelock",
+  "priorityBadge": "Prioridad {priority}",
+  "@priorityBadge": {
+    "placeholders": {
+      "priority": { "type": "int" }
+    }
+  },
+  "changeThresholdTooltip": "Cambiar umbral",
+  "ofCount": "de {count}",
+  "@ofCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "thresholdLabel": "Umbral",
+  "changePriorityTooltip": "Cambiar prioridad",
+  "timelockDialogTitle": "Timelock",
+  "relativeTimelock": "Relativo",
+  "absoluteTimelock": "Absoluto",
+  "blocksTimelock": "Bloques",
+  "timeTimelock": "Tiempo",
+  "timestampTimelock": "Marca de tiempo",
+  "selectDateAndTime": "Seleccionar fecha y hora",
+  "blocksRelHint": "Bloques (0-65.535)",
+  "timeUnitsHint": "Unidades × 512s (0-65.535)",
+  "blocksAbsHint": "Bloques (0-499.999.999)",
+  "timelockValueMax": "El valor debe ser ≤ 65.535",
+  "blockHeightMax": "La altura del bloque debe ser < 500.000.000",
+  "timestampMin": "La marca de tiempo debe ser ≥ 500.000.000",
+
+  "mustHaveAtLeastOneKey": "Debe tener al menos una clave",
+  "thresholdMustBeAtLeastOne": "El umbral debe ser al menos 1",
+  "thresholdCannotExceed": "El umbral no puede superar el número de claves",
+
+  "errorCopiedToClipboard": "Error copiado al portapapeles",
+
+  "projectExportedSuccess": "Proyecto exportado exitosamente",
+  "exportFailed": "Error al exportar: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "networkMainnet": "Mainnet",
+  "networkTestnet": "Testnet",
+  "networkTestnet4": "Testnet4",
+  "networkSignet": "Signet",
+  "networkRegtest": "Regtest",
+
+  "walletTypeP2pkh": "Legacy (P2PKH)",
+  "walletTypeP2wpkh": "Segwit (P2WPKH)",
+  "walletTypeP2sh": "Legacy (P2SH)",
+  "walletTypeP2wsh": "Segwit (P2WSH)",
+  "walletTypeP2tr": "Taproot (P2TR)",
+  "walletTypeP2shWpkh": "Segwit Anidado (P2SH-WPKH)",
+  "walletTypeP2shWsh": "Segwit Anidado (P2SH-WSH)",
+  "walletTypeUnknown": "Desconocido"
+}

@@ -1,0 +1,247 @@
+{
+  "@@locale": "en",
+
+  "cancel": "Cancel",
+  "save": "Save",
+  "delete": "Delete",
+  "clear": "Clear",
+  "add": "Add",
+  "edit": "Edit",
+  "export": "Export",
+  "discard": "Discard",
+
+  "loadingProjects": "Loading projects...",
+
+  "projectsTitle": "Projects",
+  "menuNew": "New",
+  "menuImport": "Import",
+  "menuAbout": "About",
+  "menuSettings": "Settings",
+  "noProjects": "No projects yet.\nTap + to create one.",
+  "deleteProjectTitle": "Delete project",
+  "deleteProjectConfirm": "Delete \"{name}\"?",
+  "@deleteProjectConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deleteProjectTooltip": "Delete project",
+  "couldNotReadFile": "Could not read file",
+  "projectImportedSuccess": "Project imported successfully",
+  "importFailed": "Import failed: {error}",
+  "@importFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "newProjectTitle": "New project",
+  "importDescriptorMode": "Import descriptor",
+  "fromScratchMode": "Start from scratch",
+  "projectNameLabel": "Project name",
+  "descriptorLabel": "Descriptor",
+  "descriptorHint": "Paste your Bitcoin descriptor here...",
+  "networkLabel": "Network",
+  "selectNetworkTooltip": "Select network",
+  "walletTypeLabel": "Wallet type",
+  "selectWalletTypeTooltip": "Select wallet type",
+  "analyzeAndSave": "Analyze & Save",
+  "createProject": "Create Project",
+  "projectNameRequired": "Project name is required",
+  "descriptorEmpty": "Descriptor cannot be empty",
+  "analyzingDescriptor": "Analyzing descriptor...",
+  "creatingProject": "Creating project...",
+
+  "aboutTitle": "About",
+  "loadingAppInfo": "Loading app info...",
+  "bitcoinDescriptorAnalyzer": "Bitcoin Descriptor Analyzer",
+  "versionLabel": "Version",
+  "projectSectionTitle": "Project",
+  "githubRepository": "GitHub Repository",
+  "securityGpg": "Security & GPG",
+  "licenseLabel": "License",
+  "mitLicense": "MIT License",
+  "openSourceDescription": "Open source Bitcoin wallet descriptor analysis",
+
+  "settingsTitle": "Settings",
+  "languageLabel": "Language",
+  "preferredNetworkLabel": "Preferred Network",
+  "preferredWalletTypeLabel": "Default Wallet Type",
+  "settingsLanguageEn": "English",
+  "settingsLanguageEs": "Español",
+
+  "discardChangesTooltip": "Discard changes",
+  "moreOptionsTooltip": "More options",
+  "buildFabLabel": "Build",
+  "keysSection": "Keys ({count})",
+  "@keysSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "addKeyButton": "Add key",
+  "spendPathsSection": "Spend paths ({count})",
+  "@spendPathsSection": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "addSpendPath": "Add spend path",
+  "addKeyDialogTitle": "Add Key",
+  "separateFieldsMode": "Separate fields",
+  "fullKeyspecMode": "Full keyspec",
+  "mfpLabel": "Master Fingerprint (MFP)",
+  "mfpHint": "e.g., c449c5c5",
+  "derivationPathLabel": "Derivation Path",
+  "derivationPathHint": "e.g., 48h/0h/0h/2h",
+  "xpubLabel": "Extended Public Key (xpub)",
+  "xpubHint": "xpub6...",
+  "fullKeyspecLabel": "Full Keyspec",
+  "fullKeyspecHint": "[c449c5c5/48h/0h/0h/2h]xpub6...",
+  "fullKeyspecHelperText": "Format: [mfp/path]xpub",
+  "allFieldsRequired": "All fields are required",
+  "keyspecRequired": "Keyspec is required",
+  "invalidKeyspecFormat": "Invalid keyspec format. Expected: [mfp/path]xpub",
+  "duplicateMfp": "A key with MFP {mfp} already exists",
+  "@duplicateMfp": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
+  "descriptorSectionTitle": "Descriptor",
+  "copyDescriptorTooltip": "Export descriptor",
+  "descriptorCopied": "Descriptor copied",
+  "copyToClipboard": "Copy to clipboard",
+  "saveToDownloads": "Save to Downloads",
+  "shareFile": "Share",
+  "showQrCode": "Show QR code",
+  "scanQrCode": "Scan QR code",
+  "fromFile": "From file",
+  "qrNotFoundInImage": "No QR code found in image",
+  "qrDialogTitle": "QR Code",
+  "qrDensityLabel": "Density",
+  "qrPart": "{current} / {total}",
+  "@qrPart": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "close": "Close",
+  "savedToDownloads": "Saved to Downloads",
+  "copiedToClipboard": "Copied to clipboard",
+  "projectNameDialogTitle": "Project name",
+  "discardChangesDialogTitle": "Discard changes?",
+  "discardChangesContent": "You have unsaved changes. This action cannot be undone.",
+  "changeWalletTypeTooltip": "Change wallet type",
+  "spendPathMustHaveKey": "Spend path {index}: Must have at least one key",
+  "@spendPathMustHaveKey": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "spendPathKeyNotFound": "Spend path {index}: Key {mfp} not found",
+  "@spendPathKeyNotFound": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "mfp": { "type": "String" }
+    }
+  },
+  "spendPathThresholdMin": "Spend path {index}: Threshold must be at least 1",
+  "@spendPathThresholdMin": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "spendPathThresholdExceeds": "Spend path {index}: Threshold cannot exceed number of keys",
+  "@spendPathThresholdExceeds": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "taprootOneKeyPath": "Only one spend path can be marked as key-path in Taproot descriptors.",
+  "buildingDescriptor": "Building descriptor...",
+  "buildingDescriptorMultiPath": "Building descriptor with multiple paths...",
+  "buildingComplexDescriptor": "Building complex descriptor...\nThis may take some time",
+  "analyzingDescriptorLoading": "Analyzing descriptor...",
+  "analyzingComplexDescriptor": "Analyzing complex descriptor...",
+  "analyzingAndSaving": "Analyzing and saving...",
+
+  "enterName": "Enter a name",
+  "nameAlreadyUsed": "This name is already used by another key",
+
+  "tapToName": "Tap to name",
+  "copyKeyspecTooltip": "Copy keyspec",
+  "keyCopied": "Key copied",
+  "pathPrefix": "Path: ",
+  "rootPath": "(root)",
+  "xpubPrefix": "Xpub: ",
+  "keyNameDialogTitle": "Key name",
+  "removeKeyTooltip": "Remove key",
+  "keyInUseTooltip": "Key in use - cannot delete",
+
+  "spendPathNameDialogTitle": "Spend path name",
+  "keyPathBadge": "KEY PATH",
+  "setAsKeyPath": "Set as key path",
+  "removePathTooltip": "Remove path",
+  "keysLabel": "Keys",
+  "newKey": "New key",
+  "noTimelock": "No timelock",
+  "priorityBadge": "Priority {priority}",
+  "@priorityBadge": {
+    "placeholders": {
+      "priority": { "type": "int" }
+    }
+  },
+  "changeThresholdTooltip": "Change threshold",
+  "ofCount": "of {count}",
+  "@ofCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "thresholdLabel": "Threshold",
+  "changePriorityTooltip": "Change priority",
+  "timelockDialogTitle": "Timelock",
+  "relativeTimelock": "Relative",
+  "absoluteTimelock": "Absolute",
+  "blocksTimelock": "Blocks",
+  "timeTimelock": "Time",
+  "timestampTimelock": "Timestamp",
+  "selectDateAndTime": "Select date and time",
+  "blocksRelHint": "Blocks (0-65,535)",
+  "timeUnitsHint": "Units × 512s (0-65,535)",
+  "blocksAbsHint": "Blocks (0-499,999,999)",
+  "timelockValueMax": "Value must be ≤ 65,535",
+  "blockHeightMax": "Block height must be < 500,000,000",
+  "timestampMin": "Timestamp must be ≥ 500,000,000",
+
+  "mustHaveAtLeastOneKey": "Must have at least one key",
+  "thresholdMustBeAtLeastOne": "Threshold must be at least 1",
+  "thresholdCannotExceed": "Threshold cannot exceed number of keys",
+
+  "errorCopiedToClipboard": "Error copied to clipboard",
+
+  "projectExportedSuccess": "Project exported successfully",
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "networkMainnet": "Mainnet",
+  "networkTestnet": "Testnet",
+  "networkTestnet4": "Testnet4",
+  "networkSignet": "Signet",
+  "networkRegtest": "Regtest",
+
+  "walletTypeP2pkh": "Legacy (P2PKH)",
+  "walletTypeP2wpkh": "Segwit (P2WPKH)",
+  "walletTypeP2sh": "Legacy (P2SH)",
+  "walletTypeP2wsh": "Segwit (P2WSH)",
+  "walletTypeP2tr": "Taproot (P2TR)",
+  "walletTypeP2shWpkh": "Nested Segwit (P2SH-WPKH)",
+  "walletTypeP2shWsh": "Nested Segwit (P2SH-WSH)",
+  "walletTypeUnknown": "Unknown"
+}
