@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:deadbolt/data/database.dart';
-import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 class KeyCard extends StatelessWidget {
   final ProjectKey keyData;
@@ -22,6 +22,7 @@ class KeyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -38,7 +39,7 @@ class KeyCard extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => _showNameDialog(context),
                     child: Text(
-                      keyData.customName ?? 'Tap to name',
+                      keyData.customName ?? l10n.tapToName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: keyData.customName != null
@@ -55,16 +56,20 @@ class KeyCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 16),
+                  icon: const Icon(Icons.ios_share, size: 16),
                   color: Colors.white38,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  tooltip: 'Copy keyspec',
+                  tooltip: l10n.copyKeyspecTooltip,
                   onPressed: () {
                     final keyspec =
                         '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}';
-                    Clipboard.setData(ClipboardData(text: keyspec));
-                    showSuccessToast(context, 'Key copied');
+                    showTextExportSheet(
+                      context,
+                      text: keyspec,
+                      fileName: 'key_${keyData.mfp}',
+                      copiedMessage: l10n.keyCopied,
+                    );
                   },
                 ),
               ],
@@ -73,9 +78,9 @@ class KeyCard extends StatelessWidget {
             // Derivation path
             Row(
               children: [
-                const Text(
-                  'Path: ',
-                  style: TextStyle(
+                Text(
+                  l10n.pathPrefix,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white38,
                   ),
@@ -83,7 +88,7 @@ class KeyCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     keyData.derivationPath.isEmpty
-                        ? '(root)'
+                        ? l10n.rootPath
                         : keyData.derivationPath,
                     style: TextStyle(
                       fontSize: 12,
@@ -100,9 +105,9 @@ class KeyCard extends StatelessWidget {
             // Xpub
             Row(
               children: [
-                const Text(
-                  'Xpub: ',
-                  style: TextStyle(
+                Text(
+                  l10n.xpubPrefix,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white38,
                   ),
@@ -129,7 +134,7 @@ class KeyCard extends StatelessWidget {
   void _showNameDialog(BuildContext context) {
     showEditNameDialog(
       context,
-      title: 'Key name',
+      title: context.l10n.keyNameDialogTitle,
       currentName: keyData.customName,
       onSave: (name) => onNameEdit?.call(name),
       isDuplicate: (name) => allKeys.any((k) =>

@@ -1,10 +1,12 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -13,6 +15,9 @@ import 'package:deadbolt/widgets/editable_key_card.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/path_card.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
+import 'package:deadbolt/utils/qr_decoder.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
@@ -91,6 +96,7 @@ class _ProjectDetailView extends StatelessWidget {
   }
 
   Widget _buildLoaded(BuildContext context, ProjectDetailLoaded state) {
+    final l10n = context.l10n;
     final cubit = context.read<ProjectDetailCubit>();
     final project = state.project;
     final isEditing = state.isEditing;
@@ -105,39 +111,41 @@ class _ProjectDetailView extends StatelessWidget {
           if (isEditing)
             IconButton(
               icon: const Icon(Icons.close),
-              tooltip: 'Discard changes',
+              tooltip: l10n.discardChangesTooltip,
               onPressed: () => _confirmDiscardEdits(context, cubit, state),
             )
           else
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
-              tooltip: 'More options',
+              tooltip: l10n.moreOptionsTooltip,
               offset: const Offset(0, 40),
               onSelected: (value) async {
                 if (value == 'edit') {
                   cubit.enterEditMode();
                 } else if (value == 'export') {
-                  await cubit.exportProject();
+                  if (context.mounted) {
+                    _showExportProjectSheet(context, cubit);
+                  }
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'edit',
                   child: Row(
                     children: [
-                      Icon(Icons.edit_outlined, size: 20),
-                      SizedBox(width: 12),
-                      Text('Edit'),
+                      const Icon(Icons.edit_outlined, size: 20),
+                      const SizedBox(width: 12),
+                      Text(l10n.edit),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'export',
                   child: Row(
                     children: [
-                      Icon(Icons.file_upload_outlined, size: 20),
-                      SizedBox(width: 12),
-                      Text('Export'),
+                      const Icon(Icons.file_upload_outlined, size: 20),
+                      const SizedBox(width: 12),
+                      Text(l10n.export),
                     ],
                   ),
                 ),
@@ -147,9 +155,16 @@ class _ProjectDetailView extends StatelessWidget {
       ),
       floatingActionButton: state.isDirty
           ? FloatingActionButton.extended(
-              onPressed: cubit.regenerateDescriptor,
+              onPressed: () => cubit.regenerateDescriptor(
+                buildingDescriptorMessage: l10n.buildingDescriptor,
+                buildingDescriptorMultiPathMessage: l10n.buildingDescriptorMultiPath,
+                buildingComplexDescriptorMessage: l10n.buildingComplexDescriptor,
+                analyzingDescriptorMessage: l10n.analyzingDescriptorLoading,
+                analyzingComplexDescriptorMessage: l10n.analyzingComplexDescriptor,
+                analyzingAndSavingMessage: l10n.analyzingAndSaving,
+              ),
               icon: const Icon(Icons.build_outlined),
-              label: const Text('Build'),
+              label: Text(l10n.buildFabLabel),
               backgroundColor: Colors.orange,
             )
           : null,
@@ -181,6 +196,7 @@ class _ProjectDetailView extends StatelessWidget {
     ProjectDetailCubit cubit,
     ProjectDetailLoaded state,
   ) {
+    final l10n = context.l10n;
     final isEditing = state.isEditing;
     final displayKeys = isEditing ? state.editedKeys! : state.keys;
 
@@ -191,7 +207,7 @@ class _ProjectDetailView extends StatelessWidget {
     return ExpansionTile(
         key: const ValueKey('keys_expansion_tile'),
         title: Text(
-          'Keys (${displayKeys.length})',
+          l10n.keysSection(displayKeys.length),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: isEditing ? Colors.orange : null,
               ),
@@ -210,7 +226,7 @@ class _ProjectDetailView extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => _showAddKeyDialog(context, cubit),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add key'),
+              label: Text(l10n.addKeyButton),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.orange,
                 side: BorderSide(color: Colors.orange.withAlpha(100)),
@@ -254,6 +270,7 @@ class _ProjectDetailView extends StatelessWidget {
     ProjectDetailCubit cubit, {
     void Function(String mfp)? onKeyAdded,
   }) {
+    final l10n = context.l10n;
     final mfpController = TextEditingController();
     final pathController = TextEditingController();
     final xpubController = TextEditingController();
@@ -269,23 +286,23 @@ class _ProjectDetailView extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Key'),
+          title: Text(l10n.addKeyDialogTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Mode toggle
                 SegmentedButton<bool>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: true,
-                      label: Text('Separate fields'),
-                      icon: Icon(Icons.splitscreen, size: 16),
+                      label: Text(l10n.separateFieldsMode),
+                      icon: const Icon(Icons.splitscreen, size: 16),
                     ),
                     ButtonSegment(
                       value: false,
-                      label: Text('Full keyspec'),
-                      icon: Icon(Icons.code, size: 16),
+                      label: Text(l10n.fullKeyspecMode),
+                      icon: const Icon(Icons.code, size: 16),
                     ),
                   ],
                   selected: {useSeparateFields},
@@ -295,7 +312,7 @@ class _ProjectDetailView extends StatelessWidget {
                       errorText = null;
                     });
                   },
-                  style: ButtonStyle(
+                  style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -305,40 +322,99 @@ class _ProjectDetailView extends StatelessWidget {
                 if (useSeparateFields) ...[
                   TextField(
                     controller: mfpController,
-                    decoration: const InputDecoration(
-                      labelText: 'Master Fingerprint (MFP)',
-                      hintText: 'e.g., c449c5c5',
+                    decoration: InputDecoration(
+                      labelText: l10n.mfpLabel,
+                      hintText: l10n.mfpHint,
                     ),
                     textCapitalization: TextCapitalization.none,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: pathController,
-                    decoration: const InputDecoration(
-                      labelText: 'Derivation Path',
-                      hintText: 'e.g., 48h/0h/0h/2h',
+                    decoration: InputDecoration(
+                      labelText: l10n.derivationPathLabel,
+                      hintText: l10n.derivationPathHint,
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: xpubController,
-                    decoration: const InputDecoration(
-                      labelText: 'Extended Public Key (xpub)',
-                      hintText: 'xpub6...',
+                    decoration: InputDecoration(
+                      labelText: l10n.xpubLabel,
+                      hintText: l10n.xpubHint,
                     ),
                     maxLines: 2,
                   ),
                 ] else ...[
                   TextField(
                     controller: keyspecController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Keyspec',
-                      hintText: '[c449c5c5/48h/0h/0h/2h]xpub6...',
-                      helperText: 'Format: [mfp/path]xpub',
+                    decoration: InputDecoration(
+                      labelText: l10n.fullKeyspecLabel,
+                      hintText: l10n.fullKeyspecHint,
+                      helperText: l10n.fullKeyspecHelperText,
                       helperMaxLines: 2,
                     ),
                     maxLines: 3,
                     textCapitalization: TextCapitalization.none,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (!kIsWeb)
+                        TextButton.icon(
+                          icon: const Icon(Icons.qr_code_scanner, size: 16),
+                          label: Text(l10n.scanQrCode),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () async {
+                            final isMobile =
+                                defaultTargetPlatform ==
+                                    TargetPlatform.android ||
+                                defaultTargetPlatform == TargetPlatform.iOS;
+                            String? result;
+                            if (isMobile) {
+                              result = await QrScannerScreen.push(ctx);
+                            } else {
+                              try {
+                                result = await decodeQrFromImageFile();
+                              } catch (_) {
+                                if (ctx.mounted) {
+                                  showErrorToast(
+                                    ctx,
+                                    l10n.qrNotFoundInImage,
+                                  );
+                                }
+                              }
+                            }
+                            if (result != null) {
+                              keyspecController.text = result.trim();
+                            }
+                          },
+                        ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.folder_open, size: 16),
+                        label: Text(l10n.fromFile),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.any,
+                            withData: true,
+                          );
+                          if (result == null || result.files.isEmpty) return;
+                          final bytes = result.files.first.bytes;
+                          if (bytes != null) {
+                            keyspecController.text =
+                                String.fromCharCodes(bytes).trim();
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
 
@@ -356,7 +432,7 @@ class _ProjectDetailView extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () async {
@@ -371,7 +447,7 @@ class _ProjectDetailView extends StatelessWidget {
                   xpub = xpubController.text.trim();
 
                   if (mfp.isEmpty || path.isEmpty || xpub.isEmpty) {
-                    setDialogState(() => errorText = 'All fields are required');
+                    setDialogState(() => errorText = l10n.allFieldsRequired);
                     return;
                   }
                 } else {
@@ -379,7 +455,7 @@ class _ProjectDetailView extends StatelessWidget {
                   final keyspec = keyspecController.text.trim();
 
                   if (keyspec.isEmpty) {
-                    setDialogState(() => errorText = 'Keyspec is required');
+                    setDialogState(() => errorText = l10n.keyspecRequired);
                     return;
                   }
 
@@ -388,8 +464,7 @@ class _ProjectDetailView extends StatelessWidget {
                       .firstMatch(keyspec);
 
                   if (match == null) {
-                    setDialogState(() =>
-                      errorText = 'Invalid keyspec format. Expected: [mfp/path]xpub');
+                    setDialogState(() => errorText = l10n.invalidKeyspecFormat);
                     return;
                   }
 
@@ -400,7 +475,7 @@ class _ProjectDetailView extends StatelessWidget {
 
                 // Check for duplicate MFP
                 if (existingMfps.contains(mfp)) {
-                  setDialogState(() => errorText = 'A key with MFP $mfp already exists');
+                  setDialogState(() => errorText = l10n.duplicateMfp(mfp));
                   return;
                 }
 
@@ -432,7 +507,7 @@ class _ProjectDetailView extends StatelessWidget {
                 onKeyAdded?.call(mfp);
                 Navigator.pop(ctx);
               },
-              child: const Text('Add'),
+              child: Text(l10n.add),
             ),
           ],
         ),
@@ -445,6 +520,7 @@ class _ProjectDetailView extends StatelessWidget {
     ProjectDetailCubit cubit,
     ProjectDetailLoaded state,
   ) {
+    final l10n = context.l10n;
     final isEditing = state.isEditing;
     final editedPaths = state.editedPaths;
     final editedKeys = state.editedKeys;
@@ -454,7 +530,7 @@ class _ProjectDetailView extends StatelessWidget {
     return ExpansionTile(
       key: const ValueKey('spend_paths_expansion_tile'),
       title: Text(
-        'Spend paths ($pathCount)',
+        l10n.spendPathsSection(pathCount),
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: isEditing ? Colors.orange : null,
             ),
@@ -502,7 +578,7 @@ class _ProjectDetailView extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: cubit.addSpendPath,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add spend path'),
+              label: Text(l10n.addSpendPath),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.orange,
                 side: BorderSide(color: Colors.orange.withAlpha(100)),
@@ -536,12 +612,12 @@ class _ProjectDetailView extends StatelessWidget {
 
     return Row(
       children: [
-        _buildBadge(networkDisplayName(state.project.network)),
+        _buildBadge(localizedNetworkDisplayName(context, state.project.network)),
         const SizedBox(width: 8),
         if (isEditing)
           _buildEditableWalletTypeBadge(context, cubit, state, currentType)
         else
-          _buildBadge(currentType.displayName),
+          _buildBadge(localizedWalletTypeName(context, currentType)),
       ],
     );
   }
@@ -552,18 +628,19 @@ class _ProjectDetailView extends StatelessWidget {
     ProjectDetailLoaded state,
     APIWalletType currentType,
   ) {
+    final l10n = context.l10n;
     final compatibleTypes = cubit.getCompatibleWalletTypes();
 
     return PopupMenuButton<APIWalletType>(
       initialValue: currentType,
       onSelected: (newType) => cubit.updateWalletType(newType),
       offset: const Offset(0, 32),
-      tooltip: 'Change wallet type',
+      tooltip: l10n.changeWalletTypeTooltip,
       itemBuilder: (context) => compatibleTypes.map((type) {
         return PopupMenuItem<APIWalletType>(
           value: type,
           child: Text(
-            type.displayName,
+            localizedWalletTypeName(context, type),
             style: const TextStyle(fontSize: 14),
           ),
         );
@@ -579,7 +656,7 @@ class _ProjectDetailView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              currentType.displayName,
+              localizedWalletTypeName(context, currentType),
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
             const SizedBox(width: 4),
@@ -610,9 +687,10 @@ class _ProjectDetailView extends StatelessWidget {
   }
 
   Widget _buildDescriptorSection(BuildContext context, String descriptor) {
+    final l10n = context.l10n;
     return ExpansionTile(
       title: Text(
-        'Descriptor',
+        l10n.descriptorSectionTitle,
         style: Theme.of(context).textTheme.titleMedium,
       ),
       tilePadding: EdgeInsets.zero,
@@ -620,12 +698,14 @@ class _ProjectDetailView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.copy, size: 18),
-            tooltip: 'Copy descriptor',
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: descriptor));
-              showSuccessToast(context, 'Descriptor copied');
-            },
+            icon: const Icon(Icons.ios_share, size: 18),
+            tooltip: l10n.copyDescriptorTooltip,
+            onPressed: () => showTextExportSheet(
+              context,
+              text: descriptor,
+              fileName: 'descriptor',
+              copiedMessage: l10n.descriptorCopied,
+            ),
             visualDensity: VisualDensity.compact,
           ),
           const SizedBox(width: 8),
@@ -651,20 +731,21 @@ class _ProjectDetailView extends StatelessWidget {
 
   void _editProjectName(
       BuildContext context, ProjectDetailCubit cubit, String currentName) {
+    final l10n = context.l10n;
     final controller = TextEditingController(text: currentName);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Project name'),
+        title: Text(l10n.projectNameDialogTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Project name'),
+          decoration: InputDecoration(hintText: l10n.projectNameDialogTitle),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -674,7 +755,7 @@ class _ProjectDetailView extends StatelessWidget {
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ],
       ),
@@ -692,17 +773,16 @@ class _ProjectDetailView extends StatelessWidget {
       return;
     }
 
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Discard changes?'),
-        content: const Text(
-          'You have unsaved changes. This action cannot be undone.',
-        ),
+        title: Text(l10n.discardChangesDialogTitle),
+        content: Text(l10n.discardChangesContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -710,9 +790,56 @@ class _ProjectDetailView extends StatelessWidget {
               cubit.discardEdits();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Discard'),
+            child: Text(l10n.discard),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showExportProjectSheet(BuildContext context, ProjectDetailCubit cubit) {
+    final l10n = context.l10n;
+    final exportJson = cubit.buildExportJson();
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (exportJson != null)
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: Text(l10n.copyToClipboard),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Clipboard.setData(ClipboardData(text: exportJson));
+                  showSuccessToast(context, l10n.copiedToClipboard);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.download_outlined),
+              title: Text(l10n.saveToDownloads),
+              onTap: () {
+                Navigator.pop(ctx);
+                cubit.exportToDownloads(
+                  successMessage: l10n.savedToDownloads,
+                  buildErrorMessage: l10n.exportFailed,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: Text(l10n.shareFile),
+              onTap: () {
+                Navigator.pop(ctx);
+                cubit.shareExport(
+                  successMessage: l10n.projectExportedSuccess,
+                  buildErrorMessage: l10n.exportFailed,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

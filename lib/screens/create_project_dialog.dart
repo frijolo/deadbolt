@@ -1,9 +1,17 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/qr_decoder.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum CreateMode { importDescriptor, fromScratch }
 
@@ -20,11 +28,23 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   final _descriptorController = TextEditingController();
   final _nameController = TextEditingController();
   CreateMode _mode = CreateMode.importDescriptor;
-  APINetwork _selectedNetwork = APINetwork.testnet;
-  APIWalletType _selectedWalletType = APIWalletType.p2Tr;
+  late APINetwork _selectedNetwork;
+  late APIWalletType _selectedWalletType;
   bool _loading = false;
   String? _error;
   String? _loadingMessage;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final settings = context.read<SettingsCubit>().state;
+      _selectedNetwork = settings.network;
+      _selectedWalletType = settings.walletType;
+      _initialized = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -35,9 +55,10 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New project'),
+        title: Text(l10n.newProjectTitle),
       ),
       body: SafeArea(
         child: Padding(
@@ -47,16 +68,16 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
             children: [
               // Mode selector
               SegmentedButton<CreateMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: CreateMode.importDescriptor,
-                    label: Text('Import descriptor'),
-                    icon: Icon(Icons.file_download, size: 16),
+                    label: Text(l10n.importDescriptorMode),
+                    icon: const Icon(Icons.file_download, size: 16),
                   ),
                   ButtonSegment(
                     value: CreateMode.fromScratch,
-                    label: Text('Start from scratch'),
-                    icon: Icon(Icons.add_circle_outline, size: 16),
+                    label: Text(l10n.fromScratchMode),
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
                   ),
                 ],
                 selected: {_mode},
@@ -69,9 +90,9 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
               ),
               const SizedBox(height: 16),
               // Project name
-              const Text(
-                'Project name',
-                style: TextStyle(fontSize: 11, color: Colors.white54),
+              Text(
+                l10n.projectNameLabel,
+                style: const TextStyle(fontSize: 11, color: Colors.white54),
               ),
               const SizedBox(height: 4),
               TextField(
@@ -88,18 +109,40 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Descriptor',
-                        style: TextStyle(fontSize: 11, color: Colors.white54),
+                      Row(
+                        children: [
+                          Text(
+                            l10n.descriptorLabel,
+                            style: const TextStyle(fontSize: 11, color: Colors.white54),
+                          ),
+                          const Spacer(),
+                          if (!kIsWeb)
+                            IconButton(
+                              icon: const Icon(Icons.qr_code_scanner, size: 18),
+                              tooltip: l10n.scanQrCode,
+                              onPressed: _isMobilePlatform
+                                  ? _scanDescriptorQr
+                                  : _importDescriptorFromQrImage,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.folder_open, size: 18),
+                            tooltip: l10n.fromFile,
+                            onPressed: _importDescriptorFromFile,
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Expanded(
                         child: TextField(
                           controller: _descriptorController,
-                          decoration: const InputDecoration(
-                            hintText: 'Paste your Bitcoin descriptor here...',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.all(12),
+                          decoration: InputDecoration(
+                            hintText: l10n.descriptorHint,
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                           maxLines: null,
                           expands: true,
@@ -117,21 +160,21 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Network',
-                      style: TextStyle(fontSize: 11, color: Colors.white54),
+                    Text(
+                      l10n.networkLabel,
+                      style: const TextStyle(fontSize: 11, color: Colors.white54),
                     ),
                     const SizedBox(height: 4),
                     PopupMenuButton<APINetwork>(
                       offset: const Offset(0, 32),
                       onSelected: (value) => setState(() => _selectedNetwork = value),
-                      tooltip: 'Select network',
+                      tooltip: l10n.selectNetworkTooltip,
                       itemBuilder: (context) => [
                         APINetwork.bitcoin,
                         APINetwork.testnet,
                       ].map((network) => PopupMenuItem(
                             value: network,
-                            child: Text(network.displayName),
+                            child: Text(localizedNetworkName(context, network)),
                           ))
                           .toList(),
                       child: Container(
@@ -145,7 +188,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _selectedNetwork.displayName,
+                              localizedNetworkName(context, _selectedNetwork),
                               style: const TextStyle(fontSize: 14),
                             ),
                             const Icon(Icons.arrow_drop_down, size: 24),
@@ -154,15 +197,15 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Wallet type',
-                      style: TextStyle(fontSize: 11, color: Colors.white54),
+                    Text(
+                      l10n.walletTypeLabel,
+                      style: const TextStyle(fontSize: 11, color: Colors.white54),
                     ),
                     const SizedBox(height: 4),
                     PopupMenuButton<APIWalletType>(
                       offset: const Offset(0, 32),
                       onSelected: (value) => setState(() => _selectedWalletType = value),
-                      tooltip: 'Select wallet type',
+                      tooltip: l10n.selectWalletTypeTooltip,
                       itemBuilder: (context) => [
                         APIWalletType.p2Tr,
                         APIWalletType.p2Wsh,
@@ -173,7 +216,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         APIWalletType.p2Pkh,
                       ].map((type) => PopupMenuItem(
                             value: type,
-                            child: Text(type.displayName),
+                            child: Text(localizedWalletTypeName(context, type)),
                           ))
                           .toList(),
                       child: Container(
@@ -187,7 +230,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _selectedWalletType.displayName,
+                              localizedWalletTypeName(context, _selectedWalletType),
                               style: const TextStyle(fontSize: 14),
                             ),
                             const Icon(Icons.arrow_drop_down, size: 24),
@@ -224,8 +267,8 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(_mode == CreateMode.importDescriptor
-                        ? 'Analyze & Save'
-                        : 'Create Project'),
+                        ? l10n.analyzeAndSave
+                        : l10n.createProject),
               ),
             ],
           ),
@@ -234,11 +277,48 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     );
   }
 
+  bool get _isMobilePlatform =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  Future<void> _scanDescriptorQr() async {
+    final result = await QrScannerScreen.push(context);
+    if (result != null && mounted) {
+      _descriptorController.text = result.trim();
+    }
+  }
+
+  Future<void> _importDescriptorFromQrImage() async {
+    final l10n = context.l10n;
+    try {
+      final result = await decodeQrFromImageFile();
+      if (result != null && mounted) {
+        _descriptorController.text = result.trim();
+      }
+    } catch (_) {
+      if (mounted) showErrorToast(context, l10n.qrNotFoundInImage);
+    }
+  }
+
+  Future<void> _importDescriptorFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return;
+    if (mounted) {
+      _descriptorController.text = String.fromCharCodes(bytes).trim();
+    }
+  }
+
   Future<void> _createProject() async {
+    final l10n = context.l10n;
     // Validate project name (required for both modes)
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Project name is required');
+      setState(() => _error = l10n.projectNameRequired);
       return;
     }
 
@@ -246,14 +326,14 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       // Import from descriptor
       final descriptor = _descriptorController.text.trim();
       if (descriptor.isEmpty) {
-        setState(() => _error = 'Descriptor cannot be empty');
+        setState(() => _error = l10n.descriptorEmpty);
         return;
       }
 
       setState(() {
         _loading = true;
         _error = null;
-        _loadingMessage = 'Analyzing descriptor...';
+        _loadingMessage = l10n.analyzingDescriptor;
       });
 
       try {
@@ -278,7 +358,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       setState(() {
         _loading = true;
         _error = null;
-        _loadingMessage = 'Creating project...';
+        _loadingMessage = l10n.creatingProject;
       });
 
       try {
