@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
-import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 class EditableKeyCard extends StatelessWidget {
   final EditableKey keyData;
@@ -26,6 +26,7 @@ class EditableKeyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -42,7 +43,7 @@ class EditableKeyCard extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => _showNameDialog(context),
                     child: Text(
-                      keyData.customName ?? 'Tap to name',
+                      keyData.customName ?? l10n.tapToName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: keyData.customName != null
@@ -59,16 +60,20 @@ class EditableKeyCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 16),
+                  icon: const Icon(Icons.ios_share, size: 16),
                   color: Colors.white38,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  tooltip: 'Copy keyspec',
+                  tooltip: l10n.copyKeyspecTooltip,
                   onPressed: () {
                     final keyspec =
                         '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}';
-                    Clipboard.setData(ClipboardData(text: keyspec));
-                    showSuccessToast(context, 'Key copied');
+                    showTextExportSheet(
+                      context,
+                      text: keyspec,
+                      fileName: 'key_${keyData.mfp}',
+                      copiedMessage: l10n.keyCopied,
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -81,9 +86,7 @@ class EditableKeyCard extends StatelessWidget {
                       ? Colors.red.withAlpha(180)
                       : Colors.grey.withAlpha(100),
                   onPressed: canDelete ? onDelete : null,
-                  tooltip: canDelete
-                      ? 'Remove key'
-                      : 'Key in use - cannot delete',
+                  tooltip: canDelete ? l10n.removeKeyTooltip : l10n.keyInUseTooltip,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -92,9 +95,9 @@ class EditableKeyCard extends StatelessWidget {
             // Derivation path
             Row(
               children: [
-                const Text(
-                  'Path: ',
-                  style: TextStyle(
+                Text(
+                  l10n.pathPrefix,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white54,
                   ),
@@ -115,9 +118,9 @@ class EditableKeyCard extends StatelessWidget {
             // xpub
             Row(
               children: [
-                const Text(
-                  'xpub: ',
-                  style: TextStyle(
+                Text(
+                  l10n.xpubPrefix,
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white54,
                   ),
@@ -143,7 +146,7 @@ class EditableKeyCard extends StatelessWidget {
   void _showNameDialog(BuildContext context) {
     showEditNameDialog(
       context,
-      title: 'Key name',
+      title: context.l10n.keyNameDialogTitle,
       currentName: keyData.customName,
       onSave: (name) => onNameEdit?.call(name),
       isDuplicate: (name) => allKeys.any((k) =>

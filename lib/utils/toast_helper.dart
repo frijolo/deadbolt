@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
+
 /// Show a success toast (green with check icon)
 void showSuccessToast(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
@@ -26,6 +28,7 @@ void showSuccessToast(BuildContext context, String message) {
 
 /// Show an error toast (red with copy button)
 void showErrorToast(BuildContext context, String message) {
+  final copiedLabel = context.l10n.errorCopiedToClipboard;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Row(
@@ -45,7 +48,7 @@ void showErrorToast(BuildContext context, String message) {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: message));
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              showSuccessToast(context, 'Error copied to clipboard');
+              showSuccessToast(context, copiedLabel);
             },
           ),
         ],

@@ -2,28 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
+
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About'),
+        title: Text(l10n.aboutTitle),
       ),
-      body: FutureBuilder<PackageInfo>(
+      body: SafeArea(
+        child: FutureBuilder<PackageInfo>(
         future: PackageInfo.fromPlatform(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
                   Text(
-                    'Loading app info...',
-                    style: TextStyle(color: Colors.white70),
+                    l10n.loadingAppInfo,
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 ],
               ),
@@ -54,9 +58,9 @@ class AboutScreen extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Bitcoin Descriptor Analyzer',
-                  style: TextStyle(
+                Text(
+                  l10n.bitcoinDescriptorAnalyzer,
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
                   ),
@@ -71,7 +75,7 @@ class AboutScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Version',
+                          l10n.versionLabel,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.orange,
@@ -94,21 +98,21 @@ class AboutScreen extends StatelessWidget {
                 // Project info card
                 _buildInfoCard(
                   context,
-                  title: 'Project',
+                  title: l10n.projectSectionTitle,
                   children: [
                     _buildLinkRow(
                       context,
-                      'GitHub Repository',
+                      l10n.githubRepository,
                       'https://github.com/frijolo/deadbolt',
                       Icons.code,
                     ),
                     _buildLinkRow(
                       context,
-                      'Security & GPG',
+                      l10n.securityGpg,
                       'https://github.com/frijolo/deadbolt/blob/master/SECURITY.md',
                       Icons.security,
                     ),
-                    _buildInfoRow('License', 'MIT License'),
+                    _buildInfoRow(l10n.licenseLabel, l10n.mitLicense),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -122,9 +126,9 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Open source Bitcoin wallet descriptor analysis',
-                  style: TextStyle(
+                Text(
+                  l10n.openSourceDescription,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white38,
                   ),
@@ -135,6 +139,7 @@ class AboutScreen extends StatelessWidget {
             ),
           );
         },
+        ),
       ),
     );
   }
@@ -219,7 +224,6 @@ class AboutScreen extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.orange,
                     fontSize: 14,
-                    decoration: TextDecoration.underline,
                   ),
                 ),
               ),

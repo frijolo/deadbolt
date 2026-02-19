@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
@@ -84,6 +85,7 @@ class PathCard extends StatelessWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
+    final l10n = context.l10n;
     final mfps = _mfps;
     final isKeyPath = path.trDepth == -1;
     final hasRelTimelock = path.relTimelockValue > 0;
@@ -103,7 +105,7 @@ class PathCard extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => _showNameDialog(context),
                     child: Text(
-                      path.customName ?? 'Tap to name',
+                      path.customName ?? l10n.tapToName,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: path.customName != null
@@ -169,9 +171,9 @@ class PathCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: Colors.blue.withAlpha(100)),
                       ),
-                      child: const Text(
-                        'KEY PATH',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.keyPathBadge,
+                        style: const TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
@@ -252,7 +254,7 @@ class PathCard extends StatelessWidget {
   void _showNameDialog(BuildContext context) {
     showEditNameDialog(
       context,
-      title: 'Spend path name',
+      title: context.l10n.spendPathNameDialogTitle,
       currentName: path.customName,
       onSave: (name) => onNameEdit?.call(name),
     );
