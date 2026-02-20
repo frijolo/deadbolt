@@ -584,6 +584,12 @@ abstract class AppLocalizations {
   /// **'Save to Downloads'**
   String get saveToDownloads;
 
+  /// No description provided for @saveAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as…'**
+  String get saveAs;
+
   /// No description provided for @shareFile.
   ///
   /// In en, this message translates to:
@@ -614,17 +620,47 @@ abstract class AppLocalizations {
   /// **'No QR code found in image'**
   String get qrNotFoundInImage;
 
+  /// No description provided for @cameraError.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera not available on this platform'**
+  String get cameraError;
+
+  /// No description provided for @importFromQrImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Import QR image'**
+  String get importFromQrImage;
+
   /// No description provided for @qrDialogTitle.
   ///
   /// In en, this message translates to:
   /// **'QR Code'**
   String get qrDialogTitle;
 
-  /// No description provided for @qrDensityLabel.
+  /// No description provided for @qrAnimatedLabel.
   ///
   /// In en, this message translates to:
-  /// **'Density'**
-  String get qrDensityLabel;
+  /// **'Animated (BC-UR)'**
+  String get qrAnimatedLabel;
+
+  /// No description provided for @qrBytesPerFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Bytes/frame'**
+  String get qrBytesPerFrame;
+
+  /// No description provided for @qrEcLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Error correction'**
+  String get qrEcLevel;
+
+  /// No description provided for @qrTooLargeForLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Content too large for this error correction level'**
+  String get qrTooLargeForLevel;
 
   /// No description provided for @qrPart.
   ///
@@ -641,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @savedToDownloads.
   ///
   /// In en, this message translates to:
-  /// **'Saved to Downloads'**
+  /// **'File saved'**
   String get savedToDownloads;
 
   /// No description provided for @copiedToClipboard.

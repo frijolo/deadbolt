@@ -2,96 +2,75 @@ name: CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master ]
 
 jobs:
-  flutter-analyze:
-    name: Flutter Analyze
+  rust:
+    name: Rust
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          channel: 'stable'
-          cache: true
+          components: rustfmt, clippy
 
-      - name: Get Flutter dependencies
-        run: flutter pub get
-
-      - name: Get cargokit build_tool dependencies
-        working-directory: rust_builder/cargokit/build_tool
-        run: dart pub get
-
-      - name: Analyze Dart code
-        run: flutter analyze
-
-  rust-test:
-    name: Rust Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
 
-      - name: Run Rust tests
-        working-directory: rust
-        run: cargo test --all-features
-
-      - name: Check Rust formatting
+      - name: cargo fmt
         working-directory: rust
         run: cargo fmt --check
 
-      - name: Run Clippy
+      - name: cargo clippy
         working-directory: rust
         run: cargo clippy --all-features -- -D warnings
 
-  flutter-test:
-    name: Flutter Tests
+      - name: cargo test
+        working-directory: rust
+        run: cargo test --all-features
+
+  flutter:
+    name: Flutter
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libjpeg-dev
+
+      - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: Setup Rust (for flutter_rust_bridge)
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
 
-      - name: Get Flutter dependencies
+      - name: flutter pub get
         run: flutter pub get
 
-      - name: Get cargokit build_tool dependencies
+      - name: cargokit build_tool deps
         working-directory: rust_builder/cargokit/build_tool
         run: dart pub get
 
-      - name: Run Flutter tests
-        run: |
-          if [ -d "test" ]; then
-            flutter test
-          else
-            echo "No test directory found, skipping tests"
-          fi
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test
+
+      - name: flutter build linux
+        run: flutter build linux --release

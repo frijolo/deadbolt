@@ -264,6 +264,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get saveToDownloads => 'Guardar en Descargas';
 
   @override
+  String get saveAs => 'Guardar como…';
+
+  @override
   String get shareFile => 'Compartir';
 
   @override
@@ -279,10 +282,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get qrNotFoundInImage => 'No se encontró código QR en la imagen';
 
   @override
+  String get cameraError => 'Cámara no disponible en esta plataforma';
+
+  @override
+  String get importFromQrImage => 'Importar imagen QR';
+
+  @override
   String get qrDialogTitle => 'Código QR';
 
   @override
-  String get qrDensityLabel => 'Densidad';
+  String get qrAnimatedLabel => 'Animado (BC-UR)';
+
+  @override
+  String get qrBytesPerFrame => 'Bytes/cuadro';
+
+  @override
+  String get qrEcLevel => 'Corrección de errores';
+
+  @override
+  String get qrTooLargeForLevel =>
+      'Contenido demasiado grande para este nivel de corrección';
 
   @override
   String qrPart(int current, int total) {
@@ -293,7 +312,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get close => 'Cerrar';
 
   @override
-  String get savedToDownloads => 'Guardado en Descargas';
+  String get savedToDownloads => 'Archivo guardado';
 
   @override
   String get copiedToClipboard => 'Copiado al portapapeles';

@@ -5,6 +5,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:drift/drift.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
@@ -1048,7 +1049,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     return (jsonString: exportData.toJsonString(), fileName: fileName);
   }
 
-  /// Export project — save directly to the Downloads directory.
+  /// Export project — shows a native save-file dialog (desktop platforms).
+  ///
+  /// On mobile the UI shows Share instead; this method is not called on mobile.
   Future<void> exportToDownloads({
     required String successMessage,
     required String Function(String) buildErrorMessage,
@@ -1058,10 +1061,13 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
     try {
       final (:jsonString, :fileName) = _buildExportPayload(s);
-      final dir =
-          await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsString(jsonString);
+      final savedPath = await FilePicker.platform.saveFile(
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (savedPath == null) return; // user cancelled — no toast
+      await File(savedPath).writeAsBytes(utf8.encode(jsonString));
       emit(s.copyWith(successMessage: successMessage));
     } catch (e) {
       emit(s.copyWith(errorMessage: buildErrorMessage(formatRustError(e))));

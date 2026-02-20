@@ -264,6 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveToDownloads => 'Save to Downloads';
 
   @override
+  String get saveAs => 'Save as…';
+
+  @override
   String get shareFile => 'Share';
 
   @override
@@ -279,10 +282,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qrNotFoundInImage => 'No QR code found in image';
 
   @override
+  String get cameraError => 'Camera not available on this platform';
+
+  @override
+  String get importFromQrImage => 'Import QR image';
+
+  @override
   String get qrDialogTitle => 'QR Code';
 
   @override
-  String get qrDensityLabel => 'Density';
+  String get qrAnimatedLabel => 'Animated (BC-UR)';
+
+  @override
+  String get qrBytesPerFrame => 'Bytes/frame';
+
+  @override
+  String get qrEcLevel => 'Error correction';
+
+  @override
+  String get qrTooLargeForLevel =>
+      'Content too large for this error correction level';
 
   @override
   String qrPart(int current, int total) {
@@ -293,7 +312,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get close => 'Close';
 
   @override
-  String get savedToDownloads => 'Saved to Downloads';
+  String get savedToDownloads => 'File saved';
 
   @override
   String get copiedToClipboard => 'Copied to clipboard';
