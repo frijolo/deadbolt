@@ -73,8 +73,12 @@ jobs:
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libjpeg-dev
 
       # Common setup for all platforms
       - name: Setup Flutter
@@ -181,7 +185,7 @@ jobs:
           cat << 'EOF' > release-notes.md
           Binary releases for Android, Linux, and Windows.
 
-          Includes `SHA256SUMS` and `SHA256SUMS.asc` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/main/SECURITY.md) for verification instructions.
+          Includes `SHA256SUMS` and `SHA256SUMS.asc` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/master/SECURITY.md) for verification instructions.
           EOF
 
       - name: Create GitHub Release
