@@ -1,0 +1,35 @@
+PODS:
+  - DCV (1.0.0)
+  - flutter_barcode_sdk (3.0.0):
+    - DCV
+    - FlutterMacOS
+  - flutter_lite_camera (0.0.1):
+    - FlutterMacOS
+  - FlutterMacOS (1.0.0)
+
+DEPENDENCIES:
+  - flutter_barcode_sdk (from `Flutter/ephemeral/.symlinks/plugins/flutter_barcode_sdk/macos`)
+  - flutter_lite_camera (from `Flutter/ephemeral/.symlinks/plugins/flutter_lite_camera/macos`)
+  - FlutterMacOS (from `Flutter/ephemeral`)
+
+SPEC REPOS:
+  trunk:
+    - DCV
+
+EXTERNAL SOURCES:
+  flutter_barcode_sdk:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_barcode_sdk/macos
+  flutter_lite_camera:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_lite_camera/macos
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+
+SPEC CHECKSUMS:
+  DCV: a0ff457169fe0e30a36bec2f359ccd3a18480be1
+  flutter_barcode_sdk: c6339a9fa2e0b3696655671af342299de3ac4382
+  flutter_lite_camera: 0a91cbcebca420a0e62955fbcdd7d030cc5da322
+  FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+
+PODFILE CHECKSUM: 236401fc2c932af29a9fcf0e97baeeb2d750d367
+
+COCOAPODS: 1.16.2

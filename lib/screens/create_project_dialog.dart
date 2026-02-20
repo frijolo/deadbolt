@@ -9,8 +9,6 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
-import 'package:deadbolt/utils/qr_decoder.dart';
-import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum CreateMode { importDescriptor, fromScratch }
@@ -120,9 +118,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                             IconButton(
                               icon: const Icon(Icons.qr_code_scanner, size: 18),
                               tooltip: l10n.scanQrCode,
-                              onPressed: _isMobilePlatform
-                                  ? _scanDescriptorQr
-                                  : _importDescriptorFromQrImage,
+                              onPressed: _scanDescriptorQr,
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                             ),
@@ -277,26 +273,10 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     );
   }
 
-  bool get _isMobilePlatform =>
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS;
-
   Future<void> _scanDescriptorQr() async {
     final result = await QrScannerScreen.push(context);
     if (result != null && mounted) {
       _descriptorController.text = result.trim();
-    }
-  }
-
-  Future<void> _importDescriptorFromQrImage() async {
-    final l10n = context.l10n;
-    try {
-      final result = await decodeQrFromImageFile();
-      if (result != null && mounted) {
-        _descriptorController.text = result.trim();
-      }
-    } catch (_) {
-      if (mounted) showErrorToast(context, l10n.qrNotFoundInImage);
     }
   }
 

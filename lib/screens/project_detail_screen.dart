@@ -16,7 +16,6 @@ import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/path_card.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
-import 'package:deadbolt/utils/qr_decoder.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
@@ -370,25 +369,7 @@ class _ProjectDetailView extends StatelessWidget {
                             visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () async {
-                            final isMobile =
-                                defaultTargetPlatform ==
-                                    TargetPlatform.android ||
-                                defaultTargetPlatform == TargetPlatform.iOS;
-                            String? result;
-                            if (isMobile) {
-                              result = await QrScannerScreen.push(ctx);
-                            } else {
-                              try {
-                                result = await decodeQrFromImageFile();
-                              } catch (_) {
-                                if (ctx.mounted) {
-                                  showErrorToast(
-                                    ctx,
-                                    l10n.qrNotFoundInImage,
-                                  );
-                                }
-                              }
-                            }
+                            final result = await QrScannerScreen.push(ctx);
                             if (result != null) {
                               keyspecController.text = result.trim();
                             }
@@ -816,28 +797,34 @@ class _ProjectDetailView extends StatelessWidget {
                   showSuccessToast(context, l10n.copiedToClipboard);
                 },
               ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: Text(l10n.saveToDownloads),
-              onTap: () {
-                Navigator.pop(ctx);
-                cubit.exportToDownloads(
-                  successMessage: l10n.savedToDownloads,
-                  buildErrorMessage: l10n.exportFailed,
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: Text(l10n.shareFile),
-              onTap: () {
-                Navigator.pop(ctx);
-                cubit.shareExport(
-                  successMessage: l10n.projectExportedSuccess,
-                  buildErrorMessage: l10n.exportFailed,
-                );
-              },
-            ),
+            if (!kIsWeb &&
+                defaultTargetPlatform != TargetPlatform.android &&
+                defaultTargetPlatform != TargetPlatform.iOS)
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: Text(l10n.saveAs),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  cubit.exportToDownloads(
+                    successMessage: l10n.savedToDownloads,
+                    buildErrorMessage: l10n.exportFailed,
+                  );
+                },
+              ),
+            if (kIsWeb ||
+                defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS)
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: Text(l10n.shareFile),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  cubit.shareExport(
+                    successMessage: l10n.projectExportedSuccess,
+                    buildErrorMessage: l10n.exportFailed,
+                  );
+                },
+              ),
           ],
         ),
       ),

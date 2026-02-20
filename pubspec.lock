@@ -342,6 +342,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_lite_camera:
+    dependency: "direct main"
+    description:
+      path: "packages/flutter_lite_camera"
+      relative: true
+    source: path
+    version: "0.0.2"
   flutter_localizations:
     dependency: "direct main"
     description: flutter
