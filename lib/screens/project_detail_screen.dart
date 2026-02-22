@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
@@ -10,6 +9,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/editable_key_card.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
@@ -21,30 +21,51 @@ import 'package:deadbolt/widgets/text_export_sheet.dart';
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
   final int projectId;
+  final String? initialAction;
 
   const ProjectDetailScreen({
     super.key,
     required this.db,
     required this.projectId,
+    this.initialAction,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => ProjectDetailCubit(db, projectId),
-      child: const _ProjectDetailView(),
+      child: _ProjectDetailView(initialAction: initialAction),
     );
   }
 }
 
-class _ProjectDetailView extends StatelessWidget {
-  const _ProjectDetailView();
+class _ProjectDetailView extends StatefulWidget {
+  final String? initialAction;
+
+  const _ProjectDetailView({this.initialAction});
+
+  @override
+  State<_ProjectDetailView> createState() => _ProjectDetailViewState();
+}
+
+class _ProjectDetailViewState extends State<_ProjectDetailView> {
+  bool _initialActionTriggered = false;
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<ProjectDetailCubit, ProjectDetailState>(
       listener: (context, state) {
         if (state is! ProjectDetailLoaded) return;
+
+        // Enter edit mode automatically when requested (e.g. from project list)
+        if (!_initialActionTriggered && widget.initialAction == 'edit') {
+          _initialActionTriggered = true;
+          final cubit = context.read<ProjectDetailCubit>();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            cubit.enterEditMode();
+          });
+        }
 
         // Show error toast
         if (state.errorMessage != null) {
@@ -779,55 +800,16 @@ class _ProjectDetailView extends StatelessWidget {
   }
 
   void _showExportProjectSheet(BuildContext context, ProjectDetailCubit cubit) {
-    final l10n = context.l10n;
-    final exportJson = cubit.buildExportJson();
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (exportJson != null)
-              ListTile(
-                leading: const Icon(Icons.copy_outlined),
-                title: Text(l10n.copyToClipboard),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Clipboard.setData(ClipboardData(text: exportJson));
-                  showSuccessToast(context, l10n.copiedToClipboard);
-                },
-              ),
-            if (!kIsWeb &&
-                defaultTargetPlatform != TargetPlatform.android &&
-                defaultTargetPlatform != TargetPlatform.iOS)
-              ListTile(
-                leading: const Icon(Icons.download_outlined),
-                title: Text(l10n.saveAs),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  cubit.exportToDownloads(
-                    successMessage: l10n.savedToDownloads,
-                    buildErrorMessage: l10n.exportFailed,
-                  );
-                },
-              ),
-            if (kIsWeb ||
-                defaultTargetPlatform == TargetPlatform.android ||
-                defaultTargetPlatform == TargetPlatform.iOS)
-              ListTile(
-                leading: const Icon(Icons.share_outlined),
-                title: Text(l10n.shareFile),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  cubit.shareExport(
-                    successMessage: l10n.projectExportedSuccess,
-                    buildErrorMessage: l10n.exportFailed,
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
+    final payload = cubit.buildExportPayload();
+    if (payload == null) return;
+    final state = cubit.state;
+    final projectName =
+        state is ProjectDetailLoaded ? state.project.name : '';
+    showProjectExportSheet(
+      context,
+      jsonString: payload.jsonString,
+      fileName: payload.fileName,
+      projectName: projectName,
     );
   }
 

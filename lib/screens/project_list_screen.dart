@@ -12,6 +12,7 @@ import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
 class ProjectListScreen extends StatelessWidget {
@@ -169,13 +170,67 @@ class ProjectListScreen extends StatelessWidget {
               _formatDate(project.updatedAt),
               style: const TextStyle(fontSize: 12, color: Colors.white38),
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
-              color: Colors.red.withAlpha(180),
-              onPressed: () => _confirmDelete(context, project),
-              tooltip: l10n.deleteProjectTooltip,
-              visualDensity: VisualDensity.compact,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              tooltip: l10n.moreOptionsTooltip,
+              onSelected: (value) async {
+                final db = context.read<AppDatabase>();
+                if (value == 'edit') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProjectDetailScreen(
+                        db: db,
+                        projectId: project.id,
+                        initialAction: 'edit',
+                      ),
+                    ),
+                  );
+                } else if (value == 'export') {
+                  await _exportProject(context, project);
+                } else if (value == 'delete') {
+                  _confirmDelete(context, project);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_outlined, size: 20),
+                      const SizedBox(width: 12),
+                      Text(l10n.edit),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'export',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.file_upload_outlined, size: 20),
+                      const SizedBox(width: 12),
+                      Text(l10n.export),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Colors.red.withAlpha(180),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        l10n.delete,
+                        style: TextStyle(color: Colors.red.withAlpha(180)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -255,6 +310,24 @@ class ProjectListScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportProject(BuildContext context, Project project) async {
+    final data =
+        await context.read<ProjectListCubit>().buildProjectExportData(project.id);
+
+    if (!context.mounted) return;
+    if (data == null) {
+      showErrorToast(context, context.l10n.exportFailed(''));
+      return;
+    }
+
+    showProjectExportSheet(
+      context,
+      jsonString: data.jsonString,
+      fileName: data.fileName,
+      projectName: project.name,
     );
   }
 
