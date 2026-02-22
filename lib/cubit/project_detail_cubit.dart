@@ -1,15 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:drift/drift.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
@@ -1016,13 +1012,10 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
   /// Build export JSON and filename from current state (helper).
   /// Returns the export JSON string for the current state, or null if not loaded.
-  String? buildExportJson() {
+  ({String jsonString, String fileName})? buildExportPayload() {
     final s = state;
     if (s is! ProjectDetailLoaded) return null;
-    return _buildExportPayload(s).jsonString;
-  }
 
-  ({String jsonString, String fileName}) _buildExportPayload(ProjectDetailLoaded s) {
     final keyLabels = <String, String>{};
     for (final key in s.keys) {
       if (key.customName != null) keyLabels[key.mfp] = key.customName!;
@@ -1047,57 +1040,5 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final fileName =
         '${s.project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
     return (jsonString: exportData.toJsonString(), fileName: fileName);
-  }
-
-  /// Export project — shows a native save-file dialog (desktop platforms).
-  ///
-  /// On mobile the UI shows Share instead; this method is not called on mobile.
-  Future<void> exportToDownloads({
-    required String successMessage,
-    required String Function(String) buildErrorMessage,
-  }) async {
-    final s = state;
-    if (s is! ProjectDetailLoaded) return;
-
-    try {
-      final (:jsonString, :fileName) = _buildExportPayload(s);
-      final savedPath = await FilePicker.platform.saveFile(
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-      if (savedPath == null) return; // user cancelled — no toast
-      await File(savedPath).writeAsBytes(utf8.encode(jsonString));
-      emit(s.copyWith(successMessage: successMessage));
-    } catch (e) {
-      emit(s.copyWith(errorMessage: buildErrorMessage(formatRustError(e))));
-    }
-  }
-
-  /// Export project — share via the system share sheet.
-  Future<void> shareExport({
-    required String successMessage,
-    required String Function(String) buildErrorMessage,
-  }) async {
-    final s = state;
-    if (s is! ProjectDetailLoaded) return;
-
-    try {
-      final (:jsonString, :fileName) = _buildExportPayload(s);
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
-
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Export: ${s.project.name}',
-      );
-
-      if (result.status == ShareResultStatus.success) {
-        emit(s.copyWith(successMessage: successMessage));
-      }
-    } catch (e) {
-      emit(s.copyWith(errorMessage: buildErrorMessage(formatRustError(e))));
-    }
   }
 }
