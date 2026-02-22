@@ -27,6 +27,7 @@ class EditableKeyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -50,8 +51,8 @@ class EditableKeyCard extends StatelessWidget {
                             ? FontWeight.w600
                             : FontWeight.normal,
                         color: keyData.customName != null
-                            ? Colors.white
-                            : Colors.white38,
+                            ? cs.onSurface
+                            : cs.onSurface.withAlpha(97),
                         fontStyle: keyData.customName != null
                             ? FontStyle.normal
                             : FontStyle.italic,
@@ -61,7 +62,7 @@ class EditableKeyCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.ios_share, size: 16),
-                  color: Colors.white38,
+                  color: cs.onSurface.withAlpha(97),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: l10n.copyKeyspecTooltip,
@@ -84,7 +85,7 @@ class EditableKeyCard extends StatelessWidget {
                   ),
                   color: canDelete
                       ? Colors.red.withAlpha(180)
-                      : Colors.grey.withAlpha(100),
+                      : Theme.of(context).colorScheme.onSurface.withAlpha(61),
                   onPressed: canDelete ? onDelete : null,
                   tooltip: canDelete ? l10n.removeKeyTooltip : l10n.keyInUseTooltip,
                   visualDensity: VisualDensity.compact,
@@ -97,18 +98,18 @@ class EditableKeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.pathPrefix,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white54,
+                    color: cs.onSurface.withAlpha(138),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     keyData.derivationPath,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      color: Colors.white70,
+                      color: cs.onSurface.withAlpha(178),
                     ),
                   ),
                 ),
@@ -120,18 +121,18 @@ class EditableKeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.xpubPrefix,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white54,
+                    color: cs.onSurface.withAlpha(138),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     '${keyData.xpub.substring(0, 20)}...${keyData.xpub.substring(keyData.xpub.length - 6)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      color: Colors.white70,
+                      color: cs.onSurface.withAlpha(178),
                     ),
                   ),
                 ),

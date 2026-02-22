@@ -38,14 +38,15 @@ class PathCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: _buildLeading(),
+        leading: _buildLeading(context),
         title: _buildTitle(context),
-        subtitle: _buildMetrics(),
+        subtitle: _buildMetrics(context),
       ),
     );
   }
 
-  Widget _buildLeading() {
+  Widget _buildLeading(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final mfps = _mfps;
     return Stack(
       alignment: Alignment.bottomCenter,
@@ -72,8 +73,8 @@ class PathCard extends StatelessWidget {
               ),
               child: Text(
                 "${path.threshold} of ${mfps.length}",
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: cs.onSurface.withAlpha(178),
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -86,6 +87,7 @@ class PathCard extends StatelessWidget {
 
   Widget _buildTitle(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     final mfps = _mfps;
     final isKeyPath = path.trDepth == -1;
     final hasRelTimelock = path.relTimelockValue > 0;
@@ -112,8 +114,8 @@ class PathCard extends StatelessWidget {
                             ? FontWeight.w600
                             : FontWeight.normal,
                         color: path.customName != null
-                            ? Colors.white
-                            : Colors.white38,
+                            ? cs.onSurface
+                            : cs.onSurface.withAlpha(97),
                         fontStyle: path.customName != null
                             ? FontStyle.normal
                             : FontStyle.italic,
@@ -202,7 +204,8 @@ class PathCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMetrics() {
+  Widget _buildMetrics(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
       child: SingleChildScrollView(
@@ -213,29 +216,29 @@ class PathCard extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               "${path.vbSweep.toStringAsFixed(2)} vB",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Colors.white70,
+                color: cs.onSurface.withAlpha(178),
                 fontWeight: FontWeight.bold,
               ),
             ),
             if (path.trDepth >= 0) ...[
-              _buildSeparator(),
+              _buildSeparator(context),
               const Icon(Icons.account_tree_outlined,
                   size: 14, color: Colors.orange),
               const SizedBox(width: 4),
               Text(
                 "${path.trDepth}",
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(178)),
               ),
             ],
             if (path.priority > 0) ...[
-              _buildSeparator(),
+              _buildSeparator(context),
               const Icon(Icons.keyboard_double_arrow_up, size: 14, color: Colors.orange),
               const SizedBox(width: 2),
               Text(
                 '${path.priority}',
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(178)),
               ),
             ],
           ],
@@ -244,10 +247,10 @@ class PathCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSeparator() {
+  Widget _buildSeparator(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text("|", style: TextStyle(color: Colors.grey.withAlpha(77))),
+      child: Text("|", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(77))),
     );
   }
 

@@ -26,7 +26,7 @@ class MfpBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: Colors.white.withAlpha(230),
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(210),
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: letterSpacing,

@@ -10,6 +10,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.aboutTitle),
@@ -27,7 +28,7 @@ class AboutScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     l10n.loadingAppInfo,
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: cs.onSurface.withAlpha(178)),
                   ),
                 ],
               ),
@@ -60,9 +61,9 @@ class AboutScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   l10n.bitcoinDescriptorAnalyzer,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white70,
+                    color: cs.onSurface.withAlpha(178),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -83,8 +84,8 @@ class AboutScreen extends StatelessWidget {
                         ),
                         Text(
                           '${info.version} (Build ${info.buildNumber})',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: cs.onSurface,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -112,7 +113,7 @@ class AboutScreen extends StatelessWidget {
                       'https://github.com/frijolo/deadbolt/blob/master/SECURITY.md',
                       Icons.security,
                     ),
-                    _buildInfoRow(l10n.licenseLabel, l10n.mitLicense),
+                    _buildInfoRow(context, l10n.licenseLabel, l10n.mitLicense),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -120,17 +121,17 @@ class AboutScreen extends StatelessWidget {
                 // Copyright
                 Text(
                   '© ${DateTime.now().year} Deadbolt',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white38,
+                    color: cs.onSurface.withAlpha(97),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   l10n.openSourceDescription,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white38,
+                    color: cs.onSurface.withAlpha(97),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -170,7 +171,8 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? labelColor}) {
+  Widget _buildInfoRow(BuildContext context, String label, String value, {Color? labelColor}) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -181,7 +183,7 @@ class AboutScreen extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: labelColor ?? Colors.white70,
+                color: labelColor ?? cs.onSurface.withAlpha(178),
                 fontSize: 14,
               ),
             ),
@@ -189,8 +191,8 @@ class AboutScreen extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: cs.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -207,6 +209,7 @@ class AboutScreen extends StatelessWidget {
     String url,
     IconData icon,
   ) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
@@ -227,10 +230,10 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.open_in_new,
                 size: 16,
-                color: Colors.white38,
+                color: cs.onSurface.withAlpha(97),
               ),
             ],
           ),

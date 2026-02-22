@@ -54,6 +54,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.newProjectTitle),
@@ -90,7 +91,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
               // Project name
               Text(
                 l10n.projectNameLabel,
-                style: const TextStyle(fontSize: 11, color: Colors.white54),
+                style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
               ),
               const SizedBox(height: 4),
               TextField(
@@ -111,7 +112,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         children: [
                           Text(
                             l10n.descriptorLabel,
-                            style: const TextStyle(fontSize: 11, color: Colors.white54),
+                            style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
                           ),
                           const Spacer(),
                           if (!kIsWeb)
@@ -158,7 +159,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   children: [
                     Text(
                       l10n.networkLabel,
-                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
                     ),
                     const SizedBox(height: 4),
                     PopupMenuButton<APINetwork>(
@@ -177,7 +178,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white24),
+                          border: Border.all(color: cs.onSurface.withAlpha(61)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -195,7 +196,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     const SizedBox(height: 16),
                     Text(
                       l10n.walletTypeLabel,
-                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
                     ),
                     const SizedBox(height: 4),
                     PopupMenuButton<APIWalletType>(
@@ -219,7 +220,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white24),
+                          border: Border.all(color: cs.onSurface.withAlpha(61)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -249,7 +250,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     _loadingMessage!,
-                    style: const TextStyle(color: Colors.white70),
+                    style: TextStyle(color: cs.onSurface.withAlpha(178)),
                     textAlign: TextAlign.center,
                   ),
                 ),

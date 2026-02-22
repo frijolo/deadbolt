@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -23,6 +24,28 @@ class SettingsScreen extends StatelessWidget {
             return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _buildSectionTitle(context, l10n.themeLabel),
+              RadioGroup<AppTheme>(
+                groupValue: settings.appTheme,
+                onChanged: (v) => cubit.setAppTheme(v!),
+                child: Column(
+                  children: [
+                    RadioListTile<AppTheme>(
+                      title: Text(l10n.themeSystem),
+                      value: AppTheme.system,
+                    ),
+                    RadioListTile<AppTheme>(
+                      title: Text(l10n.themeLight),
+                      value: AppTheme.light,
+                    ),
+                    RadioListTile<AppTheme>(
+                      title: Text(l10n.themeDark),
+                      value: AppTheme.dark,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
               _buildSectionTitle(context, l10n.languageLabel),
               RadioGroup<Locale>(
                 groupValue: settings.locale,
