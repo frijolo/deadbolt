@@ -9,6 +9,7 @@ import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/project_list_screen.dart';
 import 'package:deadbolt/src/rust/frb_generated.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 
 Future<void> main() async {
   // Global error handler for async errors not caught by Flutter
@@ -65,13 +66,9 @@ class DeadboltApp extends StatelessWidget {
             locale: settings.locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.orange,
-                brightness: Brightness.dark,
-              ),
-              useMaterial3: true,
-            ),
+            theme: AppThemeManager.getLightThemeData(),
+            darkTheme: AppThemeManager.getDarkThemeData(),
+            themeMode: AppThemeManager.getThemeMode(settings.appTheme),
             home: const ProjectListScreen(),
           ),
         ),

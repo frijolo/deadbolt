@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -113,6 +114,12 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
         },
       ),
     );
+  }
+
+  Color _colorForMfp(BuildContext context, ProjectDetailCubit cubit, String mfp) {
+    final ext = Theme.of(context).extension<KeyColorExtension>()!;
+    final idx = cubit.getMfpColorIndex(mfp);
+    return ext.keyColors[idx % ext.keyColors.length];
   }
 
   Widget _buildLoaded(BuildContext context, ProjectDetailLoaded state) {
@@ -259,7 +266,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
             KeyCard(
               keyData: key,
               allKeys: state.keys,
-              mfpColor: cubit.getMfpColor(key.mfp),
+              mfpColor: _colorForMfp(context, cubit, key.mfp),
               onNameEdit: (name) => cubit.updateKeyName(key.id, name),
             ),
         ],
@@ -278,7 +285,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     return EditableKeyCard(
       keyData: key,
       allKeys: state.editedKeys!,
-      mfpColor: cubit.getMfpColor(key.mfp),
+      mfpColor: _colorForMfp(context, cubit, key.mfp),
       onNameEdit: (name) => cubit.updateKeyCustomName(key.mfp, name),
       onDelete: () => cubit.removeKey(key.mfp),
       canDelete: !isInUse,
@@ -549,7 +556,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
               availableKeys: editedKeys
                   .map((k) => k.toProjectKey(state.project.id))
                   .toList(),
-              mfpColorProvider: cubit.getMfpColor,
+              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
               onThresholdChanged: (v) => cubit.updatePathThreshold(i, v),
               onMfpAdded: (mfp) => cubit.addMfpToPath(i, mfp),
               onMfpRemoved: (mfp) => cubit.removeMfpFromPath(i, mfp),
@@ -592,7 +599,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
             PathCard(
               path: sp,
               keys: state.keys,
-              mfpColorProvider: cubit.getMfpColor,
+              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
               onNameEdit: (name) => cubit.updateSpendPathName(sp.id, name),
               isTaproot: state.project.walletType.toUpperCase() == 'P2TR',
             ),
@@ -614,12 +621,12 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
 
     return Row(
       children: [
-        _buildBadge(localizedNetworkDisplayName(context, state.project.network)),
+        _buildBadge(context, localizedNetworkDisplayName(context, state.project.network)),
         const SizedBox(width: 8),
         if (isEditing)
           _buildEditableWalletTypeBadge(context, cubit, state, currentType)
         else
-          _buildBadge(localizedWalletTypeName(context, currentType)),
+          _buildBadge(context, localizedWalletTypeName(context, currentType)),
       ],
     );
   }
@@ -659,7 +666,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
           children: [
             Text(
               localizedWalletTypeName(context, currentType),
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+              ),
             ),
             const SizedBox(width: 4),
             const Icon(
@@ -673,7 +683,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     );
   }
 
-  Widget _buildBadge(String label) {
+  Widget _buildBadge(BuildContext context, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -683,7 +693,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, color: Colors.white70),
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+        ),
       ),
     );
   }
@@ -720,10 +733,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
           padding: const EdgeInsets.only(top: 8),
           child: SelectableText(
             descriptor,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'monospace',
               fontSize: 12,
-              color: Colors.white60,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
             ),
           ),
         ),

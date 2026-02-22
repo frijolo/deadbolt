@@ -173,6 +173,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguageEs => 'Español';
 
   @override
+  String get themeLabel => 'Theme';
+
+  @override
+  String get themeSystem => 'System default';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
   String get discardChangesTooltip => 'Discard changes';
 
   @override

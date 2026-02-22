@@ -226,7 +226,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         ),
         if (_isAnimated)
           Positioned(
-            bottom: 0,
+            top: 0,
             left: 0,
             right: 0,
             child: LinearProgressIndicator(
@@ -255,7 +255,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         // BC-UR progress bar
         if (_isAnimated)
           Positioned(
-            bottom: 0,
+            top: 0,
             left: 0,
             right: 0,
             child: LinearProgressIndicator(
@@ -270,24 +270,29 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   Widget _buildFileFallback(AppLocalizations l10n) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.videocam_off, size: 48, color: Colors.white54),
-          const SizedBox(height: 12),
-          Text(
-            l10n.cameraError,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            icon: const Icon(Icons.image_outlined),
-            label: Text(l10n.importFromQrImage),
-            onPressed: _importFromQrImage,
-          ),
-        ],
+    return SafeArea(
+      top: false,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_off, size: 48,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+            const SizedBox(height: 12),
+            Text(
+              l10n.cameraError,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              icon: const Icon(Icons.image_outlined),
+              label: Text(l10n.importFromQrImage),
+              onPressed: _importFromQrImage,
+            ),
+          ],
+        ),
       ),
     );
   }

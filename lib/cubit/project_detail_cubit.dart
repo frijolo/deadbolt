@@ -4,7 +4,6 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
@@ -242,44 +241,15 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   final AppDatabase _db;
   final int projectId;
 
-  final Map<String, Color> _mfpColorMap = {};
-
-  static const List<Color> _palette = [
-    Color(0xFFE53935), // red 600
-    Color(0xFF43A047), // green 600
-    Color(0xFF1E88E5), // blue 600
-    Color(0xFFFFB300), // amber 600
-    Color(0xFF00ACC1), // cyan 600
-    Color(0xFF8E24AA), // purple 600
-    Color(0xFFFB8C00), // orange 600
-    Color(0xFF7CB342), // lightGreen 600
-    Color(0xFF00897B), // teal 600
-    Color(0xFF3949AB), // indigo 600
-    Color(0xFF5E35B1), // deepPurple 600
-    Color(0xFFD81B60), // pink 600
-    Color(0xFFFF7043), // deepOrange 400
-    Color(0xFFFDD835), // yellow 700
-    Color(0xFFC0CA33), // lime 700
-    Color(0xFF2E7D32), // green 800
-    Color(0xFF26A69A), // teal 400
-    Color(0xFF00838F), // cyan 800
-    Color(0xFF1565C0), // blue 800
-    Color(0xFF29B6F6), // lightBlue 400
-    Color(0xFF9FA8DA), // indigo 300
-    Color(0xFFCE93D8), // purple 300
-    Color(0xFFF48FB1), // pink 300
-    Color(0xFFE57373), // red 300
-  ];
+  final Map<String, int> _mfpColorMap = {};
 
   ProjectDetailCubit(this._db, this.projectId)
       : super(ProjectDetailLoading()) {
     load();
   }
 
-  Color getMfpColor(String mfp) {
-    return _mfpColorMap.putIfAbsent(mfp, () {
-      return _palette[_mfpColorMap.length % _palette.length];
-    });
+  int getMfpColorIndex(String mfp) {
+    return _mfpColorMap.putIfAbsent(mfp, () => _mfpColorMap.length);
   }
 
   Future<void> load() async {
@@ -298,9 +268,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       final keys = await _db.getKeysForProject(projectId);
       final spendPaths = await _db.getSpendPathsForProject(projectId);
 
-      // Build color map from keys
+      // Build color index map from keys
       for (final key in keys) {
-        getMfpColor(key.mfp);
+        getMfpColorIndex(key.mfp);
       }
 
       emit(ProjectDetailLoaded(
