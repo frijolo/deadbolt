@@ -10,6 +10,8 @@ import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
+typedef ProjectExportData = ({String jsonString, String fileName});
+
 // --- States ---
 
 sealed class ProjectListState {}
@@ -129,6 +131,42 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     } catch (e, stackTrace) {
       _logError('ProjectListCubit.createEmptyProject()', e, stackTrace);
       rethrow;
+    }
+  }
+
+  Future<ProjectExportData?> buildProjectExportData(int id) async {
+    try {
+      final project = await _db.getProject(id);
+      final keys = await _db.getKeysForProject(id);
+      final paths = await _db.getSpendPathsForProject(id);
+
+      final keyLabels = <String, String>{};
+      for (final key in keys) {
+        if (key.customName != null) keyLabels[key.mfp] = key.customName!;
+      }
+
+      final pathLabels = <String, String>{};
+      for (final path in paths) {
+        if (path.customName != null) {
+          pathLabels[path.rustId.toString()] = path.customName!;
+        }
+      }
+
+      final exportData = ProjectExport(
+        version: 1,
+        exportedAt: DateTime.now(),
+        name: project.name,
+        descriptor: project.descriptor,
+        keyLabels: keyLabels,
+        pathLabels: pathLabels,
+      );
+
+      final fileName =
+          '${project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
+      return (jsonString: exportData.toJsonString(), fileName: fileName);
+    } catch (e, stackTrace) {
+      _logError('ProjectListCubit.buildProjectExportData()', e, stackTrace);
+      return null;
     }
   }
 
