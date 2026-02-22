@@ -105,7 +105,7 @@ class ProjectListScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       message ?? context.l10n.loadingProjects,
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
                     ),
                   ],
                 ),
@@ -117,7 +117,7 @@ class ProjectListScreen extends StatelessWidget {
                     child: Text(
                       l10n.noProjects,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white54),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
                     ),
                   )
                 : ListView.builder(
@@ -152,9 +152,10 @@ class ProjectListScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              _buildBadge(localizedNetworkDisplayName(context, project.network)),
+              _buildBadge(context, localizedNetworkDisplayName(context, project.network)),
               const SizedBox(width: 8),
               _buildBadge(
+                context,
                 localizedWalletTypeName(
                   context,
                   APIWalletType.values.byName(project.walletType),
@@ -168,7 +169,7 @@ class ProjectListScreen extends StatelessWidget {
           children: [
             Text(
               _formatDate(project.updatedAt),
-              style: const TextStyle(fontSize: 12, color: Colors.white38),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(97)),
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
@@ -247,7 +248,7 @@ class ProjectListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBadge(String label) {
+  Widget _buildBadge(BuildContext context, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -257,7 +258,10 @@ class ProjectListScreen extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, color: Colors.white70),
+        style: TextStyle(
+          fontSize: 11,
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+        ),
       ),
     );
   }

@@ -23,6 +23,7 @@ class KeyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -46,8 +47,8 @@ class KeyCard extends StatelessWidget {
                             ? FontWeight.w600
                             : FontWeight.normal,
                         color: keyData.customName != null
-                            ? Colors.white
-                            : Colors.white38,
+                            ? cs.onSurface
+                            : cs.onSurface.withAlpha(97),
                         fontStyle: keyData.customName != null
                             ? FontStyle.normal
                             : FontStyle.italic,
@@ -57,7 +58,7 @@ class KeyCard extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.ios_share, size: 16),
-                  color: Colors.white38,
+                  color: cs.onSurface.withAlpha(97),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   tooltip: l10n.copyKeyspecTooltip,
@@ -80,9 +81,9 @@ class KeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.pathPrefix,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white38,
+                    color: cs.onSurface.withAlpha(97),
                   ),
                 ),
                 Expanded(
@@ -94,7 +95,7 @@ class KeyCard extends StatelessWidget {
                       fontSize: 12,
                       color: keyData.derivationPath.isEmpty
                           ? Colors.orange
-                          : Colors.white70,
+                          : cs.onSurface.withAlpha(178),
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -107,17 +108,17 @@ class KeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.xpubPrefix,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white38,
+                    color: cs.onSurface.withAlpha(97),
                   ),
                 ),
                 Expanded(
                   child: Text(
                     keyData.xpub,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white54,
+                      color: cs.onSurface.withAlpha(138),
                       fontFamily: 'monospace',
                     ),
                     overflow: TextOverflow.ellipsis,

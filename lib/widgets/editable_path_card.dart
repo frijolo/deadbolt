@@ -112,6 +112,7 @@ class EditablePathCard extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     final canBeKeyPath = path.canBeKeyPath;
     final showKeyPathBadge = isTaproot && canBeKeyPath;
 
@@ -141,8 +142,8 @@ class EditablePathCard extends StatelessWidget {
                     ? FontWeight.w600
                     : FontWeight.normal,
                 color: path.customName != null
-                    ? Colors.white
-                    : Colors.white38,
+                    ? cs.onSurface
+                    : cs.onSurface.withAlpha(97),
                 fontStyle: path.customName != null
                     ? FontStyle.normal
                     : FontStyle.italic,
@@ -168,7 +169,7 @@ class EditablePathCard extends StatelessWidget {
                   border: Border.all(
                     color: path.isKeyPath
                         ? Colors.blue.withAlpha(100)
-                        : Colors.white24,
+                        : cs.onSurface.withAlpha(61),
                   ),
                 ),
                 child: Row(
@@ -177,7 +178,7 @@ class EditablePathCard extends StatelessWidget {
                     Icon(
                       Icons.key,
                       size: 10,
-                      color: path.isKeyPath ? Colors.blue : Colors.white38,
+                      color: path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97),
                     ),
                     const SizedBox(width: 3),
                     Text(
@@ -185,7 +186,7 @@ class EditablePathCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
-                        color: path.isKeyPath ? Colors.blue : Colors.white38,
+                        color: path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97),
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -223,7 +224,7 @@ class EditablePathCard extends StatelessWidget {
       children: [
         Text(
           l10n.keysLabel,
-          style: const TextStyle(fontSize: 11, color: Colors.white54),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -232,6 +233,7 @@ class EditablePathCard extends StatelessWidget {
           children: [
             for (var mfp in path.mfps)
               _buildRemovableMfpBadge(
+                context,
                 _getKeyLabel(mfp),
                 mfpColorProvider(mfp),
                 mfp,
@@ -243,7 +245,8 @@ class EditablePathCard extends StatelessWidget {
     );
   }
 
-  Widget _buildRemovableMfpBadge(String label, Color color, String mfp) {
+  Widget _buildRemovableMfpBadge(BuildContext context, String label, Color color, String mfp) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2, right: 2),
       decoration: BoxDecoration(
@@ -257,7 +260,7 @@ class EditablePathCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withAlpha(230),
+              color: cs.onSurface.withAlpha(210),
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
@@ -316,9 +319,9 @@ class EditablePathCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       k.customName!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white54,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
                       ),
                     ),
                   ],
@@ -383,7 +386,7 @@ class EditablePathCard extends StatelessWidget {
       children: [
         Text(
           l10n.thresholdLabel,
-          style: const TextStyle(fontSize: 11, color: Colors.white54),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
         ),
         const SizedBox(width: 12),
         PopupMenuButton<int>(
@@ -409,7 +412,7 @@ class EditablePathCard extends StatelessWidget {
               children: [
                 Text(
                   '$currentThreshold',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
                 ),
                 const SizedBox(width: 4),
                 const Icon(Icons.edit, size: 12, color: Colors.orange),
@@ -420,7 +423,7 @@ class EditablePathCard extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           l10n.ofCount(path.mfps.length),
-          style: const TextStyle(fontSize: 12, color: Colors.white70),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
         ),
       ],
     );
@@ -452,16 +455,17 @@ class EditablePathCard extends StatelessWidget {
       );
     }
 
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => _showTimelockDialog(context),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: hasTimelock ? Colors.orange.withAlpha(32) : Colors.white10,
+          color: hasTimelock ? Colors.orange.withAlpha(32) : cs.onSurface.withAlpha(26),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasTimelock ? Colors.orange.withAlpha(64) : Colors.white24,
+            color: hasTimelock ? Colors.orange.withAlpha(64) : cs.onSurface.withAlpha(61),
             width: 1,
           ),
         ),
@@ -469,18 +473,18 @@ class EditablePathCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(timelockIcon, size: 14,
-                color: hasTimelock ? Colors.orange : Colors.white54),
+                color: hasTimelock ? Colors.orange : cs.onSurface.withAlpha(138)),
             const SizedBox(width: 4),
             Text(
               timelockText,
               style: TextStyle(
                 fontSize: 11,
-                color: hasTimelock ? Colors.white : Colors.white54,
+                color: hasTimelock ? cs.onSurface : cs.onSurface.withAlpha(138),
               ),
             ),
             const SizedBox(width: 4),
             Icon(Icons.edit, size: 12,
-                color: hasTimelock ? Colors.orange.withAlpha(180) : Colors.white38),
+                color: hasTimelock ? Colors.orange.withAlpha(180) : cs.onSurface.withAlpha(97)),
           ],
         ),
       ),
@@ -501,30 +505,35 @@ class EditablePathCard extends StatelessWidget {
         maxOption + 1,
         (i) => PopupMenuItem(value: i, child: Text('$i')),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: active ? Colors.orange.withAlpha(32) : Colors.white10,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: active ? Colors.orange.withAlpha(64) : Colors.white24,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.priorityBadge(p),
-              style: TextStyle(
-                fontSize: 12,
-                color: active ? Colors.white70 : Colors.white38,
+      child: Builder(
+        builder: (context) {
+          final cs = Theme.of(context).colorScheme;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: active ? Colors.orange.withAlpha(32) : cs.onSurface.withAlpha(26),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: active ? Colors.orange.withAlpha(64) : cs.onSurface.withAlpha(61),
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(Icons.edit, size: 12,
-                color: active ? Colors.orange : Colors.white38),
-          ],
-        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.priorityBadge(p),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: active ? cs.onSurface.withAlpha(178) : cs.onSurface.withAlpha(97),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.edit, size: 12,
+                    color: active ? Colors.orange : cs.onSurface.withAlpha(97)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -678,6 +687,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     final validationError = _getValidationError(context);
 
     return AlertDialog(
@@ -802,7 +812,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: validationError != null ? Colors.red : Colors.white24),
+                      border: Border.all(color: validationError != null ? Colors.red : cs.onSurface.withAlpha(61)),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -815,7 +825,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                                 ? _formatDateTime(_absValue)
                                 : l10n.selectDateAndTime,
                             style: TextStyle(
-                              color: _absValue > 0 ? Colors.white : Colors.white54,
+                              color: _absValue > 0 ? cs.onSurface : cs.onSurface.withAlpha(138),
                             ),
                           ),
                         ),
@@ -929,7 +939,7 @@ class _TimelockDialogState extends State<_TimelockDialog> {
                                     _absType,
                                     _absValue)
                                 : l10n.noTimelock),
-                        style: const TextStyle(fontSize: 13, color: Colors.white),
+                        style: TextStyle(fontSize: 13, color: cs.onSurface),
                       ),
                     ),
                   ],
