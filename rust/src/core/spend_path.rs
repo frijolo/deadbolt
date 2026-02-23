@@ -727,6 +727,7 @@ impl WeightCalc {
         }
 
         // Taproot ScriptPath
+        let threshold = spb.get_threshold()?;
         for (leaf_script, leaf_ver) in input.tap_scripts.values() {
             let leaf_hash = TapLeafHash::from_script(leaf_script, *leaf_ver);
 
@@ -737,14 +738,22 @@ impl WeightCalc {
                 .map(|(_, (_, (mfp, _)))| mfp.to_string())
                 .collect();
 
-            // Only sign leaf that matches 100% with policy mfps
-            if spb.mfps == leaf_mfps {
-                for (x_only_pk, (hashes, _)) in &input.tap_key_origins {
-                    if hashes.contains(&leaf_hash) {
-                        input
-                            .tap_script_sigs
-                            .insert((*x_only_pk, leaf_hash), dummy_schnorr);
-                    }
+            // Primary filter: MFP set must match.
+            if spb.mfps != leaf_mfps {
+                continue;
+            }
+
+            // Sign exactly threshold-many keys from available_mfp.
+            let mut signed = 0;
+            for (x_only_pk, (hashes, (mfp, _))) in &input.tap_key_origins {
+                if hashes.contains(&leaf_hash)
+                    && available_mfp.contains(&mfp.to_string())
+                    && signed < threshold
+                {
+                    input
+                        .tap_script_sigs
+                        .insert((*x_only_pk, leaf_hash), dummy_schnorr);
+                    signed += 1;
                 }
             }
         }
