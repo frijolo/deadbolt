@@ -9,6 +9,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -336,13 +337,41 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   Future<void> _showImportDialog(BuildContext context) async {
+    final l10n = context.l10n;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.file_download_outlined),
+              title: Text(l10n.importFromFile),
+              onTap: () {
+                Navigator.pop(ctx);
+                _importFromFile(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner),
+              title: Text(l10n.scanQrCode),
+              onTap: () {
+                Navigator.pop(ctx);
+                _importFromQr(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importFromFile(BuildContext context) async {
     try {
-      // Get references before async gap
       final cubit = context.read<ProjectListCubit>();
       final db = context.read<AppDatabase>();
       final l10n = context.l10n;
 
-      // Pick file
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
@@ -360,14 +389,39 @@ class ProjectListScreen extends StatelessWidget {
       }
 
       final jsonString = String.fromCharCodes(file.bytes!);
-
-      // Import project
       final projectId = await cubit.importProject(jsonString);
 
       if (context.mounted) {
         showSuccessToast(context, l10n.projectImportedSuccess);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProjectDetailScreen(
+              db: db,
+              projectId: projectId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showErrorToast(context, context.l10n.importFailed(formatRustError(e)));
+      }
+    }
+  }
 
-        // Navigate to imported project
+  Future<void> _importFromQr(BuildContext context) async {
+    try {
+      final cubit = context.read<ProjectListCubit>();
+      final db = context.read<AppDatabase>();
+
+      final jsonString = await QrScannerScreen.push(context);
+      if (jsonString == null || jsonString.isEmpty) return;
+
+      final projectId = await cubit.importProject(jsonString);
+
+      if (context.mounted) {
+        showSuccessToast(context, context.l10n.projectImportedSuccess);
         Navigator.push(
           context,
           MaterialPageRoute(

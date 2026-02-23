@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 /// Shows a bottom sheet with export options (clipboard, save-as, share).
 /// Works the same from the project list and project detail screens.
@@ -34,6 +35,14 @@ void showProjectExportSheet(
               Navigator.pop(ctx);
               Clipboard.setData(ClipboardData(text: jsonString));
               showSuccessToast(context, l10n.copiedToClipboard);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.qr_code),
+            title: Text(l10n.showQrCode),
+            onTap: () {
+              Navigator.pop(ctx);
+              showQrDialog(context, jsonString);
             },
           ),
           if (!kIsWeb &&

@@ -26,6 +26,7 @@
     }
   },
   "deleteProjectTooltip": "Delete project",
+  "importFromFile": "Import from file",
   "couldNotReadFile": "Could not read file",
   "projectImportedSuccess": "Project imported successfully",
   "importFailed": "Import failed: {error}",
