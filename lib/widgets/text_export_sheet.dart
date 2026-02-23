@@ -71,7 +71,7 @@ void showTextExportSheet(
             title: Text(l10n.showQrCode),
             onTap: () {
               Navigator.pop(ctx);
-              _showQrDialog(context, text);
+              showQrDialog(context, text);
             },
           ),
           if (!_isMobileExport)
@@ -102,7 +102,7 @@ void showTextExportSheet(
 // Private helpers
 // ---------------------------------------------------------------------------
 
-void _showQrDialog(BuildContext context, String data) {
+void showQrDialog(BuildContext context, String data) {
   showDialog<void>(
     context: context,
     builder: (ctx) => _QrDialog(data: data),

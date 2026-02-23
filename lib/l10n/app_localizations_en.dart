@@ -65,6 +65,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteProjectTooltip => 'Delete project';
 
   @override
+  String get importFromFile => 'Import from file';
+
+  @override
   String get couldNotReadFile => 'Could not read file';
 
   @override

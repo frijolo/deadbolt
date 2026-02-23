@@ -206,6 +206,12 @@ abstract class AppLocalizations {
   /// **'Delete project'**
   String get deleteProjectTooltip;
 
+  /// No description provided for @importFromFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from file'**
+  String get importFromFile;
+
   /// No description provided for @couldNotReadFile.
   ///
   /// In en, this message translates to:
