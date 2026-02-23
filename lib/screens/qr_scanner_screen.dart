@@ -123,16 +123,13 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   /// Converts an RGB888 camera buffer to a [ui.Image] for display.
   ///
-  /// The native plugin outputs true RGB888 (R, G, B order).  V4L2 / MJPEG
-  /// streams are often stored bottom-up, so rows are flipped vertically here
-  /// to produce the correct on-screen orientation.
+  /// The native plugin outputs true RGB888 (R, G, B order), top-down.
   Future<ui.Image> _rgbToUiImage(int w, int h, Uint8List rgb) async {
     final rgba = Uint8List(w * h * 4);
     for (var row = 0; row < h; row++) {
-      final srcRow = h - 1 - row; // vertical flip
       for (var col = 0; col < w; col++) {
         final dst = (row * w + col) * 4;
-        final src = (srcRow * w + col) * 3;
+        final src = (row * w + col) * 3;
         rgba[dst] = rgb[src]; // R
         rgba[dst + 1] = rgb[src + 1]; // G
         rgba[dst + 2] = rgb[src + 2]; // B
