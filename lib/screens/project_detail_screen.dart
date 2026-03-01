@@ -19,6 +19,9 @@ import 'package:deadbolt/widgets/path_card.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
+/// Pattern for parsing keyspec format: [mfp/path]xpub
+final _keyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
+
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
   final int projectId;
@@ -469,8 +472,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
                   }
 
                   // Parse keyspec format: [mfp/path]xpub
-                  final match = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$')
-                      .firstMatch(keyspec);
+                  final match = _keyspecPattern.firstMatch(keyspec);
 
                   if (match == null) {
                     setDialogState(() => errorText = l10n.invalidKeyspecFormat);

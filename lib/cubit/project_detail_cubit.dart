@@ -10,6 +10,9 @@ import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
+/// Characters not allowed in export file names.
+final _invalidFileNameCharsRegex = RegExp(r'[^\w\s-]');
+
 // --- Editable models ---
 
 class EditableKey {
@@ -1008,7 +1011,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     );
 
     final fileName =
-        '${s.project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
+        '${s.project.name.replaceAll(_invalidFileNameCharsRegex, '_')}.deadbolt.json';
     return (jsonString: exportData.toJsonString(), fileName: fileName);
   }
 }

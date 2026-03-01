@@ -12,6 +12,9 @@ import 'package:deadbolt/src/rust/api/model.dart';
 
 typedef ProjectExportData = ({String jsonString, String fileName});
 
+/// Characters not allowed in export file names.
+final _invalidFileNameCharsRegex = RegExp(r'[^\w\s-]');
+
 // --- States ---
 
 sealed class ProjectListState {}
@@ -134,7 +137,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     }
   }
 
-  Future<ProjectExportData?> buildProjectExportData(int id) async {
+  Future<ProjectExportData> buildProjectExportData(int id) async {
     try {
       final project = await _db.getProject(id);
       final keys = await _db.getKeysForProject(id);
@@ -162,11 +165,11 @@ class ProjectListCubit extends Cubit<ProjectListState> {
       );
 
       final fileName =
-          '${project.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.deadbolt.json';
+          '${project.name.replaceAll(_invalidFileNameCharsRegex, '_')}.deadbolt.json';
       return (jsonString: exportData.toJsonString(), fileName: fileName);
     } catch (e, stackTrace) {
       _logError('ProjectListCubit.buildProjectExportData()', e, stackTrace);
-      return null;
+      rethrow;
     }
   }
 
