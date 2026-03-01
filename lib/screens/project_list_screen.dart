@@ -15,6 +15,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 
 class ProjectListScreen extends StatelessWidget {
   const ProjectListScreen({super.key});
@@ -153,14 +154,19 @@ class ProjectListScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              _buildBadge(context, localizedNetworkDisplayName(context, project.network)),
+              MfpBadge(
+                label: localizedNetworkDisplayName(context, project.network),
+                color: Colors.orange,
+                letterSpacing: 0.0,
+              ),
               const SizedBox(width: 8),
-              _buildBadge(
-                context,
-                localizedWalletTypeName(
+              MfpBadge(
+                label: localizedWalletTypeName(
                   context,
                   APIWalletType.values.byName(project.walletType),
                 ),
+                color: Colors.orange,
+                letterSpacing: 0.0,
               ),
             ],
           ),
@@ -249,24 +255,6 @@ class ProjectListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBadge(BuildContext context, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.orange.withAlpha(32),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.orange.withAlpha(64)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
-        ),
-      ),
-    );
-  }
-
   String _formatDate(DateTime dt) {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
@@ -319,21 +307,22 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   Future<void> _exportProject(BuildContext context, Project project) async {
-    final data =
-        await context.read<ProjectListCubit>().buildProjectExportData(project.id);
+    try {
+      final data =
+          await context.read<ProjectListCubit>().buildProjectExportData(project.id);
 
-    if (!context.mounted) return;
-    if (data == null) {
-      showErrorToast(context, context.l10n.exportFailed(''));
-      return;
+      if (!context.mounted) return;
+      showProjectExportSheet(
+        context,
+        jsonString: data.jsonString,
+        fileName: data.fileName,
+        projectName: project.name,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        showErrorToast(context, context.l10n.exportFailed(formatRustError(e)));
+      }
     }
-
-    showProjectExportSheet(
-      context,
-      jsonString: data.jsonString,
-      fileName: data.fileName,
-      projectName: project.name,
-    );
   }
 
   Future<void> _showImportDialog(BuildContext context) async {

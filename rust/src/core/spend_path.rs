@@ -1019,7 +1019,8 @@ fn fingerprint_of(key: &PkOrF) -> Result<String> {
         PkOrF::Fingerprint(fp) => Ok(fp.to_string()),
         PkOrF::Pubkey(pk) => {
             let hash = pk.pubkey_hash();
-            let bytes: [u8; 4] = hash.to_byte_array()[..4].try_into().unwrap();
+            let a = hash.to_byte_array();
+            let bytes: [u8; 4] = [a[0], a[1], a[2], a[3]];
             Ok(bdk_wallet::bitcoin::bip32::Fingerprint::from(bytes).to_string())
         }
         PkOrF::XOnlyPubkey(xpk) => {
@@ -1029,7 +1030,8 @@ fn fingerprint_of(key: &PkOrF) -> Result<String> {
             let pk =
                 PublicKey::from_slice(&compressed).map_err(|_| WalletError::MissingFingerprint)?;
             let hash = pk.pubkey_hash();
-            let bytes: [u8; 4] = hash.to_byte_array()[..4].try_into().unwrap();
+            let a = hash.to_byte_array();
+            let bytes: [u8; 4] = [a[0], a[1], a[2], a[3]];
             Ok(bdk_wallet::bitcoin::bip32::Fingerprint::from(bytes).to_string())
         }
     }

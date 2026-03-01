@@ -222,6 +222,143 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_descriptor_string() {
+        // Completely invalid string
+        let result = analyze_descriptor("not_a_descriptor".to_string());
+        assert!(result.is_err(), "Should fail on invalid descriptor string");
+
+        // Empty string
+        let result = analyze_descriptor(String::new());
+        assert!(result.is_err(), "Should fail on empty descriptor string");
+
+        // Valid prefix but invalid content
+        let result = analyze_descriptor("wsh(garbage_content)".to_string());
+        assert!(result.is_err(), "Should fail on malformed descriptor content");
+
+        // Missing checksum separator (invalid descriptor format)
+        let result = analyze_descriptor("pkh(deadbeef)".to_string());
+        assert!(result.is_err(), "Should fail on invalid pkh content");
+    }
+
+    #[test]
+    fn test_network_key_incompatibility() {
+        // Mainnet descriptor with testnet key (tpub) — should fail
+        let mainnet_wsh_with_tpub = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba/<0;1>/*,[c61af686/48h/0h/0h/2h]tpubDFZd1aJpE1HkahP7DAA6StKP9ZdgNTDM2qiSfpEvsgBYaeFuh53cccWkz6JVHD57g2nFH84kkVRwvabmPGQY68FqfPwHiftnRbbKNwGkagb/<0;1>/*))";
+        let result = analyze_descriptor(mainnet_wsh_with_tpub.to_string());
+        // tpub keys are not valid in mainnet wsh context — BDK should reject this
+        // or our network detection should flag it as testnet and succeed with testnet analysis
+        // Either way, validate_key() would catch incompatibility if validate_key is called
+        // The main thing: this should not panic
+        let _ = result;
+
+        // Testnet key with mainnet descriptor format using xpub (incompatible versions)
+        // validate_key should catch this
+        let result = validate_key(
+            "c449c5c5".to_string(),
+            "48h/0h/0h/2h".to_string(),
+            "tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba".to_string(),
+            APINetwork::Bitcoin, // Mainnet network but testnet key
+        );
+        assert!(
+            result.is_err(),
+            "Should fail when testnet key is used with mainnet network"
+        );
+        assert!(
+            result.unwrap_err().to_string().contains("not compatible"),
+            "Error should mention network incompatibility"
+        );
+    }
+
+    #[test]
+    fn test_validate_key_errors() {
+        // Invalid MFP length (not 8 hex chars)
+        let result = validate_key(
+            "abc".to_string(),
+            "48h/0h/0h/2h".to_string(),
+            "xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn".to_string(),
+            APINetwork::Bitcoin,
+        );
+        assert!(result.is_err(), "Should fail on short MFP");
+        assert!(
+            result.unwrap_err().to_string().contains("8 characters"),
+            "Error should mention 8 character requirement"
+        );
+
+        // Non-hex MFP
+        let result = validate_key(
+            "GGGGGGGG".to_string(),
+            "48h/0h/0h/2h".to_string(),
+            "xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn".to_string(),
+            APINetwork::Bitcoin,
+        );
+        assert!(result.is_err(), "Should fail on non-hex MFP");
+        assert!(
+            result.unwrap_err().to_string().contains("hexadecimal"),
+            "Error should mention hexadecimal"
+        );
+
+        // Invalid xpub (garbage)
+        let result = validate_key(
+            "c449c5c5".to_string(),
+            "48h/0h/0h/2h".to_string(),
+            "not_an_xpub".to_string(),
+            APINetwork::Bitcoin,
+        );
+        assert!(result.is_err(), "Should fail on invalid xpub");
+    }
+
+    #[test]
+    fn test_build_descriptor_policy_failures() {
+        use crate::api::model::{APIAbsoluteTimelock, APIRelativeTimelock, APISpendPathDef};
+
+        // Empty keys list
+        let result = build_descriptor(
+            APIWalletType::P2WSH,
+            vec![],
+            vec![APISpendPathDef {
+                threshold: 1,
+                mfps: vec!["c449c5c5".to_string()],
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
+                is_key_path: false,
+                priority: 0,
+            }],
+        );
+        assert!(result.is_err(), "Should fail with no keys");
+
+        // Empty spend paths list
+        let result = build_descriptor(
+            APIWalletType::P2WSH,
+            vec![crate::api::model::APIPubKey {
+                mfp: "c449c5c5".to_string(),
+                derivation_path: "48h/0h/0h/2h".to_string(),
+                xpub: "xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn".to_string(),
+            }],
+            vec![],
+        );
+        assert!(result.is_err(), "Should fail with no spend paths");
+
+        // MFP referenced in path but not in keys
+        let result = build_descriptor(
+            APIWalletType::P2WSH,
+            vec![crate::api::model::APIPubKey {
+                mfp: "c449c5c5".to_string(),
+                derivation_path: "48h/0h/0h/2h".to_string(),
+                xpub: "xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn".to_string(),
+            }],
+            vec![APISpendPathDef {
+                threshold: 1,
+                mfps: vec!["deadbeef".to_string()], // MFP not in keys
+                rel_timelock: APIRelativeTimelock::from_consensus(0),
+                abs_timelock: APIAbsoluteTimelock::from_consensus(0),
+                is_key_path: false,
+                priority: 0,
+            }],
+        );
+        assert!(result.is_err(), "Should fail when MFP not found in keys");
+    }
+
+    #[test]
     fn test_taproot_without_keypath_roundtrip() -> Result<()> {
         // Descriptor with raw NUMS point (no keypath spend)
         let original_descriptor = "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,{pk([c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*),pk([73c5da0a/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*)})#kvpt6nlf";

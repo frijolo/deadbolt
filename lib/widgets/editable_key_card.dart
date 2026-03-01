@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
-import 'package:deadbolt/widgets/mfp_badge.dart';
-import 'package:deadbolt/widgets/text_export_sheet.dart';
+import 'package:deadbolt/widgets/key_card_base.dart';
 
 class EditableKeyCard extends StatelessWidget {
   final EditableKey keyData;
@@ -35,48 +35,17 @@ class EditableKeyCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // MFP badge + custom name + buttons row
-            Row(
-              children: [
-                MfpBadge(label: keyData.mfp.toUpperCase(), color: mfpColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _showNameDialog(context),
-                    child: Text(
-                      keyData.customName ?? l10n.tapToName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: keyData.customName != null
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        color: keyData.customName != null
-                            ? cs.onSurface
-                            : cs.onSurface.withAlpha(97),
-                        fontStyle: keyData.customName != null
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.ios_share, size: 16),
-                  color: cs.onSurface.withAlpha(97),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: l10n.copyKeyspecTooltip,
-                  onPressed: () {
-                    final keyspec =
-                        '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}';
-                    showTextExportSheet(
-                      context,
-                      text: keyspec,
-                      fileName: 'key_${keyData.mfp}',
-                      copiedMessage: l10n.keyCopied,
-                    );
-                  },
-                ),
+            // MFP badge + custom name + share + delete buttons row
+            KeyCardHeader(
+              mfp: keyData.mfp,
+              mfpColor: mfpColor,
+              customName: keyData.customName,
+              tapToNameLabel: l10n.tapToName,
+              copyKeyspecTooltip: l10n.copyKeyspecTooltip,
+              keyCopiedMessage: l10n.keyCopied,
+              keyspec: '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}',
+              onNameTap: () => _showNameDialog(context),
+              trailingActions: [
                 const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(
@@ -84,8 +53,8 @@ class EditableKeyCard extends StatelessWidget {
                     size: 20,
                   ),
                   color: canDelete
-                      ? Colors.red.withAlpha(180)
-                      : Theme.of(context).colorScheme.onSurface.withAlpha(61),
+                      ? Colors.red.withAlpha(AppAlpha.deleteAction)
+                      : cs.onSurface.withAlpha(AppAlpha.disabled),
                   onPressed: canDelete ? onDelete : null,
                   tooltip: canDelete ? l10n.removeKeyTooltip : l10n.keyInUseTooltip,
                   visualDensity: VisualDensity.compact,
@@ -100,7 +69,7 @@ class EditableKeyCard extends StatelessWidget {
                   l10n.pathPrefix,
                   style: TextStyle(
                     fontSize: 11,
-                    color: cs.onSurface.withAlpha(138),
+                    color: cs.onSurface.withAlpha(AppAlpha.secondary),
                   ),
                 ),
                 Expanded(
@@ -109,7 +78,7 @@ class EditableKeyCard extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      color: cs.onSurface.withAlpha(178),
+                      color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
                     ),
                   ),
                 ),
@@ -123,7 +92,7 @@ class EditableKeyCard extends StatelessWidget {
                   l10n.xpubPrefix,
                   style: TextStyle(
                     fontSize: 11,
-                    color: cs.onSurface.withAlpha(138),
+                    color: cs.onSurface.withAlpha(AppAlpha.secondary),
                   ),
                 ),
                 Expanded(
@@ -132,7 +101,7 @@ class EditableKeyCard extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      color: cs.onSurface.withAlpha(178),
+                      color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
                     ),
                   ),
                 ),

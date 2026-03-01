@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
-import 'package:deadbolt/widgets/mfp_badge.dart';
-import 'package:deadbolt/widgets/text_export_sheet.dart';
+import 'package:deadbolt/widgets/key_card_base.dart';
 
 class KeyCard extends StatelessWidget {
   final ProjectKey keyData;
@@ -32,48 +32,15 @@ class KeyCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // MFP badge + custom name + copy button row
-            Row(
-              children: [
-                MfpBadge(label: keyData.mfp.toUpperCase(), color: mfpColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _showNameDialog(context),
-                    child: Text(
-                      keyData.customName ?? l10n.tapToName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: keyData.customName != null
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        color: keyData.customName != null
-                            ? cs.onSurface
-                            : cs.onSurface.withAlpha(97),
-                        fontStyle: keyData.customName != null
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.ios_share, size: 16),
-                  color: cs.onSurface.withAlpha(97),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: l10n.copyKeyspecTooltip,
-                  onPressed: () {
-                    final keyspec =
-                        '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}';
-                    showTextExportSheet(
-                      context,
-                      text: keyspec,
-                      fileName: 'key_${keyData.mfp}',
-                      copiedMessage: l10n.keyCopied,
-                    );
-                  },
-                ),
-              ],
+            KeyCardHeader(
+              mfp: keyData.mfp,
+              mfpColor: mfpColor,
+              customName: keyData.customName,
+              tapToNameLabel: l10n.tapToName,
+              copyKeyspecTooltip: l10n.copyKeyspecTooltip,
+              keyCopiedMessage: l10n.keyCopied,
+              keyspec: '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}',
+              onNameTap: () => _showNameDialog(context),
             ),
             const SizedBox(height: 8),
             // Derivation path
@@ -83,7 +50,7 @@ class KeyCard extends StatelessWidget {
                   l10n.pathPrefix,
                   style: TextStyle(
                     fontSize: 11,
-                    color: cs.onSurface.withAlpha(97),
+                    color: cs.onSurface.withAlpha(AppAlpha.muted),
                   ),
                 ),
                 Expanded(
@@ -95,7 +62,7 @@ class KeyCard extends StatelessWidget {
                       fontSize: 12,
                       color: keyData.derivationPath.isEmpty
                           ? Colors.orange
-                          : cs.onSurface.withAlpha(178),
+                          : cs.onSurface.withAlpha(AppAlpha.mediumHigh),
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -110,7 +77,7 @@ class KeyCard extends StatelessWidget {
                   l10n.xpubPrefix,
                   style: TextStyle(
                     fontSize: 11,
-                    color: cs.onSurface.withAlpha(97),
+                    color: cs.onSurface.withAlpha(AppAlpha.muted),
                   ),
                 ),
                 Expanded(
@@ -118,7 +85,7 @@ class KeyCard extends StatelessWidget {
                     keyData.xpub,
                     style: TextStyle(
                       fontSize: 11,
-                      color: cs.onSurface.withAlpha(138),
+                      color: cs.onSurface.withAlpha(AppAlpha.secondary),
                       fontFamily: 'monospace',
                     ),
                     overflow: TextOverflow.ellipsis,

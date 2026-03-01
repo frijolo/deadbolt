@@ -2,6 +2,34 @@ import 'package:flutter/material.dart';
 
 enum AppTheme { system, light, dark }
 
+/// Alpha transparency constants for consistent opacity usage across the app.
+/// Values are in the 0–255 range used by [Color.withAlpha].
+abstract class AppAlpha {
+  /// Very subtle background tint (e.g., badge fill). ~12.5% opacity.
+  static const int subtle = 32;
+
+  /// Low-medium border or tint (e.g., badge border). ~25% opacity.
+  static const int mediumLow = 64;
+
+  /// Disabled icon or de-emphasized element. ~24% opacity.
+  static const int disabled = 61;
+
+  /// Muted text or secondary icon. ~38% opacity.
+  static const int muted = 97;
+
+  /// Slightly visible secondary text. ~54% opacity.
+  static const int secondary = 138;
+
+  /// Medium-emphasis text or icon. ~70% opacity.
+  static const int mediumHigh = 178;
+
+  /// High-emphasis badge or strong text. ~82% opacity.
+  static const int high = 210;
+
+  /// Delete/destructive action icon. ~70% opacity (red).
+  static const int deleteAction = 180;
+}
+
 /// Defines key color palettes per brightness, embedded in ThemeData.
 @immutable
 class KeyColorExtension extends ThemeExtension<KeyColorExtension> {
