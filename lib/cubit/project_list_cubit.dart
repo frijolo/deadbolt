@@ -7,7 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/project_export.dart';
-import 'package:deadbolt/src/rust/api/analyzer.dart';
+import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
 typedef ProjectExportData = ({String jsonString, String fileName});
@@ -38,9 +38,12 @@ class ProjectListError extends ProjectListState {
 
 class ProjectListCubit extends Cubit<ProjectListState> {
   final AppDatabase _db;
+  final ProjectDescriptorService _service;
   StreamSubscription<List<Project>>? _subscription;
 
-  ProjectListCubit(this._db) : super(ProjectListLoading()) {
+  ProjectListCubit(this._db, {ProjectDescriptorService? service})
+      : _service = service ?? const ProjectDescriptorService(),
+        super(ProjectListLoading()) {
     _watch();
   }
 
@@ -68,7 +71,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     required String name,
   }) async {
     try {
-      final result = await analyzeDescriptor(descriptor: descriptor.trim());
+      final result = await _service.analyzeDescriptor(descriptor);
 
       final projectId = await _db.insertProject(ProjectsCompanion.insert(
         name: name.isEmpty ? 'Unnamed project' : name,
@@ -189,7 +192,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
       final exportData = ProjectExport.fromJsonString(jsonString);
 
       // Analyze the descriptor
-      final result = await analyzeDescriptor(descriptor: exportData.descriptor.trim());
+      final result = await _service.analyzeDescriptor(exportData.descriptor);
 
       // Create project
       final projectId = await _db.insertProject(ProjectsCompanion.insert(

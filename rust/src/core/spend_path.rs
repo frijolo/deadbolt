@@ -463,7 +463,10 @@ fn walk_key_changes_tr(tr: &Tr<DescriptorPublicKey>, spbs: &mut [SpendPathBuilde
     for (_depth, leaf_ms) in tr.iter_scripts() {
         let leaf_chains: BTreeMap<String, u32> = extract_keys_from_ms(leaf_ms);
         let leaf_mfps: BTreeSet<String> = leaf_chains.keys().cloned().collect();
-        for spb in spbs.iter_mut().filter(|s| s.is_tr_script && s.key_changes.is_empty()) {
+        for spb in spbs
+            .iter_mut()
+            .filter(|s| s.is_tr_script && s.key_changes.is_empty())
+        {
             if spb.mfps == leaf_mfps {
                 spb.key_changes = leaf_chains.clone();
                 break;
@@ -566,7 +569,9 @@ impl SpendPath {
                 // SH(WSH) - extract from inner WSH
                 match wsh.as_inner() {
                     WshInner::SortedMulti(sm) => {
-                        let chains: BTreeMap<String, u32> = sm.pks().iter()
+                        let chains: BTreeMap<String, u32> = sm
+                            .pks()
+                            .iter()
                             .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
                             .collect();
                         for spb in &mut spbs {
@@ -575,7 +580,8 @@ impl SpendPath {
                     }
                     WshInner::Ms(ms) => {
                         for spb in &mut spbs {
-                            spb.key_changes = policy_path_guided_key_changes(&policy, ms, &spb.policy_path);
+                            spb.key_changes =
+                                policy_path_guided_key_changes(&policy, ms, &spb.policy_path);
                         }
                     }
                 }
@@ -586,7 +592,9 @@ impl SpendPath {
                 }
             }
             ShInner::SortedMulti(sm) => {
-                let chains: BTreeMap<String, u32> = sm.pks().iter()
+                let chains: BTreeMap<String, u32> = sm
+                    .pks()
+                    .iter()
                     .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
                     .collect();
                 for spb in &mut spbs {
@@ -614,7 +622,8 @@ impl SpendPath {
             .add_mfp(wpkh.as_inner().master_fingerprint().to_string());
 
         // Extract change index from key
-        if let (Some(mfp), Some(ci)) = (mfp_of_dpk(wpkh.as_inner()), change_of_dpk(wpkh.as_inner())) {
+        if let (Some(mfp), Some(ci)) = (mfp_of_dpk(wpkh.as_inner()), change_of_dpk(wpkh.as_inner()))
+        {
             spb.key_changes.insert(mfp, ci);
         }
 
@@ -640,7 +649,9 @@ impl SpendPath {
         match wsh.as_inner() {
             WshInner::SortedMulti(sm) => {
                 // All keys in sortedmulti belong to single spend path
-                let chains: BTreeMap<String, u32> = sm.pks().iter()
+                let chains: BTreeMap<String, u32> = sm
+                    .pks()
+                    .iter()
                     .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
                     .collect();
                 for spb in &mut spbs {

@@ -115,7 +115,7 @@ class SettingsScreen extends StatelessWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.orange,
+              color: AppAccent.color,
               fontWeight: FontWeight.bold,
             ),
       ),

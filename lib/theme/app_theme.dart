@@ -30,6 +30,12 @@ abstract class AppAlpha {
   static const int deleteAction = 180;
 }
 
+/// Centralized accent color constant. Use this instead of `Colors.orange`
+/// directly in widget files.
+abstract class AppAccent {
+  static const Color color = Colors.orange;
+}
+
 /// Defines key color palettes per brightness, embedded in ThemeData.
 @immutable
 class KeyColorExtension extends ThemeExtension<KeyColorExtension> {
