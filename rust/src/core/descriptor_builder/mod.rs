@@ -1163,7 +1163,12 @@ mod tests {
         assert_eq!(analyzer.wallet_type(), WalletType::P2WSH);
         let paths = analyzer.spend_paths()?;
 
-        assert_eq!(paths.len(), 5, "Expected 5 spend paths, got {}", paths.len());
+        assert_eq!(
+            paths.len(),
+            5,
+            "Expected 5 spend paths, got {}",
+            paths.len()
+        );
 
         // Path 1: 1 of 4 older(61200)
         let path1 = paths

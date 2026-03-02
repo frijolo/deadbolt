@@ -11,6 +11,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
 /// True on Android and iOS — platforms where [share_plus] is the right way to
@@ -255,7 +256,7 @@ class _QrDialogState extends State<_QrDialog> {
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: Colors.orange),
+                  ?.copyWith(color: AppAccent.color),
             ),
         ],
       ),
@@ -287,7 +288,7 @@ class _QrDialogState extends State<_QrDialog> {
             LinearProgressIndicator(
               value: (_seqIndex + 1) / _seqTotal,
               backgroundColor: Colors.white12,
-              color: Colors.orange,
+              color: AppAccent.color,
             ),
           ],
 

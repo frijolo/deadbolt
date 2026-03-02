@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
-import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
 /// Characters not allowed in export file names.
@@ -242,12 +242,14 @@ class ProjectDetailError extends ProjectDetailState {
 
 class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   final AppDatabase _db;
+  final ProjectDescriptorService _service;
   final int projectId;
 
   final Map<String, int> _mfpColorMap = {};
 
-  ProjectDetailCubit(this._db, this.projectId)
-      : super(ProjectDetailLoading()) {
+  ProjectDetailCubit(this._db, this.projectId, {ProjectDescriptorService? service})
+      : _service = service ?? const ProjectDescriptorService(),
+        super(ProjectDetailLoading()) {
     load();
   }
 
@@ -729,32 +731,14 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       final editedPathNames = <int, String?>{};
       final editedPathPriorities = <int, int>{};
       for (final ep in s.editedPaths!) {
-        // Only send the active timelock based on mode
-        final relTimelock = ep.timelockMode == TimelockMode.relative
-            ? APIRelativeTimelock(
-                timelockType: ep.relTimelockType.toRust(),
-                value: ep.relTimelockValue,
-              )
-            : APIRelativeTimelock(
-                timelockType: APIRelativeTimelockType.blocks,
-                value: 0,
-              );
-
-        final absTimelock = ep.timelockMode == TimelockMode.absolute
-            ? APIAbsoluteTimelock(
-                timelockType: ep.absTimelockType.toRust(),
-                value: ep.absTimelockValue,
-              )
-            : APIAbsoluteTimelock(
-                timelockType: APIAbsoluteTimelockType.blocks,
-                value: 0,
-              );
-
-        final rustId = await calculateRustidFromTimelocks(
+        final rustId = await _service.calculateRustidFromTimelocks(
           threshold: ep.threshold,
           mfps: ep.mfps,
-          relTimelock: relTimelock,
-          absTimelock: absTimelock,
+          timelockMode: ep.timelockMode,
+          relType: ep.relTimelockType,
+          relValue: ep.relTimelockValue,
+          absType: ep.absTimelockType,
+          absValue: ep.absTimelockValue,
         );
         if (ep.customName != null) {
           editedPathNames[rustId] = ep.customName;
@@ -816,7 +800,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
           .toList();
 
       // Build new descriptor via Rust (walletType already declared above)
-      final newDescriptor = await buildDescriptor(
+      final newDescriptor = await _service.buildDescriptor(
         walletType: walletType,
         keys: apiKeys,
         spendPaths: apiPaths,
@@ -873,7 +857,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       };
 
       final result =
-          await analyzeDescriptor(descriptor: newDescriptor.trim());
+          await _service.analyzeDescriptor(newDescriptor);
 
       // Create key entries, preserving customName from:
       // 1. Edited key names (priority - includes unsaved edits)

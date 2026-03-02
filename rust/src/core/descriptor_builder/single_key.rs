@@ -3,10 +3,14 @@ use anyhow::Result;
 use crate::core::error::WalletError;
 use crate::core::pubkey::PubKey;
 
-use super::{SpendPathDef, key_with_wildcard, resolve_key};
+use super::{key_with_wildcard, resolve_key, SpendPathDef};
 
 /// Single-key types: pkh(...), wpkh(...)
-pub fn build_single_key(prefix: &str, keys: &[PubKey], spend_paths: &[SpendPathDef]) -> Result<String> {
+pub fn build_single_key(
+    prefix: &str,
+    keys: &[PubKey],
+    spend_paths: &[SpendPathDef],
+) -> Result<String> {
     let sp = &spend_paths[0];
     if sp.threshold != 1 || sp.mfps.len() != 1 {
         return Err(WalletError::BuilderError(format!(

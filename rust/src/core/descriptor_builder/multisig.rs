@@ -9,7 +9,7 @@ use bdk_wallet::miniscript::{Legacy, Segwitv0};
 use crate::core::error::WalletError;
 use crate::core::pubkey::PubKey;
 
-use super::{SpendPathDef, key_with_derivation, parse_dpk, resolve_key, resolve_key_strings};
+use super::{key_with_derivation, parse_dpk, resolve_key, resolve_key_strings, SpendPathDef};
 
 /// Check if spend paths represent a simple multisig (1 path, no timelocks)
 pub fn is_simple_multisig(spend_paths: &[SpendPathDef]) -> bool {
@@ -150,8 +150,7 @@ pub fn build_path_policy(
     }
 
     if conditions.len() == 1 {
-        Ok(Arc::try_unwrap(conditions.remove(0))
-            .unwrap_or_else(|arc| (*arc).clone()))
+        Ok(Arc::try_unwrap(conditions.remove(0)).unwrap_or_else(|arc| (*arc).clone()))
     } else {
         Ok(ConcretePolicy::And(conditions))
     }

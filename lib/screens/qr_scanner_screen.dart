@@ -9,6 +9,7 @@ import 'package:flutter_lite_camera/flutter_lite_camera.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/qr_decoder.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
@@ -229,7 +230,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             child: LinearProgressIndicator(
               value: _progress,
               backgroundColor: Colors.black45,
-              color: Colors.orange,
+              color: AppAccent.color,
               minHeight: 6,
             ),
           ),
@@ -258,7 +259,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             child: LinearProgressIndicator(
               value: _progress,
               backgroundColor: Colors.black45,
-              color: Colors.orange,
+              color: AppAccent.color,
               minHeight: 6,
             ),
           ),

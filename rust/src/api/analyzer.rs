@@ -233,7 +233,10 @@ mod tests {
 
         // Valid prefix but invalid content
         let result = analyze_descriptor("wsh(garbage_content)".to_string());
-        assert!(result.is_err(), "Should fail on malformed descriptor content");
+        assert!(
+            result.is_err(),
+            "Should fail on malformed descriptor content"
+        );
 
         // Missing checksum separator (invalid descriptor format)
         let result = analyze_descriptor("pkh(deadbeef)".to_string());

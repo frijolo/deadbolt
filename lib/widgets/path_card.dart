@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
@@ -29,8 +30,8 @@ class PathCard extends StatelessWidget {
       (jsonDecode(path.mfps) as List).cast<String>();
 
   String _getKeyLabel(String mfp) {
-    final key = keys.firstWhere((k) => k.mfp == mfp, orElse: () => keys.first);
-    return key.customName ?? mfp.toUpperCase();
+    final key = keys.where((k) => k.mfp == mfp).firstOrNull;
+    return key?.customName ?? mfp.toUpperCase();
   }
 
   @override
@@ -54,10 +55,10 @@ class PathCard extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor: Colors.orange.withAlpha(32),
+          backgroundColor: AppAccent.color.withAlpha(32),
           child: Icon(
             mfps.length == 1 ? Icons.key : Icons.diversity_3,
-            color: Colors.orange,
+            color: AppAccent.color,
             size: 20,
           ),
         ),
@@ -67,8 +68,8 @@ class PathCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(64),
-                border: Border.all(color: Colors.orange, width: 1),
+                color: AppAccent.color.withAlpha(64),
+                border: Border.all(color: AppAccent.color, width: 1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -129,9 +130,9 @@ class PathCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withAlpha(24),
+                        color: AppAccent.color.withAlpha(24),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.orange.withAlpha(80)),
+                        border: Border.all(color: AppAccent.color.withAlpha(80)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -139,7 +140,7 @@ class PathCard extends StatelessWidget {
                           Icon(
                             hasRelTimelock ? Icons.update : Icons.event_available,
                             size: 10,
-                            color: Colors.orange,
+                            color: AppAccent.color,
                           ),
                           const SizedBox(width: 3),
                           Text(
@@ -155,7 +156,7 @@ class PathCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
-                              color: Colors.orange,
+                              color: AppAccent.color,
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -212,7 +213,7 @@ class PathCard extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            const Icon(Icons.payments_outlined, size: 14, color: Colors.orange),
+            const Icon(Icons.payments_outlined, size: 14, color: AppAccent.color),
             const SizedBox(width: 4),
             Text(
               "${path.vbSweep.toStringAsFixed(2)} vB",
@@ -225,7 +226,7 @@ class PathCard extends StatelessWidget {
             if (path.trDepth >= 0) ...[
               _buildSeparator(context),
               const Icon(Icons.account_tree_outlined,
-                  size: 14, color: Colors.orange),
+                  size: 14, color: AppAccent.color),
               const SizedBox(width: 4),
               Text(
                 "${path.trDepth}",
@@ -234,7 +235,7 @@ class PathCard extends StatelessWidget {
             ],
             if (path.priority > 0) ...[
               _buildSeparator(context),
-              const Icon(Icons.keyboard_double_arrow_up, size: 14, color: Colors.orange),
+              const Icon(Icons.keyboard_double_arrow_up, size: 14, color: AppAccent.color),
               const SizedBox(width: 2),
               Text(
                 '${path.priority}',

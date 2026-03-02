@@ -61,7 +61,7 @@ class KeyCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       color: keyData.derivationPath.isEmpty
-                          ? Colors.orange
+                          ? AppAccent.color
                           : cs.onSurface.withAlpha(AppAlpha.mediumHigh),
                       fontFamily: 'monospace',
                     ),

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -20,6 +21,9 @@ class AppDatabase extends _$AppDatabase {
     _instance ??= AppDatabase._internal(_openConnection());
     return _instance!;
   }
+
+  @visibleForTesting
+  AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
   int get schemaVersion => 3;

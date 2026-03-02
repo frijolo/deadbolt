@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -156,7 +157,7 @@ class ProjectListScreen extends StatelessWidget {
             children: [
               MfpBadge(
                 label: localizedNetworkDisplayName(context, project.network),
-                color: Colors.orange,
+                color: AppAccent.color,
                 letterSpacing: 0.0,
               ),
               const SizedBox(width: 8),
@@ -165,7 +166,7 @@ class ProjectListScreen extends StatelessWidget {
                   context,
                   APIWalletType.values.byName(project.walletType),
                 ),
-                color: Colors.orange,
+                color: AppAccent.color,
                 letterSpacing: 0.0,
               ),
             ],

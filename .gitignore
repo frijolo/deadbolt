@@ -62,6 +62,10 @@ CLAUDE.md
 .claude/
 *.jsonl
 
+# Aider
+.aider*
+.aider.tags.cache.v4/
+
 # GPG / Security
 *.key
 *.gpg

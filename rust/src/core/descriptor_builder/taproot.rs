@@ -7,8 +7,8 @@ use bdk_wallet::miniscript::Descriptor;
 use crate::core::error::WalletError;
 use crate::core::pubkey::PubKey;
 
-use super::{SpendPathDef, key_with_derivation, resolve_key};
 use super::multisig::build_path_policy;
+use super::{key_with_derivation, resolve_key, SpendPathDef};
 
 /// tr(internal_key, {leaves...})
 /// If a spend path is marked as key-path (singlesig, no timelocks), use it as internal key.

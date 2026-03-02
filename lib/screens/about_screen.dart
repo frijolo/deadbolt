@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -79,7 +80,7 @@ class AboutScreen extends StatelessWidget {
                           l10n.versionLabel,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.orange,
+                                color: AppAccent.color,
                               ),
                         ),
                         Text(
@@ -160,7 +161,7 @@ class AboutScreen extends StatelessWidget {
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    color: AppAccent.color,
                   ),
             ),
             const SizedBox(height: 12),
@@ -219,13 +220,13 @@ class AboutScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              Icon(icon, size: 18, color: Colors.orange),
+              Icon(icon, size: 18, color: AppAccent.color),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
                   style: const TextStyle(
-                    color: Colors.orange,
+                    color: AppAccent.color,
                     fontSize: 14,
                   ),
                 ),
