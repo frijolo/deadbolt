@@ -16,8 +16,7 @@ static XPUB_REGEX: OnceLock<Regex> = OnceLock::new();
 /// Returns a compiled regex for matching xpub-like prefixes, compiled once.
 fn xpub_regex() -> &'static Regex {
     XPUB_REGEX.get_or_init(|| {
-        Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b")
-            .expect("xpub regex is valid")
+        Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b").expect("xpub regex is valid")
     })
 }
 
