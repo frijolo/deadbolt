@@ -1,0 +1,2 @@
+ignore:
+  - "rust/src/frb_generated.rs"
