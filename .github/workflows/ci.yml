@@ -15,11 +15,16 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
 
       - name: cargo fmt
         working-directory: rust
@@ -29,9 +34,20 @@ jobs:
         working-directory: rust
         run: cargo clippy --all-features -- -D warnings
 
-      - name: cargo test
+      - name: cargo test (with coverage)
         working-directory: rust
-        run: cargo test --all-features
+        run: cargo llvm-cov --all-features --lcov --output-path lcov.info
+
+      - name: Show Rust coverage summary
+        working-directory: rust
+        run: cargo llvm-cov report --summary-only
+
+      - name: Upload Rust coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: rust/lcov.info
+          retention-days: 7
 
   flutter:
     name: Flutter
@@ -46,7 +62,7 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libjpeg-dev
+            libjpeg-dev lcov
 
       - uses: subosito/flutter-action@v2
         with:
@@ -69,8 +85,26 @@ jobs:
       - name: flutter analyze
         run: flutter analyze
 
-      - name: flutter test
-        run: flutter test
+      - name: flutter test (with coverage)
+        run: flutter test --coverage
+
+      - name: Filter generated files from coverage
+        run: |
+          lcov --remove coverage/lcov.info \
+            'lib/src/rust/*' \
+            'lib/l10n/*' \
+            -o coverage/lcov.info \
+            --ignore-errors unused
+
+      - name: Show Flutter coverage summary
+        run: lcov --summary coverage/lcov.info
+
+      - name: Upload Flutter coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-coverage
+          path: coverage/lcov.info
+          retention-days: 7
 
       - name: flutter build linux
         run: flutter build linux --release
