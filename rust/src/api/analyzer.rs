@@ -151,7 +151,7 @@ pub fn validate_key(
         };
         return Err(anyhow::anyhow!(
             "Key is not compatible with {} network. Expected {}",
-            network_display_name(core_network),
+            APINetwork::from(core_network).display_name(),
             expected_prefix
         ));
     }
@@ -159,16 +159,6 @@ pub fn validate_key(
     Ok(())
 }
 
-fn network_display_name(network: bdk_wallet::bitcoin::Network) -> &'static str {
-    use bdk_wallet::bitcoin::Network;
-    match network {
-        Network::Bitcoin => "mainnet",
-        Network::Testnet => "testnet",
-        Network::Testnet4 => "testnet4",
-        Network::Signet => "signet",
-        Network::Regtest => "regtest",
-    }
-}
 
 #[frb(init)]
 pub fn init_app() {

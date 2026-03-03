@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use anyhow::Result;
 use bdk_wallet::bitcoin::Network;
 use bdk_wallet::keys::DescriptorPublicKey;
@@ -8,6 +10,16 @@ use regex::Regex;
 
 use crate::core::error::WalletError;
 use crate::core::wallet::WalletType;
+
+static XPUB_REGEX: OnceLock<Regex> = OnceLock::new();
+
+/// Returns a compiled regex for matching xpub-like prefixes, compiled once.
+fn xpub_regex() -> &'static Regex {
+    XPUB_REGEX.get_or_init(|| {
+        Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b")
+            .expect("xpub regex is valid")
+    })
+}
 
 /// Lightweight descriptor parser that works without creating wallets
 pub struct DescriptorParser {
@@ -40,9 +52,8 @@ impl DescriptorParser {
     /// This avoids creating up to 5 temporary wallets like the old approach.
     /// Falls back to wallet creation only if ambiguous.
     pub fn detect_network(&self) -> Result<Network> {
-        // Extract all xpub-like prefixes from descriptor
-        let re = Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b")
-            .map_err(|_| WalletError::NetworkDetectionFailed)?;
+        // Extract all xpub-like prefixes from descriptor (regex compiled once via OnceLock)
+        let re = xpub_regex();
 
         let mainnet_prefixes = ["xpub", "ypub", "zpub"];
         let testnet_prefixes = ["tpub", "upub", "vpub"];

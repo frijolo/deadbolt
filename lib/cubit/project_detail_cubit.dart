@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
@@ -10,162 +11,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
+// Re-export editable models so existing imports of this file keep working.
+export 'package:deadbolt/models/editable_models.dart';
+
 /// Characters not allowed in export file names.
 final _invalidFileNameCharsRegex = RegExp(r'[^\w\s-]');
-
-// --- Editable models ---
-
-class EditableKey {
-  int? originalDbId;
-  String mfp;
-  String derivationPath;
-  String xpub;
-  String? customName;
-
-  EditableKey({
-    this.originalDbId,
-    required this.mfp,
-    required this.derivationPath,
-    required this.xpub,
-    this.customName,
-  });
-
-  EditableKey copyWith({
-    String? mfp,
-    String? derivationPath,
-    String? xpub,
-    String? customName,
-  }) {
-    return EditableKey(
-      originalDbId: originalDbId,
-      mfp: mfp ?? this.mfp,
-      derivationPath: derivationPath ?? this.derivationPath,
-      xpub: xpub ?? this.xpub,
-      customName: customName ?? this.customName,
-    );
-  }
-
-  static EditableKey fromDb(ProjectKey key) {
-    return EditableKey(
-      originalDbId: key.id,
-      mfp: key.mfp,
-      derivationPath: key.derivationPath,
-      xpub: key.xpub,
-      customName: key.customName,
-    );
-  }
-
-  ProjectKey toProjectKey(int projectId) {
-    return ProjectKey(
-      id: originalDbId ?? 0,
-      projectId: projectId,
-      mfp: mfp,
-      derivationPath: derivationPath,
-      xpub: xpub,
-      customName: customName,
-    );
-  }
-}
-
-class EditableSpendPath {
-  int? originalDbId;
-  int threshold;
-  List<String> mfps;
-
-  // Timelock configuration - only one can be active at a time
-  TimelockMode timelockMode;
-
-  // Relative timelock (used when timelockMode = relative)
-  RelativeTimelockType relTimelockType;
-  int relTimelockValue;
-
-  // Absolute timelock (used when timelockMode = absolute)
-  AbsoluteTimelockType absTimelockType;
-  int absTimelockValue;
-
-  String? customName;
-  bool isKeyPath;
-  int priority;
-
-  EditableSpendPath({
-    this.originalDbId,
-    this.threshold = 1,
-    List<String>? mfps,
-    this.timelockMode = TimelockMode.none,
-    this.relTimelockType = RelativeTimelockType.blocks,
-    this.relTimelockValue = 0,
-    this.absTimelockType = AbsoluteTimelockType.blocks,
-    this.absTimelockValue = 0,
-    this.customName,
-    this.isKeyPath = false,
-    this.priority = 0,
-  }) : mfps = mfps ?? [];
-
-  EditableSpendPath copyWith({
-    int? threshold,
-    List<String>? mfps,
-    TimelockMode? timelockMode,
-    RelativeTimelockType? relTimelockType,
-    int? relTimelockValue,
-    AbsoluteTimelockType? absTimelockType,
-    int? absTimelockValue,
-    String? customName,
-    bool? isKeyPath,
-    int? priority,
-  }) {
-    return EditableSpendPath(
-      originalDbId: originalDbId,
-      threshold: threshold ?? this.threshold,
-      mfps: mfps ?? List.of(this.mfps),
-      timelockMode: timelockMode ?? this.timelockMode,
-      relTimelockType: relTimelockType ?? this.relTimelockType,
-      relTimelockValue: relTimelockValue ?? this.relTimelockValue,
-      absTimelockType: absTimelockType ?? this.absTimelockType,
-      absTimelockValue: absTimelockValue ?? this.absTimelockValue,
-      customName: customName ?? this.customName,
-      isKeyPath: isKeyPath ?? this.isKeyPath,
-      priority: priority ?? this.priority,
-    );
-  }
-
-  static EditableSpendPath fromDb(ProjectSpendPath sp) {
-    // Key-path is detected if trDepth == -1 (not a script path)
-    final isKeyPath = sp.trDepth == -1;
-
-    // Detect timelock mode based on values
-    final TimelockMode mode;
-    if (sp.relTimelockValue > 0 && sp.absTimelockValue > 0) {
-      // Both set - prefer relative (shouldn't happen with new UI, but handle legacy data)
-      mode = TimelockMode.relative;
-    } else if (sp.relTimelockValue > 0) {
-      mode = TimelockMode.relative;
-    } else if (sp.absTimelockValue > 0) {
-      mode = TimelockMode.absolute;
-    } else {
-      mode = TimelockMode.none;
-    }
-
-    return EditableSpendPath(
-      originalDbId: sp.id,
-      threshold: sp.threshold,
-      mfps: (jsonDecode(sp.mfps) as List).cast<String>(),
-      timelockMode: mode,
-      relTimelockType: RelativeTimelockType.fromString(sp.relTimelockType),
-      relTimelockValue: sp.relTimelockValue,
-      absTimelockType: AbsoluteTimelockType.fromString(sp.absTimelockType),
-      absTimelockValue: sp.absTimelockValue,
-      customName: sp.customName,
-      isKeyPath: isKeyPath,
-      priority: sp.priority,
-    );
-  }
-
-  /// Check if this path is eligible to be a key-path (singlesig, no timelocks)
-  bool get canBeKeyPath =>
-      threshold == 1 &&
-      mfps.length == 1 &&
-      timelockMode == TimelockMode.none;
-}
 
 // --- States ---
 
@@ -355,97 +205,56 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     ));
   }
 
-  // Assigns [updated] to [paths[index]], clearing isKeyPath if the path is no
-  // longer eligible (e.g. became multisig or gained a timelock).
-  void _updatePathAndCheckKeyPath(
-    List<EditableSpendPath> paths,
+  /// Generic helper: apply [update] to paths[index], auto-clear isKeyPath when
+  /// the updated path is no longer eligible (e.g. became multisig or gained a
+  /// timelock), then emit dirty state.
+  void _updatePath(
     int index,
-    EditableSpendPath updated,
+    EditableSpendPath Function(EditableSpendPath) update,
   ) {
-    if (!updated.canBeKeyPath && updated.isKeyPath) {
-      paths[index] = updated.copyWith(isKeyPath: false);
-    } else {
-      paths[index] = updated;
-    }
-  }
-
-  void updatePathThreshold(int pathIndex, int value) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
-    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(threshold: value));
+    final updated = update(paths[index]);
+    paths[index] = !updated.canBeKeyPath && updated.isKeyPath
+        ? updated.copyWith(isKeyPath: false)
+        : updated;
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
-  void addMfpToPath(int pathIndex, String mfp) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    final newMfps = List.of(paths[pathIndex].mfps)..add(mfp);
-    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(mfps: newMfps));
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathThreshold(int pathIndex, int value) =>
+      _updatePath(pathIndex, (p) => p.copyWith(threshold: value));
 
-  void removeMfpFromPath(int pathIndex, String mfp) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    final newMfps = List.of(paths[pathIndex].mfps)..remove(mfp);
-    paths[pathIndex] = paths[pathIndex].copyWith(mfps: newMfps);
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void addMfpToPath(int pathIndex, String mfp) =>
+      _updatePath(pathIndex, (p) => p.copyWith(mfps: [...p.mfps, mfp]));
 
-  void updatePathTimelockMode(int pathIndex, TimelockMode mode) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(timelockMode: mode));
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void removeMfpFromPath(int pathIndex, String mfp) =>
+      _updatePath(pathIndex, (p) => p.copyWith(mfps: p.mfps.where((m) => m != mfp).toList()));
 
-  void updatePathRelTimelockType(int pathIndex, RelativeTimelockType type) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    paths[pathIndex] = paths[pathIndex].copyWith(relTimelockType: type);
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathTimelockMode(int pathIndex, TimelockMode mode) =>
+      _updatePath(pathIndex, (p) => p.copyWith(timelockMode: mode));
 
-  void updatePathRelTimelockValue(int pathIndex, int value) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(relTimelockValue: value));
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathRelTimelockType(int pathIndex, RelativeTimelockType type) =>
+      _updatePath(pathIndex, (p) => p.copyWith(relTimelockType: type));
 
-  void updatePathAbsTimelockType(int pathIndex, AbsoluteTimelockType type) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    paths[pathIndex] = paths[pathIndex].copyWith(absTimelockType: type);
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathRelTimelockValue(int pathIndex, int value) =>
+      _updatePath(pathIndex, (p) => p.copyWith(relTimelockValue: value));
 
-  void updatePathAbsTimelockValue(int pathIndex, int value) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    _updatePathAndCheckKeyPath(paths, pathIndex, paths[pathIndex].copyWith(absTimelockValue: value));
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathAbsTimelockType(int pathIndex, AbsoluteTimelockType type) =>
+      _updatePath(pathIndex, (p) => p.copyWith(absTimelockType: type));
+
+  void updatePathAbsTimelockValue(int pathIndex, int value) =>
+      _updatePath(pathIndex, (p) => p.copyWith(absTimelockValue: value));
 
   void updatePathIsKeyPath(int pathIndex, bool value) {
     final s = state;
     if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
     final paths = List.of(s.editedPaths!);
 
-    // If marking as key-path, unmark all other paths
+    // If marking as key-path, unmark all other paths first
     if (value) {
       for (int i = 0; i < paths.length; i++) {
-        if (i != pathIndex) {
-          paths[i] = paths[i].copyWith(isKeyPath: false);
-        }
+        if (i != pathIndex) paths[i] = paths[i].copyWith(isKeyPath: false);
       }
     }
 
@@ -453,33 +262,11 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedPaths: paths, isDirty: true));
   }
 
-  void updatePathPriority(int pathIndex, int priority) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    paths[pathIndex] = paths[pathIndex].copyWith(priority: priority.clamp(0, 9));
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathPriority(int pathIndex, int priority) =>
+      _updatePath(pathIndex, (p) => p.copyWith(priority: priority.clamp(0, 9)));
 
-  void updatePathCustomName(int pathIndex, String? customName) {
-    final s = state;
-    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
-    final paths = List.of(s.editedPaths!);
-    final oldPath = paths[pathIndex];
-    paths[pathIndex] = EditableSpendPath(
-      originalDbId: oldPath.originalDbId,
-      threshold: oldPath.threshold,
-      mfps: oldPath.mfps,
-      relTimelockType: oldPath.relTimelockType,
-      relTimelockValue: oldPath.relTimelockValue,
-      absTimelockType: oldPath.absTimelockType,
-      absTimelockValue: oldPath.absTimelockValue,
-      customName: customName,
-      isKeyPath: oldPath.isKeyPath,
-      priority: oldPath.priority,
-    );
-    emit(s.copyWith(editedPaths: paths, isDirty: true));
-  }
+  void updatePathCustomName(int pathIndex, String? customName) =>
+      _updatePath(pathIndex, (p) => p.withCustomName(customName));
 
   /// Update the wallet type in edit mode
   void updateWalletType(APIWalletType walletType) {
@@ -636,13 +423,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       ));
     }
 
-    keys[index] = EditableKey(
-      originalDbId: oldKey.originalDbId,
-      mfp: oldKey.mfp,
-      derivationPath: oldKey.derivationPath,
-      xpub: oldKey.xpub,
-      customName: customName,
-    );
+    keys[index] = oldKey.withCustomName(customName);
     emit(s.copyWith(editedKeys: keys, isDirty: true));
   }
 

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt;
 use std::sync::OnceLock;
 
@@ -148,18 +148,14 @@ impl PubKey {
             return Err(WalletError::BuilderError("No keys provided".into()).into());
         }
 
-        // Collect all pubkeys
-        let mut pubkeys: Vec<Vec<u8>> = Vec::new();
+        // Collect all pubkeys into a BTreeSet (auto-sorted, deduplicated)
+        let mut pubkeys: BTreeSet<Vec<u8>> = BTreeSet::new();
         for key in keys {
             let xpub = key.xpub()?;
-            pubkeys.push(xpub.public_key.serialize().to_vec());
+            pubkeys.insert(xpub.public_key.serialize().to_vec());
         }
 
-        // Sort and deduplicate
-        pubkeys.sort();
-        pubkeys.dedup();
-
-        // Calculate chaincode as SHA256 of concatenated pubkeys
+        // Calculate chaincode as SHA256 of concatenated pubkeys (BTreeSet order is stable)
         let mut hasher = sha256::Hash::engine();
         for pubkey in &pubkeys {
             hasher.input(pubkey);
