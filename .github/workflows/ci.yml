@@ -49,6 +49,13 @@ jobs:
           path: rust/lcov.info
           retention-days: 7
 
+      - name: Upload Rust coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: rust/lcov.info
+          flags: rust
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   flutter:
     name: Flutter
     runs-on: ubuntu-latest
@@ -105,6 +112,13 @@ jobs:
           name: flutter-coverage
           path: coverage/lcov.info
           retention-days: 7
+
+      - name: Upload Flutter coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
+          flags: flutter
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: flutter build linux
         run: flutter build linux --release
