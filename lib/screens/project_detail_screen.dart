@@ -15,6 +15,20 @@ import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/path_card.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
+// ---------------------------------------------------------------------------
+// Helper: resolve a color for an MFP using the cubit index + theme palette.
+// ---------------------------------------------------------------------------
+
+Color _colorForMfp(BuildContext context, ProjectDetailCubit cubit, String mfp) {
+  final ext = Theme.of(context).extension<KeyColorExtension>()!;
+  final idx = cubit.getMfpColorIndex(mfp);
+  return ext.keyColors[idx % ext.keyColors.length];
+}
+
+// ---------------------------------------------------------------------------
+// Screen entry point
+// ---------------------------------------------------------------------------
+
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
   final int projectId;
@@ -112,12 +126,6 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     );
   }
 
-  Color _colorForMfp(BuildContext context, ProjectDetailCubit cubit, String mfp) {
-    final ext = Theme.of(context).extension<KeyColorExtension>()!;
-    final idx = cubit.getMfpColorIndex(mfp);
-    return ext.keyColors[idx % ext.keyColors.length];
-  }
-
   Widget _buildLoaded(BuildContext context, ProjectDetailLoaded state) {
     final l10n = context.l10n;
     final cubit = context.read<ProjectDetailCubit>();
@@ -195,180 +203,22 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Info header with badges (wallet type badge is clickeable in edit mode)
+            // Info header with badges (wallet type badge is clickable in edit mode)
             _buildInfoHeader(context, cubit, state, isEditing: isEditing),
             const SizedBox(height: 8),
-            // Descriptor (expandable) - only in read mode, would be obsolete in edit mode
+            // Descriptor (expandable) — only in read mode
             if (!isEditing) ...[
               _buildDescriptorSection(context, project.descriptor),
               const SizedBox(height: 8),
             ],
             // Keys section
-            _buildKeysSection(context, cubit, state),
-          const SizedBox(height: 8),
-          // Spend paths section
-          _buildSpendPathsSection(context, cubit, state),
+            _KeysSection(state: state, cubit: cubit),
+            const SizedBox(height: 8),
+            // Spend paths section
+            _SpendPathsSection(state: state, cubit: cubit),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildKeysSection(
-    BuildContext context,
-    ProjectDetailCubit cubit,
-    ProjectDetailLoaded state,
-  ) {
-    final l10n = context.l10n;
-    final isEditing = state.isEditing;
-    final displayKeys = isEditing ? state.editedKeys! : state.keys;
-
-    if (!isEditing && displayKeys.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return ExpansionTile(
-        key: const ValueKey('keys_expansion_tile'),
-        title: Text(
-          l10n.keysSection(displayKeys.length),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: isEditing ? AppAccent.color : null,
-              ),
-        ),
-        tilePadding: EdgeInsets.zero,
-        initiallyExpanded: state.keysExpanded,
-        onExpansionChanged: (expanded) => cubit.toggleKeysExpanded(expanded),
-        children: [
-          if (isEditing) ...[
-            // Editable mode: show EditableKeyCard with delete buttons
-            for (final key in state.editedKeys!)
-              _buildEditableKey(context, cubit, state, key),
-            // Add key button
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: OutlinedButton.icon(
-              onPressed: () => showAddKeyDialog(context, cubit),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(l10n.addKeyButton),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppAccent.color,
-                side: BorderSide(color: AppAccent.color.withAlpha(100)),
-              ),
-            ),
-          ),
-        ] else ...[
-          // Read-only mode: show KeyCard
-          for (final key in state.keys)
-            KeyCard(
-              keyData: key,
-              allKeys: state.keys,
-              mfpColor: _colorForMfp(context, cubit, key.mfp),
-              onNameEdit: (name) => cubit.updateKeyName(key.id, name),
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildEditableKey(
-    BuildContext context,
-    ProjectDetailCubit cubit,
-    ProjectDetailLoaded state,
-    EditableKey key,
-  ) {
-    final isInUse = state.editedPaths!.any((path) => path.mfps.contains(key.mfp));
-
-    return EditableKeyCard(
-      keyData: key,
-      allKeys: state.editedKeys!,
-      mfpColor: _colorForMfp(context, cubit, key.mfp),
-      onNameEdit: (name) => cubit.updateKeyCustomName(key.mfp, name),
-      onDelete: () => cubit.removeKey(key.mfp),
-      canDelete: !isInUse,
-    );
-  }
-
-  Widget _buildSpendPathsSection(
-    BuildContext context,
-    ProjectDetailCubit cubit,
-    ProjectDetailLoaded state,
-  ) {
-    final l10n = context.l10n;
-    final isEditing = state.isEditing;
-    final editedPaths = state.editedPaths;
-    final editedKeys = state.editedKeys;
-
-    final pathCount = isEditing ? editedPaths!.length : state.spendPaths.length;
-
-    return ExpansionTile(
-      key: const ValueKey('spend_paths_expansion_tile'),
-      title: Text(
-        l10n.spendPathsSection(pathCount),
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: isEditing ? AppAccent.color : null,
-            ),
-      ),
-      tilePadding: EdgeInsets.zero,
-      initiallyExpanded: state.spendPathsExpanded,
-      onExpansionChanged: (expanded) => cubit.toggleSpendPathsExpanded(expanded),
-      children: [
-        if (isEditing && editedPaths != null && editedKeys != null) ...[
-          for (var i = 0; i < editedPaths.length; i++)
-            EditablePathCard(
-              index: i,
-              path: editedPaths[i],
-              availableKeys: editedKeys
-                  .map((k) => k.toProjectKey(state.project.id))
-                  .toList(),
-              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
-              onThresholdChanged: (v) => cubit.updatePathThreshold(i, v),
-              onMfpAdded: (mfp) => cubit.addMfpToPath(i, mfp),
-              onMfpRemoved: (mfp) => cubit.removeMfpFromPath(i, mfp),
-              onTimelockModeChanged: (m) => cubit.updatePathTimelockMode(i, m),
-              onRelTimelockTypeChanged: (t) =>
-                  cubit.updatePathRelTimelockType(i, t),
-              onRelTimelockValueChanged: (v) =>
-                  cubit.updatePathRelTimelockValue(i, v),
-              onAbsTimelockTypeChanged: (t) =>
-                  cubit.updatePathAbsTimelockType(i, t),
-              onAbsTimelockValueChanged: (v) =>
-                  cubit.updatePathAbsTimelockValue(i, v),
-              onDelete: () => cubit.removeSpendPath(i),
-              onAddNewKey: () => showAddKeyDialog(
-                context,
-                cubit,
-                onKeyAdded: (mfp) => cubit.addMfpToPath(i, mfp),
-              ),
-              isTaproot: (state.editedWalletType ??
-                         APIWalletType.values.byName(state.project.walletType)) ==
-                         APIWalletType.p2Tr,
-              onKeyPathChanged: (v) => cubit.updatePathIsKeyPath(i, v),
-              onNameEdit: (name) => cubit.updatePathCustomName(i, name),
-              onPriorityChanged: (p) => cubit.updatePathPriority(i, p),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: OutlinedButton.icon(
-              onPressed: cubit.addSpendPath,
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(l10n.addSpendPath),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppAccent.color,
-                side: BorderSide(color: AppAccent.color.withAlpha(100)),
-              ),
-            ),
-          ),
-        ] else ...[
-          for (final sp in state.spendPaths)
-            PathCard(
-              path: sp,
-              keys: state.keys,
-              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
-              onNameEdit: (name) => cubit.updateSpendPathName(sp.id, name),
-              isTaproot: state.project.walletType.toUpperCase() == 'P2TR',
-            ),
-        ],
-      ],
     );
   }
 
@@ -543,11 +393,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
 
   void _confirmDiscardEdits(
       BuildContext context, ProjectDetailCubit cubit, ProjectDetailLoaded state) {
-    // Check if there are unsaved changes
-    final hasChanges = state.isDirty;
-
-    // If no changes, just discard
-    if (!hasChanges) {
+    if (!state.isDirty) {
       cubit.discardEdits();
       return;
     }
@@ -589,5 +435,165 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
       projectName: projectName,
     );
   }
+}
 
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
+
+class _KeysSection extends StatelessWidget {
+  final ProjectDetailLoaded state;
+  final ProjectDetailCubit cubit;
+
+  const _KeysSection({required this.state, required this.cubit});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isEditing = state.isEditing;
+    final displayKeys = isEditing ? state.editedKeys! : state.keys;
+
+    if (!isEditing && displayKeys.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ExpansionTile(
+      key: const ValueKey('keys_expansion_tile'),
+      title: Text(
+        l10n.keysSection(displayKeys.length),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: isEditing ? AppAccent.color : null,
+            ),
+      ),
+      tilePadding: EdgeInsets.zero,
+      initiallyExpanded: state.keysExpanded,
+      onExpansionChanged: (expanded) => cubit.toggleKeysExpanded(expanded),
+      children: [
+        if (isEditing) ...[
+          for (final key in state.editedKeys!)
+            _buildEditableKey(context, key),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: OutlinedButton.icon(
+              onPressed: () => showAddKeyDialog(context, cubit),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(l10n.addKeyButton),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppAccent.color,
+                side: BorderSide(color: AppAccent.color.withAlpha(100)),
+              ),
+            ),
+          ),
+        ] else ...[
+          for (final key in state.keys)
+            KeyCard(
+              keyData: key,
+              allKeys: state.keys,
+              mfpColor: _colorForMfp(context, cubit, key.mfp),
+              onNameEdit: (name) => cubit.updateKeyName(key.id, name),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildEditableKey(BuildContext context, EditableKey key) {
+    final isInUse = state.editedPaths!.any((path) => path.mfps.contains(key.mfp));
+    return EditableKeyCard(
+      keyData: key,
+      allKeys: state.editedKeys!,
+      mfpColor: _colorForMfp(context, cubit, key.mfp),
+      onNameEdit: (name) => cubit.updateKeyCustomName(key.mfp, name),
+      onDelete: () => cubit.removeKey(key.mfp),
+      canDelete: !isInUse,
+    );
+  }
+}
+
+class _SpendPathsSection extends StatelessWidget {
+  final ProjectDetailLoaded state;
+  final ProjectDetailCubit cubit;
+
+  const _SpendPathsSection({required this.state, required this.cubit});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isEditing = state.isEditing;
+    final editedPaths = state.editedPaths;
+    final editedKeys = state.editedKeys;
+
+    final pathCount = isEditing ? editedPaths!.length : state.spendPaths.length;
+
+    return ExpansionTile(
+      key: const ValueKey('spend_paths_expansion_tile'),
+      title: Text(
+        l10n.spendPathsSection(pathCount),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: isEditing ? AppAccent.color : null,
+            ),
+      ),
+      tilePadding: EdgeInsets.zero,
+      initiallyExpanded: state.spendPathsExpanded,
+      onExpansionChanged: (expanded) => cubit.toggleSpendPathsExpanded(expanded),
+      children: [
+        if (isEditing && editedPaths != null && editedKeys != null) ...[
+          for (var i = 0; i < editedPaths.length; i++)
+            EditablePathCard(
+              index: i,
+              path: editedPaths[i],
+              availableKeys: editedKeys
+                  .map((k) => k.toProjectKey(state.project.id))
+                  .toList(),
+              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
+              onThresholdChanged: (v) => cubit.updatePathThreshold(i, v),
+              onMfpAdded: (mfp) => cubit.addMfpToPath(i, mfp),
+              onMfpRemoved: (mfp) => cubit.removeMfpFromPath(i, mfp),
+              onTimelockModeChanged: (m) => cubit.updatePathTimelockMode(i, m),
+              onRelTimelockTypeChanged: (t) =>
+                  cubit.updatePathRelTimelockType(i, t),
+              onRelTimelockValueChanged: (v) =>
+                  cubit.updatePathRelTimelockValue(i, v),
+              onAbsTimelockTypeChanged: (t) =>
+                  cubit.updatePathAbsTimelockType(i, t),
+              onAbsTimelockValueChanged: (v) =>
+                  cubit.updatePathAbsTimelockValue(i, v),
+              onDelete: () => cubit.removeSpendPath(i),
+              onAddNewKey: () => showAddKeyDialog(
+                context,
+                cubit,
+                onKeyAdded: (mfp) => cubit.addMfpToPath(i, mfp),
+              ),
+              isTaproot: (state.editedWalletType ??
+                         APIWalletType.values.byName(state.project.walletType)) ==
+                         APIWalletType.p2Tr,
+              onKeyPathChanged: (v) => cubit.updatePathIsKeyPath(i, v),
+              onNameEdit: (name) => cubit.updatePathCustomName(i, name),
+              onPriorityChanged: (p) => cubit.updatePathPriority(i, p),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: OutlinedButton.icon(
+              onPressed: cubit.addSpendPath,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(l10n.addSpendPath),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppAccent.color,
+                side: BorderSide(color: AppAccent.color.withAlpha(100)),
+              ),
+            ),
+          ),
+        ] else ...[
+          for (final sp in state.spendPaths)
+            PathCard(
+              path: sp,
+              keys: state.keys,
+              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
+              onNameEdit: (name) => cubit.updateSpendPathName(sp.id, name),
+              isTaproot: state.project.walletType.toUpperCase() == 'P2TR',
+            ),
+        ],
+      ],
+    );
+  }
 }

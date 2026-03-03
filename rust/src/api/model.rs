@@ -15,6 +15,19 @@ pub enum APINetwork {
     Regtest,
 }
 
+impl APINetwork {
+    /// Human-readable lowercase name for error messages and display.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            APINetwork::Bitcoin => "mainnet",
+            APINetwork::Testnet => "testnet",
+            APINetwork::Testnet4 => "testnet4",
+            APINetwork::Signet => "signet",
+            APINetwork::Regtest => "regtest",
+        }
+    }
+}
+
 impl From<Network> for APINetwork {
     fn from(sp: Network) -> Self {
         match sp {

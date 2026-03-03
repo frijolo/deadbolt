@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
+import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_api;
 import 'package:deadbolt/src/rust/api/model.dart';
 
 typedef ProjectExportData = ({String jsonString, String fileName});
@@ -80,38 +81,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
         walletType: result.walletType.name,
       ));
 
-      final keyEntries = result.keys
-          .map((k) => ProjectKeysCompanion.insert(
-                projectId: projectId,
-                mfp: k.mfp,
-                derivationPath: k.derivationPath,
-                xpub: k.xpub,
-              ))
-          .toList();
-
-      final pathEntries = result.spendPaths
-          .map((sp) => ProjectSpendPathsCompanion.insert(
-                projectId: projectId,
-                rustId: sp.id,
-                threshold: sp.threshold,
-                mfps: jsonEncode(sp.mfps),
-                relTimelockType: Value(sp.relTimelock.timelockType.name),
-                relTimelockValue: Value(sp.relTimelock.value),
-                absTimelockType: Value(sp.absTimelock.timelockType.name),
-                absTimelockValue: Value(sp.absTimelock.value),
-                wuBase: sp.wuBase,
-                wuIn: sp.wuIn,
-                wuOut: sp.wuOut,
-                trDepth: sp.trDepth,
-                vbSweep: sp.vbSweep,
-              ))
-          .toList();
-
-      await _db.batch((batch) {
-        batch.insertAll(_db.projectKeys, keyEntries);
-        batch.insertAll(_db.projectSpendPaths, pathEntries);
-      });
-
+      await _persistAnalysisResults(projectId, result);
       return projectId;
     } catch (e, stackTrace) {
       _logError('ProjectListCubit.createProject()', e, stackTrace);
@@ -188,13 +158,9 @@ class ProjectListCubit extends Cubit<ProjectListState> {
   /// Import project from JSON string
   Future<int> importProject(String jsonString) async {
     try {
-      // Parse export data
       final exportData = ProjectExport.fromJsonString(jsonString);
-
-      // Analyze the descriptor
       final result = await _service.analyzeDescriptor(exportData.descriptor);
 
-      // Create project
       final projectId = await _db.insertProject(ProjectsCompanion.insert(
         name: exportData.name,
         descriptor: result.descriptor,
@@ -202,47 +168,62 @@ class ProjectListCubit extends Cubit<ProjectListState> {
         walletType: result.walletType.name,
       ));
 
-      // Create key entries with labels mapped by MFP
-      final keyEntries = result.keys
-          .map((k) => ProjectKeysCompanion.insert(
-                projectId: projectId,
-                mfp: k.mfp,
-                derivationPath: k.derivationPath,
-                xpub: k.xpub,
-                customName: Value(exportData.keyLabels[k.mfp]),
-              ))
-          .toList();
-
-      // Create path entries with labels mapped by rustId
-      final pathEntries = result.spendPaths
-          .map((sp) => ProjectSpendPathsCompanion.insert(
-                projectId: projectId,
-                rustId: sp.id,
-                threshold: sp.threshold,
-                mfps: jsonEncode(sp.mfps),
-                relTimelockType: Value(sp.relTimelock.timelockType.name),
-                relTimelockValue: Value(sp.relTimelock.value),
-                absTimelockType: Value(sp.absTimelock.timelockType.name),
-                absTimelockValue: Value(sp.absTimelock.value),
-                wuBase: sp.wuBase,
-                wuIn: sp.wuIn,
-                wuOut: sp.wuOut,
-                trDepth: sp.trDepth,
-                vbSweep: sp.vbSweep,
-                customName: Value(exportData.pathLabels[sp.id.toString()]),
-              ))
-          .toList();
-
-      await _db.batch((batch) {
-        batch.insertAll(_db.projectKeys, keyEntries);
-        batch.insertAll(_db.projectSpendPaths, pathEntries);
-      });
-
+      await _persistAnalysisResults(
+        projectId,
+        result,
+        keyLabels: exportData.keyLabels,
+        pathLabels: exportData.pathLabels,
+      );
       return projectId;
     } catch (e, stackTrace) {
       _logError('ProjectListCubit.importProject()', e, stackTrace);
       rethrow;
     }
+  }
+
+  /// Inserts keys and spend paths for [projectId] from [result].
+  ///
+  /// Optional [keyLabels] (MFP → name) and [pathLabels] (rustId.toString() → name)
+  /// are applied when importing existing label data (e.g. from a project export).
+  Future<void> _persistAnalysisResults(
+    int projectId,
+    rust_api.APIAnalysisResult result, {
+    Map<String, String?> keyLabels = const {},
+    Map<String, String?> pathLabels = const {},
+  }) async {
+    final keyEntries = result.keys
+        .map((k) => ProjectKeysCompanion.insert(
+              projectId: projectId,
+              mfp: k.mfp,
+              derivationPath: k.derivationPath,
+              xpub: k.xpub,
+              customName: Value(keyLabels[k.mfp]),
+            ))
+        .toList();
+
+    final pathEntries = result.spendPaths
+        .map((sp) => ProjectSpendPathsCompanion.insert(
+              projectId: projectId,
+              rustId: sp.id,
+              threshold: sp.threshold,
+              mfps: jsonEncode(sp.mfps),
+              relTimelockType: Value(sp.relTimelock.timelockType.name),
+              relTimelockValue: Value(sp.relTimelock.value),
+              absTimelockType: Value(sp.absTimelock.timelockType.name),
+              absTimelockValue: Value(sp.absTimelock.value),
+              wuBase: sp.wuBase,
+              wuIn: sp.wuIn,
+              wuOut: sp.wuOut,
+              trDepth: sp.trDepth,
+              vbSweep: sp.vbSweep,
+              customName: Value(pathLabels[sp.id.toString()]),
+            ))
+        .toList();
+
+    await _db.batch((batch) {
+      batch.insertAll(_db.projectKeys, keyEntries);
+      batch.insertAll(_db.projectSpendPaths, pathEntries);
+    });
   }
 
   @override
