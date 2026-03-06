@@ -1,0 +1,117 @@
+import 'package:deadbolt/src/rust/api/model.dart';
+
+/// Result of checking whether a spend path is available for a given UTXO.
+sealed class SpendPathStatus {}
+
+/// The spend path is fully unlocked.
+class SpendPathUnlocked extends SpendPathStatus {}
+
+/// The UTXO is unconfirmed; relative timelocks require on-chain confirmation.
+class SpendPathNeedsConfirmation extends SpendPathStatus {}
+
+/// Locked by an absolute timelock; [remainingBlocks] > 0 for block-based,
+/// [remainingSeconds] > 0 for timestamp-based (null when the other applies).
+class SpendPathAbsLocked extends SpendPathStatus {
+  final int? remainingBlocks;
+  final int? remainingSeconds;
+  final int unlockAtBlock;   // valid for block-based; 0 otherwise
+  final int unlockAtSeconds; // Unix timestamp; valid for time-based; 0 otherwise
+
+  SpendPathAbsLocked({
+    this.remainingBlocks,
+    this.remainingSeconds,
+    required this.unlockAtBlock,
+    required this.unlockAtSeconds,
+  });
+}
+
+/// Locked by a relative timelock; [remainingBlocks] or [remainingSeconds]
+/// indicates how much longer to wait.
+class SpendPathRelLocked extends SpendPathStatus {
+  final int? remainingBlocks; // null for time-based
+  final int? remainingSeconds; // null for block-based
+
+  SpendPathRelLocked({this.remainingBlocks, this.remainingSeconds});
+}
+
+/// Evaluates whether [path] is spendable for [utxo] at [tipHeight].
+///
+/// [tipHeight] == 0 means the wallet has not been synced yet.
+SpendPathStatus spendPathStatus({
+  required APISpendPath path,
+  required APIUtxo utxo,
+  required int tipHeight,
+}) {
+  final hasAbs = path.absTimelock.value > 0;
+  final hasRel = path.relTimelock.value > 0;
+
+  // No timelocks → always unlocked
+  if (!hasAbs && !hasRel) return SpendPathUnlocked();
+
+  // If wallet has never synced we cannot evaluate timelocks
+  if (tipHeight == 0) {
+    return hasRel
+        ? SpendPathNeedsConfirmation()
+        : SpendPathAbsLocked(
+            remainingBlocks: null,
+            remainingSeconds: null,
+            unlockAtBlock: 0,
+            unlockAtSeconds: 0,
+          );
+  }
+
+  // ── Absolute timelock ──────────────────────────────────────────────────────
+  if (hasAbs) {
+    if (path.absTimelock.timelockType == APIAbsoluteTimelockType.blocks) {
+      final unlock = path.absTimelock.value;
+      if (tipHeight < unlock) {
+        return SpendPathAbsLocked(
+          remainingBlocks: unlock - tipHeight,
+          unlockAtBlock: unlock,
+          unlockAtSeconds: 0,
+        );
+      }
+    } else {
+      // Timestamp-based
+      final unlock = path.absTimelock.value; // Unix seconds
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      if (now < unlock) {
+        return SpendPathAbsLocked(
+          remainingSeconds: unlock - now,
+          unlockAtBlock: 0,
+          unlockAtSeconds: unlock,
+        );
+      }
+    }
+  }
+
+  // ── Relative timelock ──────────────────────────────────────────────────────
+  if (hasRel) {
+    if (!utxo.isConfirmed || utxo.confirmationHeight == null) {
+      return SpendPathNeedsConfirmation();
+    }
+
+    final confirmedAt = utxo.confirmationHeight!.toInt();
+
+    if (path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
+      final required = path.relTimelock.value;
+      final elapsed = tipHeight - confirmedAt;
+      if (elapsed < required) {
+        return SpendPathRelLocked(remainingBlocks: required - elapsed);
+      }
+    } else {
+      // Time-based: value stored in seconds (units × 512)
+      // Approximate remaining blocks: remainingSeconds / 600
+      final requiredSeconds = path.relTimelock.value;
+      // Approximate elapsed seconds via block count × 600s/block
+      final elapsedSeconds = (tipHeight - confirmedAt) * 600;
+      if (elapsedSeconds < requiredSeconds) {
+        return SpendPathRelLocked(
+          remainingSeconds: requiredSeconds - elapsedSeconds,
+        );
+      }
+    }
+  }
+
+  return SpendPathUnlocked();
+}

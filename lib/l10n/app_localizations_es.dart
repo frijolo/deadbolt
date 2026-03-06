@@ -560,4 +560,572 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletTypeUnknown => 'Desconocido';
+
+  @override
+  String get navDesigner => 'Diseñador';
+
+  @override
+  String get navWallet => 'Billetera';
+
+  @override
+  String get walletsTitle => 'Billeteras';
+
+  @override
+  String get noWallets => 'No hay billeteras.\nToca + para crear una.';
+
+  @override
+  String get loadingWallets => 'Cargando billeteras...';
+
+  @override
+  String get deleteWalletTitle => 'Eliminar billetera';
+
+  @override
+  String deleteWalletConfirm(String name) {
+    return '¿Eliminar \"$name\"?';
+  }
+
+  @override
+  String get createWalletTitle => 'Nueva Billetera';
+
+  @override
+  String get walletNameLabel => 'Nombre de billetera';
+
+  @override
+  String get walletNameRequired => 'El nombre es obligatorio';
+
+  @override
+  String get sourceProjectLabel => 'Origen';
+
+  @override
+  String get sourceProjectFromProject => 'Desde proyecto';
+
+  @override
+  String get sourceProjectManual => 'Descriptor manual';
+
+  @override
+  String get selectProjectLabel => 'Seleccionar proyecto';
+
+  @override
+  String get createWalletButton => 'Crear Billetera';
+
+  @override
+  String get creatingWallet => 'Creando billetera...';
+
+  @override
+  String get balanceConfirmed => 'Confirmado';
+
+  @override
+  String get balancePending => 'Pendiente';
+
+  @override
+  String get balanceImmature => 'Inmaduro';
+
+  @override
+  String balanceSats(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$satsString sats';
+  }
+
+  @override
+  String balanceBtc(String btc) {
+    return '$btc BTC';
+  }
+
+  @override
+  String get notYetSynced => 'No sincronizado aún';
+
+  @override
+  String lastSynced(String time) {
+    return 'Última sincronización: $time';
+  }
+
+  @override
+  String get syncButton => 'Sincronizar';
+
+  @override
+  String get syncing => 'Sincronizando...';
+
+  @override
+  String syncFailed(String error) {
+    return 'Error al sincronizar: $error';
+  }
+
+  @override
+  String get rescanButton => 'Reescaneo completo';
+
+  @override
+  String get rescanConfirmTitle => 'Reescaneo completo';
+
+  @override
+  String get rescanConfirmBody =>
+      'Se reescanearán todas las direcciones desde cero. Puede tardar más que una sincronización normal.';
+
+  @override
+  String get transactionsSection => 'Transacciones';
+
+  @override
+  String get noTransactions => 'Sin transacciones aún';
+
+  @override
+  String get txReceived => 'Recibido';
+
+  @override
+  String get txSent => 'Enviado';
+
+  @override
+  String get txSelfTransfer => 'Transferencia propia';
+
+  @override
+  String get txConfirmed => 'Confirmado';
+
+  @override
+  String get txUnconfirmed => 'No confirmado';
+
+  @override
+  String txFee(int fee) {
+    final intl.NumberFormat feeNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String feeString = feeNumberFormat.format(fee);
+
+    return 'Comisión: $feeString sats';
+  }
+
+  @override
+  String txHeight(int height) {
+    final intl.NumberFormat heightNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String heightString = heightNumberFormat.format(height);
+
+    return 'Bloque: $heightString';
+  }
+
+  @override
+  String get txId => 'TXID';
+
+  @override
+  String get loadMore => 'Cargar más';
+
+  @override
+  String get electrumSectionTitle => 'Servidores Electrum';
+
+  @override
+  String get electrumUrlLabel => 'URL de Electrum';
+
+  @override
+  String get electrumUrlHint => 'ssl://host:puerto o tcp://host:puerto';
+
+  @override
+  String get electrumNetworkMainnet => 'Electrum Mainnet';
+
+  @override
+  String get electrumNetworkTestnet => 'Electrum Testnet';
+
+  @override
+  String get electrumNetworkTestnet4 => 'Electrum Testnet4';
+
+  @override
+  String get electrumNetworkSignet => 'Electrum Signet';
+
+  @override
+  String get electrumNetworkRegtest => 'Electrum Regtest';
+
+  @override
+  String get settingsMinFeeRate => 'Comisión mínima (sat/vB)';
+
+  @override
+  String get explorerSectionTitle => 'Explorador de bloques';
+
+  @override
+  String get explorerUrlHint => 'https://mempool.space';
+
+  @override
+  String get explorerNetworkMainnet => 'Explorador Mainnet';
+
+  @override
+  String get explorerNetworkTestnet => 'Explorador Testnet';
+
+  @override
+  String get explorerNetworkTestnet4 => 'Explorador Testnet4';
+
+  @override
+  String get explorerNetworkSignet => 'Explorador Signet';
+
+  @override
+  String get explorerNetworkRegtest => 'Explorador Regtest';
+
+  @override
+  String get explorerNoUrl => 'Sin explorador configurado para esta red';
+
+  @override
+  String get openInExplorer => 'Abrir en explorador';
+
+  @override
+  String get txLabelTitle => 'Etiqueta';
+
+  @override
+  String get txLabelHint => 'Añadir etiqueta...';
+
+  @override
+  String get txLabelRemove => 'Eliminar etiqueta';
+
+  @override
+  String get txDetailsTitle => 'Detalles de la transacción';
+
+  @override
+  String get txDetailsNet => 'Importe neto';
+
+  @override
+  String get txDetailsGrossReceived => 'Recibido (bruto)';
+
+  @override
+  String get txDetailsGrossSent => 'Enviado (bruto)';
+
+  @override
+  String get txDetailsBlockHeight => 'Altura de bloque';
+
+  @override
+  String get txDetailsConfirmedAt => 'Confirmado el';
+
+  @override
+  String get txDetailsFee => 'Comisión';
+
+  @override
+  String get addressesSection => 'Direcciones';
+
+  @override
+  String get receiveAddresses => 'Recepción';
+
+  @override
+  String get changeAddresses => 'Cambio';
+
+  @override
+  String get noAddresses =>
+      'Sin direcciones aún. Sincroniza para descubrirlas.';
+
+  @override
+  String addressIndex(int index) {
+    return '#$index';
+  }
+
+  @override
+  String get addressLabelTitle => 'Etiqueta de dirección';
+
+  @override
+  String get addressLabelHint => 'Añadir etiqueta...';
+
+  @override
+  String get addressLabelRemove => 'Eliminar etiqueta';
+
+  @override
+  String get addressDetailsTitle => 'Detalles de la dirección';
+
+  @override
+  String addressBalanceSats(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$satsString sats';
+  }
+
+  @override
+  String get revealMoreAddresses => 'Revelar 20 direcciones más';
+
+  @override
+  String addressTxCount(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$countString transacciones';
+  }
+
+  @override
+  String get viewInExplorer => 'Ver en explorador';
+
+  @override
+  String get coinsSection => 'Monedas';
+
+  @override
+  String get noCoins => 'Sin monedas. Sincroniza para descubrir UTXOs.';
+
+  @override
+  String get coinDetailsTitle => 'Detalles de la moneda';
+
+  @override
+  String get coinOutpoint => 'Punto de salida';
+
+  @override
+  String get coinValue => 'Valor';
+
+  @override
+  String get coinAddress => 'Dirección';
+
+  @override
+  String get coinKeychain => 'Llavero';
+
+  @override
+  String get coinKeychainReceive => 'Recepción';
+
+  @override
+  String get coinKeychainChange => 'Cambio';
+
+  @override
+  String coinTotalCount(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$countString monedas';
+  }
+
+  @override
+  String coinTotalValue(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return 'Total: $satsString sats';
+  }
+
+  @override
+  String get descriptorTabLabel => 'Descriptor';
+
+  @override
+  String get spendPathsAvailable => 'Rutas de gasto';
+
+  @override
+  String get spendPathsNotSynced =>
+      'Sincroniza para ver las rutas de gasto disponibles';
+
+  @override
+  String get spendPathUnlocked => 'Desbloqueada';
+
+  @override
+  String get spendPathLocked => 'Bloqueada';
+
+  @override
+  String spendPathLockedUntilBlock(int block) {
+    final intl.NumberFormat blockNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blockString = blockNumberFormat.format(block);
+
+    return 'Bloqueada hasta bloque $blockString';
+  }
+
+  @override
+  String spendPathLockedBlocks(int blocks) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return '$blocksString bloques restantes';
+  }
+
+  @override
+  String get spendPathNeedsConfirmation => 'Necesita confirmación';
+
+  @override
+  String get psbtStatusUnsigned => 'SIN FIRMAR';
+
+  @override
+  String get psbtStatusPartial => 'PARCIAL';
+
+  @override
+  String get psbtStatusSigned => 'FIRMADO';
+
+  @override
+  String get psbtStatusMempool => 'MEMPOOL';
+
+  @override
+  String get psbtStatusConfirmed => 'CONFIRMADO';
+
+  @override
+  String get createTxTitle => 'Crear transacción';
+
+  @override
+  String get createTxRecipient => 'Dirección destinataria';
+
+  @override
+  String get createTxRecipientHint => 'bc1q...';
+
+  @override
+  String get createTxAmount => 'Importe (sats)';
+
+  @override
+  String get createTxFeeRate => 'Tarifa (sat/vB)';
+
+  @override
+  String get createTxFeeRateHint => 'p.ej. 1.5';
+
+  @override
+  String createTxFeeRateMin(String min) {
+    return 'La tarifa mínima es $min sat/vB';
+  }
+
+  @override
+  String get createTxSpendPath => 'Ruta de gasto';
+
+  @override
+  String get createTxSpendPathHint => 'Selecciona una ruta de gasto';
+
+  @override
+  String createTxSelectedCoins(int count, int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$count moneda(s) — $satsString sats';
+  }
+
+  @override
+  String get createTxAutoSelect => 'Selección automática';
+
+  @override
+  String get createTxButton => 'Crear PSBT';
+
+  @override
+  String get createTxCreating => 'Creando...';
+
+  @override
+  String get createTxRecipientRequired => 'La dirección es obligatoria';
+
+  @override
+  String get createTxAmountRequired => 'El importe es obligatorio';
+
+  @override
+  String get createTxAmountInvalid => 'Importe inválido';
+
+  @override
+  String get createTxMaxButton => 'MÁX';
+
+  @override
+  String get createTxSendMax => 'Enviar todo (máximo)';
+
+  @override
+  String get createTxSelfPayButton => 'AUTO';
+
+  @override
+  String get createTxNoUnusedAddress =>
+      'No hay dirección de recepción sin usar';
+
+  @override
+  String get createTxFeeRateInvalid => 'Tarifa inválida';
+
+  @override
+  String get createTxNoSpendPaths =>
+      'No hay rutas de gasto. Sincroniza primero.';
+
+  @override
+  String get createTxSuccess => 'PSBT creado';
+
+  @override
+  String get psbtDetailTitle => 'Transacción sin firmar';
+
+  @override
+  String get psbtRecipient => 'Destinatario';
+
+  @override
+  String get psbtAmount => 'Importe';
+
+  @override
+  String get psbtFee => 'Comisión';
+
+  @override
+  String get psbtCreatedAt => 'Creado';
+
+  @override
+  String get psbtTimelockLabel => 'Timelock';
+
+  @override
+  String get psbtTimelockSyncRequired => 'Sincroniza para ver el estado';
+
+  @override
+  String psbtTimelockBlocksRemaining(int blocks, String duration) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return '$blocksString bloques restantes (~$duration)';
+  }
+
+  @override
+  String psbtTimelockTimeRemaining(String duration) {
+    return '~$duration restante';
+  }
+
+  @override
+  String psbtSignaturesTitle(int done, int threshold, int total) {
+    return 'Firmas ($done/$threshold de $total)';
+  }
+
+  @override
+  String get psbtSignerSigned => 'Firmado';
+
+  @override
+  String get psbtSignerMissing => 'Pendiente';
+
+  @override
+  String get psbtSignerOptional => 'Opcional';
+
+  @override
+  String get psbtExportButton => 'Exportar PSBT';
+
+  @override
+  String get psbtImportSignedButton => 'Importar PSBT firmado';
+
+  @override
+  String get psbtImportFromQr => 'Escanear QR';
+
+  @override
+  String get psbtImportFromFile => 'Desde archivo (.psbt)';
+
+  @override
+  String get psbtBroadcastButton => 'Transmitir';
+
+  @override
+  String psbtBroadcastSuccess(String txid) {
+    return '¡Transacción enviada! TXID: $txid';
+  }
+
+  @override
+  String psbtBroadcastFailed(String error) {
+    return 'Error al transmitir: $error';
+  }
+
+  @override
+  String get psbtMergeSuccess => 'Firmas importadas';
+
+  @override
+  String psbtMergeFailed(String error) {
+    return 'Error al importar: $error';
+  }
+
+  @override
+  String get psbtDeleteTitle => 'Eliminar PSBT';
+
+  @override
+  String get psbtDeleteConfirm => '¿Eliminar esta transacción sin firmar?';
+
+  @override
+  String get psbtExportedCopied => 'PSBT copiado';
+
+  @override
+  String get coinSelectMode => 'Seleccionar monedas';
+
+  @override
+  String get coinSelectDone => 'Hecho';
+
+  @override
+  String coinSelected(int count) {
+    return '$count seleccionada(s)';
+  }
 }

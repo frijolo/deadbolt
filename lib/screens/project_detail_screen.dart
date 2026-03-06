@@ -365,18 +365,25 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.projectNameDialogTitle),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(l10n.projectNameDialogTitle)),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.cancel,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(hintText: l10n.projectNameDialogTitle),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
@@ -402,19 +409,26 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.discardChangesDialogTitle),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(l10n.discardChangesDialogTitle)),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.cancel,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
         content: Text(l10n.discardChangesContent),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
               cubit.discardEdits();
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(l10n.discard),
           ),
         ],

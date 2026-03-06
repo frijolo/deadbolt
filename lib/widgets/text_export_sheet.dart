@@ -29,15 +29,22 @@ const int _kMaxPlainQrChars = 2800;
 // Above this the data cannot fit in a static QR code at the M level we use.
 const int _kQrHardMax = 2331;
 
-// Animated mode: each step corresponds to the byte capacity of a QR code
-// version at M error-correction level (binary/byte mode).
-//   Step 0 → v5  →  86 B
-//   Step 1 → v10 → 216 B  (default)
-//   Step 2 → v15 → 415 B
-//   Step 3 → v20 → 669 B
-//   Step 4 → v25 → 1000 B
+// Animated mode: each step is the max CBOR fragment size (raw bytes) passed
+// to the BC-UR fountain encoder.  The actual QR frame is ~2× larger after
+// bytewords encoding, so the resulting QR version is much higher than the
+// label suggests — but hardware wallet cameras handle it fine.
+//
+// Bitcoin PSBTs for P2WPKH/P2WSH inputs include the full previous transaction
+// (non_witness_utxo), making them ~15 KB binary.  At 1000 B/fragment that
+// results in ~16 frames, matching what Krux produces for its signed response.
+//
+//   Step 0 →   86 B  (smallest QR, most frames)
+//   Step 1 →  216 B
+//   Step 2 →  415 B
+//   Step 3 →  669 B
+//   Step 4 → 1000 B  (default — ~16 frames for a typical PSBT)
 const List<int> _kFragSteps = [86, 216, 415, 669, 1000];
-const int _kFragDefaultIdx = 1; // 216 B
+const int _kFragDefaultIdx = 0; // 86 B
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -103,10 +110,21 @@ void showTextExportSheet(
 // Private helpers
 // ---------------------------------------------------------------------------
 
-void showQrDialog(BuildContext context, String data) {
+/// Show a QR dialog for [data].
+///
+/// For Bitcoin PSBTs, pass [urBytes] (raw binary PSBT bytes decoded from
+/// base64) and [urType] = `'crypto-psbt'`.  The animated BC-UR encoder will
+/// then emit `ur:crypto-psbt` frames that hardware wallets (Krux, Coldcard…)
+/// understand.  The static QR still shows [data] as-is (plain base64).
+void showQrDialog(
+  BuildContext context,
+  String data, {
+  Uint8List? urBytes,
+  String urType = 'bytes',
+}) {
   showDialog<void>(
     context: context,
-    builder: (ctx) => _QrDialog(data: data),
+    builder: (ctx) => _QrDialog(data: data, urBytes: urBytes, urType: urType),
   );
 }
 
@@ -147,7 +165,14 @@ Future<void> _saveWithFilePicker(
 
 class _QrDialog extends StatefulWidget {
   final String data;
-  const _QrDialog({required this.data});
+  final Uint8List? urBytes;
+  final String urType;
+
+  const _QrDialog({
+    required this.data,
+    this.urBytes,
+    this.urType = 'bytes',
+  });
 
   @override
   State<_QrDialog> createState() => _QrDialogState();
@@ -165,17 +190,23 @@ class _QrDialogState extends State<_QrDialog> {
   late bool _isAnimated;
   int _fragStepIdx = _kFragDefaultIdx;
 
-  /// Byte length of the data payload (cached).
+  /// Length of the string shown in the static QR (base64 / plain text).
   late final int _dataByteLen = utf8.encode(widget.data).length;
 
-  /// True when the content exceeds QR v40 capacity at M error-correction.
+  /// Length of the actual fountain-encoder payload.
+  /// For PSBTs this is the raw binary size (urBytes); otherwise UTF-8 of data.
+  late final int _urPayloadLen =
+      widget.urBytes?.length ?? utf8.encode(widget.data).length;
+
+  /// True when the static QR content exceeds QR v40 capacity at M correction.
   bool get _forceAnimated => _dataByteLen > _kQrHardMax;
 
-  /// Highest step index whose byte value does not exceed the payload size.
-  /// Ensures the slider never offers a fragment larger than the data itself.
+  /// Highest step index whose fragment size does not exceed the payload.
+  /// Uses the actual UR payload length so the slider is calibrated correctly
+  /// for both text (descriptors) and binary (PSBTs) payloads.
   int get _maxStepIdx {
     for (int i = _kFragSteps.length - 1; i > 0; i--) {
-      if (_kFragSteps[i] <= _dataByteLen) return i;
+      if (_kFragSteps[i] <= _urPayloadLen) return i;
     }
     return 0;
   }
@@ -198,8 +229,8 @@ class _QrDialogState extends State<_QrDialog> {
 
   void _startEncoder() {
     _timer?.cancel();
-    final bytes = Uint8List.fromList(utf8.encode(widget.data));
-    final bcur = BCUR.fromData('bytes', bytes);
+    final bytes = widget.urBytes ?? Uint8List.fromList(utf8.encode(widget.data));
+    final bcur = BCUR.fromData(widget.urType, bytes);
     final fragSize = _kFragSteps[_fragStepIdx].clamp(1, bytes.length);
     _encoder = BCURFountainEncoder(bcur, maxFragmentLength: fragSize);
     _currentFrame = _encoder!.nextPart();
@@ -247,6 +278,7 @@ class _QrDialogState extends State<_QrDialog> {
         ?.copyWith(color: Colors.white54);
 
     return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
       title: Row(
         children: [
           Expanded(child: Text(l10n.qrDialogTitle)),
@@ -258,6 +290,12 @@ class _QrDialogState extends State<_QrDialog> {
                   .bodySmall
                   ?.copyWith(color: AppAccent.color),
             ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.close,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
       content: Column(
@@ -338,12 +376,7 @@ class _QrDialogState extends State<_QrDialog> {
           ],
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l10n.close),
-        ),
-      ],
+      actions: const [],
     );
   }
 }

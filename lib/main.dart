@@ -7,9 +7,9 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/screens/project_list_screen.dart';
 import 'package:deadbolt/src/rust/frb_generated.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/app_scaffold.dart';
 
 Future<void> main() async {
   // Global error handler for async errors not caught by Flutter
@@ -69,7 +69,7 @@ class DeadboltApp extends StatelessWidget {
             theme: AppThemeManager.getLightThemeData(),
             darkTheme: AppThemeManager.getDarkThemeData(),
             themeMode: AppThemeManager.getThemeMode(settings.appTheme),
-            home: const ProjectListScreen(),
+            home: const AppScaffold(),
           ),
         ),
       ),

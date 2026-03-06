@@ -25,7 +25,18 @@ void showEditNameDialog(
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(title)),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.cancel,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -45,11 +56,7 @@ void showEditNameDialog(
             },
             child: Text(l10n.clear),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               final name = controller.text.trim();
               onSave(name.isEmpty ? null : name);
@@ -79,7 +86,18 @@ void showEditNameDialog(
           }
 
           return AlertDialog(
-            title: Text(title),
+            titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+            title: Row(
+              children: [
+                Expanded(child: Text(title)),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: l10n.cancel,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
             content: TextField(
               controller: controller,
               autofocus: true,
@@ -103,11 +121,7 @@ void showEditNameDialog(
                 },
                 child: Text(l10n.clear),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
+              FilledButton(
                 onPressed: saveName,
                 child: Text(l10n.save),
               ),

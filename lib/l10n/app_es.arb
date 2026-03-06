@@ -249,5 +249,296 @@
   "walletTypeP2tr": "Taproot (P2TR)",
   "walletTypeP2shWpkh": "Segwit Anidado (P2SH-WPKH)",
   "walletTypeP2shWsh": "Segwit Anidado (P2SH-WSH)",
-  "walletTypeUnknown": "Desconocido"
+  "walletTypeUnknown": "Desconocido",
+
+  "navDesigner": "Diseñador",
+  "navWallet": "Billetera",
+
+  "walletsTitle": "Billeteras",
+  "noWallets": "No hay billeteras.\nToca + para crear una.",
+  "loadingWallets": "Cargando billeteras...",
+  "deleteWalletTitle": "Eliminar billetera",
+  "deleteWalletConfirm": "¿Eliminar \"{name}\"?",
+  "@deleteWalletConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "createWalletTitle": "Nueva Billetera",
+  "walletNameLabel": "Nombre de billetera",
+  "walletNameRequired": "El nombre es obligatorio",
+  "sourceProjectLabel": "Origen",
+  "sourceProjectFromProject": "Desde proyecto",
+  "sourceProjectManual": "Descriptor manual",
+  "selectProjectLabel": "Seleccionar proyecto",
+  "createWalletButton": "Crear Billetera",
+  "creatingWallet": "Creando billetera...",
+
+  "balanceConfirmed": "Confirmado",
+  "balancePending": "Pendiente",
+  "balanceImmature": "Inmaduro",
+  "balanceSats": "{sats} sats",
+  "@balanceSats": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "balanceBtc": "{btc} BTC",
+  "@balanceBtc": {
+    "placeholders": {
+      "btc": { "type": "String" }
+    }
+  },
+  "notYetSynced": "No sincronizado aún",
+  "lastSynced": "Última sincronización: {time}",
+  "@lastSynced": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "syncButton": "Sincronizar",
+  "syncing": "Sincronizando...",
+  "syncFailed": "Error al sincronizar: {error}",
+  "rescanButton": "Reescaneo completo",
+  "rescanConfirmTitle": "Reescaneo completo",
+  "rescanConfirmBody": "Se reescanearán todas las direcciones desde cero. Puede tardar más que una sincronización normal.",
+  "@syncFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "transactionsSection": "Transacciones",
+  "noTransactions": "Sin transacciones aún",
+  "txReceived": "Recibido",
+  "txSent": "Enviado",
+  "txSelfTransfer": "Transferencia propia",
+  "txConfirmed": "Confirmado",
+  "txUnconfirmed": "No confirmado",
+  "txFee": "Comisión: {fee} sats",
+  "@txFee": {
+    "placeholders": {
+      "fee": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "txHeight": "Bloque: {height}",
+  "@txHeight": {
+    "placeholders": {
+      "height": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "txId": "TXID",
+  "loadMore": "Cargar más",
+
+  "electrumSectionTitle": "Servidores Electrum",
+  "electrumUrlLabel": "URL de Electrum",
+  "electrumUrlHint": "ssl://host:puerto o tcp://host:puerto",
+  "electrumNetworkMainnet": "Electrum Mainnet",
+  "electrumNetworkTestnet": "Electrum Testnet",
+  "electrumNetworkTestnet4": "Electrum Testnet4",
+  "electrumNetworkSignet": "Electrum Signet",
+  "electrumNetworkRegtest": "Electrum Regtest",
+
+  "settingsMinFeeRate": "Comisión mínima (sat/vB)",
+
+  "explorerSectionTitle": "Explorador de bloques",
+  "explorerUrlHint": "https://mempool.space",
+  "explorerNetworkMainnet": "Explorador Mainnet",
+  "explorerNetworkTestnet": "Explorador Testnet",
+  "explorerNetworkTestnet4": "Explorador Testnet4",
+  "explorerNetworkSignet": "Explorador Signet",
+  "explorerNetworkRegtest": "Explorador Regtest",
+  "explorerNoUrl": "Sin explorador configurado para esta red",
+  "openInExplorer": "Abrir en explorador",
+
+  "txLabelTitle": "Etiqueta",
+  "txLabelHint": "Añadir etiqueta...",
+  "txLabelRemove": "Eliminar etiqueta",
+
+  "txDetailsTitle": "Detalles de la transacción",
+  "txDetailsNet": "Importe neto",
+  "txDetailsGrossReceived": "Recibido (bruto)",
+  "txDetailsGrossSent": "Enviado (bruto)",
+  "txDetailsBlockHeight": "Altura de bloque",
+  "txDetailsConfirmedAt": "Confirmado el",
+  "txDetailsFee": "Comisión",
+
+  "addressesSection": "Direcciones",
+  "receiveAddresses": "Recepción",
+  "changeAddresses": "Cambio",
+  "noAddresses": "Sin direcciones aún. Sincroniza para descubrirlas.",
+  "addressIndex": "#{index}",
+  "@addressIndex": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "addressLabelTitle": "Etiqueta de dirección",
+  "addressLabelHint": "Añadir etiqueta...",
+  "addressLabelRemove": "Eliminar etiqueta",
+  "addressDetailsTitle": "Detalles de la dirección",
+  "addressBalanceSats": "{sats} sats",
+  "@addressBalanceSats": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "revealMoreAddresses": "Revelar 20 direcciones más",
+  "addressTxCount": "{count} transacciones",
+  "@addressTxCount": {
+    "placeholders": {
+      "count": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "viewInExplorer": "Ver en explorador",
+
+  "coinsSection": "Monedas",
+  "noCoins": "Sin monedas. Sincroniza para descubrir UTXOs.",
+  "coinDetailsTitle": "Detalles de la moneda",
+  "coinOutpoint": "Punto de salida",
+  "coinValue": "Valor",
+  "coinAddress": "Dirección",
+  "coinKeychain": "Llavero",
+  "coinKeychainReceive": "Recepción",
+  "coinKeychainChange": "Cambio",
+  "coinTotalCount": "{count} monedas",
+  "@coinTotalCount": {
+    "placeholders": {
+      "count": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "coinTotalValue": "Total: {sats} sats",
+  "@coinTotalValue": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+
+  "descriptorTabLabel": "Descriptor",
+
+  "spendPathsAvailable": "Rutas de gasto",
+  "spendPathsNotSynced": "Sincroniza para ver las rutas de gasto disponibles",
+  "spendPathUnlocked": "Desbloqueada",
+  "spendPathLocked": "Bloqueada",
+  "spendPathLockedUntilBlock": "Bloqueada hasta bloque {block}",
+  "@spendPathLockedUntilBlock": {
+    "placeholders": {
+      "block": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "spendPathLockedBlocks": "{blocks} bloques restantes",
+  "@spendPathLockedBlocks": {
+    "placeholders": {
+      "blocks": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "spendPathNeedsConfirmation": "Necesita confirmación",
+
+  "psbtStatusUnsigned": "SIN FIRMAR",
+  "psbtStatusPartial": "PARCIAL",
+  "psbtStatusSigned": "FIRMADO",
+  "psbtStatusMempool": "MEMPOOL",
+  "psbtStatusConfirmed": "CONFIRMADO",
+
+  "createTxTitle": "Crear transacción",
+  "createTxRecipient": "Dirección destinataria",
+  "createTxRecipientHint": "bc1q...",
+  "createTxAmount": "Importe (sats)",
+  "createTxFeeRate": "Tarifa (sat/vB)",
+  "createTxFeeRateHint": "p.ej. 1.5",
+  "createTxFeeRateMin": "La tarifa mínima es {min} sat/vB",
+  "@createTxFeeRateMin": {
+    "placeholders": {
+      "min": { "type": "String" }
+    }
+  },
+  "createTxSpendPath": "Ruta de gasto",
+  "createTxSpendPathHint": "Selecciona una ruta de gasto",
+  "createTxSelectedCoins": "{count} moneda(s) — {sats} sats",
+  "@createTxSelectedCoins": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "createTxAutoSelect": "Selección automática",
+  "createTxButton": "Crear PSBT",
+  "createTxCreating": "Creando...",
+  "createTxRecipientRequired": "La dirección es obligatoria",
+  "createTxAmountRequired": "El importe es obligatorio",
+  "createTxAmountInvalid": "Importe inválido",
+  "createTxMaxButton": "MÁX",
+  "createTxSendMax": "Enviar todo (máximo)",
+  "createTxSelfPayButton": "AUTO",
+  "createTxNoUnusedAddress": "No hay dirección de recepción sin usar",
+  "createTxFeeRateInvalid": "Tarifa inválida",
+  "createTxNoSpendPaths": "No hay rutas de gasto. Sincroniza primero.",
+  "createTxSuccess": "PSBT creado",
+
+  "psbtDetailTitle": "Transacción sin firmar",
+  "psbtRecipient": "Destinatario",
+  "psbtAmount": "Importe",
+  "psbtFee": "Comisión",
+  "psbtCreatedAt": "Creado",
+  "psbtTimelockLabel": "Timelock",
+  "psbtTimelockSyncRequired": "Sincroniza para ver el estado",
+  "psbtTimelockBlocksRemaining": "{blocks} bloques restantes (~{duration})",
+  "@psbtTimelockBlocksRemaining": {
+    "placeholders": {
+      "blocks": { "type": "int", "format": "decimalPattern" },
+      "duration": { "type": "String" }
+    }
+  },
+  "psbtTimelockTimeRemaining": "~{duration} restante",
+  "@psbtTimelockTimeRemaining": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "psbtSignaturesTitle": "Firmas ({done}/{threshold} de {total})",
+  "@psbtSignaturesTitle": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "threshold": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "psbtSignerSigned": "Firmado",
+  "psbtSignerMissing": "Pendiente",
+  "psbtSignerOptional": "Opcional",
+  "psbtExportButton": "Exportar PSBT",
+  "psbtImportSignedButton": "Importar PSBT firmado",
+  "psbtImportFromQr": "Escanear QR",
+  "psbtImportFromFile": "Desde archivo (.psbt)",
+  "psbtBroadcastButton": "Transmitir",
+  "psbtBroadcastSuccess": "¡Transacción enviada! TXID: {txid}",
+  "@psbtBroadcastSuccess": {
+    "placeholders": {
+      "txid": { "type": "String" }
+    }
+  },
+  "psbtBroadcastFailed": "Error al transmitir: {error}",
+  "@psbtBroadcastFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "psbtMergeSuccess": "Firmas importadas",
+  "psbtMergeFailed": "Error al importar: {error}",
+  "@psbtMergeFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "psbtDeleteTitle": "Eliminar PSBT",
+  "psbtDeleteConfirm": "¿Eliminar esta transacción sin firmar?",
+  "psbtExportedCopied": "PSBT copiado",
+  "coinSelectMode": "Seleccionar monedas",
+  "coinSelectDone": "Hecho",
+  "coinSelected": "{count} seleccionada(s)",
+  "@coinSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

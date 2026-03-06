@@ -159,7 +159,16 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (_urDecoder!.isComplete) {
         _done = true;
         final data = _urDecoder!.getResult()!.decodeData() as List<int>;
-        Navigator.pop(context, utf8.decode(data));
+        // Try UTF-8 first (ur:bytes with text payload, e.g. descriptors).
+        // For binary payloads like ur:crypto-psbt, fall back to base64 —
+        // the PSBT import flow accepts base64 strings.
+        String result;
+        try {
+          result = utf8.decode(data);
+        } catch (_) {
+          result = base64Encode(data);
+        }
+        Navigator.pop(context, result);
       }
     } else {
       _done = true;
