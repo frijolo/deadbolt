@@ -116,7 +116,18 @@ class _TimelockDialogState extends State<TimelockDialog> {
     final validationError = _getValidationError(context);
 
     return AlertDialog(
-      title: Text(l10n.timelockDialogTitle),
+      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+      title: Row(
+        children: [
+          Expanded(child: Text(l10n.timelockDialogTitle)),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.cancel,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -383,10 +394,6 @@ class _TimelockDialogState extends State<TimelockDialog> {
             });
           },
           child: Text(l10n.clear),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: validationError != null

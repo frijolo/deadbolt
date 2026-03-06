@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -85,6 +85,22 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 3) {
           await m.addColumn(projectSpendPaths, projectSpendPaths.priority);
+        }
+        if (from < 4) {
+          // wallets table was added in v4 but is now removed in v5 — only create
+          // it if we're upgrading from v3 so the v5 migration can drop it cleanly.
+          await customStatement(
+            'CREATE TABLE IF NOT EXISTS wallets ('
+            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'name TEXT NOT NULL, descriptor TEXT NOT NULL, network TEXT NOT NULL, '
+            'source_project_id INTEGER, created_at INTEGER NOT NULL, '
+            'last_synced_at INTEGER)',
+          );
+        }
+        if (from < 5) {
+          // Wallet metadata is now stored inside each BDK encrypted SQLite file.
+          // Drop the Dart-side wallets table; no data to preserve (never shipped).
+          await customStatement('DROP TABLE IF EXISTS wallets');
         }
       },
     );

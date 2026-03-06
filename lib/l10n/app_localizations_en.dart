@@ -559,4 +559,569 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletTypeUnknown => 'Unknown';
+
+  @override
+  String get navDesigner => 'Designer';
+
+  @override
+  String get navWallet => 'Wallet';
+
+  @override
+  String get walletsTitle => 'Wallets';
+
+  @override
+  String get noWallets => 'No wallets yet.\nTap + to create one.';
+
+  @override
+  String get loadingWallets => 'Loading wallets...';
+
+  @override
+  String get deleteWalletTitle => 'Delete wallet';
+
+  @override
+  String deleteWalletConfirm(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get createWalletTitle => 'New Wallet';
+
+  @override
+  String get walletNameLabel => 'Wallet name';
+
+  @override
+  String get walletNameRequired => 'Wallet name is required';
+
+  @override
+  String get sourceProjectLabel => 'Source';
+
+  @override
+  String get sourceProjectFromProject => 'From project';
+
+  @override
+  String get sourceProjectManual => 'Manual descriptor';
+
+  @override
+  String get selectProjectLabel => 'Select project';
+
+  @override
+  String get createWalletButton => 'Create Wallet';
+
+  @override
+  String get creatingWallet => 'Creating wallet...';
+
+  @override
+  String get balanceConfirmed => 'Confirmed';
+
+  @override
+  String get balancePending => 'Pending';
+
+  @override
+  String get balanceImmature => 'Immature';
+
+  @override
+  String balanceSats(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$satsString sats';
+  }
+
+  @override
+  String balanceBtc(String btc) {
+    return '$btc BTC';
+  }
+
+  @override
+  String get notYetSynced => 'Not yet synced';
+
+  @override
+  String lastSynced(String time) {
+    return 'Last synced: $time';
+  }
+
+  @override
+  String get syncButton => 'Sync';
+
+  @override
+  String get syncing => 'Syncing...';
+
+  @override
+  String syncFailed(String error) {
+    return 'Sync failed: $error';
+  }
+
+  @override
+  String get rescanButton => 'Full rescan';
+
+  @override
+  String get rescanConfirmTitle => 'Full rescan';
+
+  @override
+  String get rescanConfirmBody =>
+      'This will re-scan all addresses from scratch. It may take longer than a normal sync.';
+
+  @override
+  String get transactionsSection => 'Transactions';
+
+  @override
+  String get noTransactions => 'No transactions yet';
+
+  @override
+  String get txReceived => 'Received';
+
+  @override
+  String get txSent => 'Sent';
+
+  @override
+  String get txSelfTransfer => 'Self-transfer';
+
+  @override
+  String get txConfirmed => 'Confirmed';
+
+  @override
+  String get txUnconfirmed => 'Unconfirmed';
+
+  @override
+  String txFee(int fee) {
+    final intl.NumberFormat feeNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String feeString = feeNumberFormat.format(fee);
+
+    return 'Fee: $feeString sats';
+  }
+
+  @override
+  String txHeight(int height) {
+    final intl.NumberFormat heightNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String heightString = heightNumberFormat.format(height);
+
+    return 'Block: $heightString';
+  }
+
+  @override
+  String get txId => 'TXID';
+
+  @override
+  String get loadMore => 'Load more';
+
+  @override
+  String get electrumSectionTitle => 'Electrum Servers';
+
+  @override
+  String get electrumUrlLabel => 'Electrum URL';
+
+  @override
+  String get electrumUrlHint => 'ssl://host:port or tcp://host:port';
+
+  @override
+  String get electrumNetworkMainnet => 'Mainnet Electrum';
+
+  @override
+  String get electrumNetworkTestnet => 'Testnet Electrum';
+
+  @override
+  String get electrumNetworkTestnet4 => 'Testnet4 Electrum';
+
+  @override
+  String get electrumNetworkSignet => 'Signet Electrum';
+
+  @override
+  String get electrumNetworkRegtest => 'Regtest Electrum';
+
+  @override
+  String get settingsMinFeeRate => 'Minimum fee rate (sat/vB)';
+
+  @override
+  String get explorerSectionTitle => 'Block Explorer';
+
+  @override
+  String get explorerUrlHint => 'https://mempool.space';
+
+  @override
+  String get explorerNetworkMainnet => 'Mainnet Explorer';
+
+  @override
+  String get explorerNetworkTestnet => 'Testnet Explorer';
+
+  @override
+  String get explorerNetworkTestnet4 => 'Testnet4 Explorer';
+
+  @override
+  String get explorerNetworkSignet => 'Signet Explorer';
+
+  @override
+  String get explorerNetworkRegtest => 'Regtest Explorer';
+
+  @override
+  String get explorerNoUrl => 'No explorer configured for this network';
+
+  @override
+  String get openInExplorer => 'Open in explorer';
+
+  @override
+  String get txLabelTitle => 'Label';
+
+  @override
+  String get txLabelHint => 'Add a label...';
+
+  @override
+  String get txLabelRemove => 'Remove label';
+
+  @override
+  String get txDetailsTitle => 'Transaction details';
+
+  @override
+  String get txDetailsNet => 'Net amount';
+
+  @override
+  String get txDetailsGrossReceived => 'Received (gross)';
+
+  @override
+  String get txDetailsGrossSent => 'Sent (gross)';
+
+  @override
+  String get txDetailsBlockHeight => 'Block height';
+
+  @override
+  String get txDetailsConfirmedAt => 'Confirmed at';
+
+  @override
+  String get txDetailsFee => 'Fee';
+
+  @override
+  String get addressesSection => 'Addresses';
+
+  @override
+  String get receiveAddresses => 'Receive';
+
+  @override
+  String get changeAddresses => 'Change';
+
+  @override
+  String get noAddresses => 'No addresses yet. Sync to discover addresses.';
+
+  @override
+  String addressIndex(int index) {
+    return '#$index';
+  }
+
+  @override
+  String get addressLabelTitle => 'Address label';
+
+  @override
+  String get addressLabelHint => 'Add a label...';
+
+  @override
+  String get addressLabelRemove => 'Remove label';
+
+  @override
+  String get addressDetailsTitle => 'Address details';
+
+  @override
+  String addressBalanceSats(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$satsString sats';
+  }
+
+  @override
+  String get revealMoreAddresses => 'Reveal 20 more addresses';
+
+  @override
+  String addressTxCount(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$countString transactions';
+  }
+
+  @override
+  String get viewInExplorer => 'View in explorer';
+
+  @override
+  String get coinsSection => 'Coins';
+
+  @override
+  String get noCoins => 'No coins. Sync to discover UTXOs.';
+
+  @override
+  String get coinDetailsTitle => 'Coin details';
+
+  @override
+  String get coinOutpoint => 'Outpoint';
+
+  @override
+  String get coinValue => 'Value';
+
+  @override
+  String get coinAddress => 'Address';
+
+  @override
+  String get coinKeychain => 'Keychain';
+
+  @override
+  String get coinKeychainReceive => 'Receive';
+
+  @override
+  String get coinKeychainChange => 'Change';
+
+  @override
+  String coinTotalCount(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$countString coins';
+  }
+
+  @override
+  String coinTotalValue(int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return 'Total: $satsString sats';
+  }
+
+  @override
+  String get descriptorTabLabel => 'Descriptor';
+
+  @override
+  String get spendPathsAvailable => 'Spend paths';
+
+  @override
+  String get spendPathsNotSynced => 'Sync to see available spend paths';
+
+  @override
+  String get spendPathUnlocked => 'Unlocked';
+
+  @override
+  String get spendPathLocked => 'Locked';
+
+  @override
+  String spendPathLockedUntilBlock(int block) {
+    final intl.NumberFormat blockNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blockString = blockNumberFormat.format(block);
+
+    return 'Locked until block $blockString';
+  }
+
+  @override
+  String spendPathLockedBlocks(int blocks) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return '$blocksString blocks remaining';
+  }
+
+  @override
+  String get spendPathNeedsConfirmation => 'Needs confirmation';
+
+  @override
+  String get psbtStatusUnsigned => 'UNSIGNED';
+
+  @override
+  String get psbtStatusPartial => 'PARTIAL';
+
+  @override
+  String get psbtStatusSigned => 'SIGNED';
+
+  @override
+  String get psbtStatusMempool => 'MEMPOOL';
+
+  @override
+  String get psbtStatusConfirmed => 'CONFIRMED';
+
+  @override
+  String get createTxTitle => 'Create Transaction';
+
+  @override
+  String get createTxRecipient => 'Recipient address';
+
+  @override
+  String get createTxRecipientHint => 'bc1q...';
+
+  @override
+  String get createTxAmount => 'Amount (sats)';
+
+  @override
+  String get createTxFeeRate => 'Fee rate (sat/vB)';
+
+  @override
+  String get createTxFeeRateHint => 'e.g. 1.5';
+
+  @override
+  String createTxFeeRateMin(String min) {
+    return 'Minimum fee rate is $min sat/vB';
+  }
+
+  @override
+  String get createTxSpendPath => 'Spend path';
+
+  @override
+  String get createTxSpendPathHint => 'Select a spend path';
+
+  @override
+  String createTxSelectedCoins(int count, int sats) {
+    final intl.NumberFormat satsNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String satsString = satsNumberFormat.format(sats);
+
+    return '$count coin(s) selected — $satsString sats';
+  }
+
+  @override
+  String get createTxAutoSelect => 'Auto-select coins';
+
+  @override
+  String get createTxButton => 'Create PSBT';
+
+  @override
+  String get createTxCreating => 'Creating...';
+
+  @override
+  String get createTxRecipientRequired => 'Recipient address is required';
+
+  @override
+  String get createTxAmountRequired => 'Amount is required';
+
+  @override
+  String get createTxAmountInvalid => 'Invalid amount';
+
+  @override
+  String get createTxMaxButton => 'MAX';
+
+  @override
+  String get createTxSendMax => 'Send all (max)';
+
+  @override
+  String get createTxSelfPayButton => 'SELF';
+
+  @override
+  String get createTxNoUnusedAddress => 'No unused receive address available';
+
+  @override
+  String get createTxFeeRateInvalid => 'Invalid fee rate';
+
+  @override
+  String get createTxNoSpendPaths =>
+      'No spend paths available. Sync the wallet first.';
+
+  @override
+  String get createTxSuccess => 'PSBT created';
+
+  @override
+  String get psbtDetailTitle => 'Unsigned Transaction';
+
+  @override
+  String get psbtRecipient => 'Recipient';
+
+  @override
+  String get psbtAmount => 'Amount';
+
+  @override
+  String get psbtFee => 'Fee';
+
+  @override
+  String get psbtCreatedAt => 'Created';
+
+  @override
+  String get psbtTimelockLabel => 'Timelock';
+
+  @override
+  String get psbtTimelockSyncRequired => 'Sync required to check status';
+
+  @override
+  String psbtTimelockBlocksRemaining(int blocks, String duration) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return '$blocksString blocks remaining (~$duration)';
+  }
+
+  @override
+  String psbtTimelockTimeRemaining(String duration) {
+    return '~$duration remaining';
+  }
+
+  @override
+  String psbtSignaturesTitle(int done, int threshold, int total) {
+    return 'Signatures ($done/$threshold of $total)';
+  }
+
+  @override
+  String get psbtSignerSigned => 'Signed';
+
+  @override
+  String get psbtSignerMissing => 'Missing';
+
+  @override
+  String get psbtSignerOptional => 'Optional';
+
+  @override
+  String get psbtExportButton => 'Export PSBT';
+
+  @override
+  String get psbtImportSignedButton => 'Import signed PSBT';
+
+  @override
+  String get psbtImportFromQr => 'Scan QR';
+
+  @override
+  String get psbtImportFromFile => 'From file (.psbt)';
+
+  @override
+  String get psbtBroadcastButton => 'Broadcast';
+
+  @override
+  String psbtBroadcastSuccess(String txid) {
+    return 'Transaction broadcast! TXID: $txid';
+  }
+
+  @override
+  String psbtBroadcastFailed(String error) {
+    return 'Broadcast failed: $error';
+  }
+
+  @override
+  String get psbtMergeSuccess => 'Signatures imported';
+
+  @override
+  String psbtMergeFailed(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String get psbtDeleteTitle => 'Delete PSBT';
+
+  @override
+  String get psbtDeleteConfirm => 'Delete this unsigned transaction?';
+
+  @override
+  String get psbtExportedCopied => 'PSBT copied';
+
+  @override
+  String get coinSelectMode => 'Select coins';
+
+  @override
+  String get coinSelectDone => 'Done';
+
+  @override
+  String coinSelected(int count) {
+    return '$count selected';
+  }
 }

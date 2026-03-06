@@ -255,5 +255,296 @@
   "walletTypeP2tr": "Taproot (P2TR)",
   "walletTypeP2shWpkh": "Nested Segwit (P2SH-WPKH)",
   "walletTypeP2shWsh": "Nested Segwit (P2SH-WSH)",
-  "walletTypeUnknown": "Unknown"
+  "walletTypeUnknown": "Unknown",
+
+  "navDesigner": "Designer",
+  "navWallet": "Wallet",
+
+  "walletsTitle": "Wallets",
+  "noWallets": "No wallets yet.\nTap + to create one.",
+  "loadingWallets": "Loading wallets...",
+  "deleteWalletTitle": "Delete wallet",
+  "deleteWalletConfirm": "Delete \"{name}\"?",
+  "@deleteWalletConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "createWalletTitle": "New Wallet",
+  "walletNameLabel": "Wallet name",
+  "walletNameRequired": "Wallet name is required",
+  "sourceProjectLabel": "Source",
+  "sourceProjectFromProject": "From project",
+  "sourceProjectManual": "Manual descriptor",
+  "selectProjectLabel": "Select project",
+  "createWalletButton": "Create Wallet",
+  "creatingWallet": "Creating wallet...",
+
+  "balanceConfirmed": "Confirmed",
+  "balancePending": "Pending",
+  "balanceImmature": "Immature",
+  "balanceSats": "{sats} sats",
+  "@balanceSats": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "balanceBtc": "{btc} BTC",
+  "@balanceBtc": {
+    "placeholders": {
+      "btc": { "type": "String" }
+    }
+  },
+  "notYetSynced": "Not yet synced",
+  "lastSynced": "Last synced: {time}",
+  "@lastSynced": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "syncButton": "Sync",
+  "syncing": "Syncing...",
+  "syncFailed": "Sync failed: {error}",
+  "rescanButton": "Full rescan",
+  "rescanConfirmTitle": "Full rescan",
+  "rescanConfirmBody": "This will re-scan all addresses from scratch. It may take longer than a normal sync.",
+  "@syncFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "transactionsSection": "Transactions",
+  "noTransactions": "No transactions yet",
+  "txReceived": "Received",
+  "txSent": "Sent",
+  "txSelfTransfer": "Self-transfer",
+  "txConfirmed": "Confirmed",
+  "txUnconfirmed": "Unconfirmed",
+  "txFee": "Fee: {fee} sats",
+  "@txFee": {
+    "placeholders": {
+      "fee": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "txHeight": "Block: {height}",
+  "@txHeight": {
+    "placeholders": {
+      "height": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "txId": "TXID",
+  "loadMore": "Load more",
+
+  "electrumSectionTitle": "Electrum Servers",
+  "electrumUrlLabel": "Electrum URL",
+  "electrumUrlHint": "ssl://host:port or tcp://host:port",
+  "electrumNetworkMainnet": "Mainnet Electrum",
+  "electrumNetworkTestnet": "Testnet Electrum",
+  "electrumNetworkTestnet4": "Testnet4 Electrum",
+  "electrumNetworkSignet": "Signet Electrum",
+  "electrumNetworkRegtest": "Regtest Electrum",
+
+  "settingsMinFeeRate": "Minimum fee rate (sat/vB)",
+
+  "explorerSectionTitle": "Block Explorer",
+  "explorerUrlHint": "https://mempool.space",
+  "explorerNetworkMainnet": "Mainnet Explorer",
+  "explorerNetworkTestnet": "Testnet Explorer",
+  "explorerNetworkTestnet4": "Testnet4 Explorer",
+  "explorerNetworkSignet": "Signet Explorer",
+  "explorerNetworkRegtest": "Regtest Explorer",
+  "explorerNoUrl": "No explorer configured for this network",
+  "openInExplorer": "Open in explorer",
+
+  "txLabelTitle": "Label",
+  "txLabelHint": "Add a label...",
+  "txLabelRemove": "Remove label",
+
+  "txDetailsTitle": "Transaction details",
+  "txDetailsNet": "Net amount",
+  "txDetailsGrossReceived": "Received (gross)",
+  "txDetailsGrossSent": "Sent (gross)",
+  "txDetailsBlockHeight": "Block height",
+  "txDetailsConfirmedAt": "Confirmed at",
+  "txDetailsFee": "Fee",
+
+  "addressesSection": "Addresses",
+  "receiveAddresses": "Receive",
+  "changeAddresses": "Change",
+  "noAddresses": "No addresses yet. Sync to discover addresses.",
+  "addressIndex": "#{index}",
+  "@addressIndex": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "addressLabelTitle": "Address label",
+  "addressLabelHint": "Add a label...",
+  "addressLabelRemove": "Remove label",
+  "addressDetailsTitle": "Address details",
+  "addressBalanceSats": "{sats} sats",
+  "@addressBalanceSats": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "revealMoreAddresses": "Reveal 20 more addresses",
+  "addressTxCount": "{count} transactions",
+  "@addressTxCount": {
+    "placeholders": {
+      "count": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "viewInExplorer": "View in explorer",
+
+  "coinsSection": "Coins",
+  "noCoins": "No coins. Sync to discover UTXOs.",
+  "coinDetailsTitle": "Coin details",
+  "coinOutpoint": "Outpoint",
+  "coinValue": "Value",
+  "coinAddress": "Address",
+  "coinKeychain": "Keychain",
+  "coinKeychainReceive": "Receive",
+  "coinKeychainChange": "Change",
+  "coinTotalCount": "{count} coins",
+  "@coinTotalCount": {
+    "placeholders": {
+      "count": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "coinTotalValue": "Total: {sats} sats",
+  "@coinTotalValue": {
+    "placeholders": {
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+
+  "descriptorTabLabel": "Descriptor",
+
+  "spendPathsAvailable": "Spend paths",
+  "spendPathsNotSynced": "Sync to see available spend paths",
+  "spendPathUnlocked": "Unlocked",
+  "spendPathLocked": "Locked",
+  "spendPathLockedUntilBlock": "Locked until block {block}",
+  "@spendPathLockedUntilBlock": {
+    "placeholders": {
+      "block": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "spendPathLockedBlocks": "{blocks} blocks remaining",
+  "@spendPathLockedBlocks": {
+    "placeholders": {
+      "blocks": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "spendPathNeedsConfirmation": "Needs confirmation",
+
+  "psbtStatusUnsigned": "UNSIGNED",
+  "psbtStatusPartial": "PARTIAL",
+  "psbtStatusSigned": "SIGNED",
+  "psbtStatusMempool": "MEMPOOL",
+  "psbtStatusConfirmed": "CONFIRMED",
+
+  "createTxTitle": "Create Transaction",
+  "createTxRecipient": "Recipient address",
+  "createTxRecipientHint": "bc1q...",
+  "createTxAmount": "Amount (sats)",
+  "createTxFeeRate": "Fee rate (sat/vB)",
+  "createTxFeeRateHint": "e.g. 1.5",
+  "createTxFeeRateMin": "Minimum fee rate is {min} sat/vB",
+  "@createTxFeeRateMin": {
+    "placeholders": {
+      "min": { "type": "String" }
+    }
+  },
+  "createTxSpendPath": "Spend path",
+  "createTxSpendPathHint": "Select a spend path",
+  "createTxSelectedCoins": "{count} coin(s) selected — {sats} sats",
+  "@createTxSelectedCoins": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "sats": { "type": "int", "format": "decimalPattern" }
+    }
+  },
+  "createTxAutoSelect": "Auto-select coins",
+  "createTxButton": "Create PSBT",
+  "createTxCreating": "Creating...",
+  "createTxRecipientRequired": "Recipient address is required",
+  "createTxAmountRequired": "Amount is required",
+  "createTxAmountInvalid": "Invalid amount",
+  "createTxMaxButton": "MAX",
+  "createTxSendMax": "Send all (max)",
+  "createTxSelfPayButton": "SELF",
+  "createTxNoUnusedAddress": "No unused receive address available",
+  "createTxFeeRateInvalid": "Invalid fee rate",
+  "createTxNoSpendPaths": "No spend paths available. Sync the wallet first.",
+  "createTxSuccess": "PSBT created",
+
+  "psbtDetailTitle": "Unsigned Transaction",
+  "psbtRecipient": "Recipient",
+  "psbtAmount": "Amount",
+  "psbtFee": "Fee",
+  "psbtCreatedAt": "Created",
+  "psbtTimelockLabel": "Timelock",
+  "psbtTimelockSyncRequired": "Sync required to check status",
+  "psbtTimelockBlocksRemaining": "{blocks} blocks remaining (~{duration})",
+  "@psbtTimelockBlocksRemaining": {
+    "placeholders": {
+      "blocks": { "type": "int", "format": "decimalPattern" },
+      "duration": { "type": "String" }
+    }
+  },
+  "psbtTimelockTimeRemaining": "~{duration} remaining",
+  "@psbtTimelockTimeRemaining": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "psbtSignaturesTitle": "Signatures ({done}/{threshold} of {total})",
+  "@psbtSignaturesTitle": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "threshold": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "psbtSignerSigned": "Signed",
+  "psbtSignerMissing": "Missing",
+  "psbtSignerOptional": "Optional",
+  "psbtExportButton": "Export PSBT",
+  "psbtImportSignedButton": "Import signed PSBT",
+  "psbtImportFromQr": "Scan QR",
+  "psbtImportFromFile": "From file (.psbt)",
+  "psbtBroadcastButton": "Broadcast",
+  "psbtBroadcastSuccess": "Transaction broadcast! TXID: {txid}",
+  "@psbtBroadcastSuccess": {
+    "placeholders": {
+      "txid": { "type": "String" }
+    }
+  },
+  "psbtBroadcastFailed": "Broadcast failed: {error}",
+  "@psbtBroadcastFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "psbtMergeSuccess": "Signatures imported",
+  "psbtMergeFailed": "Import failed: {error}",
+  "@psbtMergeFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "psbtDeleteTitle": "Delete PSBT",
+  "psbtDeleteConfirm": "Delete this unsigned transaction?",
+  "psbtExportedCopied": "PSBT copied",
+  "coinSelectMode": "Select coins",
+  "coinSelectDone": "Done",
+  "coinSelected": "{count} selected",
+  "@coinSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

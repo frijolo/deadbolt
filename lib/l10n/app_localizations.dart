@@ -1135,6 +1135,942 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get walletTypeUnknown;
+
+  /// No description provided for @navDesigner.
+  ///
+  /// In en, this message translates to:
+  /// **'Designer'**
+  String get navDesigner;
+
+  /// No description provided for @navWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get navWallet;
+
+  /// No description provided for @walletsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallets'**
+  String get walletsTitle;
+
+  /// No description provided for @noWallets.
+  ///
+  /// In en, this message translates to:
+  /// **'No wallets yet.\nTap + to create one.'**
+  String get noWallets;
+
+  /// No description provided for @loadingWallets.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading wallets...'**
+  String get loadingWallets;
+
+  /// No description provided for @deleteWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete wallet'**
+  String get deleteWalletTitle;
+
+  /// No description provided for @deleteWalletConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String deleteWalletConfirm(String name);
+
+  /// No description provided for @createWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Wallet'**
+  String get createWalletTitle;
+
+  /// No description provided for @walletNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet name'**
+  String get walletNameLabel;
+
+  /// No description provided for @walletNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet name is required'**
+  String get walletNameRequired;
+
+  /// No description provided for @sourceProjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get sourceProjectLabel;
+
+  /// No description provided for @sourceProjectFromProject.
+  ///
+  /// In en, this message translates to:
+  /// **'From project'**
+  String get sourceProjectFromProject;
+
+  /// No description provided for @sourceProjectManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual descriptor'**
+  String get sourceProjectManual;
+
+  /// No description provided for @selectProjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select project'**
+  String get selectProjectLabel;
+
+  /// No description provided for @createWalletButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Wallet'**
+  String get createWalletButton;
+
+  /// No description provided for @creatingWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating wallet...'**
+  String get creatingWallet;
+
+  /// No description provided for @balanceConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get balanceConfirmed;
+
+  /// No description provided for @balancePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get balancePending;
+
+  /// No description provided for @balanceImmature.
+  ///
+  /// In en, this message translates to:
+  /// **'Immature'**
+  String get balanceImmature;
+
+  /// No description provided for @balanceSats.
+  ///
+  /// In en, this message translates to:
+  /// **'{sats} sats'**
+  String balanceSats(int sats);
+
+  /// No description provided for @balanceBtc.
+  ///
+  /// In en, this message translates to:
+  /// **'{btc} BTC'**
+  String balanceBtc(String btc);
+
+  /// No description provided for @notYetSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet synced'**
+  String get notYetSynced;
+
+  /// No description provided for @lastSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced: {time}'**
+  String lastSynced(String time);
+
+  /// No description provided for @syncButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncButton;
+
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncing;
+
+  /// No description provided for @syncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: {error}'**
+  String syncFailed(String error);
+
+  /// No description provided for @rescanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Full rescan'**
+  String get rescanButton;
+
+  /// No description provided for @rescanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full rescan'**
+  String get rescanConfirmTitle;
+
+  /// No description provided for @rescanConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This will re-scan all addresses from scratch. It may take longer than a normal sync.'**
+  String get rescanConfirmBody;
+
+  /// No description provided for @transactionsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get transactionsSection;
+
+  /// No description provided for @noTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions yet'**
+  String get noTransactions;
+
+  /// No description provided for @txReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get txReceived;
+
+  /// No description provided for @txSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get txSent;
+
+  /// No description provided for @txSelfTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-transfer'**
+  String get txSelfTransfer;
+
+  /// No description provided for @txConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get txConfirmed;
+
+  /// No description provided for @txUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unconfirmed'**
+  String get txUnconfirmed;
+
+  /// No description provided for @txFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee: {fee} sats'**
+  String txFee(int fee);
+
+  /// No description provided for @txHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Block: {height}'**
+  String txHeight(int height);
+
+  /// No description provided for @txId.
+  ///
+  /// In en, this message translates to:
+  /// **'TXID'**
+  String get txId;
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get loadMore;
+
+  /// No description provided for @electrumSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Electrum Servers'**
+  String get electrumSectionTitle;
+
+  /// No description provided for @electrumUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Electrum URL'**
+  String get electrumUrlLabel;
+
+  /// No description provided for @electrumUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ssl://host:port or tcp://host:port'**
+  String get electrumUrlHint;
+
+  /// No description provided for @electrumNetworkMainnet.
+  ///
+  /// In en, this message translates to:
+  /// **'Mainnet Electrum'**
+  String get electrumNetworkMainnet;
+
+  /// No description provided for @electrumNetworkTestnet.
+  ///
+  /// In en, this message translates to:
+  /// **'Testnet Electrum'**
+  String get electrumNetworkTestnet;
+
+  /// No description provided for @electrumNetworkTestnet4.
+  ///
+  /// In en, this message translates to:
+  /// **'Testnet4 Electrum'**
+  String get electrumNetworkTestnet4;
+
+  /// No description provided for @electrumNetworkSignet.
+  ///
+  /// In en, this message translates to:
+  /// **'Signet Electrum'**
+  String get electrumNetworkSignet;
+
+  /// No description provided for @electrumNetworkRegtest.
+  ///
+  /// In en, this message translates to:
+  /// **'Regtest Electrum'**
+  String get electrumNetworkRegtest;
+
+  /// No description provided for @settingsMinFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum fee rate (sat/vB)'**
+  String get settingsMinFeeRate;
+
+  /// No description provided for @explorerSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block Explorer'**
+  String get explorerSectionTitle;
+
+  /// No description provided for @explorerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://mempool.space'**
+  String get explorerUrlHint;
+
+  /// No description provided for @explorerNetworkMainnet.
+  ///
+  /// In en, this message translates to:
+  /// **'Mainnet Explorer'**
+  String get explorerNetworkMainnet;
+
+  /// No description provided for @explorerNetworkTestnet.
+  ///
+  /// In en, this message translates to:
+  /// **'Testnet Explorer'**
+  String get explorerNetworkTestnet;
+
+  /// No description provided for @explorerNetworkTestnet4.
+  ///
+  /// In en, this message translates to:
+  /// **'Testnet4 Explorer'**
+  String get explorerNetworkTestnet4;
+
+  /// No description provided for @explorerNetworkSignet.
+  ///
+  /// In en, this message translates to:
+  /// **'Signet Explorer'**
+  String get explorerNetworkSignet;
+
+  /// No description provided for @explorerNetworkRegtest.
+  ///
+  /// In en, this message translates to:
+  /// **'Regtest Explorer'**
+  String get explorerNetworkRegtest;
+
+  /// No description provided for @explorerNoUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'No explorer configured for this network'**
+  String get explorerNoUrl;
+
+  /// No description provided for @openInExplorer.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in explorer'**
+  String get openInExplorer;
+
+  /// No description provided for @txLabelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get txLabelTitle;
+
+  /// No description provided for @txLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a label...'**
+  String get txLabelHint;
+
+  /// No description provided for @txLabelRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove label'**
+  String get txLabelRemove;
+
+  /// No description provided for @txDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction details'**
+  String get txDetailsTitle;
+
+  /// No description provided for @txDetailsNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net amount'**
+  String get txDetailsNet;
+
+  /// No description provided for @txDetailsGrossReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received (gross)'**
+  String get txDetailsGrossReceived;
+
+  /// No description provided for @txDetailsGrossSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent (gross)'**
+  String get txDetailsGrossSent;
+
+  /// No description provided for @txDetailsBlockHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Block height'**
+  String get txDetailsBlockHeight;
+
+  /// No description provided for @txDetailsConfirmedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed at'**
+  String get txDetailsConfirmedAt;
+
+  /// No description provided for @txDetailsFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get txDetailsFee;
+
+  /// No description provided for @addressesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get addressesSection;
+
+  /// No description provided for @receiveAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive'**
+  String get receiveAddresses;
+
+  /// No description provided for @changeAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get changeAddresses;
+
+  /// No description provided for @noAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'No addresses yet. Sync to discover addresses.'**
+  String get noAddresses;
+
+  /// No description provided for @addressIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'#{index}'**
+  String addressIndex(int index);
+
+  /// No description provided for @addressLabelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Address label'**
+  String get addressLabelTitle;
+
+  /// No description provided for @addressLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a label...'**
+  String get addressLabelHint;
+
+  /// No description provided for @addressLabelRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove label'**
+  String get addressLabelRemove;
+
+  /// No description provided for @addressDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Address details'**
+  String get addressDetailsTitle;
+
+  /// No description provided for @addressBalanceSats.
+  ///
+  /// In en, this message translates to:
+  /// **'{sats} sats'**
+  String addressBalanceSats(int sats);
+
+  /// No description provided for @revealMoreAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal 20 more addresses'**
+  String get revealMoreAddresses;
+
+  /// No description provided for @addressTxCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} transactions'**
+  String addressTxCount(int count);
+
+  /// No description provided for @viewInExplorer.
+  ///
+  /// In en, this message translates to:
+  /// **'View in explorer'**
+  String get viewInExplorer;
+
+  /// No description provided for @coinsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Coins'**
+  String get coinsSection;
+
+  /// No description provided for @noCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'No coins. Sync to discover UTXOs.'**
+  String get noCoins;
+
+  /// No description provided for @coinDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Coin details'**
+  String get coinDetailsTitle;
+
+  /// No description provided for @coinOutpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Outpoint'**
+  String get coinOutpoint;
+
+  /// No description provided for @coinValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get coinValue;
+
+  /// No description provided for @coinAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get coinAddress;
+
+  /// No description provided for @coinKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain'**
+  String get coinKeychain;
+
+  /// No description provided for @coinKeychainReceive.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive'**
+  String get coinKeychainReceive;
+
+  /// No description provided for @coinKeychainChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get coinKeychainChange;
+
+  /// No description provided for @coinTotalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} coins'**
+  String coinTotalCount(int count);
+
+  /// No description provided for @coinTotalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Total: {sats} sats'**
+  String coinTotalValue(int sats);
+
+  /// No description provided for @descriptorTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor'**
+  String get descriptorTabLabel;
+
+  /// No description provided for @spendPathsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend paths'**
+  String get spendPathsAvailable;
+
+  /// No description provided for @spendPathsNotSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync to see available spend paths'**
+  String get spendPathsNotSynced;
+
+  /// No description provided for @spendPathUnlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked'**
+  String get spendPathUnlocked;
+
+  /// No description provided for @spendPathLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get spendPathLocked;
+
+  /// No description provided for @spendPathLockedUntilBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked until block {block}'**
+  String spendPathLockedUntilBlock(int block);
+
+  /// No description provided for @spendPathLockedBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'{blocks} blocks remaining'**
+  String spendPathLockedBlocks(int blocks);
+
+  /// No description provided for @spendPathNeedsConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs confirmation'**
+  String get spendPathNeedsConfirmation;
+
+  /// No description provided for @psbtStatusUnsigned.
+  ///
+  /// In en, this message translates to:
+  /// **'UNSIGNED'**
+  String get psbtStatusUnsigned;
+
+  /// No description provided for @psbtStatusPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'PARTIAL'**
+  String get psbtStatusPartial;
+
+  /// No description provided for @psbtStatusSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'SIGNED'**
+  String get psbtStatusSigned;
+
+  /// No description provided for @psbtStatusMempool.
+  ///
+  /// In en, this message translates to:
+  /// **'MEMPOOL'**
+  String get psbtStatusMempool;
+
+  /// No description provided for @psbtStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRMED'**
+  String get psbtStatusConfirmed;
+
+  /// No description provided for @createTxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Transaction'**
+  String get createTxTitle;
+
+  /// No description provided for @createTxRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient address'**
+  String get createTxRecipient;
+
+  /// No description provided for @createTxRecipientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'bc1q...'**
+  String get createTxRecipientHint;
+
+  /// No description provided for @createTxAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (sats)'**
+  String get createTxAmount;
+
+  /// No description provided for @createTxFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate (sat/vB)'**
+  String get createTxFeeRate;
+
+  /// No description provided for @createTxFeeRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 1.5'**
+  String get createTxFeeRateHint;
+
+  /// No description provided for @createTxFeeRateMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum fee rate is {min} sat/vB'**
+  String createTxFeeRateMin(String min);
+
+  /// No description provided for @createTxSpendPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend path'**
+  String get createTxSpendPath;
+
+  /// No description provided for @createTxSpendPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a spend path'**
+  String get createTxSpendPathHint;
+
+  /// No description provided for @createTxSelectedCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} coin(s) selected — {sats} sats'**
+  String createTxSelectedCoins(int count, int sats);
+
+  /// No description provided for @createTxAutoSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-select coins'**
+  String get createTxAutoSelect;
+
+  /// No description provided for @createTxButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create PSBT'**
+  String get createTxButton;
+
+  /// No description provided for @createTxCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating...'**
+  String get createTxCreating;
+
+  /// No description provided for @createTxRecipientRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient address is required'**
+  String get createTxRecipientRequired;
+
+  /// No description provided for @createTxAmountRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount is required'**
+  String get createTxAmountRequired;
+
+  /// No description provided for @createTxAmountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid amount'**
+  String get createTxAmountInvalid;
+
+  /// No description provided for @createTxMaxButton.
+  ///
+  /// In en, this message translates to:
+  /// **'MAX'**
+  String get createTxMaxButton;
+
+  /// No description provided for @createTxSendMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Send all (max)'**
+  String get createTxSendMax;
+
+  /// No description provided for @createTxSelfPayButton.
+  ///
+  /// In en, this message translates to:
+  /// **'SELF'**
+  String get createTxSelfPayButton;
+
+  /// No description provided for @createTxNoUnusedAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'No unused receive address available'**
+  String get createTxNoUnusedAddress;
+
+  /// No description provided for @createTxFeeRateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid fee rate'**
+  String get createTxFeeRateInvalid;
+
+  /// No description provided for @createTxNoSpendPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'No spend paths available. Sync the wallet first.'**
+  String get createTxNoSpendPaths;
+
+  /// No description provided for @createTxSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'PSBT created'**
+  String get createTxSuccess;
+
+  /// No description provided for @psbtDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsigned Transaction'**
+  String get psbtDetailTitle;
+
+  /// No description provided for @psbtRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient'**
+  String get psbtRecipient;
+
+  /// No description provided for @psbtAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get psbtAmount;
+
+  /// No description provided for @psbtFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get psbtFee;
+
+  /// No description provided for @psbtCreatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get psbtCreatedAt;
+
+  /// No description provided for @psbtTimelockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Timelock'**
+  String get psbtTimelockLabel;
+
+  /// No description provided for @psbtTimelockSyncRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync required to check status'**
+  String get psbtTimelockSyncRequired;
+
+  /// No description provided for @psbtTimelockBlocksRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{blocks} blocks remaining (~{duration})'**
+  String psbtTimelockBlocksRemaining(int blocks, String duration);
+
+  /// No description provided for @psbtTimelockTimeRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'~{duration} remaining'**
+  String psbtTimelockTimeRemaining(String duration);
+
+  /// No description provided for @psbtSignaturesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signatures ({done}/{threshold} of {total})'**
+  String psbtSignaturesTitle(int done, int threshold, int total);
+
+  /// No description provided for @psbtSignerSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed'**
+  String get psbtSignerSigned;
+
+  /// No description provided for @psbtSignerMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get psbtSignerMissing;
+
+  /// No description provided for @psbtSignerOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get psbtSignerOptional;
+
+  /// No description provided for @psbtExportButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PSBT'**
+  String get psbtExportButton;
+
+  /// No description provided for @psbtImportSignedButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import signed PSBT'**
+  String get psbtImportSignedButton;
+
+  /// No description provided for @psbtImportFromQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR'**
+  String get psbtImportFromQr;
+
+  /// No description provided for @psbtImportFromFile.
+  ///
+  /// In en, this message translates to:
+  /// **'From file (.psbt)'**
+  String get psbtImportFromFile;
+
+  /// No description provided for @psbtBroadcastButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get psbtBroadcastButton;
+
+  /// No description provided for @psbtBroadcastSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction broadcast! TXID: {txid}'**
+  String psbtBroadcastSuccess(String txid);
+
+  /// No description provided for @psbtBroadcastFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast failed: {error}'**
+  String psbtBroadcastFailed(String error);
+
+  /// No description provided for @psbtMergeSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Signatures imported'**
+  String get psbtMergeSuccess;
+
+  /// No description provided for @psbtMergeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String psbtMergeFailed(String error);
+
+  /// No description provided for @psbtDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete PSBT'**
+  String get psbtDeleteTitle;
+
+  /// No description provided for @psbtDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this unsigned transaction?'**
+  String get psbtDeleteConfirm;
+
+  /// No description provided for @psbtExportedCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'PSBT copied'**
+  String get psbtExportedCopied;
+
+  /// No description provided for @coinSelectMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Select coins'**
+  String get coinSelectMode;
+
+  /// No description provided for @coinSelectDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get coinSelectDone;
+
+  /// No description provided for @coinSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String coinSelected(int count);
 }
 
 class _AppLocalizationsDelegate

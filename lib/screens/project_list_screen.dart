@@ -7,11 +7,9 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
-import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
@@ -35,20 +33,6 @@ class ProjectListScreen extends StatelessWidget {
                 _showCreateDialog(context);
               } else if (value == 'import') {
                 await _showImportDialog(context);
-              } else if (value == 'about') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AboutScreen(),
-                  ),
-                );
-              } else if (value == 'settings') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
               }
             },
             itemBuilder: (context) => [
@@ -69,26 +53,6 @@ class ProjectListScreen extends StatelessWidget {
                     const Icon(Icons.file_download_outlined),
                     const SizedBox(width: 8),
                     Text(l10n.menuImport),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    const Icon(Icons.settings_outlined),
-                    const SizedBox(width: 8),
-                    Text(l10n.menuSettings),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'about',
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline),
-                    const SizedBox(width: 8),
-                    Text(l10n.menuAbout),
                   ],
                 ),
               ),
@@ -117,10 +81,21 @@ class ProjectListScreen extends StatelessWidget {
               Center(child: Text(message)),
             ProjectListLoaded(:final projects) => projects.isEmpty
                 ? Center(
-                    child: Text(
-                      l10n.noProjects,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.noProjects,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: () => _showCreateDialog(context),
+                          icon: const Icon(Icons.add),
+                          label: Text(l10n.menuNew),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -134,10 +109,6 @@ class ProjectListScreen extends StatelessWidget {
             };
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateDialog(context),
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -288,19 +259,27 @@ class ProjectListScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteProjectTitle),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(l10n.deleteProjectTitle)),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.cancel,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
         content: Text(l10n.deleteProjectConfirm(project.name)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               context.read<ProjectListCubit>().deleteProject(project.id);
               Navigator.pop(ctx);
             },
-            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(l10n.delete),
           ),
         ],
       ),

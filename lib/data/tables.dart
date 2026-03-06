@@ -41,3 +41,4 @@ class ProjectSpendPaths extends Table {
   IntColumn get priority => integer().withDefault(const Constant(0))();
   TextColumn get customName => text().nullable()();
 }
+

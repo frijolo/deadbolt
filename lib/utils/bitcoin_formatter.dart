@@ -1,6 +1,16 @@
+import 'package:intl/intl.dart';
+
 import 'package:deadbolt/models/timelock_types.dart';
 
 class BitcoinFormatter {
+  /// Format an integer with locale-aware thousands separators (e.g. 1,234,567).
+  static String formatNum(int n) => NumberFormat.decimalPattern().format(n);
+
+  /// Format a double with locale-aware thousands separators and fixed decimal places.
+  static String formatDouble(double n, int decimalDigits) =>
+      NumberFormat.decimalPatternDigits(decimalDigits: decimalDigits).format(n);
+
+
   static String formatRelativeTimelock(
       RelativeTimelockType type, int value) {
     if (value == 0) return '0';
@@ -8,11 +18,11 @@ class BitcoinFormatter {
     switch (type) {
       case RelativeTimelockType.blocks:
         final totalMins = value * 10;
-        return '+$value blocks (~${_formatDuration(totalMins)})';
+        return '+$value blocks (~${formatDuration(totalMins)})';
       case RelativeTimelockType.time:
         final units = value ~/ 512;
         final totalMins = value ~/ 60;
-        return '+$units × 512s (~${_formatDuration(totalMins)})';
+        return '+$units × 512s (~${formatDuration(totalMins)})';
     }
   }
 
@@ -33,7 +43,7 @@ class BitcoinFormatter {
     }
   }
 
-  static String _formatDuration(int totalMins) {
+  static String formatDuration(int totalMins) {
     if (totalMins <= 0) return "0min";
 
     const int minInHour = 60;

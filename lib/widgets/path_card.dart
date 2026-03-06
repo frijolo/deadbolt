@@ -216,7 +216,7 @@ class PathCard extends StatelessWidget {
             const Icon(Icons.payments_outlined, size: 14, color: AppAccent.color),
             const SizedBox(width: 4),
             Text(
-              "${path.vbSweep.toStringAsFixed(2)} vB",
+              "${BitcoinFormatter.formatDouble(path.vbSweep, 2)} vB",
               style: TextStyle(
                 fontSize: 11,
                 color: cs.onSurface.withAlpha(178),
