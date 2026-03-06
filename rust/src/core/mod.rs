@@ -5,3 +5,5 @@ pub mod error;
 pub mod pubkey;
 pub mod spend_path;
 pub mod wallet;
+pub mod wallet_info;
+pub mod wallet_persistence;

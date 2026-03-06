@@ -524,16 +524,6 @@ impl SpendPath {
             .map_err(Into::into)
     }
 
-    /// Extract spend paths from existing wallet (backward compatibility)
-    ///
-    /// This method is kept for backward compatibility with existing code
-    /// that uses APIWallet. Internally delegates to extract_from_descriptor().
-    pub fn extract_spend_paths(wallet: &Wallet) -> Result<Vec<SpendPath>> {
-        let descriptor = wallet.public_descriptor(KeychainKind::External);
-        let network = wallet.network();
-        Self::extract_from_descriptor(descriptor, network)
-    }
-
     fn from_pkh_to_spend_paths(
         pkh: &Pkh<DescriptorPublicKey>,
         wallet: &Wallet,

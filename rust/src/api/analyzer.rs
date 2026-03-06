@@ -71,6 +71,33 @@ pub fn build_descriptor(
     descriptor_builder::build_descriptor(wallet_type.into(), &core_keys, &core_paths)
 }
 
+/// Validate that a descriptor's keys are compatible with the requested network.
+///
+/// A descriptor carrying mainnet keys (xpub/ypub/zpub) cannot be used on any
+/// testnet variant, and vice versa. Returns Ok(()) when compatible, or an
+/// error with a human-readable explanation.
+pub fn validate_descriptor_network(descriptor: String, network: APINetwork) -> Result<()> {
+    use bdk_wallet::bitcoin::Network;
+
+    let detected = crate::core::descriptor_parser::DescriptorParser::parse(&descriptor)?.detect_network()?;
+    let descriptor_is_mainnet = detected == Network::Bitcoin;
+    let selected_is_mainnet = network == APINetwork::Bitcoin;
+
+    if descriptor_is_mainnet != selected_is_mainnet {
+        let descriptor_family = if descriptor_is_mainnet {
+            "mainnet"
+        } else {
+            "testnet"
+        };
+        return Err(anyhow::anyhow!(
+            "Descriptor uses {} keys but '{}' was selected",
+            descriptor_family,
+            network.display_name(),
+        ));
+    }
+    Ok(())
+}
+
 /// Calculate the deterministic rustId for a spend path
 /// Delegates to core::spend_path::calculate_spend_path_id (single source of truth)
 pub fn calculate_spend_path_id(
@@ -423,5 +450,65 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    // --- validate_descriptor_network ---
+
+    const MAINNET_DESC: &str = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*,[c61af686/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*))#0wct5td0";
+    const TESTNET_DESC: &str = "pkh([73c5da0a/44h/1h/0h]tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba/<0;1>/*)#0x5u8d5c";
+
+    #[test]
+    fn test_validate_descriptor_network_mainnet_ok() -> Result<()> {
+        validate_descriptor_network(MAINNET_DESC.to_string(), APINetwork::Bitcoin)
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_testnet_ok() -> Result<()> {
+        validate_descriptor_network(TESTNET_DESC.to_string(), APINetwork::Testnet)
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_testnet4_ok() -> Result<()> {
+        // Testnet4 is in the same testnet family as tpub keys — should pass
+        validate_descriptor_network(TESTNET_DESC.to_string(), APINetwork::Testnet4)
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_signet_ok() -> Result<()> {
+        validate_descriptor_network(TESTNET_DESC.to_string(), APINetwork::Signet)
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_regtest_ok() -> Result<()> {
+        validate_descriptor_network(TESTNET_DESC.to_string(), APINetwork::Regtest)
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_mainnet_desc_testnet_network_err() {
+        let result = validate_descriptor_network(MAINNET_DESC.to_string(), APINetwork::Testnet);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("mainnet"),
+            "error should mention 'mainnet': {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_testnet_desc_mainnet_network_err() {
+        let result = validate_descriptor_network(TESTNET_DESC.to_string(), APINetwork::Bitcoin);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("testnet"),
+            "error should mention 'testnet': {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_descriptor_network_invalid_descriptor_err() {
+        let result =
+            validate_descriptor_network("not_a_descriptor".to_string(), APINetwork::Bitcoin);
+        assert!(result.is_err());
     }
 }

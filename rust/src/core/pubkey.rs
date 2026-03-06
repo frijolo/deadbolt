@@ -9,7 +9,6 @@ use bdk_wallet::bitcoin::secp256k1::PublicKey;
 use bdk_wallet::bitcoin::{Network, NetworkKind};
 use bdk_wallet::keys::DescriptorPublicKey;
 use bdk_wallet::miniscript::{Descriptor, ForEachKey};
-use bdk_wallet::{KeychainKind, Wallet};
 
 use crate::core::error::WalletError;
 
@@ -213,14 +212,6 @@ impl PubKey {
         Ok(pub_keys)
     }
 
-    /// Extract public keys from wallet (backward compatibility)
-    ///
-    /// This method is kept for backward compatibility with existing code
-    /// that uses APIWallet. Internally delegates to extract_from_descriptor().
-    pub fn extract_pub_keys(wallet: &Wallet) -> Result<Vec<PubKey>> {
-        let descriptor = wallet.public_descriptor(KeychainKind::External);
-        Self::extract_from_descriptor(descriptor)
-    }
 }
 
 #[cfg(test)]

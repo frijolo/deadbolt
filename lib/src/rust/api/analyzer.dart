@@ -7,8 +7,6 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `network_display_name`
-
 Future<APIAnalysisResult> analyzeDescriptor({required String descriptor}) =>
     RustLib.instance.api.crateApiAnalyzerAnalyzeDescriptor(
       descriptor: descriptor,
@@ -22,6 +20,19 @@ Future<String> buildDescriptor({
   walletType: walletType,
   keys: keys,
   spendPaths: spendPaths,
+);
+
+/// Validate that a descriptor's keys are compatible with the requested network.
+///
+/// A descriptor carrying mainnet keys (xpub/ypub/zpub) cannot be used on any
+/// testnet variant, and vice versa. Returns Ok(()) when compatible, or an
+/// error with a human-readable explanation.
+Future<void> validateDescriptorNetwork({
+  required String descriptor,
+  required APINetwork network,
+}) => RustLib.instance.api.crateApiAnalyzerValidateDescriptorNetwork(
+  descriptor: descriptor,
+  network: network,
 );
 
 /// Calculate the deterministic rustId for a spend path
