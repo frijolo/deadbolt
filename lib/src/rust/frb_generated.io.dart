@@ -5,6 +5,7 @@
 
 import 'api/analyzer.dart';
 import 'api/model.dart';
+import 'api/wallet.dart';
 import 'core/spend_path.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -21,11 +22,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ApiWalletPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWalletPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SpendPathPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPathPtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  ApiWallet
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    dynamic raw,
+  );
 
   @protected
   SpendPath
@@ -34,8 +45,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ApiWallet
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    dynamic raw,
+  );
+
+  @protected
+  ApiWallet
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    dynamic raw,
+  );
+
+  @protected
   SpendPath
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    dynamic raw,
+  );
+
+  @protected
+  ApiWallet
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
     dynamic raw,
   );
 
@@ -55,13 +84,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAbsoluteTimelockType dco_decode_api_absolute_timelock_type(dynamic raw);
 
   @protected
+  APIAddress dco_decode_api_address(dynamic raw);
+
+  @protected
   APIAnalysisResult dco_decode_api_analysis_result(dynamic raw);
+
+  @protected
+  APIBalance dco_decode_api_balance(dynamic raw);
+
+  @protected
+  APICoinControl dco_decode_api_coin_control(dynamic raw);
+
+  @protected
+  APIKeyLabel dco_decode_api_key_label(dynamic raw);
+
+  @protected
+  APIKeychain dco_decode_api_keychain(dynamic raw);
 
   @protected
   APINetwork dco_decode_api_network(dynamic raw);
 
   @protected
+  APIPathLabel dco_decode_api_path_label(dynamic raw);
+
+  @protected
   APIPolicyPath dco_decode_api_policy_path(dynamic raw);
+
+  @protected
+  APIPsbtAnalysis dco_decode_api_psbt_analysis(dynamic raw);
+
+  @protected
+  APIPsbtInfo dco_decode_api_psbt_info(dynamic raw);
+
+  @protected
+  APIPsbtSignerStatus dco_decode_api_psbt_signer_status(dynamic raw);
 
   @protected
   APIPubKey dco_decode_api_pub_key(dynamic raw);
@@ -79,6 +135,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APISpendPathDef dco_decode_api_spend_path_def(dynamic raw);
 
   @protected
+  APITransaction dco_decode_api_transaction(dynamic raw);
+
+  @protected
+  APITransactionPage dco_decode_api_transaction_page(dynamic raw);
+
+  @protected
+  APIUtxo dco_decode_api_utxo(dynamic raw);
+
+  @protected
+  APIWalletInfo dco_decode_api_wallet_info(dynamic raw);
+
+  @protected
   APIWalletType dco_decode_api_wallet_type(dynamic raw);
 
   @protected
@@ -91,10 +159,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
+  double dco_decode_f_64(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   List<SpendPath>
@@ -106,7 +189,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<APIAddress> dco_decode_list_api_address(dynamic raw);
+
+  @protected
+  List<APICoinControl> dco_decode_list_api_coin_control(dynamic raw);
+
+  @protected
+  List<APIKeyLabel> dco_decode_list_api_key_label(dynamic raw);
+
+  @protected
+  List<APIPathLabel> dco_decode_list_api_path_label(dynamic raw);
+
+  @protected
   List<APIPolicyPath> dco_decode_list_api_policy_path(dynamic raw);
+
+  @protected
+  List<APIPsbtInfo> dco_decode_list_api_psbt_info(dynamic raw);
+
+  @protected
+  List<APIPsbtSignerStatus> dco_decode_list_api_psbt_signer_status(dynamic raw);
 
   @protected
   List<APIPubKey> dco_decode_list_api_pub_key(dynamic raw);
@@ -118,13 +219,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APISpendPathDef> dco_decode_list_api_spend_path_def(dynamic raw);
 
   @protected
+  List<APITransaction> dco_decode_list_api_transaction(dynamic raw);
+
+  @protected
+  List<APIUtxo> dco_decode_list_api_utxo(dynamic raw);
+
+  @protected
+  List<APIWalletInfo> dco_decode_list_api_wallet_info(dynamic raw);
+
+  @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
   int dco_decode_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -139,14 +264,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  ApiWallet
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SpendPath
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SseDeserializer deserializer,
   );
 
   @protected
+  ApiWallet
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiWallet
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SpendPath
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiWallet
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
     SseDeserializer deserializer,
   );
 
@@ -170,15 +319,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIAddress sse_decode_api_address(SseDeserializer deserializer);
+
+  @protected
   APIAnalysisResult sse_decode_api_analysis_result(
     SseDeserializer deserializer,
   );
 
   @protected
+  APIBalance sse_decode_api_balance(SseDeserializer deserializer);
+
+  @protected
+  APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
+
+  @protected
+  APIKeyLabel sse_decode_api_key_label(SseDeserializer deserializer);
+
+  @protected
+  APIKeychain sse_decode_api_keychain(SseDeserializer deserializer);
+
+  @protected
   APINetwork sse_decode_api_network(SseDeserializer deserializer);
 
   @protected
+  APIPathLabel sse_decode_api_path_label(SseDeserializer deserializer);
+
+  @protected
   APIPolicyPath sse_decode_api_policy_path(SseDeserializer deserializer);
+
+  @protected
+  APIPsbtAnalysis sse_decode_api_psbt_analysis(SseDeserializer deserializer);
+
+  @protected
+  APIPsbtInfo sse_decode_api_psbt_info(SseDeserializer deserializer);
+
+  @protected
+  APIPsbtSignerStatus sse_decode_api_psbt_signer_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIPubKey sse_decode_api_pub_key(SseDeserializer deserializer);
@@ -200,6 +378,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APISpendPathDef sse_decode_api_spend_path_def(SseDeserializer deserializer);
 
   @protected
+  APITransaction sse_decode_api_transaction(SseDeserializer deserializer);
+
+  @protected
+  APITransactionPage sse_decode_api_transaction_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIUtxo sse_decode_api_utxo(SseDeserializer deserializer);
+
+  @protected
+  APIWalletInfo sse_decode_api_wallet_info(SseDeserializer deserializer);
+
+  @protected
   APIWalletType sse_decode_api_wallet_type(SseDeserializer deserializer);
 
   @protected
@@ -216,10 +408,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   List<SpendPath>
@@ -231,7 +438,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<APIAddress> sse_decode_list_api_address(SseDeserializer deserializer);
+
+  @protected
+  List<APICoinControl> sse_decode_list_api_coin_control(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIKeyLabel> sse_decode_list_api_key_label(SseDeserializer deserializer);
+
+  @protected
+  List<APIPathLabel> sse_decode_list_api_path_label(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<APIPolicyPath> sse_decode_list_api_policy_path(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIPsbtInfo> sse_decode_list_api_psbt_info(SseDeserializer deserializer);
+
+  @protected
+  List<APIPsbtSignerStatus> sse_decode_list_api_psbt_signer_status(
     SseDeserializer deserializer,
   );
 
@@ -249,13 +480,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<APITransaction> sse_decode_list_api_transaction(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIUtxo> sse_decode_list_api_utxo(SseDeserializer deserializer);
+
+  @protected
+  List<APIWalletInfo> sse_decode_list_api_wallet_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -274,6 +533,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ApiWallet self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SpendPath self,
     SseSerializer serializer,
@@ -281,8 +547,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ApiWallet self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ApiWallet self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SpendPath self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ApiWallet self,
     SseSerializer serializer,
   );
 
@@ -309,16 +596,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_address(APIAddress self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_analysis_result(
     APIAnalysisResult self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_api_balance(APIBalance self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_coin_control(
+    APICoinControl self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_key_label(APIKeyLabel self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_keychain(APIKeychain self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_network(APINetwork self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_path_label(APIPathLabel self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_policy_path(APIPolicyPath self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_psbt_analysis(
+    APIPsbtAnalysis self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_psbt_info(APIPsbtInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_psbt_signer_status(
+    APIPsbtSignerStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_pub_key(APIPubKey self, SseSerializer serializer);
@@ -345,6 +668,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_transaction(
+    APITransaction self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_transaction_page(
+    APITransactionPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_utxo(APIUtxo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_wallet_info(APIWalletInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_wallet_type(APIWalletType self, SseSerializer serializer);
 
   @protected
@@ -363,10 +704,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void
@@ -379,8 +738,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_api_address(
+    List<APIAddress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_coin_control(
+    List<APICoinControl> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_key_label(
+    List<APIKeyLabel> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_path_label(
+    List<APIPathLabel> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_api_policy_path(
     List<APIPolicyPath> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_psbt_info(
+    List<APIPsbtInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_psbt_signer_status(
+    List<APIPsbtSignerStatus> self,
     SseSerializer serializer,
   );
 
@@ -403,6 +798,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_api_transaction(
+    List<APITransaction> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_utxo(List<APIUtxo> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_api_wallet_info(
+    List<APIWalletInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_32_strict(
     Uint32List self,
     SseSerializer serializer,
@@ -415,7 +825,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
@@ -440,6 +868,40 @@ class RustLibWire implements BaseWire {
   /// The symbols are looked up in [dynamicLibrary].
   RustLibWire(ffi.DynamicLibrary dynamicLibrary)
     : _lookup = dynamicLibrary.lookup;
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWalletPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_deadbolt_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWalletPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWalletPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_deadbolt_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWalletPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(

@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -37,7 +37,125 @@ class APIAbsoluteTimelock {
 
 enum APIAbsoluteTimelockType { blocks, timestamp }
 
-enum APINetwork { bitcoin, testnet, testnet4, signet, regtest }
+class APIAddress {
+  final String address;
+  final int index;
+  final APIKeychain keychain;
+  final BigInt balanceSat;
+
+  /// True if this address has appeared in at least one transaction output.
+  final bool isUsed;
+
+  /// Number of transactions in which this address appears as an output.
+  final int txCount;
+  final String? label;
+
+  const APIAddress({
+    required this.address,
+    required this.index,
+    required this.keychain,
+    required this.balanceSat,
+    required this.isUsed,
+    required this.txCount,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      address.hashCode ^
+      index.hashCode ^
+      keychain.hashCode ^
+      balanceSat.hashCode ^
+      isUsed.hashCode ^
+      txCount.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAddress &&
+          runtimeType == other.runtimeType &&
+          address == other.address &&
+          index == other.index &&
+          keychain == other.keychain &&
+          balanceSat == other.balanceSat &&
+          isUsed == other.isUsed &&
+          txCount == other.txCount &&
+          label == other.label;
+}
+
+class APIBalance {
+  final BigInt confirmed;
+  final BigInt trustedPending;
+  final BigInt untrustedPending;
+  final BigInt immature;
+
+  const APIBalance({
+    required this.confirmed,
+    required this.trustedPending,
+    required this.untrustedPending,
+    required this.immature,
+  });
+
+  @override
+  int get hashCode =>
+      confirmed.hashCode ^
+      trustedPending.hashCode ^
+      untrustedPending.hashCode ^
+      immature.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIBalance &&
+          runtimeType == other.runtimeType &&
+          confirmed == other.confirmed &&
+          trustedPending == other.trustedPending &&
+          untrustedPending == other.untrustedPending &&
+          immature == other.immature;
+}
+
+class APICoinControl {
+  final String txid;
+  final int vout;
+
+  const APICoinControl({required this.txid, required this.vout});
+
+  @override
+  int get hashCode => txid.hashCode ^ vout.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APICoinControl &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          vout == other.vout;
+}
+
+enum APIKeychain {
+  /// External keychain — receive addresses (<0>/*)
+  external_,
+
+  /// Internal keychain — change addresses (<1>/*)
+  internal,
+}
+
+enum APINetwork {
+  bitcoin,
+  testnet,
+  testnet4,
+  signet,
+  regtest;
+
+  /// Canonical serialization string stored in wallet_info.network column.
+  Future<void> asStr() =>
+      RustLib.instance.api.crateApiModelApiNetworkAsStr(that: this);
+
+  /// Human-readable lowercase name for error messages and display.
+  Future<void> displayName() =>
+      RustLib.instance.api.crateApiModelApiNetworkDisplayName(that: this);
+}
 
 class APIPolicyPath {
   final String policyId;
@@ -64,6 +182,97 @@ class APIPolicyPath {
           runtimeType == other.runtimeType &&
           policyId == other.policyId &&
           path == other.path;
+}
+
+class APIPsbtAnalysis {
+  final List<APIPsbtSignerStatus> signers;
+  final bool isFinalized;
+
+  const APIPsbtAnalysis({required this.signers, required this.isFinalized});
+
+  @override
+  int get hashCode => signers.hashCode ^ isFinalized.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIPsbtAnalysis &&
+          runtimeType == other.runtimeType &&
+          signers == other.signers &&
+          isFinalized == other.isFinalized;
+}
+
+class APIPsbtInfo {
+  final PlatformInt64 id;
+  final String psbtBase64;
+  final String? label;
+  final PlatformInt64 createdAt;
+  final String recipient;
+  final BigInt amountSat;
+  final BigInt feeSat;
+  final int spendPathId;
+  final int threshold;
+  final List<String> mfps;
+
+  const APIPsbtInfo({
+    required this.id,
+    required this.psbtBase64,
+    this.label,
+    required this.createdAt,
+    required this.recipient,
+    required this.amountSat,
+    required this.feeSat,
+    required this.spendPathId,
+    required this.threshold,
+    required this.mfps,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      psbtBase64.hashCode ^
+      label.hashCode ^
+      createdAt.hashCode ^
+      recipient.hashCode ^
+      amountSat.hashCode ^
+      feeSat.hashCode ^
+      spendPathId.hashCode ^
+      threshold.hashCode ^
+      mfps.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIPsbtInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          psbtBase64 == other.psbtBase64 &&
+          label == other.label &&
+          createdAt == other.createdAt &&
+          recipient == other.recipient &&
+          amountSat == other.amountSat &&
+          feeSat == other.feeSat &&
+          spendPathId == other.spendPathId &&
+          threshold == other.threshold &&
+          mfps == other.mfps;
+}
+
+class APIPsbtSignerStatus {
+  final String mfp;
+  final bool hasSigned;
+
+  const APIPsbtSignerStatus({required this.mfp, required this.hasSigned});
+
+  @override
+  int get hashCode => mfp.hashCode ^ hasSigned.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIPsbtSignerStatus &&
+          runtimeType == other.runtimeType &&
+          mfp == other.mfp &&
+          hasSigned == other.hasSigned;
 }
 
 class APIPubKey {
@@ -223,6 +432,164 @@ class APISpendPathDef {
           absTimelock == other.absTimelock &&
           isKeyPath == other.isKeyPath &&
           priority == other.priority;
+}
+
+class APITransaction {
+  final String txid;
+  final BigInt received;
+  final BigInt sent;
+  final BigInt? fee;
+  final int? confirmationHeight;
+  final BigInt? confirmationTime;
+  final String? label;
+
+  const APITransaction({
+    required this.txid,
+    required this.received,
+    required this.sent,
+    this.fee,
+    this.confirmationHeight,
+    this.confirmationTime,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      txid.hashCode ^
+      received.hashCode ^
+      sent.hashCode ^
+      fee.hashCode ^
+      confirmationHeight.hashCode ^
+      confirmationTime.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APITransaction &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          received == other.received &&
+          sent == other.sent &&
+          fee == other.fee &&
+          confirmationHeight == other.confirmationHeight &&
+          confirmationTime == other.confirmationTime &&
+          label == other.label;
+}
+
+class APITransactionPage {
+  final List<APITransaction> transactions;
+  final int totalCount;
+  final bool hasMore;
+
+  const APITransactionPage({
+    required this.transactions,
+    required this.totalCount,
+    required this.hasMore,
+  });
+
+  @override
+  int get hashCode =>
+      transactions.hashCode ^ totalCount.hashCode ^ hasMore.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APITransactionPage &&
+          runtimeType == other.runtimeType &&
+          transactions == other.transactions &&
+          totalCount == other.totalCount &&
+          hasMore == other.hasMore;
+}
+
+class APIUtxo {
+  final String txid;
+  final int vout;
+  final BigInt valueSat;
+  final APIKeychain keychain;
+  final int derivationIndex;
+  final String address;
+  final bool isConfirmed;
+  final int? confirmationHeight;
+
+  const APIUtxo({
+    required this.txid,
+    required this.vout,
+    required this.valueSat,
+    required this.keychain,
+    required this.derivationIndex,
+    required this.address,
+    required this.isConfirmed,
+    this.confirmationHeight,
+  });
+
+  @override
+  int get hashCode =>
+      txid.hashCode ^
+      vout.hashCode ^
+      valueSat.hashCode ^
+      keychain.hashCode ^
+      derivationIndex.hashCode ^
+      address.hashCode ^
+      isConfirmed.hashCode ^
+      confirmationHeight.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIUtxo &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          vout == other.vout &&
+          valueSat == other.valueSat &&
+          keychain == other.keychain &&
+          derivationIndex == other.derivationIndex &&
+          address == other.address &&
+          isConfirmed == other.isConfirmed &&
+          confirmationHeight == other.confirmationHeight;
+}
+
+class APIWalletInfo {
+  final String walletPath;
+  final String name;
+  final String descriptor;
+  final APINetwork network;
+  final PlatformInt64? sourceProjectId;
+  final PlatformInt64 createdAt;
+  final PlatformInt64? lastSyncedAt;
+
+  const APIWalletInfo({
+    required this.walletPath,
+    required this.name,
+    required this.descriptor,
+    required this.network,
+    this.sourceProjectId,
+    required this.createdAt,
+    this.lastSyncedAt,
+  });
+
+  @override
+  int get hashCode =>
+      walletPath.hashCode ^
+      name.hashCode ^
+      descriptor.hashCode ^
+      network.hashCode ^
+      sourceProjectId.hashCode ^
+      createdAt.hashCode ^
+      lastSyncedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIWalletInfo &&
+          runtimeType == other.runtimeType &&
+          walletPath == other.walletPath &&
+          name == other.name &&
+          descriptor == other.descriptor &&
+          network == other.network &&
+          sourceProjectId == other.sourceProjectId &&
+          createdAt == other.createdAt &&
+          lastSyncedAt == other.lastSyncedAt;
 }
 
 enum APIWalletType {

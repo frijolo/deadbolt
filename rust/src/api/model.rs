@@ -26,6 +26,32 @@ impl APINetwork {
             APINetwork::Regtest => "regtest",
         }
     }
+
+    /// Canonical serialization string stored in wallet_info.network column.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            APINetwork::Bitcoin => "bitcoin",
+            APINetwork::Testnet => "testnet",
+            APINetwork::Testnet4 => "testnet4",
+            APINetwork::Signet => "signet",
+            APINetwork::Regtest => "regtest",
+        }
+    }
+}
+
+impl TryFrom<&str> for APINetwork {
+    type Error = anyhow::Error;
+
+    fn try_from(s: &str) -> Result<Self> {
+        match s {
+            "bitcoin" => Ok(APINetwork::Bitcoin),
+            "testnet" => Ok(APINetwork::Testnet),
+            "testnet4" => Ok(APINetwork::Testnet4),
+            "signet" => Ok(APINetwork::Signet),
+            "regtest" => Ok(APINetwork::Regtest),
+            _ => Err(anyhow::anyhow!("Unknown network: {}", s)),
+        }
+    }
 }
 
 impl From<Network> for APINetwork {
@@ -50,6 +76,20 @@ impl From<APINetwork> for Network {
             APINetwork::Signet => Network::Signet,
         }
     }
+}
+
+///////////////////
+// APIWalletInfo //
+///////////////////
+#[derive(Clone)]
+pub struct APIWalletInfo {
+    pub wallet_path: String,
+    pub name: String,
+    pub descriptor: String,
+    pub network: APINetwork,
+    pub source_project_id: Option<i64>,
+    pub created_at: i64,
+    pub last_synced_at: Option<i64>,
 }
 
 ///////////////////
@@ -336,6 +376,128 @@ pub struct APISpendPathDef {
     /// Taproot script tree priority (0 = deepest/least likely, higher = shallower/more likely).
     /// Ignored for non-Taproot descriptors.
     pub priority: u32,
+}
+
+////////////////
+// APIKeychain //
+////////////////
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum APIKeychain {
+    /// External keychain — receive addresses (<0>/*)
+    External,
+    /// Internal keychain — change addresses (<1>/*)
+    Internal,
+}
+
+////////////////
+// APIAddress //
+////////////////
+#[derive(Clone)]
+pub struct APIAddress {
+    pub address: String,
+    pub index: u32,
+    pub keychain: APIKeychain,
+    pub balance_sat: u64,
+    /// True if this address has appeared in at least one transaction output.
+    pub is_used: bool,
+    /// Number of transactions in which this address appears as an output.
+    pub tx_count: u32,
+    pub label: Option<String>,
+}
+
+
+////////////////
+// APIBalance //
+////////////////
+#[derive(Clone)]
+pub struct APIBalance {
+    pub confirmed: u64,
+    pub trusted_pending: u64,
+    pub untrusted_pending: u64,
+    pub immature: u64,
+}
+
+////////////////////
+// APITransaction //
+////////////////////
+#[derive(Clone)]
+pub struct APITransaction {
+    pub txid: String,
+    pub received: u64,
+    pub sent: u64,
+    pub fee: Option<u64>,
+    pub confirmation_height: Option<u32>,
+    pub confirmation_time: Option<u64>, // Unix timestamp; None = unconfirmed
+    pub label: Option<String>,
+}
+
+/////////////////////////
+// APITransactionPage  //
+/////////////////////////
+#[derive(Clone)]
+pub struct APITransactionPage {
+    pub transactions: Vec<APITransaction>,
+    pub total_count: u32,
+    pub has_more: bool,
+}
+
+////////////
+// APIUtxo //
+////////////
+#[derive(Clone)]
+pub struct APIUtxo {
+    pub txid: String,
+    pub vout: u32,
+    pub value_sat: u64,
+    pub keychain: APIKeychain,
+    pub derivation_index: u32,
+    pub address: String,
+    pub is_confirmed: bool,
+    pub confirmation_height: Option<u32>,
+}
+
+////////////////////
+// APIPsbtInfo    //
+////////////////////
+#[derive(Clone)]
+pub struct APIPsbtInfo {
+    pub id: i64,
+    pub psbt_base64: String,
+    pub label: Option<String>,
+    pub created_at: i64,
+    pub recipient: String,
+    pub amount_sat: u64,
+    pub fee_sat: u64,
+    pub spend_path_id: u32,
+    pub threshold: u32,
+    pub mfps: Vec<String>,
+}
+
+//////////////////////
+// APICoinControl   //
+//////////////////////
+#[derive(Clone)]
+pub struct APICoinControl {
+    pub txid: String,
+    pub vout: u32,
+}
+
+//////////////////////////
+// APIPsbtSignerStatus  //
+//////////////////////////
+#[derive(Clone)]
+pub struct APIPsbtSignerStatus {
+    pub mfp: String,
+    pub has_signed: bool,
+}
+
+/////////////////////
+// APIPsbtAnalysis //
+/////////////////////
+#[derive(Clone)]
+pub struct APIPsbtAnalysis {
+    pub signers: Vec<APIPsbtSignerStatus>,
+    pub is_finalized: bool,
 }
 
 ///////////////
