@@ -495,11 +495,6 @@ class _AddressTile extends StatelessWidget {
     );
   }
 
-  String _truncateAddress(String addr) {
-    if (addr.length <= 20) return addr;
-    return '${addr.substring(0, 10)}…${addr.substring(addr.length - 10)}';
-  }
-
   void _showDetails(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -989,11 +984,6 @@ class _CoinTile extends StatelessWidget {
             : const Icon(Icons.chevron_right, size: 18),
       ),
     );
-  }
-
-  String _truncate(String addr) {
-    if (addr.length <= 20) return addr;
-    return '${addr.substring(0, 10)}…${addr.substring(addr.length - 10)}';
   }
 
   void _showDetails(
@@ -2537,11 +2527,6 @@ class _PsbtTile extends StatelessWidget {
     }
     if (signed > 0) return Colors.orange;
     return Theme.of(context).colorScheme.outline;
-  }
-
-  String _truncate(String addr) {
-    if (addr.length <= 20) return addr;
-    return '${addr.substring(0, 8)}…${addr.substring(addr.length - 8)}';
   }
 
   APISpendPath? _findSpendPath() {

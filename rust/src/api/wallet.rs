@@ -64,8 +64,7 @@ fn psbt_max_utxo_conf_height(
         .iter()
         .filter_map(|txin| wallet.get_utxo(txin.previous_output))
         .filter_map(|utxo| {
-            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                utxo.chain_position
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = utxo.chain_position
             {
                 Some(anchor.block_id.height as i64)
             } else {
@@ -592,7 +591,6 @@ impl APIWallet {
 
         let network = core.wallet.network();
         let address = Address::from_str(&recipient_address)?.require_network(network)?;
-
 
         // float sat/vB → sat/kwu (1 sat/vB = 250 sat/kwu). Minimum 1 sat/kwu.
         let sat_per_kwu = ((fee_rate_sat_per_vb * 250.0).ceil() as u64).max(1);
