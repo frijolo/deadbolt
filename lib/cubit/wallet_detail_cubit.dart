@@ -530,7 +530,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     try {
       final psbtRecipients = current.psbts.map((p) => p.recipient).toSet();
 
-      String? _findIn(List<APIAddress> addrs) {
+      String? findIn(List<APIAddress> addrs) {
         for (final addr in addrs) {
           if (!addr.isUsed && !psbtRecipients.contains(addr.address)) {
             return addr.address;
@@ -540,7 +540,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       }
 
       var addrs = current.walletHandle.getAddresses(keychain: APIKeychain.external_);
-      final found = _findIn(addrs);
+      final found = findIn(addrs);
       if (found != null) return found;
 
       // All revealed addresses are used — reveal more and retry once.
@@ -549,7 +549,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         count: _revealCount,
       );
       addrs = current.walletHandle.getAddresses(keychain: APIKeychain.external_);
-      return _findIn(addrs);
+      return findIn(addrs);
     } catch (_) {
       return null;
     }

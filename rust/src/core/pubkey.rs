@@ -211,7 +211,6 @@ impl PubKey {
         // The descriptor builder will generate the NUMS xpub automatically
         Ok(pub_keys)
     }
-
 }
 
 #[cfg(test)]

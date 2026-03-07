@@ -405,7 +405,6 @@ pub struct APIAddress {
     pub label: Option<String>,
 }
 
-
 ////////////////
 // APIBalance //
 ////////////////

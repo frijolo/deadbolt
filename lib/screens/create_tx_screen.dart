@@ -9,7 +9,6 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 /// Screen for building an unsigned PSBT with optional coin control.

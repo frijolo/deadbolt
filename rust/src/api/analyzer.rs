@@ -79,7 +79,8 @@ pub fn build_descriptor(
 pub fn validate_descriptor_network(descriptor: String, network: APINetwork) -> Result<()> {
     use bdk_wallet::bitcoin::Network;
 
-    let detected = crate::core::descriptor_parser::DescriptorParser::parse(&descriptor)?.detect_network()?;
+    let detected =
+        crate::core::descriptor_parser::DescriptorParser::parse(&descriptor)?.detect_network()?;
     let descriptor_is_mainnet = detected == Network::Bitcoin;
     let selected_is_mainnet = network == APINetwork::Bitcoin;
 
