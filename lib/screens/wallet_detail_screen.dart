@@ -14,6 +14,7 @@ import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
@@ -34,14 +35,31 @@ class WalletDetailScreen extends StatelessWidget {
   }
 }
 
-class _WalletDetailView extends StatelessWidget {
+class _WalletDetailView extends StatefulWidget {
   const _WalletDetailView();
 
   @override
+  State<_WalletDetailView> createState() => _WalletDetailViewState();
+}
+
+class _WalletDetailViewState extends State<_WalletDetailView> {
+  bool _autoSyncStarted = false;
+
+  void _maybeStartAutoSync(BuildContext context, WalletDetailState state) {
+    if (_autoSyncStarted || state is! WalletDetailLoaded) return;
+    _autoSyncStarted = true;
+    final settings = context.read<SettingsCubit>().state;
+    final electrumUrl = settings.electrumUrlForNetwork(state.walletInfo.network);
+    context.read<WalletDetailCubit>().startAutoSync(electrumUrl);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<WalletDetailCubit, WalletDetailState>(
-      builder: (context, state) {
-        return switch (state) {
+    return BlocListener<WalletDetailCubit, WalletDetailState>(
+      listener: _maybeStartAutoSync,
+      child: BlocBuilder<WalletDetailCubit, WalletDetailState>(
+        builder: (context, state) {
+          return switch (state) {
           WalletDetailInitial() || WalletDetailLoading() => Scaffold(
               appBar: AppBar(),
               body: const Center(child: CircularProgressIndicator()),
@@ -58,7 +76,7 @@ class _WalletDetailView extends StatelessWidget {
           WalletDetailLoaded() => _buildLoaded(context, state),
         };
       },
-    );
+    ));
   }
 
   void _onMenuAction(
@@ -129,7 +147,13 @@ class _WalletDetailView extends StatelessWidget {
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: _WalletMenuAction.rescan,
-                child: Text(l10n.rescanButton),
+                child: Row(
+                  children: [
+                    const Icon(Icons.manage_search, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.rescanButton),
+                  ],
+                ),
               ),
             ],
           ),
@@ -450,15 +474,9 @@ class _AddressTile extends StatelessWidget {
                 address.label!,
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
-            Text(
-              _truncateAddress(address.address),
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: address.label?.isNotEmpty == true ? 11 : 13,
-                color: address.label?.isNotEmpty == true
-                    ? Theme.of(context).colorScheme.onSurface.withAlpha(138)
-                    : null,
-              ),
+            ColoredAddressText(
+              address: address.address,
+              truncate: true,
             ),
           ],
         ),
@@ -583,14 +601,10 @@ class _AddressDetailDialog extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      address.address,
-                      style:
-                          const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                    ),
+                    child: ColoredAddressText(address: address.address),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.ios_share, size: 16),
+                    icon: const Icon(Icons.share_outlined, size: 16),
                     tooltip: l10n.copyToClipboard,
                     visualDensity: VisualDensity.compact,
                     onPressed: () => showTextExportSheet(
@@ -942,9 +956,9 @@ class _CoinTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _truncate(utxo.address),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+            ColoredAddressText(
+              address: utxo.address,
+              truncate: true,
             ),
             const SizedBox(height: 2),
             Row(
@@ -1075,13 +1089,10 @@ class _CoinDetailDialog extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      utxo.address,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                    ),
+                    child: ColoredAddressText(address: utxo.address),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.ios_share, size: 16),
+                    icon: const Icon(Icons.share_outlined, size: 16),
                     tooltip: l10n.copyToClipboard,
                     visualDensity: VisualDensity.compact,
                     onPressed: () => showTextExportSheet(
@@ -1105,7 +1116,7 @@ class _CoinDetailDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.copy, size: 16),
+                    icon: const Icon(Icons.copy_outlined, size: 16),
                     tooltip: l10n.copyToClipboard,
                     visualDensity: VisualDensity.compact,
                     onPressed: () {
@@ -1305,7 +1316,14 @@ class _SyncRow extends StatelessWidget {
           FilledButton.tonal(
             onPressed: () =>
                 context.read<WalletDetailCubit>().sync(electrumUrl),
-            child: Text(l10n.syncButton),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sync, size: 18),
+                const SizedBox(width: 8),
+                Text(l10n.syncButton),
+              ],
+            ),
           ),
       ],
     );
@@ -1563,7 +1581,7 @@ class _TxDetailDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.copy, size: 16),
+                    icon: const Icon(Icons.copy_outlined, size: 16),
                     tooltip: l10n.copyToClipboard,
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: tx.txid));
@@ -1999,7 +2017,7 @@ class _DescriptorView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.ios_share, size: 18),
+            icon: const Icon(Icons.share_outlined, size: 16),
             tooltip: l10n.copyDescriptorTooltip,
             onPressed: () => showTextExportSheet(
               context,
@@ -2117,8 +2135,9 @@ class _WalletKeyCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                Icon(Icons.edit, size: 16, color: cs.onSurface.withAlpha(120)),
                 IconButton(
-                  icon: const Icon(Icons.ios_share, size: 16),
+                  icon: const Icon(Icons.share_outlined, size: 16),
                   tooltip: l10n.copyKeyspecTooltip,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => showTextExportSheet(
@@ -2297,6 +2316,8 @@ class _WalletPathCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  Icon(Icons.edit, size: 16, color: cs.onSurface.withAlpha(120)),
+                  const SizedBox(width: 4),
                   if (hasTimelock) _buildTimelockBadge(context, hasRelTimelock),
                   if (isTaproot && isKeyPath) _buildKeyPathBadge(context),
                 ],
@@ -2566,13 +2587,16 @@ class _PsbtTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                '→ ${_truncate(psbt.recipient)}',
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Text('→ ', style: Theme.of(context).textTheme.bodySmall),
+                  Expanded(
+                    child: ColoredAddressText(
+                      address: psbt.recipient,
+                      truncate: true,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -2587,13 +2611,14 @@ class _PsbtTile extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: () {
-          final spendPath = _findSpendPath();
-          if (spendPath == null) return;
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
                 value: context.read<WalletDetailCubit>(),
-                child: PsbtDetailScreen(psbt: psbt, spendPath: spendPath),
+                child: PsbtDetailScreen(
+                  psbt: psbt,
+                  spendPath: _findSpendPath(),
+                ),
               ),
             ),
           );

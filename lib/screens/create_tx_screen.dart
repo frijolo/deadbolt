@@ -1,14 +1,18 @@
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
-import 'package:deadbolt/cubit/wallet_detail_cubit.dart'
-    show WalletDetailCubit, APICoinControl;
+import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 /// Screen for building an unsigned PSBT with optional coin control.
@@ -89,6 +93,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     setState(() {
       _sendMax = !_sendMax;
       if (_sendMax) {
+        _amountCtrl.text = 'MAX';
+      } else {
         _amountCtrl.clear();
       }
     });
@@ -112,6 +118,165 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         .join(' + ');
     final threshold = '${path.threshold}-of-${path.mfps.length}';
     return '$threshold ($keys)';
+  }
+
+  /// Returns (icon, text, color) for the timelock status, or null if no timelock.
+  ({IconData icon, String text, Color color})? _timelockStatus(
+    BuildContext context,
+    APISpendPath path,
+    int tipHeight,
+    int? utxoMaxConfHeight,
+  ) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final hasRel = path.relTimelock.value > 0;
+    final hasAbs = path.absTimelock.value > 0;
+    if (!hasRel && !hasAbs) return null;
+
+    if (hasRel && path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
+      final relBlocks = path.relTimelock.value;
+      // In auto-select mode there are no pre-selected UTXOs — BDK will choose
+      // them independently, so we cannot compute the timelock status.
+      if (widget.preSelectedUtxos.isEmpty) return null;
+      if (utxoMaxConfHeight == null || tipHeight == 0) {
+        return (
+          icon: Icons.sync_disabled_outlined,
+          text: l10n.psbtTimelockSyncRequired,
+          color: theme.colorScheme.onSurface.withAlpha(120),
+        );
+      }
+      final remaining = (utxoMaxConfHeight + relBlocks) - tipHeight;
+      if (remaining > 0) {
+        return (
+          icon: Icons.lock_outline,
+          text: l10n.psbtTimelockBlocksRemaining(
+            remaining,
+            BitcoinFormatter.formatDuration(remaining * 10),
+          ),
+          color: Colors.orange,
+        );
+      }
+      return (icon: Icons.lock_open_outlined, text: l10n.spendPathUnlocked, color: Colors.green);
+    }
+
+    if (hasAbs) {
+      final absType = AbsoluteTimelockType.fromString(path.absTimelock.timelockType.name);
+      final absValue = path.absTimelock.value;
+      if (absType == AbsoluteTimelockType.blocks) {
+        if (tipHeight == 0) {
+          return (
+            icon: Icons.sync_disabled_outlined,
+            text: l10n.psbtTimelockSyncRequired,
+            color: theme.colorScheme.onSurface.withAlpha(120),
+          );
+        }
+        final remaining = absValue - tipHeight;
+        if (remaining > 0) {
+          return (
+            icon: Icons.lock_outline,
+            text: l10n.psbtTimelockBlocksRemaining(
+              remaining,
+              BitcoinFormatter.formatDuration(remaining * 10),
+            ),
+            color: Colors.orange,
+          );
+        }
+        return (
+          icon: Icons.lock_open_outlined,
+          text: l10n.spendPathUnlocked,
+          color: Colors.green,
+        );
+      } else {
+        final nowSecs = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final remaining = absValue - nowSecs;
+        if (remaining > 0) {
+          return (
+            icon: Icons.lock_outline,
+            text: l10n.psbtTimelockTimeRemaining(
+              BitcoinFormatter.formatDuration(remaining ~/ 60),
+            ),
+            color: Colors.orange,
+          );
+        }
+        return (
+          icon: Icons.lock_open_outlined,
+          text: l10n.spendPathUnlocked,
+          color: Colors.green,
+        );
+      }
+    }
+
+    return null;
+  }
+
+  Widget _buildSelectedPathCard(BuildContext context, APISpendPath path, int tipHeight) {
+    final theme = Theme.of(context);
+
+    final confirmedHeights = widget.preSelectedUtxos
+        .where((u) => u.confirmationHeight != null)
+        .map((u) => u.confirmationHeight!)
+        .toList();
+    final int? utxoMaxConfHeight =
+        confirmedHeights.isEmpty ? null : confirmedHeights.reduce(max);
+
+    final lockStatus = _timelockStatus(context, path, tipHeight, utxoMaxConfHeight);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${path.threshold}-of-${path.mfps.length}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withAlpha(150),
+                  ),
+                ),
+                if (lockStatus != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(lockStatus.icon, size: 13, color: lockStatus.color),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      lockStatus.text,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(color: lockStatus.color),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...path.mfps.map((mfp) {
+              final label = widget.keyLabels[mfp];
+              final display = mfp.substring(0, 8).toUpperCase();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    MfpBadge(label: display, color: theme.colorScheme.outline),
+                    if (label != null && label.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          label,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -239,7 +404,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 enabled: !_sendMax,
                 decoration: InputDecoration(
                   labelText: l10n.createTxAmount,
-                  hintText: _sendMax ? l10n.createTxSendMax : null,
                   suffixIcon: TextButton(
                     onPressed: _toggleSendMax,
                     style: TextButton.styleFrom(
@@ -311,18 +475,30 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   validator: (v) => v == null ? l10n.createTxSpendPathHint : null,
                 ),
 
+              if (_selectedPath != null) ...[
+                const SizedBox(height: 12),
+                BlocBuilder<WalletDetailCubit, WalletDetailState>(
+                  builder: (context, state) {
+                    final tipHeight =
+                        state is WalletDetailLoaded ? state.tipHeight : 0;
+                    return _buildSelectedPathCard(context, _selectedPath!, tipHeight);
+                  },
+                ),
+              ],
+
               const SizedBox(height: 32),
 
-              FilledButton(
+              FilledButton.icon(
                 onPressed:
                     (_creating || _selectedPath == null) ? null : _submit,
-                child: _creating
+                icon: _creating
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(l10n.createTxButton),
+                    : const Icon(Icons.receipt_long_outlined),
+                label: Text(l10n.createTxButton),
               ),
             ],
           ),

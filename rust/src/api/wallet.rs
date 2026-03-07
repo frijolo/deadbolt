@@ -53,7 +53,32 @@ fn psbt_from_base64(s: &str) -> Result<bdk_wallet::bitcoin::psbt::Psbt> {
     Psbt::deserialize(&bytes).map_err(|e| anyhow::anyhow!("PSBT deserialize: {}", e))
 }
 
-fn row_to_api_psbt(row: PsbtRow) -> APIPsbtInfo {
+/// Compute the maximum confirmation height of the UTXOs spent by `psbt`.
+/// Returns `None` if no input UTXO is confirmed.
+fn psbt_max_utxo_conf_height(
+    wallet: &bdk_wallet::Wallet,
+    psbt: &bdk_wallet::bitcoin::psbt::Psbt,
+) -> Option<i64> {
+    psbt.unsigned_tx
+        .input
+        .iter()
+        .filter_map(|txin| wallet.get_utxo(txin.previous_output))
+        .filter_map(|utxo| {
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                utxo.chain_position
+            {
+                Some(anchor.block_id.height as i64)
+            } else {
+                None
+            }
+        })
+        .reduce(i64::max)
+}
+
+fn row_to_api_psbt(row: PsbtRow, wallet: &bdk_wallet::Wallet) -> APIPsbtInfo {
+    let utxo_max_conf_height = psbt_from_base64(&row.psbt)
+        .ok()
+        .and_then(|psbt| psbt_max_utxo_conf_height(wallet, &psbt));
     APIPsbtInfo {
         id: row.id,
         psbt_base64: row.psbt,
@@ -65,6 +90,7 @@ fn row_to_api_psbt(row: PsbtRow) -> APIPsbtInfo {
         spend_path_id: row.spend_path_id,
         threshold: row.threshold,
         mfps: row.mfps,
+        utxo_max_conf_height,
     }
 }
 
@@ -567,6 +593,7 @@ impl APIWallet {
         let network = core.wallet.network();
         let address = Address::from_str(&recipient_address)?.require_network(network)?;
 
+
         // float sat/vB → sat/kwu (1 sat/vB = 250 sat/kwu). Minimum 1 sat/kwu.
         let sat_per_kwu = ((fee_rate_sat_per_vb * 250.0).ceil() as u64).max(1);
         let fee_rate = FeeRate::from_sat_per_kwu(sat_per_kwu);
@@ -631,6 +658,8 @@ impl APIWallet {
             amount_sat
         };
 
+        let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &psbt);
+
         ensure_unsigned_txs_table(&core.conn)?;
         let id = insert_psbt(
             &core.conn,
@@ -659,6 +688,7 @@ impl APIWallet {
             spend_path_id,
             threshold,
             mfps,
+            utxo_max_conf_height,
         })
     }
 
@@ -672,7 +702,7 @@ impl APIWallet {
         ensure_unsigned_txs_table(&core.conn)?;
         Ok(list_psbt_rows(&core.conn)?
             .into_iter()
-            .map(row_to_api_psbt)
+            .map(|row| row_to_api_psbt(row, &core.wallet))
             .collect())
     }
 
@@ -705,6 +735,7 @@ impl APIWallet {
         let merged_base64 = psbt_to_base64(&existing);
         update_psbt_data(&core.conn, id, &merged_base64)?;
 
+        let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
         Ok(APIPsbtInfo {
             id,
             psbt_base64: merged_base64,
@@ -716,6 +747,7 @@ impl APIWallet {
             spend_path_id: row.spend_path_id,
             threshold: row.threshold,
             mfps: row.mfps,
+            utxo_max_conf_height,
         })
     }
 
@@ -808,6 +840,23 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let row = get_psbt_row(&core.conn, id)?;
         let mut psbt = psbt_from_base64(&row.psbt)?;
+
+        // Reject broadcast if any input UTXO is unconfirmed (required for relative timelocks,
+        // and generally invalid — unconfirmed inputs cannot be spent by the network).
+        for txin in &psbt.unsigned_tx.input {
+            if let Some(utxo) = core.wallet.get_utxo(txin.previous_output) {
+                if !matches!(
+                    utxo.chain_position,
+                    bdk_wallet::chain::ChainPosition::Confirmed { .. }
+                ) {
+                    return Err(anyhow::anyhow!(
+                        "Cannot broadcast: input {} is not yet confirmed. \
+                         Wait for the funding transaction to confirm first.",
+                        txin.previous_output
+                    ));
+                }
+            }
+        }
 
         // If not already finalized by signer, try to finalize via BDK/miniscript.
         let already_final = psbt

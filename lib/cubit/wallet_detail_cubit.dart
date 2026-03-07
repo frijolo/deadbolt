@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -159,10 +161,29 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
   final WalletService _service;
   static const _pageSize = 25;
   static const _revealCount = 20;
+  static const _autoSyncInterval = Duration(minutes: 5);
+
+  Timer? _syncTimer;
+  String? _electrumUrl;
 
   WalletDetailCubit({WalletService? service})
       : _service = service ?? WalletService(),
         super(WalletDetailInitial());
+
+  /// Triggers an immediate sync and starts a periodic 5-minute auto-sync.
+  /// Safe to call multiple times (restarts the timer).
+  void startAutoSync(String electrumUrl) {
+    _electrumUrl = electrumUrl;
+    _syncTimer?.cancel();
+    sync(electrumUrl);
+    _syncTimer = Timer.periodic(_autoSyncInterval, (_) => sync(electrumUrl));
+  }
+
+  @override
+  Future<void> close() {
+    _syncTimer?.cancel();
+    return super.close();
+  }
 
   void _logError(String context, Object error, StackTrace stackTrace) {
     debugPrint('════════════════════════════════════════════════════════════');
@@ -241,6 +262,27 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
           : null;
       final utxos = current.utxosLoaded ? handle.getUtxos() : null;
 
+      // Reload PSBTs so utxoMaxConfHeight is recomputed from the updated chain state.
+      List<APIPsbtInfo> psbts = current.psbts;
+      Map<int, APIPsbtAnalysis> psbtAnalyses = current.psbtAnalyses;
+      if (current.psbtsLoaded) {
+        try {
+          psbts = handle.listPsbts();
+          psbtAnalyses = {};
+          for (final psbt in psbts) {
+            try {
+              psbtAnalyses[psbt.id.toInt()] =
+                  handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
+            } catch (_) {}
+          }
+        } catch (_) {}
+      }
+
+      // Read descriptor fields from the state at emit time, not from `current`
+      // captured at sync start — _loadDescriptorAnalysis() may have finished
+      // concurrently and we must not overwrite its result.
+      final atEmit = state is WalletDetailLoaded ? state as WalletDetailLoaded : current;
+
       emit(WalletDetailLoaded(
         walletHandle: handle,
         walletInfo: walletInfo,
@@ -259,12 +301,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         changeAddressesLoaded: current.changeAddressesLoaded,
         utxos: utxos ?? current.utxos,
         utxosLoaded: current.utxosLoaded,
-        descriptorAnalysis: current.descriptorAnalysis,
-        keyLabels: current.keyLabels,
-        pathLabels: current.pathLabels,
-        descriptorLoaded: current.descriptorLoaded,
-        psbts: current.psbts,
-        psbtAnalyses: current.psbtAnalyses,
+        descriptorAnalysis: atEmit.descriptorAnalysis,
+        keyLabels: atEmit.keyLabels,
+        pathLabels: atEmit.pathLabels,
+        descriptorLoaded: atEmit.descriptorLoaded,
+        psbts: psbts,
+        psbtAnalyses: psbtAnalyses,
         psbtsLoaded: current.psbtsLoaded,
       ));
     } catch (e, stackTrace) {
@@ -682,6 +724,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       hasMore: page.hasMore,
       currentPage: 0,
     ));
+    // Sync immediately after broadcast so balance and confirmations update.
+    final url = _electrumUrl ?? electrumUrl;
+    sync(url);
     return txid;
   }
 }

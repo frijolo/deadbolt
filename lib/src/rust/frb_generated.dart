@@ -2216,8 +2216,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIPsbtInfo dco_decode_api_psbt_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return APIPsbtInfo(
       id: dco_decode_i_64(arr[0]),
       psbtBase64: dco_decode_String(arr[1]),
@@ -2229,6 +2229,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       spendPathId: dco_decode_u_32(arr[7]),
       threshold: dco_decode_u_32(arr[8]),
       mfps: dco_decode_list_String(arr[9]),
+      utxoMaxConfHeight: dco_decode_opt_box_autoadd_i_64(arr[10]),
     );
   }
 
@@ -2856,6 +2857,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_spendPathId = sse_decode_u_32(deserializer);
     var var_threshold = sse_decode_u_32(deserializer);
     var var_mfps = sse_decode_list_String(deserializer);
+    var var_utxoMaxConfHeight = sse_decode_opt_box_autoadd_i_64(deserializer);
     return APIPsbtInfo(
       id: var_id,
       psbtBase64: var_psbtBase64,
@@ -2867,6 +2869,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       spendPathId: var_spendPathId,
       threshold: var_threshold,
       mfps: var_mfps,
+      utxoMaxConfHeight: var_utxoMaxConfHeight,
     );
   }
 
@@ -3636,6 +3639,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.spendPathId, serializer);
     sse_encode_u_32(self.threshold, serializer);
     sse_encode_list_String(self.mfps, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.utxoMaxConfHeight, serializer);
   }
 
   @protected
