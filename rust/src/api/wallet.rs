@@ -5,8 +5,8 @@ use flutter_rust_bridge::frb;
 
 use crate::api::model::{
     APIAddress, APIBalance, APICoinControl, APIKeychain, APINetwork, APIPolicyPath,
-    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APITransaction, APITransactionPage,
-    APIUtxo, APIWalletInfo,
+    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APITransaction, APITransactionPage, APIUtxo,
+    APIWalletInfo,
 };
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
@@ -15,10 +15,9 @@ use crate::core::wallet_info::{
 use crate::core::wallet_persistence::{
     delete_psbt_row, ensure_unsigned_txs_table, get_all_address_labels, get_all_key_labels,
     get_all_path_labels, get_all_tx_labels, get_psbt_row, insert_psbt, list_psbt_rows,
-    open_encrypted_connection, read_wallet_info,
-    set_address_label as db_set_address_label, set_key_label as db_set_key_label,
-    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label, touch_last_synced,
-    update_psbt_data, PsbtRow, WalletInfoRow,
+    open_encrypted_connection, read_wallet_info, set_address_label as db_set_address_label,
+    set_key_label as db_set_key_label, set_path_label as db_set_path_label,
+    set_tx_label as db_set_tx_label, touch_last_synced, update_psbt_data, PsbtRow, WalletInfoRow,
 };
 
 /// A key label entry returned from [APIWallet::get_key_labels].
@@ -163,7 +162,10 @@ impl APIWallet {
     /// Return the cached balance (no network call).
     #[frb(sync)]
     pub fn get_balance(&self) -> Result<APIBalance> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let balance = core.wallet.balance();
         Ok(APIBalance {
             confirmed: balance.confirmed.to_sat(),
@@ -176,7 +178,10 @@ impl APIWallet {
     /// Return a paginated page of transactions, sorted newest-first (no network call).
     #[frb(sync)]
     pub fn get_transactions(&self, page: u32, page_size: u32) -> Result<APITransactionPage> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
         let mut txs: Vec<_> = wallet.transactions().collect();
@@ -244,7 +249,10 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let is_first_sync = read_wallet_info(&core.conn)?.last_synced_at.is_none();
 
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
@@ -270,7 +278,10 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
 
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
         let request = core.wallet.start_full_scan();
@@ -285,14 +296,20 @@ impl APIWallet {
     /// Persist a label for a transaction. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_tx_label(&self, txid: String, label: String) -> Result<()> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_tx_label(&core.conn, &txid, &label)
     }
 
     /// Read wallet metadata from the open connection (no file re-open).
     #[frb(sync)]
     pub fn get_info(&self) -> Result<APIWalletInfo> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let row = read_wallet_info(&core.conn)?;
         row_to_api_info(self.path.clone(), row)
     }
@@ -304,7 +321,10 @@ impl APIWallet {
         use bdk_wallet::KeychainKind;
         use std::collections::HashMap;
 
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
         let bdk_keychain = match keychain {
@@ -316,8 +336,7 @@ impl APIWallet {
         let mut balance_map: HashMap<u32, u64> = HashMap::new();
         for utxo in wallet.list_unspent() {
             if utxo.keychain == bdk_keychain {
-                *balance_map.entry(utxo.derivation_index).or_insert(0) +=
-                    utxo.txout.value.to_sat();
+                *balance_map.entry(utxo.derivation_index).or_insert(0) += utxo.txout.value.to_sat();
             }
         }
 
@@ -348,7 +367,15 @@ impl APIWallet {
                 let is_used = used_indices.contains(&idx);
                 let tx_count = tx_count_map.get(&idx).copied().unwrap_or(0);
                 let label = labels.get(&addr).cloned();
-                APIAddress { address: addr, index: idx, keychain, balance_sat, is_used, tx_count, label }
+                APIAddress {
+                    address: addr,
+                    index: idx,
+                    keychain,
+                    balance_sat,
+                    is_used,
+                    tx_count,
+                    label,
+                }
             })
             .collect();
 
@@ -359,7 +386,10 @@ impl APIWallet {
     /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
     #[frb(sync)]
     pub fn get_utxos(&self) -> Result<Vec<APIUtxo>> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
         let mut utxos: Vec<APIUtxo> = wallet
@@ -377,15 +407,14 @@ impl APIWallet {
                     &local_output.chain_position,
                     bdk_wallet::chain::ChainPosition::Confirmed { .. }
                 );
-                let confirmation_height = if let bdk_wallet::chain::ChainPosition::Confirmed {
-                    anchor,
-                    ..
-                } = &local_output.chain_position
-                {
-                    Some(anchor.block_id.height)
-                } else {
-                    None
-                };
+                let confirmation_height =
+                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                        &local_output.chain_position
+                    {
+                        Some(anchor.block_id.height)
+                    } else {
+                        None
+                    };
                 APIUtxo {
                     txid: local_output.outpoint.txid.to_string(),
                     vout: local_output.outpoint.vout,
@@ -409,7 +438,10 @@ impl APIWallet {
     pub fn reveal_more_addresses(&self, keychain: APIKeychain, count: u32) -> Result<u32> {
         use bdk_wallet::KeychainKind;
 
-        let mut core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let bdk_keychain = match keychain {
             APIKeychain::External => KeychainKind::External,
             APIKeychain::Internal => KeychainKind::Internal,
@@ -420,51 +452,79 @@ impl APIWallet {
         }
         core.persist()?;
 
-        let total = core.wallet.spk_index().revealed_keychain_spks(bdk_keychain).count() as u32;
+        let total = core
+            .wallet
+            .spk_index()
+            .revealed_keychain_spks(bdk_keychain)
+            .count() as u32;
         Ok(total)
     }
 
     /// Persist a label for an address. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_address_label(&self, address: String, label: String) -> Result<()> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_address_label(&core.conn, &address, &label)
     }
 
     /// Return the current best block height from the local chain (0 if not yet synced).
     #[frb(sync)]
     pub fn get_tip_height(&self) -> Result<u32> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         Ok(core.wallet.latest_checkpoint().block_id().height)
     }
 
     /// Return all key labels (mfp → label).
     #[frb(sync)]
     pub fn get_key_labels(&self) -> Result<Vec<APIKeyLabel>> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let map = get_all_key_labels(&core.conn).unwrap_or_default();
-        Ok(map.into_iter().map(|(mfp, label)| APIKeyLabel { mfp, label }).collect())
+        Ok(map
+            .into_iter()
+            .map(|(mfp, label)| APIKeyLabel { mfp, label })
+            .collect())
     }
 
     /// Persist a label for a key by master fingerprint. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_key_label(&self, mfp: String, label: String) -> Result<()> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_key_label(&core.conn, &mfp, &label)
     }
 
     /// Return all spend-path labels (rust_id → label).
     #[frb(sync)]
     pub fn get_path_labels(&self) -> Result<Vec<APIPathLabel>> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let map = get_all_path_labels(&core.conn).unwrap_or_default();
-        Ok(map.into_iter().map(|(rust_id, label)| APIPathLabel { rust_id, label }).collect())
+        Ok(map
+            .into_iter()
+            .map(|(rust_id, label)| APIPathLabel { rust_id, label })
+            .collect())
     }
 
     /// Persist a label for a spend path by rust_id. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_path_label(&self, rust_id: u32, label: String) -> Result<()> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_path_label(&core.conn, rust_id, &label)
     }
 
@@ -481,6 +541,7 @@ impl APIWallet {
     /// * `threshold`      — required signatures (from the spend path).
     /// * `mfps`           — master fingerprints of keys in the spend path.
     #[frb(sync)]
+    #[allow(clippy::too_many_arguments)]
     pub fn create_psbt(
         &self,
         recipient_address: String,
@@ -498,7 +559,10 @@ impl APIWallet {
         use std::collections::BTreeMap;
         use std::str::FromStr;
 
-        let mut core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
 
         let network = core.wallet.network();
         let address = Address::from_str(&recipient_address)?.require_network(network)?;
@@ -509,7 +573,12 @@ impl APIWallet {
 
         let policy_map: BTreeMap<String, Vec<usize>> = policy_path
             .into_iter()
-            .map(|pp| (pp.policy_id, pp.path.into_iter().map(|x| x as usize).collect()))
+            .map(|pp| {
+                (
+                    pp.policy_id,
+                    pp.path.into_iter().map(|x| x as usize).collect(),
+                )
+            })
             .collect();
 
         let mut builder = core.wallet.build_tx();
@@ -596,15 +665,24 @@ impl APIWallet {
     /// Return all saved unsigned PSBTs for this wallet, newest-first.
     #[frb(sync)]
     pub fn list_psbts(&self) -> Result<Vec<APIPsbtInfo>> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         ensure_unsigned_txs_table(&core.conn)?;
-        Ok(list_psbt_rows(&core.conn)?.into_iter().map(row_to_api_psbt).collect())
+        Ok(list_psbt_rows(&core.conn)?
+            .into_iter()
+            .map(row_to_api_psbt)
+            .collect())
     }
 
     /// Delete a saved PSBT by id.
     #[frb(sync)]
     pub fn delete_psbt(&self, id: i64) -> Result<()> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         delete_psbt_row(&core.conn, id)
     }
 
@@ -614,7 +692,10 @@ impl APIWallet {
     /// Returns the updated info.
     #[frb(sync)]
     pub fn merge_psbt(&self, id: i64, signed_psbt_base64: String) -> Result<APIPsbtInfo> {
-        let core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let row = get_psbt_row(&core.conn, id)?;
 
         let mut existing = psbt_from_base64(&row.psbt)?;
@@ -650,8 +731,10 @@ impl APIWallet {
         let n_inputs = psbt.inputs.len();
 
         // For each MFP track a per-input signed flag — signer must cover ALL inputs.
-        let mut signed: HashMap<String, Vec<bool>> =
-            mfps.iter().map(|m| (m.clone(), vec![false; n_inputs])).collect();
+        let mut signed: HashMap<String, Vec<bool>> = mfps
+            .iter()
+            .map(|m| (m.clone(), vec![false; n_inputs]))
+            .collect();
 
         for (idx, input) in psbt.inputs.iter().enumerate() {
             // Non-taproot: bip32_derivation maps CompressedPublicKey → (Fingerprint, DerivPath)
@@ -695,15 +778,22 @@ impl APIWallet {
                     .get(mfp)
                     .map(|v| !v.is_empty() && v.iter().all(|&b| b))
                     .unwrap_or(false);
-                APIPsbtSignerStatus { mfp: mfp.clone(), has_signed }
+                APIPsbtSignerStatus {
+                    mfp: mfp.clone(),
+                    has_signed,
+                }
             })
             .collect();
 
-        let is_finalized = psbt.inputs.iter().all(|i| {
-            i.final_script_sig.is_some() || i.final_script_witness.is_some()
-        });
+        let is_finalized = psbt
+            .inputs
+            .iter()
+            .all(|i| i.final_script_sig.is_some() || i.final_script_witness.is_some());
 
-        Ok(APIPsbtAnalysis { signers, is_finalized })
+        Ok(APIPsbtAnalysis {
+            signers,
+            is_finalized,
+        })
     }
 
     /// Finalize the PSBT, broadcast via Electrum, and delete the local record.
@@ -712,17 +802,23 @@ impl APIWallet {
     pub async fn broadcast_psbt(&self, id: i64, electrum_url: String) -> Result<String> {
         use bdk_electrum::{electrum_client, BdkElectrumClient};
 
-        let mut core = self.inner.lock().map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let row = get_psbt_row(&core.conn, id)?;
         let mut psbt = psbt_from_base64(&row.psbt)?;
 
         // If not already finalized by signer, try to finalize via BDK/miniscript.
-        let already_final = psbt.inputs.iter().all(|i| {
-            i.final_script_sig.is_some() || i.final_script_witness.is_some()
-        });
+        let already_final = psbt
+            .inputs
+            .iter()
+            .all(|i| i.final_script_sig.is_some() || i.final_script_witness.is_some());
         if !already_final {
             #[allow(deprecated)]
-            let ok = core.wallet.finalize_psbt(&mut psbt, bdk_wallet::SignOptions::default())?;
+            let ok = core
+                .wallet
+                .finalize_psbt(&mut psbt, bdk_wallet::SignOptions::default())?;
             if !ok {
                 return Err(anyhow::anyhow!(
                     "Not enough signatures — PSBT cannot be finalized"

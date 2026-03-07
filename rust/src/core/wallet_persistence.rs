@@ -83,7 +83,10 @@ pub fn ensure_tx_labels_table(conn: &Connection) -> Result<()> {
 /// Upsert a label for a txid. Deletes the row if label is empty.
 pub fn set_tx_label(conn: &Connection, txid: &str, label: &str) -> Result<()> {
     if label.is_empty() {
-        conn.execute("DELETE FROM tx_labels WHERE txid = ?1", rusqlite::params![txid])?;
+        conn.execute(
+            "DELETE FROM tx_labels WHERE txid = ?1",
+            rusqlite::params![txid],
+        )?;
     } else {
         conn.execute(
             "INSERT OR REPLACE INTO tx_labels (txid, label) VALUES (?1, ?2)",
@@ -97,7 +100,9 @@ pub fn set_tx_label(conn: &Connection, txid: &str, label: &str) -> Result<()> {
 pub fn get_all_tx_labels(conn: &Connection) -> Result<std::collections::HashMap<String, String>> {
     let mut stmt = conn.prepare("SELECT txid, label FROM tx_labels")?;
     let map = stmt
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
@@ -140,7 +145,9 @@ pub fn get_all_address_labels(
 ) -> Result<std::collections::HashMap<String, String>> {
     let mut stmt = conn.prepare("SELECT address, label FROM address_labels")?;
     let map = stmt
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
@@ -164,7 +171,10 @@ pub fn ensure_key_labels_table(conn: &Connection) -> Result<()> {
 /// Upsert a label for a master fingerprint. Deletes the row if label is empty.
 pub fn set_key_label(conn: &Connection, mfp: &str, label: &str) -> Result<()> {
     if label.is_empty() {
-        conn.execute("DELETE FROM key_labels WHERE mfp = ?1", rusqlite::params![mfp])?;
+        conn.execute(
+            "DELETE FROM key_labels WHERE mfp = ?1",
+            rusqlite::params![mfp],
+        )?;
     } else {
         conn.execute(
             "INSERT OR REPLACE INTO key_labels (mfp, label) VALUES (?1, ?2)",
@@ -178,7 +188,9 @@ pub fn set_key_label(conn: &Connection, mfp: &str, label: &str) -> Result<()> {
 pub fn get_all_key_labels(conn: &Connection) -> Result<std::collections::HashMap<String, String>> {
     let mut stmt = conn.prepare("SELECT mfp, label FROM key_labels")?;
     let map = stmt
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
@@ -219,7 +231,9 @@ pub fn set_path_label(conn: &Connection, rust_id: u32, label: &str) -> Result<()
 pub fn get_all_path_labels(conn: &Connection) -> Result<std::collections::HashMap<u32, String>> {
     let mut stmt = conn.prepare("SELECT rust_id, label FROM path_labels")?;
     let map = stmt
-        .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
@@ -260,6 +274,7 @@ pub fn ensure_unsigned_txs_table(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert_psbt(
     conn: &Connection,
     psbt: &str,
@@ -306,7 +321,10 @@ pub fn update_psbt_data(conn: &Connection, id: i64, psbt_base64: &str) -> Result
 }
 
 pub fn delete_psbt_row(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute("DELETE FROM unsigned_txs WHERE id = ?1", rusqlite::params![id])?;
+    conn.execute(
+        "DELETE FROM unsigned_txs WHERE id = ?1",
+        rusqlite::params![id],
+    )?;
     Ok(())
 }
 
@@ -337,7 +355,7 @@ pub fn get_psbt_row(conn: &Connection, id: i64) -> Result<PsbtRow> {
                 spend_path_id, threshold, mfps
          FROM unsigned_txs WHERE id = ?1",
         rusqlite::params![id],
-        |row| parse_psbt_row(row),
+        parse_psbt_row,
     )
     .map_err(|e| anyhow::anyhow!("PSBT {} not found: {}", id, e))
 }
@@ -349,7 +367,7 @@ pub fn list_psbt_rows(conn: &Connection) -> Result<Vec<PsbtRow>> {
          FROM unsigned_txs ORDER BY created_at DESC",
     )?;
     let rows = stmt
-        .query_map([], |row| parse_psbt_row(row))?
+        .query_map([], parse_psbt_row)?
         .filter_map(|r| r.ok())
         .collect();
     Ok(rows)
@@ -518,7 +536,6 @@ mod tests {
             load_or_create_wallet(&path, MAINNET_DESC, Network::Bitcoin, KEY_HEX)?;
         Ok(())
     }
-
 
     #[test]
     fn test_wrong_key_cannot_open_existing_db() -> Result<()> {
