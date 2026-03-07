@@ -785,13 +785,11 @@ class _SignerRow extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  final bool monospace;
   final bool isAddress;
 
   const _DetailRow({
     required this.label,
     required this.value,
-    this.monospace = false,
     this.isAddress = false,
   });
 
@@ -812,12 +810,7 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: isAddress
               ? ColoredAddressText(address: value)
-              : Text(
-                  value,
-                  style: monospace
-                      ? theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')
-                      : theme.textTheme.bodySmall,
-                ),
+              : Text(value, style: theme.textTheme.bodySmall),
         ),
       ],
     );

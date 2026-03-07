@@ -21,7 +21,7 @@ class QrDecodeResult {
     final parts = <String>[];
     if (version != null) {
       final modules = version! * 4 + 17;
-      parts.add('v$version · ${modules}×$modules');
+      parts.add('v$version · $modules×$modules');
     }
     if (rawByteCount != null) parts.add('$rawByteCount bytes');
     return parts.join(' · ');
