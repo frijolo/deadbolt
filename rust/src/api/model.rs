@@ -470,6 +470,10 @@ pub struct APIPsbtInfo {
     pub spend_path_id: u32,
     pub threshold: u32,
     pub mfps: Vec<String>,
+    /// Max confirmation height of the input UTXOs at PSBT creation time.
+    /// Used to compute unlock block for relative timelocks:
+    ///   unlock_block = utxo_max_conf_height + timelock_blocks
+    pub utxo_max_conf_height: Option<i64>,
 }
 
 //////////////////////

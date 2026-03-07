@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `psbt_from_base64`, `psbt_to_base64`, `row_to_api_info`, `row_to_api_psbt`
+// These functions are ignored because they are not marked as `pub`: `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `row_to_api_info`, `row_to_api_psbt`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({

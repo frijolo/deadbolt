@@ -29,22 +29,30 @@ const int _kMaxPlainQrChars = 2800;
 // Above this the data cannot fit in a static QR code at the M level we use.
 const int _kQrHardMax = 2331;
 
-// Animated mode: each step is the max CBOR fragment size (raw bytes) passed
-// to the BC-UR fountain encoder.  The actual QR frame is ~2× larger after
-// bytewords encoding, so the resulting QR version is much higher than the
-// label suggests — but hardware wallet cameras handle it fine.
-//
-// Bitcoin PSBTs for P2WPKH/P2WSH inputs include the full previous transaction
-// (non_witness_utxo), making them ~15 KB binary.  At 1000 B/fragment that
-// results in ~16 frames, matching what Krux produces for its signed response.
-//
-//   Step 0 →   86 B  (smallest QR, most frames)
-//   Step 1 →  216 B
-//   Step 2 →  415 B
-//   Step 3 →  669 B
-//   Step 4 → 1000 B  (default — ~16 frames for a typical PSBT)
-const List<int> _kFragSteps = [86, 216, 415, 669, 1000];
-const int _kFragDefaultIdx = 0; // 86 B
+// Density levels for animated BC-UR mode.
+// Fragment sizes are chosen so that the encoded QR string (prefix + bytewords)
+// fits within the byte-mode L-ECC capacity of the target QR version:
+//   string_len ≈ 61 + 2 × fragment_bytes
+//   v6=134, v8=192, v10=271, v12=367 bytes capacity
+({String label, int fragBytes, int qrVersion}) _densityLevel(int idx) =>
+    const [
+      (label: 'Low',      fragBytes: 36,  qrVersion: 6),
+      (label: 'Mid',      fragBytes: 65,  qrVersion: 8),
+      (label: 'High',     fragBytes: 105, qrVersion: 10),
+      (label: 'VeryHigh', fragBytes: 153, qrVersion: 12),
+    ][idx];
+const int _kDensityCount = 4;
+const int _kDensityDefault = 0;
+
+// Speed levels: milliseconds between BC-UR frames.
+({String label, int intervalMs}) _speedLevel(int idx) => const [
+      (label: 'Slow',     intervalMs: 1000),
+      (label: 'Mid',      intervalMs: 600),
+      (label: 'Fast',     intervalMs: 300),
+      (label: 'VeryFast', intervalMs: 150),
+    ][idx];
+const int _kSpeedCount = 4;
+const int _kSpeedDefault = 1; // Mid
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -124,7 +132,9 @@ void showQrDialog(
 }) {
   showDialog<void>(
     context: context,
-    builder: (ctx) => _QrDialog(data: data, urBytes: urBytes, urType: urType),
+    builder: (ctx) => Dialog.fullscreen(
+      child: _QrDialog(data: data, urBytes: urBytes, urType: urType),
+    ),
   );
 }
 
@@ -149,18 +159,7 @@ Future<void> _saveWithFilePicker(
 }
 
 // ---------------------------------------------------------------------------
-// QR dialog
-//
-// A Switch lets the user toggle between a static QR code and animated BC-UR
-// fountain codes (the dominant multi-part QR standard in Bitcoin).
-//
-// Static mode  → plain QR at error-correction M (auto-selected, no controls).
-//
-// Animated mode → Slider controls bytes per BC-UR fragment (capped to the
-//                 actual payload size so the value always has meaning).
-//
-// The switch is permanently disabled (forced ON) when content exceeds the
-// physical QR capacity (_kQrHardMax bytes at M correction).
+// QR dialog (full-screen)
 // ---------------------------------------------------------------------------
 
 class _QrDialog extends StatefulWidget {
@@ -188,37 +187,20 @@ class _QrDialogState extends State<_QrDialog> {
 
   // User-controlled mode
   late bool _isAnimated;
-  int _fragStepIdx = _kFragDefaultIdx;
+  int _densityIdx = _kDensityDefault;
+  int _speedIdx = _kSpeedDefault;
 
   /// Length of the string shown in the static QR (base64 / plain text).
   late final int _dataByteLen = utf8.encode(widget.data).length;
 
-  /// Length of the actual fountain-encoder payload.
-  /// For PSBTs this is the raw binary size (urBytes); otherwise UTF-8 of data.
-  late final int _urPayloadLen =
-      widget.urBytes?.length ?? utf8.encode(widget.data).length;
-
   /// True when the static QR content exceeds QR v40 capacity at M correction.
   bool get _forceAnimated => _dataByteLen > _kQrHardMax;
-
-  /// Highest step index whose fragment size does not exceed the payload.
-  /// Uses the actual UR payload length so the slider is calibrated correctly
-  /// for both text (descriptors) and binary (PSBTs) payloads.
-  int get _maxStepIdx {
-    for (int i = _kFragSteps.length - 1; i > 0; i--) {
-      if (_kFragSteps[i] <= _urPayloadLen) return i;
-    }
-    return 0;
-  }
 
   @override
   void initState() {
     super.initState();
     _isAnimated = _dataByteLen > _kMaxPlainQrChars || _forceAnimated;
-    _fragStepIdx = _fragStepIdx.clamp(0, _maxStepIdx);
-    if (_isAnimated) {
-      _startEncoder();
-    }
+    if (_isAnimated) _startEncoder();
   }
 
   @override
@@ -231,13 +213,14 @@ class _QrDialogState extends State<_QrDialog> {
     _timer?.cancel();
     final bytes = widget.urBytes ?? Uint8List.fromList(utf8.encode(widget.data));
     final bcur = BCUR.fromData(widget.urType, bytes);
-    final fragSize = _kFragSteps[_fragStepIdx].clamp(1, bytes.length);
+    final fragSize = _densityLevel(_densityIdx).fragBytes.clamp(1, bytes.length);
     _encoder = BCURFountainEncoder(bcur, maxFragmentLength: fragSize);
     _currentFrame = _encoder!.nextPart();
     final (_, total) = _parseSeqInfo(_currentFrame);
     _seqTotal = total;
     _seqIndex = 0;
-    _timer = Timer.periodic(const Duration(milliseconds: 600), (_) {
+    final intervalMs = _speedLevel(_speedIdx).intervalMs;
+    _timer = Timer.periodic(Duration(milliseconds: intervalMs), (_) {
       if (!mounted) return;
       final frame = _encoder!.nextPart();
       final (seqnum, seqtotal) = _parseSeqInfo(frame);
@@ -269,114 +252,172 @@ class _QrDialogState extends State<_QrDialog> {
     return (n, m);
   }
 
+  /// Slider with a title on the left and always-visible level labels below the track.
+  Widget _buildLabeledSlider({
+    required String title,
+    required List<String> labels,
+    required int value,
+    required void Function(int) onChanged,
+    required VoidCallback onChangeEnd,
+    required TextStyle? dimStyle,
+    required TextStyle? labelStyle,
+  }) {
+    // Fixed width keeps both slider tracks aligned regardless of title length.
+    const double titleWidth = 64;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: titleWidth,
+          child: Padding(
+            // Align vertically with the slider thumb (~20dp top padding inside Slider).
+            padding: const EdgeInsets.only(top: 14),
+            child: Text(title, style: dimStyle),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Slider(
+                value: value.toDouble(),
+                min: 0,
+                max: (labels.length - 1).toDouble(),
+                divisions: labels.length - 1,
+                onChanged: (v) => onChanged(v.round()),
+                onChangeEnd: (_) => onChangeEnd(),
+              ),
+              // Padding matches the slider's internal horizontal inset.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: labels
+                      .map((l) => Text(l, style: labelStyle))
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final subtitleStyle = Theme.of(context)
+    final dimStyle = Theme.of(context)
         .textTheme
         .bodySmall
         ?.copyWith(color: Colors.white54);
+    final labelStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(color: Colors.white38, fontSize: 10);
 
-    return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.qrDialogTitle)),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(l10n.qrDialogTitle),
+        actions: [
           if (_isAnimated)
-            Text(
-              l10n.qrPart(_seqIndex + 1, _seqTotal),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppAccent.color),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              child: Text(
+                l10n.qrPart(_seqIndex + 1, _seqTotal),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppAccent.color),
+              ),
             ),
           IconButton(
             icon: const Icon(Icons.close),
             tooltip: l10n.close,
-            visualDensity: VisualDensity.compact,
             onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
+      body: Column(
         children: [
-          // QR image
-          SizedBox(
-            width: 260,
-            height: 260,
-            child: _isAnimated
-                ? QrImageView(
-                    data: _currentFrame,
-                    version: QrVersions.auto,
-                    errorCorrectionLevel: QrErrorCorrectLevel.L,
-                    backgroundColor: Colors.white,
-                  )
-                : QrImageView(
-                    data: widget.data,
-                    version: QrVersions.auto,
-                    errorCorrectionLevel: QrErrorCorrectLevel.M,
-                    backgroundColor: Colors.white,
-                  ),
+          // QR code — fills all available space above the controls.
+          Expanded(
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _isAnimated
+                      ? QrImageView(
+                          data: _currentFrame,
+                          version: QrVersions.auto,
+                          errorCorrectionLevel: QrErrorCorrectLevel.L,
+                          backgroundColor: Colors.white,
+                        )
+                      : QrImageView(
+                          data: widget.data,
+                          version: QrVersions.auto,
+                          errorCorrectionLevel: QrErrorCorrectLevel.M,
+                          backgroundColor: Colors.white,
+                        ),
+                ),
+              ),
+            ),
           ),
 
-          // BC-UR fountain progress
-          if (_isAnimated) ...[
-            const SizedBox(height: 8),
+          // BC-UR progress bar (thin strip).
+          if (_isAnimated)
             LinearProgressIndicator(
               value: (_seqIndex + 1) / _seqTotal,
               backgroundColor: Colors.white12,
               color: AppAccent.color,
+              minHeight: 3,
             ),
-          ],
 
-          const SizedBox(height: 12),
-
-          // Animated switch
-          Row(
-            children: [
-              Expanded(
-                child: Text(l10n.qrAnimatedLabel, style: subtitleStyle),
-              ),
-              Switch(
-                value: _isAnimated,
-                onChanged: _forceAnimated ? null : _setAnimated,
-              ),
-            ],
-          ),
-
-          // Bytes per frame slider — only shown in animated mode.
-          // Each discrete step = QR v(5/10/15/20/25) capacity at M level.
-          if (_isAnimated && _maxStepIdx > 0) ...[
-            const SizedBox(height: 4),
-            Row(
+          // Controls.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(l10n.qrBytesPerFrame, style: subtitleStyle),
-                Expanded(
-                  child: Slider(
-                    value: _fragStepIdx.toDouble(),
-                    min: 0,
-                    max: _maxStepIdx.toDouble(),
-                    divisions: _maxStepIdx,
-                    onChanged: (v) =>
-                        setState(() => _fragStepIdx = v.round()),
-                    onChangeEnd: (_) => _startEncoder(),
-                  ),
+                // Animated switch.
+                Row(
+                  children: [
+                    Expanded(child: Text(l10n.qrAnimatedLabel, style: dimStyle)),
+                    Switch(
+                      value: _isAnimated,
+                      onChanged: _forceAnimated ? null : _setAnimated,
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    '${_kFragSteps[_fragStepIdx]}',
-                    style: subtitleStyle,
-                    textAlign: TextAlign.end,
+
+                // Density + Speed sliders — only in animated mode.
+                if (_isAnimated) ...[
+                  _buildLabeledSlider(
+                    title: 'Density',
+                    labels: List.generate(_kDensityCount, (i) => _densityLevel(i).label),
+                    value: _densityIdx,
+                    onChanged: (v) => setState(() => _densityIdx = v),
+                    onChangeEnd: _startEncoder,
+                    dimStyle: dimStyle,
+                    labelStyle: labelStyle,
                   ),
-                ),
+                  _buildLabeledSlider(
+                    title: 'Speed',
+                    labels: List.generate(_kSpeedCount, (i) => _speedLevel(i).label),
+                    value: _speedIdx,
+                    onChanged: (v) => setState(() => _speedIdx = v),
+                    onChangeEnd: _startEncoder,
+                    dimStyle: dimStyle,
+                    labelStyle: labelStyle,
+                  ),
+                ],
               ],
             ),
-          ],
+          ),
         ],
       ),
-      actions: const [],
     );
   }
 }

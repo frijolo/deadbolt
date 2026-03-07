@@ -214,6 +214,11 @@ class APIPsbtInfo {
   final int threshold;
   final List<String> mfps;
 
+  /// Max confirmation height of the input UTXOs at PSBT creation time.
+  /// Used to compute unlock block for relative timelocks:
+  ///   unlock_block = utxo_max_conf_height + timelock_blocks
+  final PlatformInt64? utxoMaxConfHeight;
+
   const APIPsbtInfo({
     required this.id,
     required this.psbtBase64,
@@ -225,6 +230,7 @@ class APIPsbtInfo {
     required this.spendPathId,
     required this.threshold,
     required this.mfps,
+    this.utxoMaxConfHeight,
   });
 
   @override
@@ -238,7 +244,8 @@ class APIPsbtInfo {
       feeSat.hashCode ^
       spendPathId.hashCode ^
       threshold.hashCode ^
-      mfps.hashCode;
+      mfps.hashCode ^
+      utxoMaxConfHeight.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -254,7 +261,8 @@ class APIPsbtInfo {
           feeSat == other.feeSat &&
           spendPathId == other.spendPathId &&
           threshold == other.threshold &&
-          mfps == other.mfps;
+          mfps == other.mfps &&
+          utxoMaxConfHeight == other.utxoMaxConfHeight;
 }
 
 class APIPsbtSignerStatus {

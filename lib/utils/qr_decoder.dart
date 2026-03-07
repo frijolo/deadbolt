@@ -4,10 +4,34 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
 
+/// Result of decoding a QR code from a camera frame.
+class QrDecodeResult {
+  final String text;
+
+  /// QR version (1–40). Modules = version * 4 + 17.
+  final int? version;
+
+  /// Raw payload bytes (before text encoding).
+  final int? rawByteCount;
+
+  const QrDecodeResult(this.text, {this.version, this.rawByteCount});
+
+  /// Human-readable size summary, e.g. "v10 · 57×57 · 32 bytes".
+  String get sizeDescription {
+    final parts = <String>[];
+    if (version != null) {
+      final modules = version! * 4 + 17;
+      parts.add('v$version · ${modules}×$modules');
+    }
+    if (rawByteCount != null) parts.add('$rawByteCount bytes');
+    return parts.join(' · ');
+  }
+}
+
 /// Decodes a QR code from a raw RGB888 frame.
 ///
-/// Returns the decoded text, or `null` if no QR code is found in the frame.
-String? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) {
+/// Returns the decoded result, or `null` if no QR code is found in the frame.
+QrDecodeResult? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) {
   final rawImage = img.Image.fromBytes(
     width: width,
     height: height,
@@ -25,9 +49,13 @@ String? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) {
         .asInt32List(),
   );
   try {
-    return QRCodeReader()
-        .decode(BinaryBitmap(GlobalHistogramBinarizer(source)))
-        .text;
+    final result = QRCodeReader()
+        .decode(BinaryBitmap(GlobalHistogramBinarizer(source)));
+    return QrDecodeResult(
+      result.text,
+      version: result.version,
+      rawByteCount: result.rawBytes?.length,
+    );
   } catch (_) {
     return null; // NotFoundException — no QR in frame
   }

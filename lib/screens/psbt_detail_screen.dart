@@ -15,18 +15,19 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 
 class PsbtDetailScreen extends StatefulWidget {
   final APIPsbtInfo psbt;
-  final APISpendPath spendPath;
+  final APISpendPath? spendPath;
 
   const PsbtDetailScreen({
     super.key,
     required this.psbt,
-    required this.spendPath,
+    this.spendPath,
   });
 
   @override
@@ -110,9 +111,60 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
       ),
     ];
 
-    // Status row: remaining / unlocked — only for absolute timelocks.
-    // Relative timelocks require UTXO confirmation height which is not
-    // available without parsing the PSBT inputs.
+    // Status row for relative timelocks using the stored UTXO max confirmation height.
+    if (hasRel &&
+        path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
+      final confHeight = _psbt.utxoMaxConfHeight?.toInt();
+      final relBlocks = path.relTimelock.value;
+
+      final String statusText;
+      final Color statusColor;
+      final IconData statusIcon;
+
+      if (confHeight == null) {
+        statusText = l10n.psbtTimelockSyncRequired;
+        statusColor = theme.colorScheme.onSurface.withAlpha(120);
+        statusIcon = Icons.sync_disabled_outlined;
+      } else if (tipHeight == 0) {
+        statusText = l10n.psbtTimelockSyncRequired;
+        statusColor = theme.colorScheme.onSurface.withAlpha(120);
+        statusIcon = Icons.sync_disabled_outlined;
+      } else {
+        final unlockBlock = confHeight + relBlocks;
+        final remaining = unlockBlock - tipHeight;
+        if (remaining > 0) {
+          statusText = l10n.psbtTimelockBlocksRemaining(
+            remaining,
+            BitcoinFormatter.formatDuration(remaining * 10),
+          );
+          statusColor = Colors.orange;
+          statusIcon = Icons.lock_outline;
+        } else {
+          statusText = l10n.spendPathUnlocked;
+          statusColor = Colors.green;
+          statusIcon = Icons.lock_open_outlined;
+        }
+      }
+
+      rows.addAll([
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const SizedBox(width: 90),
+            Icon(statusIcon, size: 14, color: statusColor),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                statusText,
+                style: theme.textTheme.bodySmall?.copyWith(color: statusColor),
+              ),
+            ),
+          ],
+        ),
+      ]);
+    }
+
+    // Status row for absolute timelocks.
     if (hasAbs) {
       final absType = AbsoluteTimelockType.fromString(path.absTimelock.timelockType.name);
       final absValue = path.absTimelock.value;
@@ -364,29 +416,37 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
-  Future<void> _delete(BuildContext context) async {
+  void _delete(BuildContext context) {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.psbtDeleteTitle),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          children: [
+            Expanded(child: Text(l10n.psbtDeleteTitle)),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: l10n.cancel,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
         content: Text(l10n.psbtDeleteConfirm),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              context.read<WalletDetailCubit>().deletePsbt(_psbt.id.toInt());
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(l10n.delete),
           ),
         ],
       ),
     );
-    if (confirmed == true && context.mounted) {
-      context.read<WalletDetailCubit>().deletePsbt(_psbt.id.toInt());
-      Navigator.of(context).pop();
-    }
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -404,6 +464,15 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         final threshold = _psbt.threshold.toInt();
         final total = _psbt.mfps.length;
 
+        // Resolve spendPath: use constructor value, or look it up reactively
+        // from the descriptor analysis (which may finish after navigation).
+        final spendPath = widget.spendPath ??
+            (state is WalletDetailLoaded
+                ? state.descriptorAnalysis?.spendPaths
+                    .where((p) => p.id == _psbt.spendPathId.toInt())
+                    .firstOrNull
+                : null);
+
         return Scaffold(
           appBar: AppBar(
             title: Text(l10n.psbtDetailTitle),
@@ -416,7 +485,13 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     value: _PsbtMenuAction.delete,
-                    child: Text(l10n.psbtDeleteTitle),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete_outline, size: 20),
+                        const SizedBox(width: 12),
+                        Text(l10n.psbtDeleteTitle),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -444,7 +519,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                         _DetailRow(
                           label: l10n.psbtRecipient,
                           value: _psbt.recipient,
-                          monospace: true,
+                          isAddress: true,
                         ),
                         const SizedBox(height: 8),
                         _DetailRow(
@@ -461,11 +536,12 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                           label: l10n.psbtCreatedAt,
                           value: _formatDate(_psbt.createdAt.toInt()),
                         ),
-                        ..._buildTimelockRows(
-                          context,
-                          widget.spendPath,
-                          state is WalletDetailLoaded ? state.tipHeight : 0,
-                        ),
+                        if (spendPath != null)
+                          ..._buildTimelockRows(
+                            context,
+                            spendPath,
+                            state is WalletDetailLoaded ? state.tipHeight : 0,
+                          ),
                       ],
                     ),
                   ),
@@ -501,17 +577,49 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
                 const SizedBox(height: 24),
 
-                // Action buttons
-                OutlinedButton.icon(
-                  onPressed: () => _exportPsbt(context),
-                  icon: const Icon(Icons.upload_outlined),
-                  label: Text(l10n.psbtExportButton),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _importSigned(context),
-                  icon: const Icon(Icons.download_outlined),
-                  label: Text(l10n.psbtImportSignedButton),
+                // Action buttons — filled when signatures needed, outlined when ready to broadcast
+                Row(
+                  children: [
+                    Expanded(
+                      child: _isReadyToBroadcast
+                          ? OutlinedButton.icon(
+                              onPressed: () => _exportPsbt(context),
+                              icon: const Icon(Icons.upload_outlined),
+                              label: Text(l10n.psbtExportButton),
+                            )
+                          : FilledButton.tonal(
+                              onPressed: () => _exportPsbt(context),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.upload_outlined, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.psbtExportButton),
+                                ],
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _isReadyToBroadcast
+                          ? OutlinedButton.icon(
+                              onPressed: () => _importSigned(context),
+                              icon: const Icon(Icons.download_outlined),
+                              label: Text(l10n.psbtImportSignedButton),
+                            )
+                          : FilledButton.tonal(
+                              onPressed: () => _importSigned(context),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.download_outlined, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(l10n.psbtImportSignedButton),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -678,11 +786,13 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
   final bool monospace;
+  final bool isAddress;
 
   const _DetailRow({
     required this.label,
     required this.value,
     this.monospace = false,
+    this.isAddress = false,
   });
 
   @override
@@ -700,12 +810,14 @@ class _DetailRow extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: monospace
-                ? theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')
-                : theme.textTheme.bodySmall,
-          ),
+          child: isAddress
+              ? ColoredAddressText(address: value)
+              : Text(
+                  value,
+                  style: monospace
+                      ? theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace')
+                      : theme.textTheme.bodySmall,
+                ),
         ),
       ],
     );

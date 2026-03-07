@@ -20,6 +20,18 @@ bool get _isCameraSupported =>
     defaultTargetPlatform == TargetPlatform.iOS ||
     defaultTargetPlatform == TargetPlatform.macOS;
 
+/// Visual state of the last decoded frame.
+enum _ScanState {
+  /// No frame processed yet.
+  idle,
+  /// Frame captured but no QR found.
+  noQr,
+  /// QR decoded but was a BC-UR part already received (duplicate).
+  duplicate,
+  /// QR decoded and it contributed a new BC-UR part.
+  newPart,
+}
+
 /// Full-screen QR code scanner.
 ///
 /// On platforms supported by mobile_scanner (Android, iOS, macOS, Web) this
@@ -50,15 +62,23 @@ class QrScannerScreen extends StatefulWidget {
 class _QrScannerScreenState extends State<QrScannerScreen> {
   // -- Shared BC-UR state --
   BCURFountainDecoder? _urDecoder;
-  double _progress = 0;
   bool _isAnimated = false;
   bool _done = false;
+  int _receivedCount = 0;
+  int _expectedCount = 0;
+
+  // -- Scan indicator state --
+  _ScanState _scanState = _ScanState.idle;
+  int? _lastSeenSeqNum;
 
   // -- Desktop camera state --
   FlutterLiteCamera? _camera;
   Timer? _pollTimer;
   ui.Image? _previewImage;
   bool _cameraInitFailed = false;
+
+  double get _progress =>
+      _expectedCount > 0 ? _receivedCount / _expectedCount : 0.0;
 
   @override
   void initState() {
@@ -106,10 +126,12 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       final int w = frame['width'] as int;
       final int h = frame['height'] as int;
 
-      // Decode QR (pure Dart — runs on main isolate, ~50ms per frame).
-      final qrValue = decodeQrFromRgbFrame(w, h, rgbBytes);
-      if (qrValue != null && mounted) {
-        _onQrValue(qrValue);
+      final qrResult = decodeQrFromRgbFrame(w, h, rgbBytes);
+
+      if (qrResult != null) {
+        if (mounted) _onQrValue(qrResult.text);
+      } else {
+        if (mounted) setState(() => _scanState = _ScanState.noQr);
       }
 
       // Update preview image.
@@ -146,19 +168,58 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   // Shared QR handling
   // ---------------------------------------------------------------------------
 
+  /// Extracts the seqNum from a BC-UR part string, e.g. "UR:CRYPTO-PSBT/88-121/..." → 88.
+  static int? _parseSeqNum(String value) {
+    final parts = value.split('/');
+    if (parts.length < 2) return null;
+    return int.tryParse(parts[1].split('-')[0]);
+  }
+
   /// Called by both MobileScanner and the desktop polling branch.
   void _onQrValue(String value) {
     if (_done) return;
     if (value.toLowerCase().startsWith('ur:')) {
       _urDecoder ??= BCURFountainDecoder();
-      _urDecoder!.receivePart(value);
+
+      // Extract seqNum from header to detect physical frame changes.
+      final seqNum = _parseSeqNum(value);
+      final isNewFrame = seqNum != _lastSeenSeqNum;
+      _lastSeenSeqNum = seqNum;
+
+      final beforeCount = _urDecoder!.receivedCount;
+      try {
+        _urDecoder!.receivePart(value.toLowerCase());
+      } catch (_) {
+        return;
+      }
+      final afterCount = _urDecoder!.receivedCount;
+      final isNew = afterCount > beforeCount;
+
       setState(() {
         _isAnimated = true;
-        _progress = _urDecoder!.progress;
+        _receivedCount = afterCount;
+        _expectedCount = _urDecoder!.expectedCount;
+        // Only update the dot when the physical QR frame has changed.
+        if (isNewFrame) {
+          _scanState = isNew ? _ScanState.newPart : _ScanState.duplicate;
+        }
       });
+
       if (_urDecoder!.isComplete) {
+        final bcur = _urDecoder!.getResult();
+        if (bcur == null) {
+          // Decode error (checksum mismatch or density changed mid-scan).
+          // Reset and continue scanning from scratch.
+          _urDecoder!.reset();
+          setState(() {
+            _receivedCount = 0;
+            _expectedCount = 0;
+            _lastSeenSeqNum = null;
+          });
+          return;
+        }
         _done = true;
-        final data = _urDecoder!.getResult()!.decodeData() as List<int>;
+        final data = bcur.decodeData() as List<int>;
         // Try UTF-8 first (ur:bytes with text payload, e.g. descriptors).
         // For binary payloads like ur:crypto-psbt, fall back to base64 —
         // the PSBT import flow accepts base64 strings.
@@ -231,18 +292,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             ),
           ),
         ),
-        if (_isAnimated)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: LinearProgressIndicator(
-              value: _progress,
-              backgroundColor: Colors.black45,
-              color: AppAccent.color,
-              minHeight: 6,
-            ),
-          ),
+        if (_isAnimated) _buildUrOverlay(),
       ],
     );
   }
@@ -259,20 +309,63 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 ),
               )
             : const Center(child: CircularProgressIndicator()),
-        // BC-UR progress bar
-        if (_isAnimated)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: LinearProgressIndicator(
-              value: _progress,
-              backgroundColor: Colors.black45,
-              color: AppAccent.color,
-              minHeight: 6,
+        // BC-UR overlay
+        if (_isAnimated) _buildUrOverlay(),
+      ],
+    );
+  }
+
+  /// Progress bar + parts counter shown during BC-UR scanning.
+  Widget _buildUrOverlay() {
+    final dotColor = switch (_scanState) {
+      _ScanState.newPart   => Colors.green,
+      _ScanState.duplicate => Colors.blue,
+      _ScanState.noQr      => Colors.red,
+      _ScanState.idle      => Colors.transparent,
+    };
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(
+            value: _progress,
+            backgroundColor: Colors.black45,
+            color: AppAccent.color,
+            minHeight: 6,
+          ),
+          Container(
+            color: Colors.black54,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            width: double.infinity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$_receivedCount / $_expectedCount',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppAccent.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
