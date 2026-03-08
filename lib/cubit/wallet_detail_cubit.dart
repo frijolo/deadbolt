@@ -59,9 +59,6 @@ class WalletDetailLoaded extends WalletDetailState {
   final Map<int, APIPsbtAnalysis> psbtAnalyses; // psbt.id -> analysis
   final bool psbtsLoaded;
 
-  // Coin selection (for create-tx flow)
-  final Set<String> selectedCoinIds; // "${txid}:${vout}"
-
   WalletDetailLoaded({
     required this.walletInfo,
     required this.balance,
@@ -87,7 +84,6 @@ class WalletDetailLoaded extends WalletDetailState {
     this.psbts = const [],
     this.psbtAnalyses = const {},
     this.psbtsLoaded = false,
-    this.selectedCoinIds = const {},
   });
 
   WalletDetailLoaded copyWith({
@@ -115,7 +111,6 @@ class WalletDetailLoaded extends WalletDetailState {
     List<APIPsbtInfo>? psbts,
     Map<int, APIPsbtAnalysis>? psbtAnalyses,
     bool? psbtsLoaded,
-    Set<String>? selectedCoinIds,
   }) {
     return WalletDetailLoaded(
       walletInfo: walletInfo ?? this.walletInfo,
@@ -145,7 +140,6 @@ class WalletDetailLoaded extends WalletDetailState {
       psbts: psbts ?? this.psbts,
       psbtAnalyses: psbtAnalyses ?? this.psbtAnalyses,
       psbtsLoaded: psbtsLoaded ?? this.psbtsLoaded,
-      selectedCoinIds: selectedCoinIds ?? this.selectedCoinIds,
     );
   }
 }
@@ -538,25 +532,15 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     emit(current.copyWith(pathLabels: updated));
   }
 
-  // ─── Coin selection ───────────────────────────────────────────────────────
+  // ─── Coin loading ─────────────────────────────────────────────────────────
 
-  void toggleCoinSelection(APIUtxo utxo) {
+  /// Ensures UTXOs are loaded without switching tabs.
+  /// No-op if already loaded.
+  Future<void> ensureCoinsLoaded() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
-    final id = '${utxo.txid}:${utxo.vout}';
-    final updated = Set<String>.from(current.selectedCoinIds);
-    if (updated.contains(id)) {
-      updated.remove(id);
-    } else {
-      updated.add(id);
-    }
-    emit(current.copyWith(selectedCoinIds: updated));
-  }
-
-  void clearCoinSelection() {
-    final current = state;
-    if (current is! WalletDetailLoaded) return;
-    emit(current.copyWith(selectedCoinIds: {}));
+    if (!current.utxosLoaded) _loadUtxos();
+    if (!current.descriptorLoaded) await _loadDescriptorAnalysis();
   }
 
   /// Returns the next unused external (receive) address that is not already
@@ -650,7 +634,6 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         sendMax: sendMax,
       );
       loadPsbts();
-      clearCoinSelection();
       return psbt;
     } catch (e, st) {
       _logError('WalletDetailCubit.createPsbt()', e, st);

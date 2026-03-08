@@ -57,10 +57,9 @@ mod tests {
     #[test]
     fn test_p2tr_mainnet() {
         // P2TR (bc1p...), script len 34 → WU = 4*(8+1+34) = 172
-        let wu = address_output_wu(
-            "bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297",
-        )
-        .unwrap();
+        let wu =
+            address_output_wu("bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297")
+                .unwrap();
         assert_eq!(wu, 172);
     }
 

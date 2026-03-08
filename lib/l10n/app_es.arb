@@ -551,5 +551,14 @@
   "createTxEstFee": "Comisión",
   "createTxEstChange": "Cambio",
   "createTxEstInsufficientFunds": "Fondos insuficientes",
-  "createTxSelectCoinsFirst": "Selecciona monedas para crear la transacción"
+  "createTxSelectCoinsFirst": "Selecciona monedas para crear la transacción",
+  "walletSendButton": "Enviar",
+  "coinSelectorTitle": "Seleccionar monedas",
+  "coinSelectorNoCoinsSelected": "Toca para seleccionar monedas...",
+  "coinSelectorDoneCount": "Hecho ({count})",
+  "@coinSelectorDoneCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

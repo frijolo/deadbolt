@@ -1157,4 +1157,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createTxSelectCoinsFirst => 'Select coins to build a transaction';
+
+  @override
+  String get walletSendButton => 'Send';
+
+  @override
+  String get coinSelectorTitle => 'Select coins';
+
+  @override
+  String get coinSelectorNoCoinsSelected => 'Tap to select coins...';
+
+  @override
+  String coinSelectorDoneCount(int count) {
+    return 'Done ($count)';
+  }
 }

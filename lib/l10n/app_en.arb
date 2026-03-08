@@ -557,5 +557,14 @@
   "createTxEstFee": "Fee",
   "createTxEstChange": "Change",
   "createTxEstInsufficientFunds": "Insufficient funds",
-  "createTxSelectCoinsFirst": "Select coins to build a transaction"
+  "createTxSelectCoinsFirst": "Select coins to build a transaction",
+  "walletSendButton": "Send",
+  "coinSelectorTitle": "Select coins",
+  "coinSelectorNoCoinsSelected": "Tap to select coins...",
+  "coinSelectorDoneCount": "Done ({count})",
+  "@coinSelectorDoneCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

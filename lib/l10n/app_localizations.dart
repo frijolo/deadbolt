@@ -2137,6 +2137,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select coins to build a transaction'**
   String get createTxSelectCoinsFirst;
+
+  /// No description provided for @walletSendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get walletSendButton;
+
+  /// No description provided for @coinSelectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select coins'**
+  String get coinSelectorTitle;
+
+  /// No description provided for @coinSelectorNoCoinsSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select coins...'**
+  String get coinSelectorNoCoinsSelected;
+
+  /// No description provided for @coinSelectorDoneCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Done ({count})'**
+  String coinSelectorDoneCount(int count);
 }
 
 class _AppLocalizationsDelegate
