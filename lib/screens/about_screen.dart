@@ -4,15 +4,22 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/app_nav_drawer.dart';
 
 class AboutScreen extends StatelessWidget {
-  const AboutScreen({super.key});
+  final int navIndex;
+  final void Function(int)? onNavigate;
+
+  const AboutScreen({super.key, this.navIndex = 3, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: onNavigate != null
+          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+          : null,
       appBar: AppBar(
         title: Text(l10n.aboutTitle),
       ),

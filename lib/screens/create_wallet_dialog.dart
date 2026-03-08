@@ -5,6 +5,7 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -220,10 +221,39 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         sourceProjectId: sourceProjectId,
       );
 
+      if (_sourceMode == _SourceMode.fromProject && _selectedProject != null) {
+        await _copyProjectLabels(_selectedProject!, walletPath);
+      }
+
       if (mounted) Navigator.pop(context, walletPath);
     } catch (e) {
       setState(() => _isCreating = false);
       if (mounted) showErrorToast(context, formatRustError(e));
+    }
+  }
+
+  Future<void> _copyProjectLabels(Project project, String walletPath) async {
+    try {
+      final db = AppDatabase();
+      final keys = await db.getKeysForProject(project.id);
+      final paths = await db.getSpendPathsForProject(project.id);
+
+      final labeledKeys =
+          keys.where((k) => k.customName != null && k.customName!.isNotEmpty);
+      final labeledPaths = paths
+          .where((p) => p.customName != null && p.customName!.isNotEmpty);
+
+      if (labeledKeys.isEmpty && labeledPaths.isEmpty) return;
+
+      final handle = await WalletService().openWallet(walletPath);
+      for (final key in labeledKeys) {
+        handle.setKeyLabel(mfp: key.mfp, label: key.customName!);
+      }
+      for (final path in labeledPaths) {
+        handle.setPathLabel(rustId: path.rustId, label: path.customName!);
+      }
+    } catch (e, st) {
+      debugPrint('Failed to copy project labels to wallet: $e\n$st');
     }
   }
 }

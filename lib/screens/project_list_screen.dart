@@ -14,15 +14,22 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 
 class ProjectListScreen extends StatelessWidget {
-  const ProjectListScreen({super.key});
+  final int navIndex;
+  final void Function(int)? onNavigate;
+
+  const ProjectListScreen({super.key, this.navIndex = 0, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
+      drawer: onNavigate != null
+          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+          : null,
       appBar: AppBar(
         title: Text(l10n.projectsTitle),
         actions: [

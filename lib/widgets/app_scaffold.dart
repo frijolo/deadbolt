@@ -7,6 +7,7 @@ import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/project_list_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_list_screen.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});
@@ -17,6 +18,21 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTab();
+  }
+
+  Future<void> _initTab() async {
+    final wallets = await WalletService().listWallets();
+    if (wallets.isNotEmpty && mounted) {
+      setState(() => _selectedIndex = 1);
+    }
+  }
+
+  void _navigate(int i) => setState(() => _selectedIndex = i);
 
   @override
   Widget build(BuildContext context) {
@@ -30,20 +46,19 @@ class _AppScaffoldState extends State<AppScaffold> {
       (icon: Icons.info_outline, label: l10n.aboutTitle),
     ];
 
-    final body = IndexedStack(
-      index: _selectedIndex,
-      children: [
-        const ProjectListScreen(),
-        BlocProvider(
-          create: (context) => WalletListCubit(),
-          child: const WalletListScreen(),
-        ),
-        const SettingsScreen(),
-        const AboutScreen(),
-      ],
-    );
-
     if (isWide) {
+      final body = IndexedStack(
+        index: _selectedIndex,
+        children: [
+          const ProjectListScreen(),
+          BlocProvider(
+            create: (context) => WalletListCubit(),
+            child: const WalletListScreen(),
+          ),
+          const SettingsScreen(),
+          const AboutScreen(),
+        ],
+      );
       return Scaffold(
         body: Row(
           children: [
@@ -66,18 +81,17 @@ class _AppScaffoldState extends State<AppScaffold> {
       );
     }
 
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: destinations
-            .map((d) => NavigationDestination(
-                  icon: Icon(d.icon),
-                  label: d.label,
-                ))
-            .toList(),
-      ),
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        ProjectListScreen(navIndex: 0, onNavigate: _navigate),
+        BlocProvider(
+          create: (context) => WalletListCubit(),
+          child: WalletListScreen(navIndex: 1, onNavigate: _navigate),
+        ),
+        SettingsScreen(navIndex: 2, onNavigate: _navigate),
+        AboutScreen(navIndex: 3, onNavigate: _navigate),
+      ],
     );
   }
 }
