@@ -1124,4 +1124,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String coinSelected(int count) {
     return '$count selected';
   }
+
+  @override
+  String get createTxFeeByRate => 'Rate (sat/vB)';
+
+  @override
+  String get createTxFeeByTotal => 'Total (sats)';
+
+  @override
+  String get createTxTotalFee => 'Fee (sats)';
+
+  @override
+  String get createTxTotalFeeInvalid => 'Enter a positive fee amount';
+
+  @override
+  String get createTxFeeEstimate => 'Fee estimate';
+
+  @override
+  String get createTxEstInputs => 'Inputs';
+
+  @override
+  String get createTxEstSend => 'Send';
+
+  @override
+  String get createTxEstFee => 'Fee';
+
+  @override
+  String get createTxEstChange => 'Change';
+
+  @override
+  String get createTxEstInsufficientFunds => 'Insufficient funds';
+
+  @override
+  String get createTxSelectCoinsFirst => 'Select coins to build a transaction';
 }

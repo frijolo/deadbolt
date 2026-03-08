@@ -99,6 +99,15 @@ pub fn validate_descriptor_network(descriptor: String, network: APINetwork) -> R
     Ok(())
 }
 
+/// Calculate the weight units (WU) of a transaction output for the given address.
+///
+/// The result only depends on the scriptPubKey type (P2PKH=136, P2SH=128,
+/// P2WPKH=124, P2WSH=172, P2TR=172). Network validation is skipped so
+/// mainnet, testnet, signet, and regtest addresses are all accepted.
+pub fn address_output_wu(address: String) -> anyhow::Result<u64> {
+    crate::core::address::address_output_wu(&address).map_err(Into::into)
+}
+
 /// Calculate the deterministic rustId for a spend path
 /// Delegates to core::spend_path::calculate_spend_path_id (single source of truth)
 pub fn calculate_spend_path_id(

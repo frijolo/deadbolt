@@ -546,5 +546,16 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "createTxFeeByRate": "Rate (sat/vB)",
+  "createTxFeeByTotal": "Total (sats)",
+  "createTxTotalFee": "Fee (sats)",
+  "createTxTotalFeeInvalid": "Enter a positive fee amount",
+  "createTxFeeEstimate": "Fee estimate",
+  "createTxEstInputs": "Inputs",
+  "createTxEstSend": "Send",
+  "createTxEstFee": "Fee",
+  "createTxEstChange": "Change",
+  "createTxEstInsufficientFunds": "Insufficient funds",
+  "createTxSelectCoinsFirst": "Select coins to build a transaction"
 }

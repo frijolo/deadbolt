@@ -25,6 +25,9 @@ pub enum WalletError {
     #[error("BuilderError: {0}")]
     BuilderError(String),
 
+    #[error("InvalidAddress: {0}")]
+    InvalidAddress(String),
+
     // Capture direct errors from BDK
     #[error("MiniscriptError: {0}")]
     MiniscriptError(#[from] bdk_wallet::miniscript::Error),

@@ -2071,6 +2071,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} selected'**
   String coinSelected(int count);
+
+  /// No description provided for @createTxFeeByRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate (sat/vB)'**
+  String get createTxFeeByRate;
+
+  /// No description provided for @createTxFeeByTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total (sats)'**
+  String get createTxFeeByTotal;
+
+  /// No description provided for @createTxTotalFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee (sats)'**
+  String get createTxTotalFee;
+
+  /// No description provided for @createTxTotalFeeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a positive fee amount'**
+  String get createTxTotalFeeInvalid;
+
+  /// No description provided for @createTxFeeEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee estimate'**
+  String get createTxFeeEstimate;
+
+  /// No description provided for @createTxEstInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs'**
+  String get createTxEstInputs;
+
+  /// No description provided for @createTxEstSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get createTxEstSend;
+
+  /// No description provided for @createTxEstFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get createTxEstFee;
+
+  /// No description provided for @createTxEstChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get createTxEstChange;
+
+  /// No description provided for @createTxEstInsufficientFunds.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient funds'**
+  String get createTxEstInsufficientFunds;
+
+  /// No description provided for @createTxSelectCoinsFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Select coins to build a transaction'**
+  String get createTxSelectCoinsFirst;
 }
 
 class _AppLocalizationsDelegate
