@@ -287,14 +287,14 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         isSyncing: false,
         currentPage: 0,
         tipHeight: tipHeight,
-        selectedTab: current.selectedTab,
-        selectedAddressKeychain: current.selectedAddressKeychain,
-        receiveAddresses: receiveAddrs ?? current.receiveAddresses,
-        changeAddresses: changeAddrs ?? current.changeAddresses,
-        receiveAddressesLoaded: current.receiveAddressesLoaded,
-        changeAddressesLoaded: current.changeAddressesLoaded,
-        utxos: utxos ?? current.utxos,
-        utxosLoaded: current.utxosLoaded,
+        selectedTab: atEmit.selectedTab,
+        selectedAddressKeychain: atEmit.selectedAddressKeychain,
+        receiveAddresses: receiveAddrs ?? atEmit.receiveAddresses,
+        changeAddresses: changeAddrs ?? atEmit.changeAddresses,
+        receiveAddressesLoaded: receiveAddrs != null || atEmit.receiveAddressesLoaded,
+        changeAddressesLoaded: changeAddrs != null || atEmit.changeAddressesLoaded,
+        utxos: utxos ?? atEmit.utxos,
+        utxosLoaded: utxos != null || atEmit.utxosLoaded,
         descriptorAnalysis: atEmit.descriptorAnalysis,
         keyLabels: atEmit.keyLabels,
         pathLabels: atEmit.pathLabels,
@@ -342,6 +342,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       final balance = await handle.getBalance();
       final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
 
+      final atEmit = state is WalletDetailLoaded ? state as WalletDetailLoaded : current;
       emit(WalletDetailLoaded(
         walletHandle: handle,
         walletInfo: walletInfo,
@@ -351,8 +352,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         hasMore: page.hasMore,
         isSyncing: false,
         currentPage: 0,
-        selectedTab: current.selectedTab,
-        selectedAddressKeychain: current.selectedAddressKeychain,
+        selectedTab: atEmit.selectedTab,
+        selectedAddressKeychain: atEmit.selectedAddressKeychain,
         // Reset addresses/coins — rescan may reveal new ones
         receiveAddressesLoaded: false,
         changeAddressesLoaded: false,
