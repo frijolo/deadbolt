@@ -1,8 +1,8 @@
 # Deadbolt
 
-**A Bitcoin descriptor analyzer for understanding wallet configurations**
+**A Bitcoin descriptor analyzer and wallet manager**
 
-Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descriptors to extract network information, public keys, and spend paths with fee weight estimates. Built with Flutter (UI) and Rust (core logic), it provides a secure, offline way to understand complex Bitcoin wallet setups.
+Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descriptors to extract network information, public keys, and spend paths with fee weight estimates. It also creates on-device Bitcoin wallets, syncs balances via Electrum, and builds PSBTs (unsigned transactions) with optional coin control. Built with Flutter (UI) and Rust (core logic), it provides a secure, privacy-preserving way to understand and manage Bitcoin wallet setups.
 
 [![CI](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml/badge.svg)](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml)
 [![Release](https://github.com/frijolo/deadbolt/actions/workflows/release.yml/badge.svg)](https://github.com/frijolo/deadbolt/releases)
@@ -16,7 +16,7 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Spend Path Analysis**: Identifies all possible spending conditions in complex descriptors
 - **Fee Estimation**: Calculates transaction weight for each spend path
 - **Offline Operation**: No internet connection required - complete privacy
-- **Cross-Platform**: Available for Android, Linux, Windows (iOS/macOS coming soon)
+- **Cross-Platform**: Available for Android, Linux, and Windows
 - **Signed Releases**: All binaries are GPG-signed for verification
 
 ## Installation
@@ -89,10 +89,9 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 
 ### What Deadbolt Does NOT Do
 
-- **Does NOT handle private keys** - Only analyzes descriptors (public information)
-- **Does NOT connect to the internet** - Fully offline operation
-- **Does NOT create transactions** - Read-only analysis tool
-- **Does NOT store sensitive data** - Stores only descriptors and user-provided labels locally
+- **Does NOT handle private keys** - Only works with descriptors (public information)
+- **Does NOT sign transactions** - Creates PSBTs (unsigned transactions) for signing with an external hardware wallet or signer
+- **Does NOT store sensitive data** - Stores only descriptors, wallet data, and user-provided labels locally
 
 ## Building from Source
 

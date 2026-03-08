@@ -84,6 +84,8 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.1.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.1
+[v1.1.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.0
 [v1.0.4]: https://github.com/frijolo/deadbolt/releases/tag/v1.0.4
 [v1.0.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.0.3
 [v1.0.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.0.1
