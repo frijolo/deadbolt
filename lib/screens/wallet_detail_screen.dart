@@ -866,13 +866,24 @@ class _CreateTxFab extends StatelessWidget {
         .toList();
 
     return FloatingActionButton.extended(
-      onPressed: () => CreateTxScreen.push(
-        context,
-        preSelectedUtxos: selectedUtxos,
-        spendPaths: state.descriptorAnalysis?.spendPaths,
-        keyLabels: state.keyLabels,
-        pathLabels: state.pathLabels,
-      ),
+      onPressed: () {
+        if (selectedUtxos.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.createTxSelectCoinsFirst),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        CreateTxScreen.push(
+          context,
+          preSelectedUtxos: selectedUtxos,
+          spendPaths: state.descriptorAnalysis?.spendPaths,
+          keyLabels: state.keyLabels,
+          pathLabels: state.pathLabels,
+        );
+      },
       icon: const Icon(Icons.send_outlined),
       label: Text(
         selectedCount > 0

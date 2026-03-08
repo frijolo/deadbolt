@@ -540,5 +540,16 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "createTxFeeByRate": "Tarifa (sat/vB)",
+  "createTxFeeByTotal": "Total (sats)",
+  "createTxTotalFee": "Comisión (sats)",
+  "createTxTotalFeeInvalid": "Introduce un importe válido",
+  "createTxFeeEstimate": "Estimación de comisiones",
+  "createTxEstInputs": "Entradas",
+  "createTxEstSend": "Envío",
+  "createTxEstFee": "Comisión",
+  "createTxEstChange": "Cambio",
+  "createTxEstInsufficientFunds": "Fondos insuficientes",
+  "createTxSelectCoinsFirst": "Selecciona monedas para crear la transacción"
 }

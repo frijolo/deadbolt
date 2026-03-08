@@ -1,3 +1,4 @@
+pub mod address;
 pub mod descriptor;
 pub mod descriptor_builder;
 pub mod descriptor_parser;
