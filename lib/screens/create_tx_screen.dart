@@ -282,9 +282,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     });
   }
 
-  void _fillSelfPaymentAddress() {
+  Future<void> _fillSelfPaymentAddress() async {
     final l10n = context.l10n;
-    final address = context.read<WalletDetailCubit>().getNextSelfPaymentAddress();
+    final address = await context.read<WalletDetailCubit>().getNextSelfPaymentAddress();
+    if (!mounted) return;
     if (address == null) {
       showErrorToast(context, l10n.createTxNoUnusedAddress);
       return;

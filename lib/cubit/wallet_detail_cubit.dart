@@ -192,20 +192,20 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     emit(WalletDetailLoading());
     try {
       final handle = await _service.openWallet(walletPath);
-      final walletInfo = handle.getInfo();
-      final balance = handle.getBalance();
-      final page = handle.getTransactions(page: 0, pageSize: _pageSize);
-      final tipHeight = handle.getTipHeight();
+      final walletInfo = await handle.getInfo();
+      final balance = await handle.getBalance();
+      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
+      final tipHeight = await handle.getTipHeight();
 
-      // Load PSBTs eagerly (sync, fast)
+      // Load PSBTs eagerly
       List<APIPsbtInfo> psbts = [];
       Map<int, APIPsbtAnalysis> psbtAnalyses = {};
       try {
-        psbts = handle.listPsbts();
+        psbts = await handle.listPsbts();
         for (final psbt in psbts) {
           try {
             psbtAnalyses[psbt.id.toInt()] =
-                handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
+                await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
           } catch (_) {}
         }
       } catch (_) {}
@@ -242,31 +242,31 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
 
       await handle.sync_(electrumUrl: electrumUrl);
 
-      final walletInfo = handle.getInfo();
-      final balance = handle.getBalance();
-      final page = handle.getTransactions(page: 0, pageSize: _pageSize);
-      final tipHeight = handle.getTipHeight();
+      final walletInfo = await handle.getInfo();
+      final balance = await handle.getBalance();
+      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
+      final tipHeight = await handle.getTipHeight();
 
       // Reload addresses/UTXOs too if they were already loaded (sync may reveal new ones)
       final receiveAddrs = current.receiveAddressesLoaded
-          ? handle.getAddresses(keychain: APIKeychain.external_)
+          ? await handle.getAddresses(keychain: APIKeychain.external_)
           : null;
       final changeAddrs = current.changeAddressesLoaded
-          ? handle.getAddresses(keychain: APIKeychain.internal)
+          ? await handle.getAddresses(keychain: APIKeychain.internal)
           : null;
-      final utxos = current.utxosLoaded ? handle.getUtxos() : null;
+      final utxos = current.utxosLoaded ? await handle.getUtxos() : null;
 
       // Reload PSBTs so utxoMaxConfHeight is recomputed from the updated chain state.
       List<APIPsbtInfo> psbts = current.psbts;
       Map<int, APIPsbtAnalysis> psbtAnalyses = current.psbtAnalyses;
       if (current.psbtsLoaded) {
         try {
-          psbts = handle.listPsbts();
+          psbts = await handle.listPsbts();
           psbtAnalyses = {};
           for (final psbt in psbts) {
             try {
               psbtAnalyses[psbt.id.toInt()] =
-                  handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
+                  await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
             } catch (_) {}
           }
         } catch (_) {}
@@ -312,15 +312,16 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     }
   }
 
-  void setTxLabel(String txid, String label) {
+  Future<void> setTxLabel(String txid, String label) async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     current.walletHandle.setTxLabel(txid: txid, label: label);
-    final page = current.walletHandle.getTransactions(
+    final page = await current.walletHandle.getTransactions(
       page: 0,
       pageSize: _pageSize * (current.currentPage + 1),
     );
-    emit(current.copyWith(
+    if (state is! WalletDetailLoaded) return;
+    emit((state as WalletDetailLoaded).copyWith(
       transactions: page.transactions,
       totalTransactions: page.totalCount,
       hasMore: page.hasMore,
@@ -337,9 +338,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
 
       await handle.rescan(electrumUrl: electrumUrl);
 
-      final walletInfo = handle.getInfo();
-      final balance = handle.getBalance();
-      final page = handle.getTransactions(page: 0, pageSize: _pageSize);
+      final walletInfo = await handle.getInfo();
+      final balance = await handle.getBalance();
+      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
 
       emit(WalletDetailLoaded(
         walletHandle: handle,
@@ -372,7 +373,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
 
     try {
       final nextPage = current.currentPage + 1;
-      final page = current.walletHandle.getTransactions(
+      final page = await current.walletHandle.getTransactions(
         page: nextPage,
         pageSize: _pageSize,
       );
@@ -425,18 +426,19 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     emit(current.copyWith(selectedAddressKeychain: keychain));
   }
 
-  void _loadAddresses(APIKeychain keychain) {
+  Future<void> _loadAddresses(APIKeychain keychain) async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     try {
-      final addrs = current.walletHandle.getAddresses(keychain: keychain);
+      final addrs = await current.walletHandle.getAddresses(keychain: keychain);
+      if (state is! WalletDetailLoaded) return;
       if (keychain == APIKeychain.external_) {
-        emit(current.copyWith(
+        emit((state as WalletDetailLoaded).copyWith(
           receiveAddresses: addrs,
           receiveAddressesLoaded: true,
         ));
       } else {
-        emit(current.copyWith(
+        emit((state as WalletDetailLoaded).copyWith(
           changeAddresses: addrs,
           changeAddressesLoaded: true,
         ));
@@ -446,19 +448,20 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     }
   }
 
-  void _loadUtxos() {
+  Future<void> _loadUtxos() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     try {
-      final utxos = current.walletHandle.getUtxos();
-      emit(current.copyWith(utxos: utxos, utxosLoaded: true));
+      final utxos = await current.walletHandle.getUtxos();
+      if (state is! WalletDetailLoaded) return;
+      emit((state as WalletDetailLoaded).copyWith(utxos: utxos, utxosLoaded: true));
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit._loadUtxos()', e, stackTrace);
     }
   }
 
   /// Reveal 20 more addresses beyond those already derived, then refresh the list.
-  void revealMoreAddresses(APIKeychain keychain) {
+  Future<void> revealMoreAddresses(APIKeychain keychain) async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     try {
@@ -467,17 +470,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         count: _revealCount,
       );
       // Reload full list after revealing
-      _loadAddresses(keychain);
+      await _loadAddresses(keychain);
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
     }
   }
 
-  void setAddressLabel(String address, String label, APIKeychain keychain) {
+  Future<void> setAddressLabel(String address, String label, APIKeychain keychain) async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     current.walletHandle.setAddressLabel(address: address, label: label);
-    _loadAddresses(keychain);
+    await _loadAddresses(keychain);
   }
 
   Future<void> _loadDescriptorAnalysis() async {
@@ -486,8 +489,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     try {
       final descriptor = current.walletInfo.descriptor;
       final analysis = await analyzeDescriptor(descriptor: descriptor);
-      final rawKeyLabels = current.walletHandle.getKeyLabels();
-      final rawPathLabels = current.walletHandle.getPathLabels();
+      final rawKeyLabels = await current.walletHandle.getKeyLabels();
+      final rawPathLabels = await current.walletHandle.getPathLabels();
       final keyLabels = {
         for (final e in rawKeyLabels) e.mfp: e.label,
       };
@@ -550,7 +553,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
   /// via BDK's sync. Unsigned PSBTs are checked explicitly via [psbts].
   /// If no unused address is found among revealed ones, new ones are revealed
   /// and the search retries once.
-  String? getNextSelfPaymentAddress() {
+  Future<String?> getNextSelfPaymentAddress() async {
     final current = state;
     if (current is! WalletDetailLoaded) return null;
     try {
@@ -565,7 +568,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         return null;
       }
 
-      var addrs = current.walletHandle.getAddresses(keychain: APIKeychain.external_);
+      var addrs = await current.walletHandle.getAddresses(keychain: APIKeychain.external_);
       final found = findIn(addrs);
       if (found != null) return found;
 
@@ -574,7 +577,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         keychain: APIKeychain.external_,
         count: _revealCount,
       );
-      addrs = current.walletHandle.getAddresses(keychain: APIKeychain.external_);
+      addrs = await current.walletHandle.getAddresses(keychain: APIKeychain.external_);
       return findIn(addrs);
     } catch (_) {
       return null;
@@ -583,21 +586,22 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
 
   // ─── PSBTs ────────────────────────────────────────────────────────────────
 
-  void loadPsbts() {
+  Future<void> loadPsbts() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     try {
-      final psbts = current.walletHandle.listPsbts();
+      final psbts = await current.walletHandle.listPsbts();
       final analyses = <int, APIPsbtAnalysis>{};
       for (final psbt in psbts) {
         try {
-          analyses[psbt.id.toInt()] = current.walletHandle
+          analyses[psbt.id.toInt()] = await current.walletHandle
               .analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
         } catch (_) {
           // skip analysis errors — show without status
         }
       }
-      emit(current.copyWith(
+      if (state is! WalletDetailLoaded) return;
+      emit((state as WalletDetailLoaded).copyWith(
         psbts: psbts,
         psbtAnalyses: analyses,
         psbtsLoaded: true,
@@ -633,7 +637,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         mfps: mfps,
         sendMax: sendMax,
       );
-      loadPsbts();
+      unawaited(loadPsbts());
       return psbt;
     } catch (e, st) {
       _logError('WalletDetailCubit.createPsbt()', e, st);
@@ -667,7 +671,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       // Re-analyze
       APIPsbtAnalysis? analysis;
       try {
-        analysis = current.walletHandle
+        analysis = await current.walletHandle
             .analyzePsbt(psbtBase64: updated.psbtBase64, mfps: updated.mfps);
       } catch (_) {}
 
@@ -698,7 +702,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     final updatedPsbts = current.psbts.where((p) => p.id.toInt() != id).toList();
     final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(current.psbtAnalyses)
       ..remove(id);
-    final page = current.walletHandle.getTransactions(page: 0, pageSize: _pageSize);
+    final page = await current.walletHandle.getTransactions(page: 0, pageSize: _pageSize);
     emit(current.copyWith(
       psbts: updatedPsbts,
       psbtAnalyses: updatedAnalyses,
