@@ -80,7 +80,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  APIPsbtAnalysis crateApiWalletApiWalletAnalyzePsbt({
+  Future<APIPsbtAnalysis> crateApiWalletApiWalletAnalyzePsbt({
     required ApiWallet that,
     required String psbtBase64,
     required List<String> mfps,
@@ -117,34 +117,42 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 id,
   });
 
-  List<APIAddress> crateApiWalletApiWalletGetAddresses({
+  Future<List<APIAddress>> crateApiWalletApiWalletGetAddresses({
     required ApiWallet that,
     required APIKeychain keychain,
   });
 
-  APIBalance crateApiWalletApiWalletGetBalance({required ApiWallet that});
-
-  APIWalletInfo crateApiWalletApiWalletGetInfo({required ApiWallet that});
-
-  List<APIKeyLabel> crateApiWalletApiWalletGetKeyLabels({
+  Future<APIBalance> crateApiWalletApiWalletGetBalance({
     required ApiWallet that,
   });
 
-  List<APIPathLabel> crateApiWalletApiWalletGetPathLabels({
+  Future<APIWalletInfo> crateApiWalletApiWalletGetInfo({
     required ApiWallet that,
   });
 
-  int crateApiWalletApiWalletGetTipHeight({required ApiWallet that});
+  Future<List<APIKeyLabel>> crateApiWalletApiWalletGetKeyLabels({
+    required ApiWallet that,
+  });
 
-  APITransactionPage crateApiWalletApiWalletGetTransactions({
+  Future<List<APIPathLabel>> crateApiWalletApiWalletGetPathLabels({
+    required ApiWallet that,
+  });
+
+  Future<int> crateApiWalletApiWalletGetTipHeight({required ApiWallet that});
+
+  Future<APITransactionPage> crateApiWalletApiWalletGetTransactions({
     required ApiWallet that,
     required int page,
     required int pageSize,
   });
 
-  List<APIUtxo> crateApiWalletApiWalletGetUtxos({required ApiWallet that});
+  Future<List<APIUtxo>> crateApiWalletApiWalletGetUtxos({
+    required ApiWallet that,
+  });
 
-  List<APIPsbtInfo> crateApiWalletApiWalletListPsbts({required ApiWallet that});
+  Future<List<APIPsbtInfo>> crateApiWalletApiWalletListPsbts({
+    required ApiWallet that,
+  });
 
   APIPsbtInfo crateApiWalletApiWalletMergePsbt({
     required ApiWallet that,
@@ -330,14 +338,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  APIPsbtAnalysis crateApiWalletApiWalletAnalyzePsbt({
+  Future<APIPsbtAnalysis> crateApiWalletApiWalletAnalyzePsbt({
     required ApiWallet that,
     required String psbtBase64,
     required List<String> mfps,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
@@ -345,7 +353,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(psbtBase64, serializer);
           sse_encode_list_String(mfps, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_psbt_analysis,
@@ -571,20 +584,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  List<APIAddress> crateApiWalletApiWalletGetAddresses({
+  Future<List<APIAddress>> crateApiWalletApiWalletGetAddresses({
     required ApiWallet that,
     required APIKeychain keychain,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
           sse_encode_api_keychain(keychain, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_api_address,
@@ -604,16 +622,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  APIBalance crateApiWalletApiWalletGetBalance({required ApiWallet that}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<APIBalance> crateApiWalletApiWalletGetBalance({
+    required ApiWallet that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_balance,
@@ -633,16 +658,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  APIWalletInfo crateApiWalletApiWalletGetInfo({required ApiWallet that}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<APIWalletInfo> crateApiWalletApiWalletGetInfo({
+    required ApiWallet that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_wallet_info,
@@ -659,18 +691,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ApiWallet_get_info", argNames: ["that"]);
 
   @override
-  List<APIKeyLabel> crateApiWalletApiWalletGetKeyLabels({
+  Future<List<APIKeyLabel>> crateApiWalletApiWalletGetKeyLabels({
     required ApiWallet that,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_api_key_label,
@@ -690,18 +727,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  List<APIPathLabel> crateApiWalletApiWalletGetPathLabels({
+  Future<List<APIPathLabel>> crateApiWalletApiWalletGetPathLabels({
     required ApiWallet that,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_api_path_label,
@@ -721,16 +763,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  int crateApiWalletApiWalletGetTipHeight({required ApiWallet that}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<int> crateApiWalletApiWalletGetTipHeight({required ApiWallet that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_32,
@@ -750,14 +797,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  APITransactionPage crateApiWalletApiWalletGetTransactions({
+  Future<APITransactionPage> crateApiWalletApiWalletGetTransactions({
     required ApiWallet that,
     required int page,
     required int pageSize,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
@@ -765,7 +812,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_u_32(page, serializer);
           sse_encode_u_32(pageSize, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_transaction_page,
@@ -785,16 +837,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  List<APIUtxo> crateApiWalletApiWalletGetUtxos({required ApiWallet that}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<List<APIUtxo>> crateApiWalletApiWalletGetUtxos({
+    required ApiWallet that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_api_utxo,
@@ -811,18 +870,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ApiWallet_get_utxos", argNames: ["that"]);
 
   @override
-  List<APIPsbtInfo> crateApiWalletApiWalletListPsbts({
+  Future<List<APIPsbtInfo>> crateApiWalletApiWalletListPsbts({
     required ApiWallet that,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_api_psbt_info,
@@ -4168,7 +4232,7 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
   ///
   /// Returns signing status per MFP (must sign every input to count as signed)
   /// and whether all inputs are already finalized.
-  APIPsbtAnalysis analyzePsbt({
+  Future<APIPsbtAnalysis> analyzePsbt({
     required String psbtBase64,
     required List<String> mfps,
   }) => RustLib.instance.api.crateApiWalletApiWalletAnalyzePsbt(
@@ -4232,33 +4296,34 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
 
   /// Return all currently revealed addresses for the given keychain, sorted by index ascending.
   /// Balance is the sum of all unspent outputs currently controlled by each address.
-  List<APIAddress> getAddresses({required APIKeychain keychain}) => RustLib
-      .instance
-      .api
-      .crateApiWalletApiWalletGetAddresses(that: this, keychain: keychain);
+  Future<List<APIAddress>> getAddresses({required APIKeychain keychain}) =>
+      RustLib.instance.api.crateApiWalletApiWalletGetAddresses(
+        that: this,
+        keychain: keychain,
+      );
 
   /// Return the cached balance (no network call).
-  APIBalance getBalance() =>
+  Future<APIBalance> getBalance() =>
       RustLib.instance.api.crateApiWalletApiWalletGetBalance(that: this);
 
   /// Read wallet metadata from the open connection (no file re-open).
-  APIWalletInfo getInfo() =>
+  Future<APIWalletInfo> getInfo() =>
       RustLib.instance.api.crateApiWalletApiWalletGetInfo(that: this);
 
   /// Return all key labels (mfp → label).
-  List<APIKeyLabel> getKeyLabels() =>
+  Future<List<APIKeyLabel>> getKeyLabels() =>
       RustLib.instance.api.crateApiWalletApiWalletGetKeyLabels(that: this);
 
   /// Return all spend-path labels (rust_id → label).
-  List<APIPathLabel> getPathLabels() =>
+  Future<List<APIPathLabel>> getPathLabels() =>
       RustLib.instance.api.crateApiWalletApiWalletGetPathLabels(that: this);
 
   /// Return the current best block height from the local chain (0 if not yet synced).
-  int getTipHeight() =>
+  Future<int> getTipHeight() =>
       RustLib.instance.api.crateApiWalletApiWalletGetTipHeight(that: this);
 
   /// Return a paginated page of transactions, sorted newest-first (no network call).
-  APITransactionPage getTransactions({
+  Future<APITransactionPage> getTransactions({
     required int page,
     required int pageSize,
   }) => RustLib.instance.api.crateApiWalletApiWalletGetTransactions(
@@ -4268,11 +4333,11 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
   );
 
   /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
-  List<APIUtxo> getUtxos() =>
+  Future<List<APIUtxo>> getUtxos() =>
       RustLib.instance.api.crateApiWalletApiWalletGetUtxos(that: this);
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
-  List<APIPsbtInfo> listPsbts() =>
+  Future<List<APIPsbtInfo>> listPsbts() =>
       RustLib.instance.api.crateApiWalletApiWalletListPsbts(that: this);
 
   /// Merge partial signatures from a signed PSBT into the stored one.

@@ -87,7 +87,7 @@ abstract class ApiWallet implements RustOpaqueInterface {
   ///
   /// Returns signing status per MFP (must sign every input to count as signed)
   /// and whether all inputs are already finalized.
-  APIPsbtAnalysis analyzePsbt({
+  Future<APIPsbtAnalysis> analyzePsbt({
     required String psbtBase64,
     required List<String> mfps,
   });
@@ -129,34 +129,34 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Return all currently revealed addresses for the given keychain, sorted by index ascending.
   /// Balance is the sum of all unspent outputs currently controlled by each address.
-  List<APIAddress> getAddresses({required APIKeychain keychain});
+  Future<List<APIAddress>> getAddresses({required APIKeychain keychain});
 
   /// Return the cached balance (no network call).
-  APIBalance getBalance();
+  Future<APIBalance> getBalance();
 
   /// Read wallet metadata from the open connection (no file re-open).
-  APIWalletInfo getInfo();
+  Future<APIWalletInfo> getInfo();
 
   /// Return all key labels (mfp → label).
-  List<APIKeyLabel> getKeyLabels();
+  Future<List<APIKeyLabel>> getKeyLabels();
 
   /// Return all spend-path labels (rust_id → label).
-  List<APIPathLabel> getPathLabels();
+  Future<List<APIPathLabel>> getPathLabels();
 
   /// Return the current best block height from the local chain (0 if not yet synced).
-  int getTipHeight();
+  Future<int> getTipHeight();
 
   /// Return a paginated page of transactions, sorted newest-first (no network call).
-  APITransactionPage getTransactions({
+  Future<APITransactionPage> getTransactions({
     required int page,
     required int pageSize,
   });
 
   /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
-  List<APIUtxo> getUtxos();
+  Future<List<APIUtxo>> getUtxos();
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
-  List<APIPsbtInfo> listPsbts();
+  Future<List<APIPsbtInfo>> listPsbts();
 
   /// Merge partial signatures from a signed PSBT into the stored one.
   ///

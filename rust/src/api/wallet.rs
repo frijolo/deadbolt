@@ -185,7 +185,6 @@ pub struct APIWallet {
 
 impl APIWallet {
     /// Return the cached balance (no network call).
-    #[frb(sync)]
     pub fn get_balance(&self) -> Result<APIBalance> {
         let core = self
             .inner
@@ -201,7 +200,6 @@ impl APIWallet {
     }
 
     /// Return a paginated page of transactions, sorted newest-first (no network call).
-    #[frb(sync)]
     pub fn get_transactions(&self, page: u32, page_size: u32) -> Result<APITransactionPage> {
         let core = self
             .inner
@@ -329,7 +327,6 @@ impl APIWallet {
     }
 
     /// Read wallet metadata from the open connection (no file re-open).
-    #[frb(sync)]
     pub fn get_info(&self) -> Result<APIWalletInfo> {
         let core = self
             .inner
@@ -341,7 +338,6 @@ impl APIWallet {
 
     /// Return all currently revealed addresses for the given keychain, sorted by index ascending.
     /// Balance is the sum of all unspent outputs currently controlled by each address.
-    #[frb(sync)]
     pub fn get_addresses(&self, keychain: APIKeychain) -> Result<Vec<APIAddress>> {
         use bdk_wallet::KeychainKind;
         use std::collections::HashMap;
@@ -409,7 +405,6 @@ impl APIWallet {
     }
 
     /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
-    #[frb(sync)]
     pub fn get_utxos(&self) -> Result<Vec<APIUtxo>> {
         let core = self
             .inner
@@ -496,7 +491,6 @@ impl APIWallet {
     }
 
     /// Return the current best block height from the local chain (0 if not yet synced).
-    #[frb(sync)]
     pub fn get_tip_height(&self) -> Result<u32> {
         let core = self
             .inner
@@ -506,7 +500,6 @@ impl APIWallet {
     }
 
     /// Return all key labels (mfp → label).
-    #[frb(sync)]
     pub fn get_key_labels(&self) -> Result<Vec<APIKeyLabel>> {
         let core = self
             .inner
@@ -530,7 +523,6 @@ impl APIWallet {
     }
 
     /// Return all spend-path labels (rust_id → label).
-    #[frb(sync)]
     pub fn get_path_labels(&self) -> Result<Vec<APIPathLabel>> {
         let core = self
             .inner
@@ -691,7 +683,6 @@ impl APIWallet {
     }
 
     /// Return all saved unsigned PSBTs for this wallet, newest-first.
-    #[frb(sync)]
     pub fn list_psbts(&self) -> Result<Vec<APIPsbtInfo>> {
         let core = self
             .inner
@@ -753,7 +744,6 @@ impl APIWallet {
     ///
     /// Returns signing status per MFP (must sign every input to count as signed)
     /// and whether all inputs are already finalized.
-    #[frb(sync)]
     pub fn analyze_psbt(&self, psbt_base64: String, mfps: Vec<String>) -> Result<APIPsbtAnalysis> {
         use std::collections::HashMap;
 
@@ -791,7 +781,7 @@ impl APIWallet {
             }
 
             // Taproot script-path: tap_script_sigs keyed by (XOnlyPubKey, TapLeafHash)
-            for ((xpk, _), _) in &input.tap_script_sigs {
+            for (xpk, _) in input.tap_script_sigs.keys() {
                 if let Some((_, ks)) = input.tap_key_origins.get(xpk) {
                     let mfp = ks.0.to_string();
                     if let Some(v) = signed.get_mut(&mfp) {
