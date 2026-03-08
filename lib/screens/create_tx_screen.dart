@@ -16,6 +16,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 // Outputs below this threshold are not created (absorbed into fee).
@@ -44,17 +45,19 @@ class _TxSummary {
   });
 }
 
-/// Screen for building an unsigned PSBT. Coin control is mandatory — the user
-/// must explicitly select UTXOs in the Coins tab before opening this screen.
+/// Screen for building an unsigned PSBT. Coin selection happens inside this
+/// screen via [CoinSelectorScreen].
 class CreateTxScreen extends StatefulWidget {
-  final List<APIUtxo> preSelectedUtxos;
+  final List<APIUtxo> allUtxos;
+  final int tipHeight;
   final List<APISpendPath>? spendPaths;
   final Map<String, String> keyLabels;
   final Map<int, String> pathLabels;
 
   const CreateTxScreen({
     super.key,
-    required this.preSelectedUtxos,
+    this.allUtxos = const [],
+    this.tipHeight = 0,
     this.spendPaths,
     this.keyLabels = const {},
     this.pathLabels = const {},
@@ -62,7 +65,8 @@ class CreateTxScreen extends StatefulWidget {
 
   static Future<void> push(
     BuildContext context, {
-    required List<APIUtxo> preSelectedUtxos,
+    List<APIUtxo> allUtxos = const [],
+    int tipHeight = 0,
     List<APISpendPath>? spendPaths,
     Map<String, String> keyLabels = const {},
     Map<int, String> pathLabels = const {},
@@ -72,7 +76,8 @@ class CreateTxScreen extends StatefulWidget {
         builder: (_) => BlocProvider.value(
           value: context.read<WalletDetailCubit>(),
           child: CreateTxScreen(
-            preSelectedUtxos: preSelectedUtxos,
+            allUtxos: allUtxos,
+            tipHeight: tipHeight,
             spendPaths: spendPaths,
             keyLabels: keyLabels,
             pathLabels: pathLabels,
@@ -97,6 +102,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   APISpendPath? _selectedPath;
   _FeeEditMode _feeEditMode = _FeeEditMode.none;
   bool _recipientEditMode = true; // starts in edit mode (empty address)
+
+  // Selected UTXOs (chosen via CoinSelectorScreen)
+  List<APIUtxo> _selectedUtxos = [];
 
   // Async resolution of recipient output WU via FFI.
   int? _recipientWu;
@@ -148,7 +156,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final path = _selectedPath;
     final wu = _recipientWu;
     if (fee == null || fee <= 0 || path == null || wu == null) return;
-    final n = widget.preSelectedUtxos.length;
+    final n = _selectedUtxos.length;
     if (n == 0) return;
     final wuNoChange = path.wuBase + n * path.wuIn + wu;
     _feeRateCtrl.text = (fee / (wuNoChange / 4.0)).toStringAsFixed(2);
@@ -157,7 +165,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   int get _selectedSats =>
-      widget.preSelectedUtxos.fold(0, (sum, u) => sum + u.valueSat.toInt());
+      _selectedUtxos.fold(0, (sum, u) => sum + u.valueSat.toInt());
 
   void _onRecipientChanged(String value) {
     _addrDebounce?.cancel();
@@ -190,11 +198,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   _TxSummary? get _txSummary {
     final path = _selectedPath;
-    if (path == null || widget.preSelectedUtxos.isEmpty) return null;
+    if (path == null || _selectedUtxos.isEmpty) return null;
     final recipientWu = _recipientWu;
     if (recipientWu == null) return null;
 
-    final n = widget.preSelectedUtxos.length;
+    final n = _selectedUtxos.length;
     final totalIn = _selectedSats;
     final wuNoChange = path.wuBase + n * path.wuIn + recipientWu;
     final wuWithChange = wuNoChange + path.wuOut;
@@ -286,6 +294,26 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _onRecipientChanged(address);
   }
 
+  Future<void> _openCoinSelector() async {
+    final cubit = context.read<WalletDetailCubit>();
+    final state = cubit.state;
+    final network = state is WalletDetailLoaded
+        ? state.walletInfo.network
+        : APINetwork.bitcoin;
+    final result = await CoinSelectorScreen.push(
+      context,
+      allUtxos: widget.allUtxos,
+      selectedPath: _selectedPath,
+      tipHeight: widget.tipHeight,
+      initiallySelected: _selectedUtxos,
+      keyLabels: widget.keyLabels,
+      network: network,
+    );
+    if (result != null) {
+      setState(() => _selectedUtxos = result);
+    }
+  }
+
   String _pathLabel(APISpendPath path) {
     final label = widget.pathLabels[path.id];
     if (label != null && label.isNotEmpty) return label;
@@ -310,7 +338,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
     if (hasRel && path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
       final relBlocks = path.relTimelock.value;
-      if (widget.preSelectedUtxos.isEmpty) return null;
+      if (_selectedUtxos.isEmpty) return null;
       if (utxoMaxConfHeight == null || tipHeight == 0) {
         return (
           icon: Icons.sync_disabled_outlined,
@@ -386,17 +414,13 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     return null;
   }
 
-  Widget _buildSelectedPathCard(BuildContext context, APISpendPath path, int tipHeight) {
+  Widget _buildSelectedPathCard(
+    BuildContext context,
+    APISpendPath path,
+    int tipHeight,
+    int? utxoMaxConfHeight,
+  ) {
     final theme = Theme.of(context);
-
-    final confirmedHeights = widget.preSelectedUtxos
-        .where((u) => u.confirmationHeight != null)
-        .map((u) => u.confirmationHeight!)
-        .toList();
-    final int? utxoMaxConfHeight =
-        confirmedHeights.isEmpty ? null : confirmedHeights.reduce(max);
-
-    final lockStatus = _timelockStatus(context, path, tipHeight, utxoMaxConfHeight);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -405,27 +429,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  '${path.threshold}-of-${path.mfps.length}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withAlpha(150),
-                  ),
-                ),
-                if (lockStatus != null) ...[
-                  const SizedBox(width: 8),
-                  Icon(lockStatus.icon, size: 13, color: lockStatus.color),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      lockStatus.text,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(color: lockStatus.color),
-                    ),
-                  ),
-                ],
-              ],
+            Text(
+              '${path.threshold}-of-${path.mfps.length}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(150),
+              ),
             ),
             const SizedBox(height: 8),
             ...path.mfps.map((mfp) {
@@ -502,6 +510,12 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
+    // Validate coin selection.
+    if (_selectedUtxos.isEmpty) {
+      showErrorToast(context, context.l10n.createTxSelectCoinsFirst);
+      return;
+    }
+
     // Validate recipient.
     if (_recipientCtrl.text.trim().isEmpty) {
       setState(() => _recipientEditMode = true);
@@ -531,7 +545,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     setState(() => _creating = true);
     try {
       final cubit = context.read<WalletDetailCubit>();
-      final selectedUtxos = widget.preSelectedUtxos
+      final selectedUtxos = _selectedUtxos
           .map((u) => APICoinControl(txid: u.txid, vout: u.vout))
           .toList();
 
@@ -581,9 +595,19 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
             ? summary.feeRate.toStringAsFixed(2)
             : _feeRateCtrl.text)
         : _feeRateCtrl.text;
-    final totalFeeDisplay = _feeEditMode == _FeeEditMode.rate
-        ? (summary?.feeSats.toString() ?? '—')
-        : (_totalFeeCtrl.text.isEmpty ? '—' : _totalFeeCtrl.text);
+    // Total fee display: live from summary in all modes except when the user
+    // is actively editing the total fee field.
+    final totalFeeDisplay = _feeEditMode == _FeeEditMode.total
+        ? (_totalFeeCtrl.text.isEmpty ? '—' : _totalFeeCtrl.text)
+        : (summary?.feeSats.toString() ?? '—');
+
+    // Max confirmation height of selected UTXOs — used for relative timelock display.
+    final confirmedHeights = _selectedUtxos
+        .where((u) => u.confirmationHeight != null)
+        .map((u) => u.confirmationHeight!)
+        .toList();
+    final int? utxoMaxConfHeight =
+        confirmedHeights.isEmpty ? null : confirmedHeights.reduce(max);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.createTxTitle)),
@@ -593,25 +617,38 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // ── Selected coins summary (mandatory) ──
+              // ── Coin selector ──
               Card(
                 margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.toll, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          l10n.createTxSelectedCoins(
-                            widget.preSelectedUtxos.length,
-                            _selectedSats,
-                          ),
-                          style: theme.textTheme.bodyMedium,
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: _openCoinSelector,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.toll, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _selectedUtxos.isEmpty
+                              ? Text(
+                                  l10n.coinSelectorNoCoinsSelected,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface.withAlpha(140),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                )
+                              : Text(
+                                  l10n.createTxSelectedCoins(
+                                    _selectedUtxos.length,
+                                    _selectedSats,
+                                  ),
+                                  style: theme.textTheme.bodyMedium,
+                                ),
                         ),
-                      ),
-                    ],
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -807,10 +844,34 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   initialValue: _selectedPath,
                   decoration: InputDecoration(labelText: l10n.createTxSpendPath),
                   items: widget.spendPaths!
-                      .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(_pathLabel(p), overflow: TextOverflow.ellipsis),
-                          ))
+                      .map((p) {
+                        final lockStatus = _timelockStatus(
+                          context, p, widget.tipHeight, utxoMaxConfHeight,
+                        );
+                        return DropdownMenuItem(
+                          value: p,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _pathLabel(p),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (lockStatus != null) ...[
+                                const SizedBox(width: 6),
+                                Icon(lockStatus.icon, size: 14, color: lockStatus.color),
+                                const SizedBox(width: 3),
+                                Text(
+                                  lockStatus.text,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: lockStatus.color),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      })
                       .toList(),
                   onChanged: (p) => setState(() => _selectedPath = p),
                   validator: (v) => v == null ? l10n.createTxSpendPathHint : null,
@@ -818,12 +879,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
               if (_selectedPath != null) ...[
                 const SizedBox(height: 12),
-                BlocBuilder<WalletDetailCubit, WalletDetailState>(
-                  builder: (context, state) {
-                    final tipHeight =
-                        state is WalletDetailLoaded ? state.tipHeight : 0;
-                    return _buildSelectedPathCard(context, _selectedPath!, tipHeight);
-                  },
+                _buildSelectedPathCard(
+                  context, _selectedPath!, widget.tipHeight, utxoMaxConfHeight,
                 ),
               ],
 

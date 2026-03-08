@@ -79,6 +79,22 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     ));
   }
 
+  Future<void> _openSendFlow(BuildContext context, WalletDetailLoaded state) async {
+    final cubit = context.read<WalletDetailCubit>();
+    await cubit.ensureCoinsLoaded();
+    if (!context.mounted) return;
+    final fresh = cubit.state;
+    if (fresh is! WalletDetailLoaded) return;
+    CreateTxScreen.push(
+      context,
+      allUtxos: fresh.utxos,
+      tipHeight: fresh.tipHeight,
+      spendPaths: fresh.descriptorAnalysis?.spendPaths,
+      keyLabels: fresh.keyLabels,
+      pathLabels: fresh.pathLabels,
+    );
+  }
+
   void _onMenuAction(
     BuildContext context,
     _WalletMenuAction action,
@@ -161,15 +177,12 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       ),
       body: SafeArea(
         child: switch (state.selectedTab) {
-          0 => _TransactionsView(state: state),
-          1 => _AddressesView(state: state),
-          2 => _CoinsView(state: state),
+          0 => _TransactionsView(state: state, onSendTap: () => _openSendFlow(context, state)),
+          1 => _AddressesView(state: state, onSendTap: () => _openSendFlow(context, state)),
+          2 => _CoinsView(state: state, onSendTap: () => _openSendFlow(context, state)),
           _ => _DescriptorView(state: state),
         },
       ),
-      floatingActionButton: state.selectedTab == 2
-          ? _CreateTxFab(state: state)
-          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: state.selectedTab,
         onDestinationSelected: (index) =>
@@ -207,8 +220,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 
 class _TransactionsView extends StatelessWidget {
   final WalletDetailLoaded state;
+  final VoidCallback? onSendTap;
 
-  const _TransactionsView({required this.state});
+  const _TransactionsView({required this.state, this.onSendTap});
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +232,7 @@ class _TransactionsView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(balance: state.balance),
+        _BalanceCard(balance: state.balance, onSendTap: onSendTap),
         const SizedBox(height: 12),
         _SyncRow(
           walletInfo: state.walletInfo,
@@ -293,8 +307,9 @@ class _TransactionsView extends StatelessWidget {
 
 class _AddressesView extends StatelessWidget {
   final WalletDetailLoaded state;
+  final VoidCallback? onSendTap;
 
-  const _AddressesView({required this.state});
+  const _AddressesView({required this.state, this.onSendTap});
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +325,7 @@ class _AddressesView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Column(
               children: [
-                _BalanceCard(balance: state.balance),
+                _BalanceCard(balance: state.balance, onSendTap: onSendTap),
                 const SizedBox(height: 12),
                 _SyncRow(
                   walletInfo: state.walletInfo,
@@ -745,8 +760,9 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
 
 class _CoinsView extends StatelessWidget {
   final WalletDetailLoaded state;
+  final VoidCallback? onSendTap;
 
-  const _CoinsView({required this.state});
+  const _CoinsView({required this.state, this.onSendTap});
 
   @override
   Widget build(BuildContext context) {
@@ -759,13 +775,11 @@ class _CoinsView extends StatelessWidget {
 
     final utxos = state.utxos;
     final totalSats = utxos.fold<int>(0, (sum, u) => sum + u.valueSat.toInt());
-    final selectedCount = state.selectedCoinIds.length;
 
     return ListView(
-      // Extra bottom padding so the FAB doesn't cover the last item
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(balance: state.balance),
+        _BalanceCard(balance: state.balance, onSendTap: onSendTap),
         const SizedBox(height: 12),
         _SyncRow(
           walletInfo: state.walletInfo,
@@ -777,24 +791,14 @@ class _CoinsView extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                selectedCount > 0
-                    ? l10n.coinSelected(selectedCount)
-                    : l10n.coinsSection,
+                l10n.coinsSection,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: selectedCount > 0
-                          ? AppAccent.color
-                          : AppAccent.color,
+                      color: AppAccent.color,
                       fontWeight: FontWeight.bold,
                     ),
               ),
             ),
-            if (selectedCount > 0)
-              TextButton(
-                onPressed: () =>
-                    context.read<WalletDetailCubit>().clearCoinSelection(),
-                child: Text(l10n.coinSelectDone),
-              )
-            else if (utxos.isNotEmpty)
+            if (utxos.isNotEmpty)
               Text(
                 l10n.coinTotalCount(utxos.length),
                 style: TextStyle(
@@ -828,68 +832,14 @@ class _CoinsView extends StatelessWidget {
             ),
           )
         else
-          ...utxos.map((utxo) {
-            final coinId = '${utxo.txid}:${utxo.vout}';
-            final isSelected = state.selectedCoinIds.contains(coinId);
-            return _CoinTile(
-              utxo: utxo,
-              network: network,
-              spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
-              tipHeight: state.tipHeight,
-              keyLabels: state.keyLabels,
-              isSelected: isSelected,
-              onToggleSelect: () =>
-                  context.read<WalletDetailCubit>().toggleCoinSelection(utxo),
-            );
-          }),
+          ...utxos.map((utxo) => _CoinTile(
+                utxo: utxo,
+                network: network,
+                spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
+                tipHeight: state.tipHeight,
+                keyLabels: state.keyLabels,
+              )),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Create Transaction FAB
-// ─────────────────────────────────────────────────────────────
-
-class _CreateTxFab extends StatelessWidget {
-  final WalletDetailLoaded state;
-
-  const _CreateTxFab({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final selectedCount = state.selectedCoinIds.length;
-
-    final selectedUtxos = state.utxos
-        .where((u) => state.selectedCoinIds.contains('${u.txid}:${u.vout}'))
-        .toList();
-
-    return FloatingActionButton.extended(
-      onPressed: () {
-        if (selectedUtxos.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.createTxSelectCoinsFirst),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          return;
-        }
-        CreateTxScreen.push(
-          context,
-          preSelectedUtxos: selectedUtxos,
-          spendPaths: state.descriptorAnalysis?.spendPaths,
-          keyLabels: state.keyLabels,
-          pathLabels: state.pathLabels,
-        );
-      },
-      icon: const Icon(Icons.send_outlined),
-      label: Text(
-        selectedCount > 0
-            ? '${l10n.createTxTitle} ($selectedCount)'
-            : l10n.createTxTitle,
-      ),
     );
   }
 }
@@ -900,8 +850,6 @@ class _CoinTile extends StatelessWidget {
   final List<APISpendPath> spendPaths;
   final int tipHeight;
   final Map<String, String> keyLabels;
-  final bool isSelected;
-  final VoidCallback? onToggleSelect;
 
   const _CoinTile({
     required this.utxo,
@@ -909,8 +857,6 @@ class _CoinTile extends StatelessWidget {
     required this.spendPaths,
     required this.tipHeight,
     required this.keyLabels,
-    this.isSelected = false,
-    this.onToggleSelect,
   });
 
   @override
@@ -934,27 +880,18 @@ class _CoinTile extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isSelected
-          ? Theme.of(context).colorScheme.primaryContainer.withAlpha(80)
-          : null,
       child: ListTile(
-        leading: onToggleSelect != null
-            ? Checkbox(
-                value: isSelected,
-                onChanged: (_) => onToggleSelect!(),
-              )
-            : CircleAvatar(
-                backgroundColor: isChange
-                    ? Colors.amber.withAlpha(40)
-                    : Colors.green.withAlpha(40),
-                child: Icon(
-                  isChange ? Icons.repeat : Icons.arrow_downward,
-                  size: 18,
-                  color: isChange ? Colors.amber : Colors.green,
-                ),
-              ),
+        leading: CircleAvatar(
+          backgroundColor: isChange
+              ? Colors.amber.withAlpha(40)
+              : Colors.green.withAlpha(40),
+          child: Icon(
+            isChange ? Icons.repeat : Icons.arrow_downward,
+            size: 18,
+            color: isChange ? Colors.amber : Colors.green,
+          ),
+        ),
         onTap: () => _showDetails(context, statuses),
-        onLongPress: onToggleSelect,
         title: Text(
           '${BitcoinFormatter.formatNum(sats)} sats',
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -990,9 +927,7 @@ class _CoinTile extends StatelessWidget {
             ),
           ],
         ),
-        trailing: isSelected
-            ? const Icon(Icons.check_circle, color: AppAccent.color, size: 20)
-            : const Icon(Icons.chevron_right, size: 18),
+        trailing: const Icon(Icons.chevron_right, size: 18),
       ),
     );
   }
@@ -1172,8 +1107,9 @@ class _CoinDetailDialog extends StatelessWidget {
 
 class _BalanceCard extends StatelessWidget {
   final APIBalance balance;
+  final VoidCallback? onSendTap;
 
-  const _BalanceCard({required this.balance});
+  const _BalanceCard({required this.balance, this.onSendTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1191,11 +1127,24 @@ class _BalanceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l10n.balanceBtc(btcString),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.balanceBtc(btcString),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
+                ),
+                if (onSendTap != null)
+                  FilledButton.icon(
+                    onPressed: onSendTap,
+                    icon: const Icon(Icons.send_outlined, size: 18),
+                    label: Text(l10n.walletSendButton),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(
