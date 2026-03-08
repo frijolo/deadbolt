@@ -6,8 +6,11 @@ sealed class SpendPathStatus {}
 /// The spend path is fully unlocked.
 class SpendPathUnlocked extends SpendPathStatus {}
 
-/// The UTXO is unconfirmed; relative timelocks require on-chain confirmation.
-class SpendPathNeedsConfirmation extends SpendPathStatus {}
+/// The UTXO is unconfirmed (in mempool); relative timelocks require on-chain confirmation.
+class SpendPathUnconfirmed extends SpendPathStatus {}
+
+/// The wallet has never been synced; timelock status cannot be evaluated.
+class SpendPathNeedsSync extends SpendPathStatus {}
 
 /// Locked by an absolute timelock; [remainingBlocks] > 0 for block-based,
 /// [remainingSeconds] > 0 for timestamp-based (null when the other applies).
@@ -51,7 +54,7 @@ SpendPathStatus spendPathStatus({
   // If wallet has never synced we cannot evaluate timelocks
   if (tipHeight == 0) {
     return hasRel
-        ? SpendPathNeedsConfirmation()
+        ? SpendPathNeedsSync()
         : SpendPathAbsLocked(
             remainingBlocks: null,
             remainingSeconds: null,
@@ -88,7 +91,7 @@ SpendPathStatus spendPathStatus({
   // ── Relative timelock ──────────────────────────────────────────────────────
   if (hasRel) {
     if (!utxo.isConfirmed || utxo.confirmationHeight == null) {
-      return SpendPathNeedsConfirmation();
+      return SpendPathUnconfirmed();
     }
 
     final confirmedAt = utxo.confirmationHeight!.toInt();

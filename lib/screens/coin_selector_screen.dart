@@ -297,10 +297,15 @@ class _TimelockBadge extends StatelessWidget {
           Colors.green,
           l10n.spendPathUnlocked,
         ),
-      SpendPathNeedsConfirmation() => (
+      SpendPathUnconfirmed() => (
           Icons.hourglass_empty,
           Colors.amber,
-          l10n.spendPathNeedsConfirmation,
+          l10n.spendPathUnconfirmed,
+        ),
+      SpendPathNeedsSync() => (
+          Icons.sync_disabled,
+          Colors.grey,
+          l10n.spendPathNeedsSync,
         ),
       SpendPathRelLocked(:final remainingBlocks) => (
           Icons.lock_clock,

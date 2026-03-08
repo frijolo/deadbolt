@@ -930,6 +930,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spendPathNeedsConfirmation => 'Needs confirmation';
 
   @override
+  String get spendPathUnconfirmed => 'Unconfirmed';
+
+  @override
+  String get spendPathNeedsSync => 'Sync required';
+
+  @override
   String get psbtStatusUnsigned => 'UNSIGNED';
 
   @override

@@ -107,20 +107,28 @@ class PathCard extends StatelessWidget {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _showNameDialog(context),
-                    child: Text(
-                      path.customName ?? l10n.tapToName,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: path.customName != null
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        color: path.customName != null
-                            ? cs.onSurface
-                            : cs.onSurface.withAlpha(97),
-                        fontStyle: path.customName != null
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            path.customName ?? l10n.tapToName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: path.customName != null
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: path.customName != null
+                                  ? cs.onSurface
+                                  : cs.onSurface.withAlpha(97),
+                              fontStyle: path.customName != null
+                                  ? FontStyle.normal
+                                  : FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.edit, size: 16, color: cs.onSurface.withAlpha(120)),
+                        const SizedBox(width: 4),
+                      ],
                     ),
                   ),
                 ),

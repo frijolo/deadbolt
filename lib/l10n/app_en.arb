@@ -439,6 +439,8 @@
     }
   },
   "spendPathNeedsConfirmation": "Needs confirmation",
+  "spendPathUnconfirmed": "Unconfirmed",
+  "spendPathNeedsSync": "Sync required",
 
   "psbtStatusUnsigned": "UNSIGNED",
   "psbtStatusPartial": "PARTIAL",
