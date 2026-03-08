@@ -43,16 +43,23 @@ class KeyCardHeader extends StatelessWidget {
         Expanded(
           child: GestureDetector(
             onTap: onNameTap,
-            child: Text(
-              customName ?? tapToNameLabel,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: customName != null ? FontWeight.w600 : FontWeight.normal,
-                color: customName != null
-                    ? cs.onSurface
-                    : cs.onSurface.withAlpha(AppAlpha.muted),
-                fontStyle: customName != null ? FontStyle.normal : FontStyle.italic,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    customName ?? tapToNameLabel,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: customName != null ? FontWeight.w600 : FontWeight.normal,
+                      color: customName != null
+                          ? cs.onSurface
+                          : cs.onSurface.withAlpha(AppAlpha.muted),
+                      fontStyle: customName != null ? FontStyle.normal : FontStyle.italic,
+                    ),
+                  ),
+                ),
+                Icon(Icons.edit, size: 16, color: cs.onSurface.withAlpha(120)),
+              ],
             ),
           ),
         ),

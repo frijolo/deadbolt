@@ -933,6 +933,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spendPathNeedsConfirmation => 'Necesita confirmación';
 
   @override
+  String get spendPathUnconfirmed => 'Sin confirmar';
+
+  @override
+  String get spendPathNeedsSync => 'Sincronización requerida';
+
+  @override
   String get psbtStatusUnsigned => 'SIN FIRMAR';
 
   @override

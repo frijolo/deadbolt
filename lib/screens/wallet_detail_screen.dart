@@ -56,10 +56,16 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<WalletDetailCubit, WalletDetailState>(
-      listener: _maybeStartAutoSync,
+      listener: (context, state) {
+        _maybeStartAutoSync(context, state);
+        if (state is WalletDetailLoaded && state.errorMessage != null) {
+          showErrorToast(context, state.errorMessage!);
+          context.read<WalletDetailCubit>().clearError();
+        }
+      },
       child: BlocBuilder<WalletDetailCubit, WalletDetailState>(
-        builder: (context, state) {
-          return switch (state) {
+      builder: (context, state) {
+        return switch (state) {
           WalletDetailInitial() || WalletDetailLoading() => Scaffold(
               appBar: AppBar(),
               body: const Center(child: CircularProgressIndicator()),
@@ -318,52 +324,56 @@ class _AddressesView extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       initialIndex: state.selectedAddressKeychain,
-      child: Column(
-        children: [
-          // Balance card + sync row at top
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Column(
-              children: [
-                _BalanceCard(balance: state.balance, onSendTap: onSendTap),
-                const SizedBox(height: 12),
-                _SyncRow(
-                  walletInfo: state.walletInfo,
-                  isSyncing: state.isSyncing,
-                  network: state.walletInfo.network,
-                ),
-              ],
-            ),
-          ),
-          // Receive / Change tab bar
-          TabBar(
-            onTap: (index) =>
-                context.read<WalletDetailCubit>().selectAddressKeychain(index),
-            tabs: [
-              Tab(text: l10n.receiveAddresses),
-              Tab(text: l10n.changeAddresses),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _AddressList(
-                  addresses: state.receiveAddresses,
-                  loaded: state.receiveAddressesLoaded,
-                  keychain: APIKeychain.external_,
-                  network: state.walletInfo.network,
-                ),
-                _AddressList(
-                  addresses: state.changeAddresses,
-                  loaded: state.changeAddressesLoaded,
-                  keychain: APIKeychain.internal,
-                  network: state.walletInfo.network,
-                ),
-              ],
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                children: [
+                  _BalanceCard(balance: state.balance, onSendTap: onSendTap),
+                  const SizedBox(height: 12),
+                  _SyncRow(
+                    walletInfo: state.walletInfo,
+                    isSyncing: state.isSyncing,
+                    network: state.walletInfo.network,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
+        body: Column(
+          children: [
+            TabBar(
+              onTap: (index) =>
+                  context.read<WalletDetailCubit>().selectAddressKeychain(index),
+              tabs: [
+                Tab(text: l10n.receiveAddresses),
+                Tab(text: l10n.changeAddresses),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _AddressList(
+                    addresses: state.receiveAddresses,
+                    loaded: state.receiveAddressesLoaded,
+                    keychain: APIKeychain.external_,
+                    network: state.walletInfo.network,
+                  ),
+                  _AddressList(
+                    addresses: state.changeAddresses,
+                    loaded: state.changeAddressesLoaded,
+                    keychain: APIKeychain.internal,
+                    network: state.walletInfo.network,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1753,10 +1763,15 @@ class _SpendPathStatusRow extends StatelessWidget {
           Colors.green,
           l10n.spendPathUnlocked,
         ),
-      SpendPathNeedsConfirmation() => (
+      SpendPathUnconfirmed() => (
           Icons.hourglass_empty,
           Colors.amber,
-          l10n.spendPathNeedsConfirmation,
+          l10n.spendPathUnconfirmed,
+        ),
+      SpendPathNeedsSync() => (
+          Icons.sync_disabled,
+          Colors.grey,
+          l10n.spendPathNeedsSync,
         ),
       SpendPathAbsLocked(:final remainingBlocks, :final remainingSeconds) => (
           Icons.lock_outline,
@@ -2289,28 +2304,31 @@ class _WalletPathCard extends StatelessWidget {
               // Fee metric
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    const Icon(Icons.payments_outlined, size: 14, color: AppAccent.color),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${BitcoinFormatter.formatDouble(path.vbSweep, 2)} vB',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withAlpha(178),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (path.trDepth >= 0) ...[
-                      _buildSeparator(context),
-                      const Icon(Icons.account_tree_outlined, size: 14, color: AppAccent.color),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.payments_outlined, size: 14, color: AppAccent.color),
                       const SizedBox(width: 4),
                       Text(
-                        '${path.trDepth}',
-                        style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(178)),
+                        '${BitcoinFormatter.formatDouble(path.vbSweep, 2)} vB',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurface.withAlpha(178),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      if (path.trDepth >= 0) ...[
+                        _buildSeparator(context),
+                        const Icon(Icons.account_tree_outlined, size: 14, color: AppAccent.color),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${path.trDepth}',
+                          style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(178)),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ],

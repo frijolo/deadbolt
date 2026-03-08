@@ -1736,6 +1736,18 @@ abstract class AppLocalizations {
   /// **'Needs confirmation'**
   String get spendPathNeedsConfirmation;
 
+  /// No description provided for @spendPathUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unconfirmed'**
+  String get spendPathUnconfirmed;
+
+  /// No description provided for @spendPathNeedsSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync required'**
+  String get spendPathNeedsSync;
+
   /// No description provided for @psbtStatusUnsigned.
   ///
   /// In en, this message translates to:

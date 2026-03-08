@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor;
 import 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
@@ -59,6 +60,9 @@ class WalletDetailLoaded extends WalletDetailState {
   final Map<int, APIPsbtAnalysis> psbtAnalyses; // psbt.id -> analysis
   final bool psbtsLoaded;
 
+  // Transient error to show as toast (cleared after display)
+  final String? errorMessage;
+
   WalletDetailLoaded({
     required this.walletInfo,
     required this.balance,
@@ -84,6 +88,7 @@ class WalletDetailLoaded extends WalletDetailState {
     this.psbts = const [],
     this.psbtAnalyses = const {},
     this.psbtsLoaded = false,
+    this.errorMessage,
   });
 
   WalletDetailLoaded copyWith({
@@ -111,6 +116,7 @@ class WalletDetailLoaded extends WalletDetailState {
     List<APIPsbtInfo>? psbts,
     Map<int, APIPsbtAnalysis>? psbtAnalyses,
     bool? psbtsLoaded,
+    Object? errorMessage = _keep,
   }) {
     return WalletDetailLoaded(
       walletInfo: walletInfo ?? this.walletInfo,
@@ -140,9 +146,13 @@ class WalletDetailLoaded extends WalletDetailState {
       psbts: psbts ?? this.psbts,
       psbtAnalyses: psbtAnalyses ?? this.psbtAnalyses,
       psbtsLoaded: psbtsLoaded ?? this.psbtsLoaded,
+      errorMessage: errorMessage == _keep ? this.errorMessage : errorMessage as String?,
     );
   }
 }
+
+// Sentinel used by copyWith to distinguish "not provided" from explicit null.
+const Object _keep = Object();
 
 class WalletDetailError extends WalletDetailState {
   final String message;
@@ -188,6 +198,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     debugPrint('════════════════════════════════════════════════════════════');
   }
 
+  void clearError() {
+    if (state is WalletDetailLoaded) {
+      emit((state as WalletDetailLoaded).copyWith(errorMessage: null));
+    }
+  }
+
   Future<void> load(String walletPath) async {
     emit(WalletDetailLoading());
     try {
@@ -228,7 +244,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       _loadDescriptorAnalysis();
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.load()', e, stackTrace);
-      emit(WalletDetailError(e.toString()));
+      emit(WalletDetailError(formatRustError(e)));
     }
   }
 
@@ -306,9 +322,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.sync()', e, stackTrace);
       if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(isSyncing: false));
+        emit((state as WalletDetailLoaded).copyWith(
+          isSyncing: false,
+          errorMessage: formatRustError(e),
+        ));
       }
-      emit(WalletDetailError(e.toString()));
     }
   }
 
@@ -362,9 +380,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.rescan()', e, stackTrace);
       if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(isSyncing: false));
+        emit((state as WalletDetailLoaded).copyWith(
+          isSyncing: false,
+          errorMessage: formatRustError(e),
+        ));
       }
-      emit(WalletDetailError(e.toString()));
     }
   }
 
@@ -387,6 +407,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       ));
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.loadMoreTransactions()', e, stackTrace);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
     }
   }
 
@@ -446,6 +469,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       }
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit._loadAddresses()', e, stackTrace);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
     }
   }
 
@@ -458,6 +484,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       emit((state as WalletDetailLoaded).copyWith(utxos: utxos, utxosLoaded: true));
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit._loadUtxos()', e, stackTrace);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
     }
   }
 
@@ -474,6 +503,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       await _loadAddresses(keychain);
     } catch (e, stackTrace) {
       _logError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
     }
   }
 
