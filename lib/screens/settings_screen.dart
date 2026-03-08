@@ -6,14 +6,21 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/app_nav_drawer.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final int navIndex;
+  final void Function(int)? onNavigate;
+
+  const SettingsScreen({super.key, this.navIndex = 2, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
+      drawer: onNavigate != null
+          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+          : null,
       appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: SafeArea(
         child: BlocBuilder<SettingsCubit, AppSettings>(

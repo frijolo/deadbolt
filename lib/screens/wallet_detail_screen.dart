@@ -2024,7 +2024,7 @@ class _WalletKeysSection extends StatelessWidget {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       tilePadding: EdgeInsets.zero,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       children: [
         for (var i = 0; i < keys.length; i++)
           _WalletKeyCard(

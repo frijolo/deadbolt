@@ -8,16 +8,23 @@ import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 
 class WalletListScreen extends StatelessWidget {
-  const WalletListScreen({super.key});
+  final int navIndex;
+  final void Function(int)? onNavigate;
+
+  const WalletListScreen({super.key, this.navIndex = 1, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
     return Scaffold(
+      drawer: onNavigate != null
+          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+          : null,
       appBar: AppBar(
         title: Text(l10n.walletsTitle),
         actions: [
