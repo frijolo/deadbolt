@@ -852,8 +852,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                         return DropdownMenuItem(
                           value: p,
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Text(
                                   _pathLabel(p),
                                   overflow: TextOverflow.ellipsis,

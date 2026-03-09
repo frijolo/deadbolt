@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `row_to_api_info`, `row_to_api_psbt`
+// These functions are ignored because they are not marked as `pub`: `build_addr_utxo_map`, `build_tx_utxo_map`, `first_inherited`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({
@@ -127,6 +127,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Delete a saved PSBT by id.
   void deletePsbt({required PlatformInt64 id});
 
+  /// Return full detail for an address: the address plus its unspent UTXOs.
+  Future<APIAddressDetails> getAddressDetails({required String address});
+
   /// Return all currently revealed addresses for the given keychain, sorted by index ascending.
   /// Balance is the sum of all unspent outputs currently controlled by each address.
   Future<List<APIAddress>> getAddresses({required APIKeychain keychain});
@@ -150,6 +153,15 @@ abstract class ApiWallet implements RustOpaqueInterface {
   Future<APITransactionPage> getTransactions({
     required int page,
     required int pageSize,
+  });
+
+  /// Return full detail for a transaction: the tx plus its unspent output UTXOs.
+  Future<APITxDetails> getTxDetails({required String txid});
+
+  /// Return full detail for a UTXO: the UTXO plus the explicit labels of its cluster peers.
+  Future<APIUtxoDetails> getUtxoDetails({
+    required String txid,
+    required int vout,
   });
 
   /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
@@ -176,6 +188,18 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Persist a label for an address. Pass an empty string to remove it.
   void setAddressLabel({required String address, required String label});
+
+  /// Persist a label for a coin (UTXO) by outpoint. Pass an empty string to remove it.
+  void setCoinLabel({
+    required String txid,
+    required int vout,
+    required String label,
+  });
+
+  /// Store the Electrum URL so it can be used by detail queries (e.g. fetching
+  /// unknown input transactions). Call this before sync if you want it available
+  /// immediately without waiting for sync to complete.
+  void setElectrumUrl({required String url});
 
   /// Persist a label for a key by master fingerprint. Pass an empty string to remove it.
   void setKeyLabel({required String mfp, required String label});

@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -48,7 +48,15 @@ class APIAddress {
 
   /// Number of transactions in which this address appears as an output.
   final int txCount;
+
+  /// Explicit user-set label (use for editing).
   final String? label;
+
+  /// Display label — own label if set, otherwise inherited from a related entity.
+  final String? effectiveLabel;
+
+  /// True when `effective_label` comes from a related entity (tx or UTXO), not this address.
+  final bool labelIsInherited;
 
   const APIAddress({
     required this.address,
@@ -58,6 +66,8 @@ class APIAddress {
     required this.isUsed,
     required this.txCount,
     this.label,
+    this.effectiveLabel,
+    required this.labelIsInherited,
   });
 
   @override
@@ -68,7 +78,9 @@ class APIAddress {
       balanceSat.hashCode ^
       isUsed.hashCode ^
       txCount.hashCode ^
-      label.hashCode;
+      label.hashCode ^
+      effectiveLabel.hashCode ^
+      labelIsInherited.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -81,7 +93,39 @@ class APIAddress {
           balanceSat == other.balanceSat &&
           isUsed == other.isUsed &&
           txCount == other.txCount &&
-          label == other.label;
+          label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          labelIsInherited == other.labelIsInherited;
+}
+
+/// Full detail for an address.
+class APIAddressDetails {
+  final APIAddress address;
+
+  /// Unspent coins at this address.
+  final List<APIRelatedUtxo> relatedUtxos;
+
+  /// All transactions that sent to or spent from this address (unconfirmed first).
+  final List<APIRelatedTx> relatedTxs;
+
+  const APIAddressDetails({
+    required this.address,
+    required this.relatedUtxos,
+    required this.relatedTxs,
+  });
+
+  @override
+  int get hashCode =>
+      address.hashCode ^ relatedUtxos.hashCode ^ relatedTxs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAddressDetails &&
+          runtimeType == other.runtimeType &&
+          address == other.address &&
+          relatedUtxos == other.relatedUtxos &&
+          relatedTxs == other.relatedTxs;
 }
 
 class APIBalance {
@@ -307,6 +351,130 @@ class APIPubKey {
           xpub == other.xpub;
 }
 
+/// Output address entry shown inside a transaction detail dialog.
+class APIRelatedAddress {
+  final String address;
+
+  /// Amount at this address in this transaction. None when the previous
+  /// output could not be resolved (e.g. external input tx not in graph).
+  final BigInt? valueSat;
+
+  /// Explicit label on this address (None if unlabelled or external).
+  final String? label;
+
+  /// True if this address belongs to our wallet.
+  final bool isMine;
+
+  const APIRelatedAddress({
+    required this.address,
+    this.valueSat,
+    this.label,
+    required this.isMine,
+  });
+
+  @override
+  int get hashCode =>
+      address.hashCode ^ valueSat.hashCode ^ label.hashCode ^ isMine.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRelatedAddress &&
+          runtimeType == other.runtimeType &&
+          address == other.address &&
+          valueSat == other.valueSat &&
+          label == other.label &&
+          isMine == other.isMine;
+}
+
+/// Compact transaction summary shown inside coin/address detail dialogs.
+class APIRelatedTx {
+  final String txid;
+  final String? label;
+  final int? confirmationHeight;
+
+  /// Sats received by this specific address/coin in this tx.
+  final BigInt addrReceived;
+
+  /// Sats spent from this specific address/coin in this tx.
+  final BigInt addrSpent;
+  final BigInt? fee;
+
+  const APIRelatedTx({
+    required this.txid,
+    this.label,
+    this.confirmationHeight,
+    required this.addrReceived,
+    required this.addrSpent,
+    this.fee,
+  });
+
+  @override
+  int get hashCode =>
+      txid.hashCode ^
+      label.hashCode ^
+      confirmationHeight.hashCode ^
+      addrReceived.hashCode ^
+      addrSpent.hashCode ^
+      fee.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRelatedTx &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          label == other.label &&
+          confirmationHeight == other.confirmationHeight &&
+          addrReceived == other.addrReceived &&
+          addrSpent == other.addrSpent &&
+          fee == other.fee;
+}
+
+/// Compact UTXO summary shown inside tx/address detail dialogs.
+class APIRelatedUtxo {
+  final String txid;
+  final int vout;
+  final String address;
+  final BigInt valueSat;
+
+  /// Explicit label on this UTXO.
+  final String? utxoLabel;
+
+  /// Explicit label on this UTXO's address.
+  final String? addressLabel;
+
+  const APIRelatedUtxo({
+    required this.txid,
+    required this.vout,
+    required this.address,
+    required this.valueSat,
+    this.utxoLabel,
+    this.addressLabel,
+  });
+
+  @override
+  int get hashCode =>
+      txid.hashCode ^
+      vout.hashCode ^
+      address.hashCode ^
+      valueSat.hashCode ^
+      utxoLabel.hashCode ^
+      addressLabel.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRelatedUtxo &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          vout == other.vout &&
+          address == other.address &&
+          valueSat == other.valueSat &&
+          utxoLabel == other.utxoLabel &&
+          addressLabel == other.addressLabel;
+}
+
 class APIRelativeTimelock {
   final APIRelativeTimelockType timelockType;
   final int value;
@@ -449,7 +617,15 @@ class APITransaction {
   final BigInt? fee;
   final int? confirmationHeight;
   final BigInt? confirmationTime;
+
+  /// Explicit user-set label (use for editing).
   final String? label;
+
+  /// Display label — own label if set, otherwise inherited from a related entity.
+  final String? effectiveLabel;
+
+  /// True when `effective_label` comes from a related entity (address or UTXO), not this tx.
+  final bool labelIsInherited;
 
   const APITransaction({
     required this.txid,
@@ -459,6 +635,8 @@ class APITransaction {
     this.confirmationHeight,
     this.confirmationTime,
     this.label,
+    this.effectiveLabel,
+    required this.labelIsInherited,
   });
 
   @override
@@ -469,7 +647,9 @@ class APITransaction {
       fee.hashCode ^
       confirmationHeight.hashCode ^
       confirmationTime.hashCode ^
-      label.hashCode;
+      label.hashCode ^
+      effectiveLabel.hashCode ^
+      labelIsInherited.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -482,7 +662,9 @@ class APITransaction {
           fee == other.fee &&
           confirmationHeight == other.confirmationHeight &&
           confirmationTime == other.confirmationTime &&
-          label == other.label;
+          label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          labelIsInherited == other.labelIsInherited;
 }
 
 class APITransactionPage {
@@ -510,6 +692,44 @@ class APITransactionPage {
           hasMore == other.hasMore;
 }
 
+/// Full detail for a transaction.
+class APITxDetails {
+  final APITransaction tx;
+
+  /// Unspent output coins created by this transaction.
+  final List<APIRelatedUtxo> relatedUtxos;
+
+  /// Input addresses (previous outputs spent by this transaction).
+  final List<APIRelatedAddress> inputAddresses;
+
+  /// All output addresses of this transaction.
+  final List<APIRelatedAddress> outputAddresses;
+
+  const APITxDetails({
+    required this.tx,
+    required this.relatedUtxos,
+    required this.inputAddresses,
+    required this.outputAddresses,
+  });
+
+  @override
+  int get hashCode =>
+      tx.hashCode ^
+      relatedUtxos.hashCode ^
+      inputAddresses.hashCode ^
+      outputAddresses.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APITxDetails &&
+          runtimeType == other.runtimeType &&
+          tx == other.tx &&
+          relatedUtxos == other.relatedUtxos &&
+          inputAddresses == other.inputAddresses &&
+          outputAddresses == other.outputAddresses;
+}
+
 class APIUtxo {
   final String txid;
   final int vout;
@@ -520,6 +740,15 @@ class APIUtxo {
   final bool isConfirmed;
   final int? confirmationHeight;
 
+  /// Explicit user-set label (use for editing).
+  final String? label;
+
+  /// Display label — own label if set, otherwise inherited from a related entity.
+  final String? effectiveLabel;
+
+  /// True when `effective_label` comes from a related entity (address or tx), not this UTXO.
+  final bool labelIsInherited;
+
   const APIUtxo({
     required this.txid,
     required this.vout,
@@ -529,6 +758,9 @@ class APIUtxo {
     required this.address,
     required this.isConfirmed,
     this.confirmationHeight,
+    this.label,
+    this.effectiveLabel,
+    required this.labelIsInherited,
   });
 
   @override
@@ -540,7 +772,10 @@ class APIUtxo {
       derivationIndex.hashCode ^
       address.hashCode ^
       isConfirmed.hashCode ^
-      confirmationHeight.hashCode;
+      confirmationHeight.hashCode ^
+      label.hashCode ^
+      effectiveLabel.hashCode ^
+      labelIsInherited.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -554,7 +789,40 @@ class APIUtxo {
           derivationIndex == other.derivationIndex &&
           address == other.address &&
           isConfirmed == other.isConfirmed &&
-          confirmationHeight == other.confirmationHeight;
+          confirmationHeight == other.confirmationHeight &&
+          label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          labelIsInherited == other.labelIsInherited;
+}
+
+/// Full detail for a UTXO.
+class APIUtxoDetails {
+  final APIUtxo utxo;
+
+  /// Explicit label on this UTXO's address.
+  final String? addressLabel;
+
+  /// The transaction that created this UTXO.
+  final APIRelatedTx creatingTx;
+
+  const APIUtxoDetails({
+    required this.utxo,
+    this.addressLabel,
+    required this.creatingTx,
+  });
+
+  @override
+  int get hashCode =>
+      utxo.hashCode ^ addressLabel.hashCode ^ creatingTx.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIUtxoDetails &&
+          runtimeType == other.runtimeType &&
+          utxo == other.utxo &&
+          addressLabel == other.addressLabel &&
+          creatingTx == other.creatingTx;
 }
 
 class APIWalletInfo {

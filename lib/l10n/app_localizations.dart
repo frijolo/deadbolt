@@ -1640,6 +1640,24 @@ abstract class AppLocalizations {
   /// **'Coin details'**
   String get coinDetailsTitle;
 
+  /// No description provided for @coinLabelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get coinLabelTitle;
+
+  /// No description provided for @coinLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a label...'**
+  String get coinLabelHint;
+
+  /// No description provided for @coinLabelRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove label'**
+  String get coinLabelRemove;
+
   /// No description provided for @coinOutpoint.
   ///
   /// In en, this message translates to:
@@ -2173,6 +2191,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done ({count})'**
   String coinSelectorDoneCount(int count);
+
+  /// No description provided for @relatedCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Related coins'**
+  String get relatedCoins;
+
+  /// No description provided for @relatedAddressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address label'**
+  String get relatedAddressLabel;
+
+  /// No description provided for @relatedAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Output addresses'**
+  String get relatedAddresses;
+
+  /// No description provided for @inputAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Input addresses'**
+  String get inputAddresses;
+
+  /// No description provided for @relatedTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Related transactions'**
+  String get relatedTransactions;
+
+  /// No description provided for @creatingTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating transaction'**
+  String get creatingTransaction;
 }
 
 class _AppLocalizationsDelegate
