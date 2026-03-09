@@ -240,6 +240,49 @@ pub fn get_all_path_labels(conn: &Connection) -> Result<std::collections::HashMa
 }
 
 //////////////////////////////
+// coin_labels table         //
+//////////////////////////////
+
+/// Create the coin_labels table if it does not already exist.
+pub fn ensure_coin_labels_table(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS coin_labels (
+            outpoint TEXT PRIMARY KEY,
+            label    TEXT NOT NULL
+        );",
+    )?;
+    Ok(())
+}
+
+/// Upsert a label for a UTXO outpoint ("txid:vout"). Deletes the row if label is empty.
+pub fn set_coin_label(conn: &Connection, outpoint: &str, label: &str) -> Result<()> {
+    if label.is_empty() {
+        conn.execute(
+            "DELETE FROM coin_labels WHERE outpoint = ?1",
+            rusqlite::params![outpoint],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT OR REPLACE INTO coin_labels (outpoint, label) VALUES (?1, ?2)",
+            rusqlite::params![outpoint, label],
+        )?;
+    }
+    Ok(())
+}
+
+/// Return all coin labels as a HashMap<outpoint, label>.
+pub fn get_all_coin_labels(conn: &Connection) -> Result<std::collections::HashMap<String, String>> {
+    let mut stmt = conn.prepare("SELECT outpoint, label FROM coin_labels")?;
+    let map = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+//////////////////////////////
 // unsigned_txs table       //
 //////////////////////////////
 
@@ -419,6 +462,7 @@ pub fn load_or_create_wallet(
     ensure_address_labels_table(&conn)?;
     ensure_key_labels_table(&conn)?;
     ensure_path_labels_table(&conn)?;
+    ensure_coin_labels_table(&conn)?;
 
     Ok((wallet, conn))
 }

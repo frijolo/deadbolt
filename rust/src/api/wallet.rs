@@ -4,18 +4,20 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIBalance, APICoinControl, APIKeychain, APINetwork, APIPolicyPath,
-    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APITransaction, APITransactionPage, APIUtxo,
-    APIWalletInfo,
+    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIKeychain, APINetwork,
+    APIPolicyPath, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRelatedAddress,
+    APIRelatedTx, APIRelatedUtxo, APITransaction, APITransactionPage, APITxDetails, APIUtxo,
+    APIUtxoDetails, APIWalletInfo,
 };
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
     create_wallet_db, get_wallet_info_from_file, list_wallets_in_dir, rename_wallet_in_file,
 };
 use crate::core::wallet_persistence::{
-    delete_psbt_row, ensure_unsigned_txs_table, get_all_address_labels, get_all_key_labels,
-    get_all_path_labels, get_all_tx_labels, get_psbt_row, insert_psbt, list_psbt_rows,
-    open_encrypted_connection, read_wallet_info, set_address_label as db_set_address_label,
+    delete_psbt_row, ensure_unsigned_txs_table, get_all_address_labels, get_all_coin_labels,
+    get_all_key_labels, get_all_path_labels, get_all_tx_labels, get_psbt_row, insert_psbt,
+    list_psbt_rows, open_encrypted_connection, read_wallet_info,
+    set_address_label as db_set_address_label, set_coin_label as db_set_coin_label,
     set_key_label as db_set_key_label, set_path_label as db_set_path_label,
     set_tx_label as db_set_tx_label, touch_last_synced, update_psbt_data, PsbtRow, WalletInfoRow,
 };
@@ -106,6 +108,93 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
     })
 }
 
+// ---------------------------------------------------------------------------
+// Label inheritance helpers
+// ---------------------------------------------------------------------------
+
+/// Resolve effective label: explicit label wins; otherwise use inherited.
+/// Returns `(effective_label, is_inherited)`.
+fn resolve_label(explicit: Option<&String>, inherited: Option<&String>) -> (Option<String>, bool) {
+    if let Some(l) = explicit.filter(|l| !l.is_empty()) {
+        return (Some(l.clone()), false);
+    }
+    if let Some(l) = inherited.filter(|l| !l.is_empty()) {
+        return (Some(l.clone()), true);
+    }
+    (None, false)
+}
+
+/// Build a map  txid → Vec<(address, addr_label, coin_label)>  from all unspent outputs.
+/// Used to look up cluster labels for transactions and to build the related-UTXO list.
+#[allow(clippy::type_complexity)]
+fn build_tx_utxo_map(
+    wallet: &bdk_wallet::Wallet,
+    address_labels: &std::collections::HashMap<String, String>,
+    coin_labels: &std::collections::HashMap<String, String>,
+) -> std::collections::HashMap<String, Vec<(String, Option<String>, Option<String>)>> {
+    let mut map: std::collections::HashMap<String, Vec<_>> = std::collections::HashMap::new();
+    for utxo in wallet.list_unspent() {
+        let address = wallet
+            .peek_address(utxo.keychain, utxo.derivation_index)
+            .address
+            .to_string();
+        let outpoint_key = format!("{}:{}", utxo.outpoint.txid, utxo.outpoint.vout);
+        let addr_label = address_labels
+            .get(&address)
+            .filter(|l| !l.is_empty())
+            .cloned();
+        let coin_label = coin_labels
+            .get(&outpoint_key)
+            .filter(|l| !l.is_empty())
+            .cloned();
+        map.entry(utxo.outpoint.txid.to_string())
+            .or_default()
+            .push((address, addr_label, coin_label));
+    }
+    map
+}
+
+/// Build a map  address → Vec<(txid, tx_label, coin_label)>  from all unspent outputs.
+/// Used to look up cluster labels for addresses.
+#[allow(clippy::type_complexity)]
+fn build_addr_utxo_map(
+    wallet: &bdk_wallet::Wallet,
+    tx_labels: &std::collections::HashMap<String, String>,
+    coin_labels: &std::collections::HashMap<String, String>,
+) -> std::collections::HashMap<String, Vec<(String, Option<String>, Option<String>)>> {
+    let mut map: std::collections::HashMap<String, Vec<_>> = std::collections::HashMap::new();
+    for utxo in wallet.list_unspent() {
+        let address = wallet
+            .peek_address(utxo.keychain, utxo.derivation_index)
+            .address
+            .to_string();
+        let outpoint_key = format!("{}:{}", utxo.outpoint.txid, utxo.outpoint.vout);
+        let txid = utxo.outpoint.txid.to_string();
+        let tx_label = tx_labels.get(&txid).filter(|l| !l.is_empty()).cloned();
+        let coin_label = coin_labels
+            .get(&outpoint_key)
+            .filter(|l| !l.is_empty())
+            .cloned();
+        map.entry(address)
+            .or_default()
+            .push((txid, tx_label, coin_label));
+    }
+    map
+}
+
+/// Pick the first non-empty inherited label from a list of (primary, fallback) pairs.
+fn first_inherited(pairs: &[(Option<String>, Option<String>)]) -> Option<String> {
+    for (primary, fallback) in pairs {
+        if let Some(l) = primary.as_deref().filter(|l| !l.is_empty()) {
+            return Some(l.to_string());
+        }
+        if let Some(l) = fallback.as_deref().filter(|l| !l.is_empty()) {
+            return Some(l.to_string());
+        }
+    }
+    None
+}
+
 /// Return all wallets found in wallets_dir, sorted newest-first.
 pub fn list_wallets(wallets_dir: String, encryption_key_hex: String) -> Result<Vec<APIWalletInfo>> {
     let raw = list_wallets_in_dir(&wallets_dir, &encryption_key_hex);
@@ -172,6 +261,7 @@ pub fn open_wallet(wallet_path: String, encryption_key_hex: String) -> Result<AP
     Ok(APIWallet {
         inner: Mutex::new(core),
         path: wallet_path,
+        electrum_url: Mutex::new(String::new()),
     })
 }
 
@@ -181,6 +271,8 @@ pub fn open_wallet(wallet_path: String, encryption_key_hex: String) -> Result<AP
 pub struct APIWallet {
     inner: Mutex<CoreWallet>,
     pub path: String,
+    /// Last Electrum URL used for sync/rescan/broadcast. Updated on every network call.
+    electrum_url: Mutex<String>,
 }
 
 impl APIWallet {
@@ -219,7 +311,11 @@ impl APIWallet {
         let end = (start + page_size as usize).min(txs.len());
         let has_more = end < txs.len();
 
-        let labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        // txid → Vec<(address, addr_label, coin_label)> for cluster label lookup
+        let tx_utxo_map = build_tx_utxo_map(wallet, &address_labels, &coin_labels);
 
         let page_txs: Vec<APITransaction> = if start < txs.len() {
             txs[start..end]
@@ -239,7 +335,17 @@ impl APIWallet {
 
                     let (sent, received) = wallet.sent_and_received(tx);
                     let fee = wallet.calculate_fee(tx).ok().map(|f| f.to_sat());
-                    let label = labels.get(&txid).cloned();
+                    let label = tx_labels.get(&txid).cloned();
+
+                    // Inherited: scan output UTXOs — address label > coin label
+                    let cluster = tx_utxo_map.get(&txid).map(|v| {
+                        v.iter()
+                            .map(|(_, al, cl)| (al.clone(), cl.clone()))
+                            .collect::<Vec<_>>()
+                    });
+                    let inherited = cluster.as_deref().and_then(first_inherited);
+                    let (effective_label, label_is_inherited) =
+                        resolve_label(label.as_ref(), inherited.as_ref());
 
                     APITransaction {
                         txid,
@@ -249,6 +355,8 @@ impl APIWallet {
                         confirmation_height,
                         confirmation_time,
                         label,
+                        effective_label,
+                        label_is_inherited,
                     }
                 })
                 .collect()
@@ -261,6 +369,16 @@ impl APIWallet {
             total_count,
             has_more,
         })
+    }
+
+    /// Store the Electrum URL so it can be used by detail queries (e.g. fetching
+    /// unknown input transactions). Call this before sync if you want it available
+    /// immediately without waiting for sync to complete.
+    #[frb(sync)]
+    pub fn set_electrum_url(&self, url: String) {
+        if let Ok(mut u) = self.electrum_url.lock() {
+            *u = url;
+        }
     }
 
     /// Sync with Electrum, persist, and update last_synced_at.
@@ -292,6 +410,10 @@ impl APIWallet {
 
         core.persist()?;
         touch_last_synced(&core.conn)?;
+        drop(core);
+        if let Ok(mut u) = self.electrum_url.lock() {
+            *u = electrum_url;
+        }
 
         Ok(())
     }
@@ -312,6 +434,10 @@ impl APIWallet {
         core.wallet.apply_update(update)?;
         core.persist()?;
         touch_last_synced(&core.conn)?;
+        drop(core);
+        if let Ok(mut u) = self.electrum_url.lock() {
+            *u = electrum_url;
+        }
 
         Ok(())
     }
@@ -340,7 +466,6 @@ impl APIWallet {
     /// Balance is the sum of all unspent outputs currently controlled by each address.
     pub fn get_addresses(&self, keychain: APIKeychain) -> Result<Vec<APIAddress>> {
         use bdk_wallet::KeychainKind;
-        use std::collections::HashMap;
 
         let core = self
             .inner
@@ -361,23 +486,51 @@ impl APIWallet {
             }
         }
 
-        // Count distinct transactions per address index and track used ones
-        use std::collections::{HashMap as CountMap, HashSet};
+        // Count distinct transactions per address index and track used ones.
+        // Two passes: (1) outputs → receiving txids + outpoint→idx map,
+        //             (2) inputs spending our outpoints → spending txids.
+        use std::collections::{HashMap, HashSet};
         let spk_index = wallet.spk_index();
-        let mut used_indices: HashSet<u32> = HashSet::new();
-        let mut tx_count_map: CountMap<u32, u32> = CountMap::new();
+        // addr_idx → set of distinct txids (both receiving and spending)
+        let mut per_addr_txids: HashMap<u32, HashSet<String>> = HashMap::new();
+        // (txid, vout) → address index, for spend detection in pass 2
+        let mut outpoint_to_idx: HashMap<(String, u32), u32> = HashMap::new();
+
         for canonical_tx in wallet.transactions() {
-            for output in canonical_tx.tx_node.tx.output.iter() {
+            let txid_str = canonical_tx.tx_node.txid.to_string();
+            for (vout_idx, output) in canonical_tx.tx_node.tx.output.iter().enumerate() {
                 if let Some((k, idx)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
                     if *k == bdk_keychain {
-                        used_indices.insert(*idx);
-                        *tx_count_map.entry(*idx).or_insert(0) += 1;
+                        per_addr_txids
+                            .entry(*idx)
+                            .or_default()
+                            .insert(txid_str.clone());
+                        outpoint_to_idx.insert((txid_str.clone(), vout_idx as u32), *idx);
                     }
                 }
             }
         }
+        for canonical_tx in wallet.transactions() {
+            let txid_str = canonical_tx.tx_node.txid.to_string();
+            for input in canonical_tx.tx_node.tx.input.iter() {
+                let prev = (
+                    input.previous_output.txid.to_string(),
+                    input.previous_output.vout,
+                );
+                if let Some(&idx) = outpoint_to_idx.get(&prev) {
+                    per_addr_txids
+                        .entry(idx)
+                        .or_default()
+                        .insert(txid_str.clone());
+                }
+            }
+        }
 
-        let labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        // address → Vec<(txid, tx_label, coin_label)> for cluster label lookup
+        let addr_utxo_map = build_addr_utxo_map(wallet, &tx_labels, &coin_labels);
 
         // Collect all revealed addresses sorted by index ascending
         let mut addrs: Vec<APIAddress> = spk_index
@@ -385,9 +538,21 @@ impl APIWallet {
             .map(|(idx, _)| {
                 let addr = wallet.peek_address(bdk_keychain, idx).address.to_string();
                 let balance_sat = balance_map.get(&idx).copied().unwrap_or(0);
-                let is_used = used_indices.contains(&idx);
-                let tx_count = tx_count_map.get(&idx).copied().unwrap_or(0);
-                let label = labels.get(&addr).cloned();
+                let addr_txids = per_addr_txids.get(&idx);
+                let is_used = addr_txids.is_some();
+                let tx_count = addr_txids.map(|s| s.len() as u32).unwrap_or(0);
+                let label = address_labels.get(&addr).cloned();
+
+                // Inherited: scan UTXOs at this address — tx label > coin label
+                let cluster = addr_utxo_map.get(&addr).map(|v| {
+                    v.iter()
+                        .map(|(_, tl, cl)| (tl.clone(), cl.clone()))
+                        .collect::<Vec<_>>()
+                });
+                let inherited = cluster.as_deref().and_then(first_inherited);
+                let (effective_label, label_is_inherited) =
+                    resolve_label(label.as_ref(), inherited.as_ref());
+
                 APIAddress {
                     address: addr,
                     index: idx,
@@ -396,6 +561,8 @@ impl APIWallet {
                     is_used,
                     tx_count,
                     label,
+                    effective_label,
+                    label_is_inherited,
                 }
             })
             .collect();
@@ -411,6 +578,10 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
+
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
 
         let mut utxos: Vec<APIUtxo> = wallet
             .list_unspent()
@@ -435,8 +606,26 @@ impl APIWallet {
                     } else {
                         None
                     };
+                let outpoint_key = format!(
+                    "{}:{}",
+                    local_output.outpoint.txid, local_output.outpoint.vout
+                );
+                let txid = local_output.outpoint.txid.to_string();
+                let label = coin_labels.get(&outpoint_key).cloned();
+
+                // Inherited: address label > tx label
+                let inherited = first_inherited(&[(
+                    address_labels
+                        .get(&address)
+                        .filter(|l| !l.is_empty())
+                        .cloned(),
+                    tx_labels.get(&txid).filter(|l| !l.is_empty()).cloned(),
+                )]);
+                let (effective_label, label_is_inherited) =
+                    resolve_label(label.as_ref(), inherited.as_ref());
+
                 APIUtxo {
-                    txid: local_output.outpoint.txid.to_string(),
+                    txid,
                     vout: local_output.outpoint.vout,
                     value_sat: local_output.txout.value.to_sat(),
                     keychain,
@@ -444,12 +633,556 @@ impl APIWallet {
                     address,
                     is_confirmed,
                     confirmation_height,
+                    label,
+                    effective_label,
+                    label_is_inherited,
                 }
             })
             .collect();
 
         utxos.sort_by(|a, b| b.value_sat.cmp(&a.value_sat).then(a.txid.cmp(&b.txid)));
         Ok(utxos)
+    }
+
+    // -----------------------------------------------------------------------
+    // Detail APIs (entity + related entities for detail dialogs)
+    // -----------------------------------------------------------------------
+
+    /// Return full detail for a transaction: the tx plus related UTXOs, input addresses,
+    /// and output addresses. External input transactions not in BDK's graph are fetched
+    /// from Electrum (using the URL stored from the last sync).
+    pub fn get_tx_details(&self, txid: String) -> Result<APITxDetails> {
+        use bdk_wallet::bitcoin::Txid;
+        use std::collections::{HashMap, HashSet};
+
+        // Phase 1: identify input txids absent from BDK's data (brief lock scope).
+        let (missing_txids, electrum_url) = {
+            let core = self
+                .inner
+                .lock()
+                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let wallet = &core.wallet;
+            let canonical_tx = wallet
+                .transactions()
+                .find(|t| t.tx_node.txid.to_string() == txid)
+                .ok_or_else(|| anyhow::anyhow!("transaction not found: {}", txid))?;
+            let known_txids: HashSet<Txid> =
+                wallet.transactions().map(|t| t.tx_node.txid).collect();
+            let missing: Vec<Txid> = canonical_tx
+                .tx_node
+                .tx
+                .input
+                .iter()
+                .filter(|i| !i.previous_output.is_null())
+                .filter(|i| {
+                    !known_txids.contains(&i.previous_output.txid)
+                        && wallet.tx_graph().get_txout(i.previous_output).is_none()
+                })
+                .map(|i| i.previous_output.txid)
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            let url = self
+                .electrum_url
+                .lock()
+                .map(|u| (*u).clone())
+                .unwrap_or_default();
+            (missing, url)
+        }; // inner lock released here
+
+        // Phase 2: fetch missing input transactions from Electrum (no lock held).
+        let fetched_txs: HashMap<String, bdk_wallet::bitcoin::Transaction> = {
+            let mut map = HashMap::new();
+            if !missing_txids.is_empty() && !electrum_url.is_empty() {
+                use bdk_electrum::electrum_client::ElectrumApi;
+                if let Ok(client) = bdk_electrum::electrum_client::Client::new(&electrum_url) {
+                    for id in missing_txids {
+                        if let Ok(tx) = client.transaction_get(&id) {
+                            map.insert(id.to_string(), tx);
+                        }
+                    }
+                }
+            }
+            map
+        };
+
+        // Phase 3: full processing (re-acquire lock).
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let wallet = &core.wallet;
+
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        let tx_utxo_map = build_tx_utxo_map(wallet, &address_labels, &coin_labels);
+
+        let canonical_tx = wallet
+            .transactions()
+            .find(|t| t.tx_node.txid.to_string() == txid)
+            .ok_or_else(|| anyhow::anyhow!("transaction not found: {}", txid))?;
+
+        let tx_ref = &canonical_tx.tx_node.tx;
+        let (confirmation_height, confirmation_time) =
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                &canonical_tx.chain_position
+            {
+                (Some(anchor.block_id.height), Some(anchor.confirmation_time))
+            } else {
+                (None, None)
+            };
+        let (sent, received) = wallet.sent_and_received(tx_ref);
+        let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
+        let label = tx_labels.get(&txid).cloned();
+
+        let cluster = tx_utxo_map.get(&txid).map(|v| {
+            v.iter()
+                .map(|(_, al, cl)| (al.clone(), cl.clone()))
+                .collect::<Vec<_>>()
+        });
+        let inherited = cluster.as_deref().and_then(first_inherited);
+        let (effective_label, label_is_inherited) =
+            resolve_label(label.as_ref(), inherited.as_ref());
+
+        let tx = APITransaction {
+            txid: txid.clone(),
+            received: received.to_sat(),
+            sent: sent.to_sat(),
+            fee,
+            confirmation_height,
+            confirmation_time,
+            label,
+            effective_label,
+            label_is_inherited,
+        };
+
+        // Unspent output coins created by this transaction.
+        let related_utxos = wallet
+            .list_unspent()
+            .filter(|u| u.outpoint.txid.to_string() == txid)
+            .map(|u| {
+                let address = wallet
+                    .peek_address(u.keychain, u.derivation_index)
+                    .address
+                    .to_string();
+                let outpoint_key = format!("{}:{}", u.outpoint.txid, u.outpoint.vout);
+                APIRelatedUtxo {
+                    txid: u.outpoint.txid.to_string(),
+                    vout: u.outpoint.vout,
+                    address: address.clone(),
+                    value_sat: u.txout.value.to_sat(),
+                    utxo_label: coin_labels
+                        .get(&outpoint_key)
+                        .filter(|l| !l.is_empty())
+                        .cloned(),
+                    address_label: address_labels
+                        .get(&address)
+                        .filter(|l| !l.is_empty())
+                        .cloned(),
+                }
+            })
+            .collect();
+
+        let spk_index = wallet.spk_index();
+        let network = wallet.network();
+        let tx_map: HashMap<String, _> = wallet
+            .transactions()
+            .map(|t| (t.tx_node.txid.to_string(), t))
+            .collect();
+
+        // Resolve a previous output: BDK graph → TxGraph TxOut → Electrum-fetched tx.
+        let resolve_prev = |outpoint: bdk_wallet::bitcoin::OutPoint|
+            -> Option<(bdk_wallet::bitcoin::ScriptBuf, u64)> {
+            let prev_txid = outpoint.txid.to_string();
+            let prev_vout = outpoint.vout as usize;
+            if let Some(o) = tx_map.get(&prev_txid).and_then(|t| t.tx_node.tx.output.get(prev_vout)) {
+                return Some((o.script_pubkey.clone(), o.value.to_sat()));
+            }
+            if let Some(txout) = wallet.tx_graph().get_txout(outpoint) {
+                return Some((txout.script_pubkey.clone(), txout.value.to_sat()));
+            }
+            fetched_txs
+                .get(&prev_txid)?
+                .output
+                .get(prev_vout)
+                .map(|o| (o.script_pubkey.clone(), o.value.to_sat()))
+        };
+
+        // Input addresses.
+        let input_addresses: Vec<APIRelatedAddress> = tx_ref
+            .input
+            .iter()
+            .map(|input| {
+                if input.previous_output.is_null() {
+                    return APIRelatedAddress {
+                        address: "Coinbase".to_string(),
+                        value_sat: None,
+                        label: None,
+                        is_mine: false,
+                    };
+                }
+                let prev_txid = input.previous_output.txid.to_string();
+                let Some((spk, value)) = resolve_prev(input.previous_output) else {
+                    return APIRelatedAddress {
+                        address: format!("{}…:{}", &prev_txid[..8], input.previous_output.vout),
+                        value_sat: None,
+                        label: None,
+                        is_mine: false,
+                    };
+                };
+                if let Some((k, i)) = spk_index.index_of_spk(spk.clone()) {
+                    let addr_str = wallet.peek_address(*k, *i).address.to_string();
+                    let label = address_labels
+                        .get(&addr_str)
+                        .filter(|l| !l.is_empty())
+                        .cloned();
+                    APIRelatedAddress {
+                        address: addr_str,
+                        value_sat: Some(value),
+                        label,
+                        is_mine: true,
+                    }
+                } else {
+                    let addr_str = bdk_wallet::bitcoin::Address::from_script(&spk, network)
+                        .map(|a| a.to_string())
+                        .unwrap_or_else(|_| "undecodeable script".to_string());
+                    APIRelatedAddress {
+                        address: addr_str,
+                        value_sat: Some(value),
+                        label: None,
+                        is_mine: false,
+                    }
+                }
+            })
+            .collect();
+
+        // Output addresses.
+        let output_addresses: Vec<APIRelatedAddress> = tx_ref
+            .output
+            .iter()
+            .map(|output| {
+                if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
+                    let addr_str = wallet.peek_address(*k, *i).address.to_string();
+                    let label = address_labels
+                        .get(&addr_str)
+                        .filter(|l| !l.is_empty())
+                        .cloned();
+                    APIRelatedAddress {
+                        address: addr_str,
+                        value_sat: Some(output.value.to_sat()),
+                        label,
+                        is_mine: true,
+                    }
+                } else {
+                    let addr_str =
+                        bdk_wallet::bitcoin::Address::from_script(&output.script_pubkey, network)
+                            .map(|a| a.to_string())
+                            .unwrap_or_else(|_| "undecodeable script".to_string());
+                    APIRelatedAddress {
+                        address: addr_str,
+                        value_sat: Some(output.value.to_sat()),
+                        label: None,
+                        is_mine: false,
+                    }
+                }
+            })
+            .collect();
+
+        Ok(APITxDetails {
+            tx,
+            related_utxos,
+            input_addresses,
+            output_addresses,
+        })
+    }
+
+    /// Return full detail for a UTXO: the UTXO plus the explicit labels of its cluster peers.
+    pub fn get_utxo_details(&self, txid: String, vout: u32) -> Result<APIUtxoDetails> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let wallet = &core.wallet;
+
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+
+        let local_output = wallet
+            .list_unspent()
+            .find(|u| u.outpoint.txid.to_string() == txid && u.outpoint.vout == vout)
+            .ok_or_else(|| anyhow::anyhow!("UTXO not found: {}:{}", txid, vout))?;
+
+        let keychain = match local_output.keychain {
+            bdk_wallet::KeychainKind::External => APIKeychain::External,
+            bdk_wallet::KeychainKind::Internal => APIKeychain::Internal,
+        };
+        let address = wallet
+            .peek_address(local_output.keychain, local_output.derivation_index)
+            .address
+            .to_string();
+        let is_confirmed = matches!(
+            &local_output.chain_position,
+            bdk_wallet::chain::ChainPosition::Confirmed { .. }
+        );
+        let confirmation_height =
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                &local_output.chain_position
+            {
+                Some(anchor.block_id.height)
+            } else {
+                None
+            };
+        let outpoint_key = format!("{}:{}", txid, vout);
+        let label = coin_labels.get(&outpoint_key).cloned();
+        let address_label = address_labels
+            .get(&address)
+            .filter(|l| !l.is_empty())
+            .cloned();
+        let tx_label = tx_labels.get(&txid).filter(|l| !l.is_empty()).cloned();
+
+        let inherited = first_inherited(&[(address_label.clone(), tx_label.clone())]);
+        let (effective_label, label_is_inherited) =
+            resolve_label(label.as_ref(), inherited.as_ref());
+
+        let utxo = APIUtxo {
+            txid: txid.clone(),
+            vout,
+            value_sat: local_output.txout.value.to_sat(),
+            keychain,
+            derivation_index: local_output.derivation_index,
+            address,
+            is_confirmed,
+            confirmation_height,
+            label,
+            effective_label,
+            label_is_inherited,
+        };
+
+        // The transaction that created this UTXO
+        let creating_tx = wallet
+            .transactions()
+            .find(|t| t.tx_node.txid.to_string() == txid)
+            .map(|canonical_tx| {
+                let tx_ref = &canonical_tx.tx_node.tx;
+                let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
+                let conf_height =
+                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                        &canonical_tx.chain_position
+                    {
+                        Some(anchor.block_id.height)
+                    } else {
+                        None
+                    };
+                // This is the creating tx: the coin is the output, nothing is spent yet.
+                APIRelatedTx {
+                    txid: txid.clone(),
+                    label: tx_label.clone(),
+                    confirmation_height: conf_height,
+                    addr_received: local_output.txout.value.to_sat(),
+                    addr_spent: 0,
+                    fee,
+                }
+            })
+            .ok_or_else(|| anyhow::anyhow!("creating transaction not found: {}", txid))?;
+
+        Ok(APIUtxoDetails {
+            utxo,
+            address_label,
+            creating_tx,
+        })
+    }
+
+    /// Return full detail for an address: the address plus its unspent UTXOs.
+    pub fn get_address_details(&self, address: String) -> Result<APIAddressDetails> {
+        use bdk_wallet::KeychainKind;
+        use std::collections::HashSet;
+
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let wallet = &core.wallet;
+
+        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let addr_utxo_map = build_addr_utxo_map(wallet, &tx_labels, &coin_labels);
+
+        // Determine keychain + index for this address
+        let spk_index = wallet.spk_index();
+        let (keychain, idx) = [KeychainKind::External, KeychainKind::Internal]
+            .iter()
+            .find_map(|&k| {
+                spk_index
+                    .revealed_keychain_spks(k)
+                    .find(|(i, _)| wallet.peek_address(k, *i).address.to_string() == address)
+                    .map(|(i, _)| (k, i))
+            })
+            .ok_or_else(|| anyhow::anyhow!("address not found: {}", address))?;
+
+        let api_keychain = match keychain {
+            KeychainKind::External => APIKeychain::External,
+            KeychainKind::Internal => APIKeychain::Internal,
+        };
+
+        // Balance
+        let balance_sat: u64 = wallet
+            .list_unspent()
+            .filter(|u| u.keychain == keychain && u.derivation_index == idx)
+            .map(|u| u.txout.value.to_sat())
+            .sum();
+
+        // All transactions that sent to OR spent from this address.
+        // Pass 1: outputs to our address → receiving txids + outpoints we own.
+        let mut related_txids: HashSet<String> = HashSet::new();
+        let mut our_outpoints: HashSet<(String, u32)> = HashSet::new();
+        for canonical_tx in wallet.transactions() {
+            for (vout_idx, output) in canonical_tx.tx_node.tx.output.iter().enumerate() {
+                if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
+                    if *k == keychain && *i == idx {
+                        let txid_str = canonical_tx.tx_node.txid.to_string();
+                        related_txids.insert(txid_str.clone());
+                        our_outpoints.insert((txid_str, vout_idx as u32));
+                    }
+                }
+            }
+        }
+        // Pass 2: inputs spending our outpoints → spending txids.
+        for canonical_tx in wallet.transactions() {
+            for input in canonical_tx.tx_node.tx.input.iter() {
+                let prev = (
+                    input.previous_output.txid.to_string(),
+                    input.previous_output.vout,
+                );
+                if our_outpoints.contains(&prev) {
+                    related_txids.insert(canonical_tx.tx_node.txid.to_string());
+                }
+            }
+        }
+
+        let used = !related_txids.is_empty();
+        let tx_count = related_txids.len() as u32;
+
+        let label = address_labels.get(&address).cloned();
+        let cluster = addr_utxo_map.get(&address).map(|v| {
+            v.iter()
+                .map(|(_, tl, cl)| (tl.clone(), cl.clone()))
+                .collect::<Vec<_>>()
+        });
+        let inherited = cluster.as_deref().and_then(first_inherited);
+        let (effective_label, label_is_inherited) =
+            resolve_label(label.as_ref(), inherited.as_ref());
+
+        let addr = APIAddress {
+            address: address.clone(),
+            index: idx,
+            keychain: api_keychain,
+            balance_sat,
+            is_used: used,
+            tx_count,
+            label,
+            effective_label,
+            label_is_inherited,
+        };
+
+        // Related UTXOs at this address
+        let related_utxos = wallet
+            .list_unspent()
+            .filter(|u| u.keychain == keychain && u.derivation_index == idx)
+            .map(|u| {
+                let outpoint_key = format!("{}:{}", u.outpoint.txid, u.outpoint.vout);
+                let txid = u.outpoint.txid.to_string();
+                APIRelatedUtxo {
+                    txid: txid.clone(),
+                    vout: u.outpoint.vout,
+                    address: address.clone(),
+                    value_sat: u.txout.value.to_sat(),
+                    utxo_label: coin_labels
+                        .get(&outpoint_key)
+                        .filter(|l| !l.is_empty())
+                        .cloned(),
+                    address_label: address_labels
+                        .get(&address)
+                        .filter(|l| !l.is_empty())
+                        .cloned(),
+                }
+            })
+            .collect();
+
+        let mut related_txs: Vec<APIRelatedTx> = wallet
+            .transactions()
+            .filter(|t| related_txids.contains(&t.tx_node.txid.to_string()))
+            .map(|canonical_tx| {
+                let tx_ref = &canonical_tx.tx_node.tx;
+                let txid_str = canonical_tx.tx_node.txid.to_string();
+                let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
+                let conf_height =
+                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                        &canonical_tx.chain_position
+                    {
+                        Some(anchor.block_id.height)
+                    } else {
+                        None
+                    };
+                // Sats going to this address in this tx.
+                let addr_received: u64 = tx_ref
+                    .output
+                    .iter()
+                    .filter(|out| {
+                        spk_index
+                            .index_of_spk(out.script_pubkey.clone())
+                            .map(|(k, i)| *k == keychain && *i == idx)
+                            .unwrap_or(false)
+                    })
+                    .map(|out| out.value.to_sat())
+                    .sum();
+                // Sats leaving this address in this tx (inputs that were our outpoints).
+                let addr_spent: u64 = tx_ref
+                    .input
+                    .iter()
+                    .filter_map(|inp| {
+                        let prev = (
+                            inp.previous_output.txid.to_string(),
+                            inp.previous_output.vout,
+                        );
+                        if our_outpoints.contains(&prev) {
+                            wallet
+                                .tx_graph()
+                                .get_txout(inp.previous_output)
+                                .map(|txout| txout.value.to_sat())
+                        } else {
+                            None
+                        }
+                    })
+                    .sum();
+                APIRelatedTx {
+                    txid: txid_str.clone(),
+                    label: tx_labels.get(&txid_str).filter(|l| !l.is_empty()).cloned(),
+                    confirmation_height: conf_height,
+                    addr_received,
+                    addr_spent,
+                    fee,
+                }
+            })
+            .collect();
+
+        // Unconfirmed first, then by descending height
+        related_txs.sort_by(
+            |a, b| match (a.confirmation_height, b.confirmation_height) {
+                (None, None) => std::cmp::Ordering::Equal,
+                (None, Some(_)) => std::cmp::Ordering::Less,
+                (Some(_), None) => std::cmp::Ordering::Greater,
+                (Some(ha), Some(hb)) => hb.cmp(&ha),
+            },
+        );
+
+        Ok(APIAddressDetails {
+            address: addr,
+            related_utxos,
+            related_txs,
+        })
     }
 
     /// Reveal `count` new addresses for the given keychain beyond those already revealed,
@@ -488,6 +1221,17 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_address_label(&core.conn, &address, &label)
+    }
+
+    /// Persist a label for a coin (UTXO) by outpoint. Pass an empty string to remove it.
+    #[frb(sync)]
+    pub fn set_coin_label(&self, txid: String, vout: u32, label: String) -> Result<()> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let outpoint = format!("{}:{}", txid, vout);
+        db_set_coin_label(&core.conn, &outpoint, &label)
     }
 
     /// Return the current best block height from the local chain (0 if not yet synced).
@@ -870,6 +1614,10 @@ impl APIWallet {
         client.transaction_broadcast(&tx)?;
 
         delete_psbt_row(&core.conn, id)?;
+        drop(core);
+        if let Ok(mut u) = self.electrum_url.lock() {
+            *u = electrum_url;
+        }
 
         Ok(txid.to_string())
     }

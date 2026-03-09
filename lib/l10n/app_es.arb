@@ -395,6 +395,9 @@
   "coinsSection": "Monedas",
   "noCoins": "Sin monedas. Sincroniza para descubrir UTXOs.",
   "coinDetailsTitle": "Detalles de la moneda",
+  "coinLabelTitle": "Etiqueta",
+  "coinLabelHint": "Añadir etiqueta...",
+  "coinLabelRemove": "Eliminar etiqueta",
   "coinOutpoint": "Punto de salida",
   "coinValue": "Valor",
   "coinAddress": "Dirección",
@@ -562,5 +565,11 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "relatedCoins": "Monedas relacionadas",
+  "relatedAddressLabel": "Etiqueta de dirección",
+  "relatedAddresses": "Direcciones de salida",
+  "inputAddresses": "Direcciones de entrada",
+  "relatedTransactions": "Transacciones relacionadas",
+  "creatingTransaction": "Transacción creadora"
 }

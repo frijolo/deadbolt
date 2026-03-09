@@ -401,6 +401,9 @@
   "coinsSection": "Coins",
   "noCoins": "No coins. Sync to discover UTXOs.",
   "coinDetailsTitle": "Coin details",
+  "coinLabelTitle": "Label",
+  "coinLabelHint": "Add a label...",
+  "coinLabelRemove": "Remove label",
   "coinOutpoint": "Outpoint",
   "coinValue": "Value",
   "coinAddress": "Address",
@@ -568,5 +571,11 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "relatedCoins": "Related coins",
+  "relatedAddressLabel": "Address label",
+  "relatedAddresses": "Output addresses",
+  "inputAddresses": "Input addresses",
+  "relatedTransactions": "Related transactions",
+  "creatingTransaction": "Creating transaction"
 }

@@ -89,6 +89,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAddress dco_decode_api_address(dynamic raw);
 
   @protected
+  APIAddressDetails dco_decode_api_address_details(dynamic raw);
+
+  @protected
   APIAnalysisResult dco_decode_api_analysis_result(dynamic raw);
 
   @protected
@@ -125,6 +128,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPubKey dco_decode_api_pub_key(dynamic raw);
 
   @protected
+  APIRelatedAddress dco_decode_api_related_address(dynamic raw);
+
+  @protected
+  APIRelatedTx dco_decode_api_related_tx(dynamic raw);
+
+  @protected
+  APIRelatedUtxo dco_decode_api_related_utxo(dynamic raw);
+
+  @protected
   APIRelativeTimelock dco_decode_api_relative_timelock(dynamic raw);
 
   @protected
@@ -143,7 +155,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APITransactionPage dco_decode_api_transaction_page(dynamic raw);
 
   @protected
+  APITxDetails dco_decode_api_tx_details(dynamic raw);
+
+  @protected
   APIUtxo dco_decode_api_utxo(dynamic raw);
+
+  @protected
+  APIUtxoDetails dco_decode_api_utxo_details(dynamic raw);
 
   @protected
   APIWalletInfo dco_decode_api_wallet_info(dynamic raw);
@@ -213,6 +231,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> dco_decode_list_api_pub_key(dynamic raw);
+
+  @protected
+  List<APIRelatedAddress> dco_decode_list_api_related_address(dynamic raw);
+
+  @protected
+  List<APIRelatedTx> dco_decode_list_api_related_tx(dynamic raw);
+
+  @protected
+  List<APIRelatedUtxo> dco_decode_list_api_related_utxo(dynamic raw);
 
   @protected
   List<APISpendPath> dco_decode_list_api_spend_path(dynamic raw);
@@ -324,6 +351,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAddress sse_decode_api_address(SseDeserializer deserializer);
 
   @protected
+  APIAddressDetails sse_decode_api_address_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIAnalysisResult sse_decode_api_analysis_result(
     SseDeserializer deserializer,
   );
@@ -364,6 +396,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPubKey sse_decode_api_pub_key(SseDeserializer deserializer);
 
   @protected
+  APIRelatedAddress sse_decode_api_related_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIRelatedTx sse_decode_api_related_tx(SseDeserializer deserializer);
+
+  @protected
+  APIRelatedUtxo sse_decode_api_related_utxo(SseDeserializer deserializer);
+
+  @protected
   APIRelativeTimelock sse_decode_api_relative_timelock(
     SseDeserializer deserializer,
   );
@@ -388,7 +431,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APITxDetails sse_decode_api_tx_details(SseDeserializer deserializer);
+
+  @protected
   APIUtxo sse_decode_api_utxo(SseDeserializer deserializer);
+
+  @protected
+  APIUtxoDetails sse_decode_api_utxo_details(SseDeserializer deserializer);
 
   @protected
   APIWalletInfo sse_decode_api_wallet_info(SseDeserializer deserializer);
@@ -470,6 +519,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> sse_decode_list_api_pub_key(SseDeserializer deserializer);
+
+  @protected
+  List<APIRelatedAddress> sse_decode_list_api_related_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIRelatedTx> sse_decode_list_api_related_tx(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIRelatedUtxo> sse_decode_list_api_related_utxo(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<APISpendPath> sse_decode_list_api_spend_path(
@@ -601,6 +665,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_address(APIAddress self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_address_details(
+    APIAddressDetails self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_analysis_result(
     APIAnalysisResult self,
     SseSerializer serializer,
@@ -649,6 +719,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_pub_key(APIPubKey self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_related_address(
+    APIRelatedAddress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_related_tx(APIRelatedTx self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_related_utxo(
+    APIRelatedUtxo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_relative_timelock(
     APIRelativeTimelock self,
     SseSerializer serializer,
@@ -682,7 +767,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_tx_details(APITxDetails self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_utxo(APIUtxo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_utxo_details(
+    APIUtxoDetails self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_wallet_info(APIWalletInfo self, SseSerializer serializer);
@@ -784,6 +878,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_pub_key(
     List<APIPubKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_related_address(
+    List<APIRelatedAddress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_related_tx(
+    List<APIRelatedTx> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_related_utxo(
+    List<APIRelatedUtxo> self,
     SseSerializer serializer,
   );
 

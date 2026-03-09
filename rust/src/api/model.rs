@@ -402,7 +402,12 @@ pub struct APIAddress {
     pub is_used: bool,
     /// Number of transactions in which this address appears as an output.
     pub tx_count: u32,
+    /// Explicit user-set label (use for editing).
     pub label: Option<String>,
+    /// Display label — own label if set, otherwise inherited from a related entity.
+    pub effective_label: Option<String>,
+    /// True when `effective_label` comes from a related entity (tx or UTXO), not this address.
+    pub label_is_inherited: bool,
 }
 
 ////////////////
@@ -427,7 +432,12 @@ pub struct APITransaction {
     pub fee: Option<u64>,
     pub confirmation_height: Option<u32>,
     pub confirmation_time: Option<u64>, // Unix timestamp; None = unconfirmed
+    /// Explicit user-set label (use for editing).
     pub label: Option<String>,
+    /// Display label — own label if set, otherwise inherited from a related entity.
+    pub effective_label: Option<String>,
+    /// True when `effective_label` comes from a related entity (address or UTXO), not this tx.
+    pub label_is_inherited: bool,
 }
 
 /////////////////////////
@@ -453,6 +463,12 @@ pub struct APIUtxo {
     pub address: String,
     pub is_confirmed: bool,
     pub confirmation_height: Option<u32>,
+    /// Explicit user-set label (use for editing).
+    pub label: Option<String>,
+    /// Display label — own label if set, otherwise inherited from a related entity.
+    pub effective_label: Option<String>,
+    /// True when `effective_label` comes from a related entity (address or tx), not this UTXO.
+    pub label_is_inherited: bool,
 }
 
 ////////////////////
@@ -501,6 +517,81 @@ pub struct APIPsbtSignerStatus {
 pub struct APIPsbtAnalysis {
     pub signers: Vec<APIPsbtSignerStatus>,
     pub is_finalized: bool,
+}
+
+//////////////////////
+// Detail view types //
+//////////////////////
+
+/// Compact UTXO summary shown inside tx/address detail dialogs.
+#[derive(Clone)]
+pub struct APIRelatedUtxo {
+    pub txid: String,
+    pub vout: u32,
+    pub address: String,
+    pub value_sat: u64,
+    /// Explicit label on this UTXO.
+    pub utxo_label: Option<String>,
+    /// Explicit label on this UTXO's address.
+    pub address_label: Option<String>,
+}
+
+/// Compact transaction summary shown inside coin/address detail dialogs.
+#[derive(Clone)]
+pub struct APIRelatedTx {
+    pub txid: String,
+    pub label: Option<String>,
+    pub confirmation_height: Option<u32>,
+    /// Sats received by this specific address/coin in this tx.
+    pub addr_received: u64,
+    /// Sats spent from this specific address/coin in this tx.
+    pub addr_spent: u64,
+    pub fee: Option<u64>,
+}
+
+/// Output address entry shown inside a transaction detail dialog.
+#[derive(Clone)]
+pub struct APIRelatedAddress {
+    pub address: String,
+    /// Amount at this address in this transaction. None when the previous
+    /// output could not be resolved (e.g. external input tx not in graph).
+    pub value_sat: Option<u64>,
+    /// Explicit label on this address (None if unlabelled or external).
+    pub label: Option<String>,
+    /// True if this address belongs to our wallet.
+    pub is_mine: bool,
+}
+
+/// Full detail for a transaction.
+#[derive(Clone)]
+pub struct APITxDetails {
+    pub tx: APITransaction,
+    /// Unspent output coins created by this transaction.
+    pub related_utxos: Vec<APIRelatedUtxo>,
+    /// Input addresses (previous outputs spent by this transaction).
+    pub input_addresses: Vec<APIRelatedAddress>,
+    /// All output addresses of this transaction.
+    pub output_addresses: Vec<APIRelatedAddress>,
+}
+
+/// Full detail for a UTXO.
+#[derive(Clone)]
+pub struct APIUtxoDetails {
+    pub utxo: APIUtxo,
+    /// Explicit label on this UTXO's address.
+    pub address_label: Option<String>,
+    /// The transaction that created this UTXO.
+    pub creating_tx: APIRelatedTx,
+}
+
+/// Full detail for an address.
+#[derive(Clone)]
+pub struct APIAddressDetails {
+    pub address: APIAddress,
+    /// Unspent coins at this address.
+    pub related_utxos: Vec<APIRelatedUtxo>,
+    /// All transactions that sent to or spent from this address (unconfirmed first).
+    pub related_txs: Vec<APIRelatedTx>,
 }
 
 ///////////////

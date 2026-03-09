@@ -14,7 +14,8 @@ import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
 export 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
 export 'package:deadbolt/src/rust/api/model.dart'
     show APIUtxo, APIPsbtInfo, APIPsbtAnalysis, APIPsbtSignerStatus, APICoinControl,
-        APIPolicyPath;
+        APIPolicyPath, APITxDetails, APIUtxoDetails, APIAddressDetails, APIRelatedUtxo,
+        APIRelatedTx, APIRelatedAddress;
 
 // --- States ---
 
@@ -149,6 +150,7 @@ class WalletDetailLoaded extends WalletDetailState {
       errorMessage: errorMessage == _keep ? this.errorMessage : errorMessage as String?,
     );
   }
+
 }
 
 // Sentinel used by copyWith to distinguish "not provided" from explicit null.
@@ -179,6 +181,10 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
   void startAutoSync(String electrumUrl) {
     _electrumUrl = electrumUrl;
     _syncTimer?.cancel();
+    // Store URL immediately so detail queries can use it before sync completes.
+    if (state is WalletDetailLoaded) {
+      (state as WalletDetailLoaded).walletHandle.setElectrumUrl(url: electrumUrl);
+    }
     sync(electrumUrl);
     _syncTimer = Timer.periodic(_autoSyncInterval, (_) => sync(electrumUrl));
   }
@@ -516,6 +522,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     await _loadAddresses(keychain);
   }
 
+  Future<void> setCoinLabel(String txid, int vout, String label) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return;
+    current.walletHandle.setCoinLabel(txid: txid, vout: vout, label: label);
+    await _loadUtxos();
+  }
+
   Future<void> _loadDescriptorAnalysis() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
@@ -578,6 +591,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     if (!current.utxosLoaded) _loadUtxos();
     if (!current.descriptorLoaded) await _loadDescriptorAnalysis();
   }
+
 
   /// Returns the next unused external (receive) address that is not already
   /// reserved as the recipient of a pending unsigned PSBT.

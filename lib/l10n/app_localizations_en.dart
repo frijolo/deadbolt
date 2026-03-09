@@ -857,6 +857,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coinDetailsTitle => 'Coin details';
 
   @override
+  String get coinLabelTitle => 'Label';
+
+  @override
+  String get coinLabelHint => 'Add a label...';
+
+  @override
+  String get coinLabelRemove => 'Remove label';
+
+  @override
   String get coinOutpoint => 'Outpoint';
 
   @override
@@ -1177,4 +1186,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String coinSelectorDoneCount(int count) {
     return 'Done ($count)';
   }
+
+  @override
+  String get relatedCoins => 'Related coins';
+
+  @override
+  String get relatedAddressLabel => 'Address label';
+
+  @override
+  String get relatedAddresses => 'Output addresses';
+
+  @override
+  String get inputAddresses => 'Input addresses';
+
+  @override
+  String get relatedTransactions => 'Related transactions';
+
+  @override
+  String get creatingTransaction => 'Creating transaction';
 }
