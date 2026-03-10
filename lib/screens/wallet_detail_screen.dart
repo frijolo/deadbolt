@@ -15,6 +15,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
@@ -658,10 +659,6 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
               ),
             ),
             _DetailRow(
-              label: 'Index',
-              child: Text(l10n.addressIndex(address.index.toInt())),
-            ),
-            _DetailRow(
               label: 'Address',
               child: Row(
                 children: [
@@ -682,9 +679,11 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                 ],
               ),
             ),
-            _DetailRow(
-              label: l10n.balanceConfirmed,
-              child: Text(
+            _DetailRowPair(
+              label1: 'Index',
+              child1: Text(l10n.addressIndex(address.index.toInt())),
+              label2: l10n.balanceConfirmed,
+              child2: Text(
                 l10n.addressBalanceSats(balanceSats),
                 style: TextStyle(
                   color: balanceSats > 0 ? Colors.green : null,
@@ -739,13 +738,7 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      '${u.txid.substring(0, 8)}…:${u.vout}',
-                                      style: const TextStyle(
-                                        fontFamily: 'monospace',
-                                        fontSize: 11,
-                                      ),
-                                    ),
+                                    OutpointText(txid: u.txid, vout: u.vout),
                                     if (u.utxoLabel?.isNotEmpty == true)
                                       Row(
                                         children: [
@@ -1236,19 +1229,17 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                 ],
               ),
             ),
-            _DetailRow(
-              label: l10n.coinValue,
-              child: Text(
+            _DetailRowPair(
+              label1: l10n.coinValue,
+              child1: Text(
                 '${BitcoinFormatter.formatNum(utxo.valueSat.toInt())} sats',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
                 ),
               ),
-            ),
-            _DetailRow(
-              label: l10n.txConfirmed,
-              child: Text(
+              label2: l10n.txConfirmed,
+              child2: Text(
                 utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
                 style: TextStyle(
                   color: utxo.isConfirmed ? Colors.green : Colors.grey,
@@ -1256,16 +1247,23 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
               ),
             ),
             if (utxo.confirmationHeight != null)
+              _DetailRowPair(
+                label1: l10n.txDetailsBlockHeight,
+                child1: Text('${utxo.confirmationHeight}'),
+                label2: l10n.coinKeychain,
+                child2: Text(
+                  isChange ? l10n.coinKeychainChange : l10n.coinKeychainReceive,
+                ),
+              )
+            else
               _DetailRow(
-                label: l10n.txDetailsBlockHeight,
-                child: Text('${utxo.confirmationHeight}'),
+                label: l10n.coinKeychain,
+                child: Text(
+                  isChange
+                      ? l10n.coinKeychainChange
+                      : l10n.coinKeychainReceive,
+                ),
               ),
-            _DetailRow(
-              label: l10n.coinKeychain,
-              child: Text(
-                isChange ? l10n.coinKeychainChange : l10n.coinKeychainReceive,
-              ),
-            ),
             _DetailRow(
               label: l10n.coinAddress,
               child: Row(
@@ -1292,10 +1290,7 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      outpoint,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                    ),
+                    child: OutpointText(txid: utxo.txid, vout: utxo.vout),
                   ),
                   IconButton(
                     icon: const Icon(Icons.copy_outlined, size: 16),
@@ -1365,11 +1360,7 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${ctxo.txid.substring(0, 8)}…',
-                                style: const TextStyle(
-                                    fontFamily: 'monospace', fontSize: 11),
-                              ),
+                              OutpointText(txid: ctxo.txid),
                               if (ctxo.label?.isNotEmpty == true)
                                 Row(
                                   children: [
@@ -2025,51 +2016,56 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                 ],
               ),
             ),
-            _DetailRow(
-              label: l10n.txDetailsNet,
-              child: Text(
-                netLabel,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: netColor,
-                ),
-              ),
-            ),
             if (tx.fee != null)
+              _DetailRowPair(
+                label1: l10n.txDetailsNet,
+                child1: Text(
+                  netLabel,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: netColor),
+                ),
+                label2: l10n.txDetailsFee,
+                child2: Text(
+                    '${BitcoinFormatter.formatNum(tx.fee!.toInt())} sats'),
+              )
+            else
               _DetailRow(
-                label: l10n.txDetailsFee,
-                child: Text('${BitcoinFormatter.formatNum(tx.fee!.toInt())} sats'),
-              ),
-            _DetailRow(
-              label: l10n.txDetailsGrossReceived,
-              child: Text('${BitcoinFormatter.formatNum(tx.received.toInt())} sats'),
-            ),
-            _DetailRow(
-              label: l10n.txDetailsGrossSent,
-              child: Text('${BitcoinFormatter.formatNum(tx.sent.toInt())} sats'),
-            ),
-            _DetailRow(
-              label: l10n.txConfirmed,
-              child: Text(
-                tx.confirmationHeight != null
-                    ? l10n.txConfirmed
-                    : l10n.txUnconfirmed,
-                style: TextStyle(
-                  color: tx.confirmationHeight != null
-                      ? Colors.green
-                      : Colors.grey,
+                label: l10n.txDetailsNet,
+                child: Text(
+                  netLabel,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: netColor),
                 ),
               ),
+            _DetailRowPair(
+              label1: l10n.txDetailsGrossReceived,
+              child1: Text(
+                  '${BitcoinFormatter.formatNum(tx.received.toInt())} sats'),
+              label2: l10n.txDetailsGrossSent,
+              child2: Text(
+                  '${BitcoinFormatter.formatNum(tx.sent.toInt())} sats'),
             ),
-            if (tx.confirmationHeight != null)
-              _DetailRow(
-                label: l10n.txDetailsBlockHeight,
-                child: Text(BitcoinFormatter.formatNum(tx.confirmationHeight!.toInt())),
+            if (tx.confirmationHeight != null) ...[
+              _DetailRowPair(
+                label1: l10n.txConfirmed,
+                child1: Text(
+                  l10n.txConfirmed,
+                  style: const TextStyle(color: Colors.green),
+                ),
+                label2: l10n.txDetailsBlockHeight,
+                child2: Text(BitcoinFormatter.formatNum(
+                    tx.confirmationHeight!.toInt())),
               ),
-            if (confirmedAt != null)
+              if (confirmedAt != null)
+                _DetailRow(
+                  label: l10n.txDetailsConfirmedAt,
+                  child: Text(_formatDateTime(confirmedAt)),
+                ),
+            ] else
               _DetailRow(
-                label: l10n.txDetailsConfirmedAt,
-                child: Text(_formatDateTime(confirmedAt)),
+                label: l10n.txConfirmed,
+                child: Text(
+                  l10n.txUnconfirmed,
+                  style: const TextStyle(color: Colors.grey),
+                ),
               ),
             // Related entities via FutureBuilder
             FutureBuilder<APITxDetails>(
@@ -2115,6 +2111,7 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    OutpointText(txid: u.txid, vout: u.vout),
                                     ColoredAddressText(
                                       address: u.address,
                                       truncate: true,
@@ -2280,10 +2277,7 @@ class _RelatedTxRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${tx.txid.substring(0, 8)}…',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                ),
+                OutpointText(txid: tx.txid),
                 if (tx.label?.isNotEmpty == true)
                   Row(
                     children: [
@@ -2350,6 +2344,33 @@ class _DetailRow extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+// Two _DetailRow widgets placed side by side (equal width columns)
+class _DetailRowPair extends StatelessWidget {
+  final String label1;
+  final Widget child1;
+  final String label2;
+  final Widget child2;
+
+  const _DetailRowPair({
+    required this.label1,
+    required this.child1,
+    required this.label2,
+    required this.child2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _DetailRow(label: label1, child: child1)),
+        const SizedBox(width: 8),
+        Expanded(child: _DetailRow(label: label2, child: child2)),
+      ],
     );
   }
 }
