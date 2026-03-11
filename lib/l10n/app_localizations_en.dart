@@ -282,7 +282,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveAs => 'Save as…';
 
   @override
-  String get shareFile => 'Share';
+  String get shareFile => 'Share file';
+
+  @override
+  String get shareText => 'Share';
 
   @override
   String get showQrCode => 'Show QR code';
@@ -292,6 +295,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fromFile => 'From file';
+
+  @override
+  String get showAsText => 'Show as text';
+
+  @override
+  String get pasteFromClipboard => 'Paste from clipboard';
+
+  @override
+  String get pasteText => 'Paste text';
+
+  @override
+  String get pasteTextHint => 'Paste your content here…';
+
+  @override
+  String get clipboardEmpty => 'Clipboard is empty';
+
+  @override
+  String get importAction => 'Import';
 
   @override
   String get qrNotFoundInImage => 'No QR code found in image';
@@ -1204,4 +1225,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatingTransaction => 'Creating transaction';
+
+  @override
+  String get exportBip329Button => 'Export labels (BIP-329)';
+
+  @override
+  String get importBip329Button => 'Import labels (BIP-329)';
+
+  @override
+  String get exportBip329Empty => 'No explicit labels to export';
+
+  @override
+  String get exportBip329Copied => 'Labels copied';
+
+  @override
+  String get importBip329Success => 'Labels imported';
 }

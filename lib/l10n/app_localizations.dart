@@ -623,8 +623,14 @@ abstract class AppLocalizations {
   /// No description provided for @shareFile.
   ///
   /// In en, this message translates to:
-  /// **'Share'**
+  /// **'Share file'**
   String get shareFile;
+
+  /// No description provided for @shareText.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareText;
 
   /// No description provided for @showQrCode.
   ///
@@ -643,6 +649,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'From file'**
   String get fromFile;
+
+  /// No description provided for @showAsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as text'**
+  String get showAsText;
+
+  /// No description provided for @pasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from clipboard'**
+  String get pasteFromClipboard;
+
+  /// No description provided for @pasteText.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste text'**
+  String get pasteText;
+
+  /// No description provided for @pasteTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your content here…'**
+  String get pasteTextHint;
+
+  /// No description provided for @clipboardEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard is empty'**
+  String get clipboardEmpty;
+
+  /// No description provided for @importAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importAction;
 
   /// No description provided for @qrNotFoundInImage.
   ///
@@ -2227,6 +2269,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Creating transaction'**
   String get creatingTransaction;
+
+  /// No description provided for @exportBip329Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Export labels (BIP-329)'**
+  String get exportBip329Button;
+
+  /// No description provided for @importBip329Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Import labels (BIP-329)'**
+  String get importBip329Button;
+
+  /// No description provided for @exportBip329Empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No explicit labels to export'**
+  String get exportBip329Empty;
+
+  /// No description provided for @exportBip329Copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Labels copied'**
+  String get exportBip329Copied;
+
+  /// No description provided for @importBip329Success.
+  ///
+  /// In en, this message translates to:
+  /// **'Labels imported'**
+  String get importBip329Success;
 }
 
 class _AppLocalizationsDelegate

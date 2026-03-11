@@ -176,7 +176,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       : _service = service ?? WalletService(),
         super(WalletDetailInitial());
 
-  /// Triggers an immediate sync and starts a periodic 5-minute auto-sync.
+  /// Starts a periodic 5-minute auto-sync timer. Only syncs immediately on
+  /// open if the wallet has never synced or last sync was more than 1 hour ago.
   /// Safe to call multiple times (restarts the timer).
   void startAutoSync(String electrumUrl) {
     _electrumUrl = electrumUrl;
@@ -185,8 +186,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     if (state is WalletDetailLoaded) {
       (state as WalletDetailLoaded).walletHandle.setElectrumUrl(url: electrumUrl);
     }
-    sync(electrumUrl);
+    if (_syncNeededOnOpen()) sync(electrumUrl);
     _syncTimer = Timer.periodic(_autoSyncInterval, (_) => sync(electrumUrl));
+  }
+
+  bool _syncNeededOnOpen() {
+    final s = state;
+    if (s is! WalletDetailLoaded) return true;
+    final ts = s.walletInfo.lastSyncedAt;
+    if (ts == null) return true;
+    final lastSynced = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+    return DateTime.now().difference(lastSynced) > const Duration(hours: 1);
   }
 
   @override
@@ -340,16 +350,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     current.walletHandle.setTxLabel(txid: txid, label: label);
-    final page = await current.walletHandle.getTransactions(
-      page: 0,
-      pageSize: _pageSize * (current.currentPage + 1),
-    );
-    if (state is! WalletDetailLoaded) return;
-    emit((state as WalletDetailLoaded).copyWith(
-      transactions: page.transactions,
-      totalTransactions: page.totalCount,
-      hasMore: page.hasMore,
-    ));
+    await _refreshAllAfterLabelChange();
   }
 
   Future<void> rescan(String electrumUrl) async {
@@ -519,14 +520,38 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     current.walletHandle.setAddressLabel(address: address, label: label);
-    await _loadAddresses(keychain);
+    await _refreshAllAfterLabelChange();
   }
 
   Future<void> setCoinLabel(String txid, int vout, String label) async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     current.walletHandle.setCoinLabel(txid: txid, vout: vout, label: label);
-    await _loadUtxos();
+    await _refreshAllAfterLabelChange();
+  }
+
+  /// After any label change, refresh all loaded entity lists so that propagated
+  /// (inherited) labels are reflected across all tabs immediately.
+  Future<void> _refreshAllAfterLabelChange() async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return;
+
+    // Start address and UTXO reloads fire-and-forget (only if already loaded).
+    if (current.receiveAddressesLoaded) _loadAddresses(APIKeychain.external_);
+    if (current.changeAddressesLoaded) _loadAddresses(APIKeychain.internal);
+    if (current.utxosLoaded) _loadUtxos();
+
+    // Reload transactions (page-aware, awaited so the tx tab is in sync).
+    final page = await current.walletHandle.getTransactions(
+      page: 0,
+      pageSize: _pageSize * (current.currentPage + 1),
+    );
+    if (state is! WalletDetailLoaded) return;
+    emit((state as WalletDetailLoaded).copyWith(
+      transactions: page.transactions,
+      totalTransactions: page.totalCount,
+      hasMore: page.hasMore,
+    ));
   }
 
   Future<void> _loadDescriptorAnalysis() async {
@@ -579,6 +604,42 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       updated[rustId] = label;
     }
     emit(current.copyWith(pathLabels: updated));
+  }
+
+  Future<String?> exportBip329Labels() async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final lines = current.walletHandle.exportBip329();
+      return lines.join('\n');
+    } catch (e, st) {
+      _logError('exportBip329Labels', e, st);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
+      return null;
+    }
+  }
+
+  Future<bool> importBip329Labels(String content) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return false;
+    try {
+      final lines = content
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty)
+          .toList();
+      current.walletHandle.importBip329(lines: lines);
+      await _refreshAllAfterLabelChange();
+      return true;
+    } catch (e, st) {
+      _logError('importBip329Labels', e, st);
+      if (state is WalletDetailLoaded) {
+        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+      }
+      return false;
+    }
   }
 
   // ─── Coin loading ─────────────────────────────────────────────────────────

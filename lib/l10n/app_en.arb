@@ -120,10 +120,17 @@
   "copyToClipboard": "Copy to clipboard",
   "saveToDownloads": "Save to Downloads",
   "saveAs": "Save as…",
-  "shareFile": "Share",
+  "shareFile": "Share file",
+  "shareText": "Share",
   "showQrCode": "Show QR code",
   "scanQrCode": "Scan QR code",
   "fromFile": "From file",
+  "showAsText": "Show as text",
+  "pasteFromClipboard": "Paste from clipboard",
+  "pasteText": "Paste text",
+  "pasteTextHint": "Paste your content here…",
+  "clipboardEmpty": "Clipboard is empty",
+  "importAction": "Import",
   "qrNotFoundInImage": "No QR code found in image",
   "cameraError": "Camera not available on this platform",
   "importFromQrImage": "Import QR image",
@@ -577,5 +584,11 @@
   "relatedAddresses": "Output addresses",
   "inputAddresses": "Input addresses",
   "relatedTransactions": "Related transactions",
-  "creatingTransaction": "Creating transaction"
+  "creatingTransaction": "Creating transaction",
+
+  "exportBip329Button": "Export labels (BIP-329)",
+  "importBip329Button": "Import labels (BIP-329)",
+  "exportBip329Empty": "No explicit labels to export",
+  "exportBip329Copied": "Labels copied",
+  "importBip329Success": "Labels imported"
 }
