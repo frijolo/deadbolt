@@ -52,11 +52,11 @@ class APIAddress {
   /// Explicit user-set label (use for editing).
   final String? label;
 
-  /// Display label — own label if set, otherwise inherited from a related entity.
+  /// Display label — own label if set, otherwise propagated from a related entity.
   final String? effectiveLabel;
 
-  /// True when `effective_label` comes from a related entity (tx or UTXO), not this address.
-  final bool labelIsInherited;
+  /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+  final bool isAuto;
 
   const APIAddress({
     required this.address,
@@ -67,7 +67,7 @@ class APIAddress {
     required this.txCount,
     this.label,
     this.effectiveLabel,
-    required this.labelIsInherited,
+    required this.isAuto,
   });
 
   @override
@@ -80,7 +80,7 @@ class APIAddress {
       txCount.hashCode ^
       label.hashCode ^
       effectiveLabel.hashCode ^
-      labelIsInherited.hashCode;
+      isAuto.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -95,7 +95,7 @@ class APIAddress {
           txCount == other.txCount &&
           label == other.label &&
           effectiveLabel == other.effectiveLabel &&
-          labelIsInherited == other.labelIsInherited;
+          isAuto == other.isAuto;
 }
 
 /// Full detail for an address.
@@ -621,11 +621,11 @@ class APITransaction {
   /// Explicit user-set label (use for editing).
   final String? label;
 
-  /// Display label — own label if set, otherwise inherited from a related entity.
+  /// Display label — own label if set, otherwise propagated from a related entity.
   final String? effectiveLabel;
 
-  /// True when `effective_label` comes from a related entity (address or UTXO), not this tx.
-  final bool labelIsInherited;
+  /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+  final bool isAuto;
 
   const APITransaction({
     required this.txid,
@@ -636,7 +636,7 @@ class APITransaction {
     this.confirmationTime,
     this.label,
     this.effectiveLabel,
-    required this.labelIsInherited,
+    required this.isAuto,
   });
 
   @override
@@ -649,7 +649,7 @@ class APITransaction {
       confirmationTime.hashCode ^
       label.hashCode ^
       effectiveLabel.hashCode ^
-      labelIsInherited.hashCode;
+      isAuto.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -664,7 +664,7 @@ class APITransaction {
           confirmationTime == other.confirmationTime &&
           label == other.label &&
           effectiveLabel == other.effectiveLabel &&
-          labelIsInherited == other.labelIsInherited;
+          isAuto == other.isAuto;
 }
 
 class APITransactionPage {
@@ -746,8 +746,8 @@ class APIUtxo {
   /// Display label — own label if set, otherwise inherited from a related entity.
   final String? effectiveLabel;
 
-  /// True when `effective_label` comes from a related entity (address or tx), not this UTXO.
-  final bool labelIsInherited;
+  /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+  final bool isAuto;
 
   const APIUtxo({
     required this.txid,
@@ -760,7 +760,7 @@ class APIUtxo {
     this.confirmationHeight,
     this.label,
     this.effectiveLabel,
-    required this.labelIsInherited,
+    required this.isAuto,
   });
 
   @override
@@ -775,7 +775,7 @@ class APIUtxo {
       confirmationHeight.hashCode ^
       label.hashCode ^
       effectiveLabel.hashCode ^
-      labelIsInherited.hashCode;
+      isAuto.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -792,7 +792,7 @@ class APIUtxo {
           confirmationHeight == other.confirmationHeight &&
           label == other.label &&
           effectiveLabel == other.effectiveLabel &&
-          labelIsInherited == other.labelIsInherited;
+          isAuto == other.isAuto;
 }
 
 /// Full detail for a UTXO.

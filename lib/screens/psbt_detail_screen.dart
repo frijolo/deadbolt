@@ -295,7 +295,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         bytes: bytes,
       );
       if (savedPath == null) return;
-      // On desktop, FilePicker may not write the bytes itself
+      // On desktop, FilePicker may not write the bytes itself.
       if (!await File(savedPath).exists()) {
         await File(savedPath).writeAsBytes(bytes);
       }

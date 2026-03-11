@@ -73,15 +73,48 @@ pub fn read_wallet_info(conn: &Connection) -> Result<WalletInfoRow> {
 pub fn ensure_tx_labels_table(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tx_labels (
-            txid  TEXT PRIMARY KEY,
-            label TEXT NOT NULL
+            txid          TEXT PRIMARY KEY,
+            label         TEXT NOT NULL,
+            is_auto       INTEGER NOT NULL DEFAULT 0,
+            source_entity TEXT
         );",
     )?;
+    let has_is_auto: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('tx_labels') WHERE name = 'is_auto'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_is_auto == 0 {
+        conn.execute(
+            "ALTER TABLE tx_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+    let has_source: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('tx_labels') WHERE name = 'source_entity'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_source == 0 {
+        conn.execute("ALTER TABLE tx_labels ADD COLUMN source_entity TEXT", [])?;
+    }
     Ok(())
 }
 
 /// Upsert a label for a txid. Deletes the row if label is empty.
-pub fn set_tx_label(conn: &Connection, txid: &str, label: &str) -> Result<()> {
+/// `source` identifies the entity that propagated this auto-label (e.g. `"addr:bc1q…"`).
+/// Pass `None` for explicit (user-set) labels.
+pub fn set_tx_label(
+    conn: &Connection,
+    txid: &str,
+    label: &str,
+    is_auto: bool,
+    source: Option<&str>,
+) -> Result<()> {
     if label.is_empty() {
         conn.execute(
             "DELETE FROM tx_labels WHERE txid = ?1",
@@ -89,8 +122,8 @@ pub fn set_tx_label(conn: &Connection, txid: &str, label: &str) -> Result<()> {
         )?;
     } else {
         conn.execute(
-            "INSERT OR REPLACE INTO tx_labels (txid, label) VALUES (?1, ?2)",
-            rusqlite::params![txid, label],
+            "INSERT OR REPLACE INTO tx_labels (txid, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![txid, label, is_auto as i32, source],
         )?;
     }
     Ok(())
@@ -108,6 +141,50 @@ pub fn get_all_tx_labels(conn: &Connection) -> Result<std::collections::HashMap<
     Ok(map)
 }
 
+/// Return all labels with is_auto flag as a HashMap<txid, (label, is_auto)>.
+pub fn get_all_tx_labels_with_flag(
+    conn: &Connection,
+) -> Result<std::collections::HashMap<String, (String, bool)>> {
+    let mut stmt = conn.prepare("SELECT txid, label, is_auto FROM tx_labels")?;
+    let map = stmt
+        .query_map([], |row| {
+            let is_auto: i32 = row.get(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                (row.get::<_, String>(1)?, is_auto != 0),
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+/// Get a specific tx label.
+pub fn get_tx_label(conn: &Connection, txid: &str) -> Result<Option<String>> {
+    let mut stmt = conn.prepare("SELECT label FROM tx_labels WHERE txid = ?1")?;
+    let result = stmt.query_row([txid], |row| row.get::<_, String>(0)).ok();
+    Ok(result)
+}
+
+/// Get a specific tx label with is_auto flag.
+pub fn get_tx_label_with_flag(conn: &Connection, txid: &str) -> Result<Option<(String, bool)>> {
+    let mut stmt = conn.prepare("SELECT label, is_auto FROM tx_labels WHERE txid = ?1")?;
+    let result = stmt
+        .query_row([txid], |row| {
+            let is_auto: i32 = row.get(1)?;
+            Ok((row.get::<_, String>(0)?, is_auto != 0))
+        })
+        .ok();
+    Ok(result)
+}
+
+/// Check if a tx has an explicit (non-auto) label.
+pub fn tx_has_explicit_label(conn: &Connection, txid: &str) -> Result<bool> {
+    let mut stmt = conn.prepare("SELECT 1 FROM tx_labels WHERE txid = ?1 AND is_auto = 0")?;
+    let exists = stmt.query_row([txid], |_row| Ok(true)).ok();
+    Ok(exists.unwrap_or(false))
+}
+
 ////////////////////////////
 // address_labels table   //
 ////////////////////////////
@@ -116,15 +193,51 @@ pub fn get_all_tx_labels(conn: &Connection) -> Result<std::collections::HashMap<
 pub fn ensure_address_labels_table(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS address_labels (
-            address TEXT PRIMARY KEY,
-            label   TEXT NOT NULL
+            address       TEXT PRIMARY KEY,
+            label         TEXT NOT NULL,
+            is_auto       INTEGER NOT NULL DEFAULT 0,
+            source_entity TEXT
         );",
     )?;
+    let has_is_auto: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('address_labels') WHERE name = 'is_auto'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_is_auto == 0 {
+        conn.execute(
+            "ALTER TABLE address_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+    let has_source: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('address_labels') WHERE name = 'source_entity'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_source == 0 {
+        conn.execute(
+            "ALTER TABLE address_labels ADD COLUMN source_entity TEXT",
+            [],
+        )?;
+    }
     Ok(())
 }
 
 /// Upsert a label for an address. Deletes the row if label is empty.
-pub fn set_address_label(conn: &Connection, address: &str, label: &str) -> Result<()> {
+/// `source` identifies the entity that propagated this auto-label.
+/// Pass `None` for explicit (user-set) labels.
+pub fn set_address_label(
+    conn: &Connection,
+    address: &str,
+    label: &str,
+    is_auto: bool,
+    source: Option<&str>,
+) -> Result<()> {
     if label.is_empty() {
         conn.execute(
             "DELETE FROM address_labels WHERE address = ?1",
@@ -132,8 +245,8 @@ pub fn set_address_label(conn: &Connection, address: &str, label: &str) -> Resul
         )?;
     } else {
         conn.execute(
-            "INSERT OR REPLACE INTO address_labels (address, label) VALUES (?1, ?2)",
-            rusqlite::params![address, label],
+            "INSERT OR REPLACE INTO address_labels (address, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![address, label, is_auto as i32, source],
         )?;
     }
     Ok(())
@@ -151,6 +264,56 @@ pub fn get_all_address_labels(
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
+}
+
+/// Return all address labels with is_auto flag as a HashMap<address, (label, is_auto)>.
+pub fn get_all_address_labels_with_flag(
+    conn: &Connection,
+) -> Result<std::collections::HashMap<String, (String, bool)>> {
+    let mut stmt = conn.prepare("SELECT address, label, is_auto FROM address_labels")?;
+    let map = stmt
+        .query_map([], |row| {
+            let is_auto: i32 = row.get(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                (row.get::<_, String>(1)?, is_auto != 0),
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+/// Get a specific address label.
+pub fn get_address_label(conn: &Connection, address: &str) -> Result<Option<String>> {
+    let mut stmt = conn.prepare("SELECT label FROM address_labels WHERE address = ?1")?;
+    let result = stmt
+        .query_row([address], |row| row.get::<_, String>(0))
+        .ok();
+    Ok(result)
+}
+
+/// Get a specific address label with is_auto flag.
+pub fn get_address_label_with_flag(
+    conn: &Connection,
+    address: &str,
+) -> Result<Option<(String, bool)>> {
+    let mut stmt = conn.prepare("SELECT label, is_auto FROM address_labels WHERE address = ?1")?;
+    let result = stmt
+        .query_row([address], |row| {
+            let is_auto: i32 = row.get(1)?;
+            Ok((row.get::<_, String>(0)?, is_auto != 0))
+        })
+        .ok();
+    Ok(result)
+}
+
+/// Check if an address has an explicit (non-auto) label.
+pub fn address_has_explicit_label(conn: &Connection, address: &str) -> Result<bool> {
+    let mut stmt =
+        conn.prepare("SELECT 1 FROM address_labels WHERE address = ?1 AND is_auto = 0")?;
+    let exists = stmt.query_row([address], |_row| Ok(true)).ok();
+    Ok(exists.unwrap_or(false))
 }
 
 //////////////////////////////
@@ -247,15 +410,49 @@ pub fn get_all_path_labels(conn: &Connection) -> Result<std::collections::HashMa
 pub fn ensure_coin_labels_table(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS coin_labels (
-            outpoint TEXT PRIMARY KEY,
-            label    TEXT NOT NULL
+            outpoint      TEXT PRIMARY KEY,
+            label         TEXT NOT NULL,
+            is_auto       INTEGER NOT NULL DEFAULT 0,
+            source_entity TEXT
         );",
     )?;
+    // Guard is_auto (for DBs created before is_auto was added)
+    let has_is_auto: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('coin_labels') WHERE name = 'is_auto'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_is_auto == 0 {
+        conn.execute(
+            "ALTER TABLE coin_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+    let has_source: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('coin_labels') WHERE name = 'source_entity'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if has_source == 0 {
+        conn.execute("ALTER TABLE coin_labels ADD COLUMN source_entity TEXT", [])?;
+    }
     Ok(())
 }
 
 /// Upsert a label for a UTXO outpoint ("txid:vout"). Deletes the row if label is empty.
-pub fn set_coin_label(conn: &Connection, outpoint: &str, label: &str) -> Result<()> {
+/// `source` identifies the entity that propagated this auto-label.
+/// Pass `None` for explicit (user-set) labels.
+pub fn set_coin_label(
+    conn: &Connection,
+    outpoint: &str,
+    label: &str,
+    is_auto: bool,
+    source: Option<&str>,
+) -> Result<()> {
     if label.is_empty() {
         conn.execute(
             "DELETE FROM coin_labels WHERE outpoint = ?1",
@@ -263,8 +460,8 @@ pub fn set_coin_label(conn: &Connection, outpoint: &str, label: &str) -> Result<
         )?;
     } else {
         conn.execute(
-            "INSERT OR REPLACE INTO coin_labels (outpoint, label) VALUES (?1, ?2)",
-            rusqlite::params![outpoint, label],
+            "INSERT OR REPLACE INTO coin_labels (outpoint, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![outpoint, label, is_auto as i32, source],
         )?;
     }
     Ok(())
@@ -280,6 +477,55 @@ pub fn get_all_coin_labels(conn: &Connection) -> Result<std::collections::HashMa
         .filter_map(|r| r.ok())
         .collect();
     Ok(map)
+}
+
+/// Return all coin labels with is_auto flag as a HashMap<outpoint, (label, is_auto)>.
+pub fn get_all_coin_labels_with_flag(
+    conn: &Connection,
+) -> Result<std::collections::HashMap<String, (String, bool)>> {
+    let mut stmt = conn.prepare("SELECT outpoint, label, is_auto FROM coin_labels")?;
+    let map = stmt
+        .query_map([], |row| {
+            let is_auto: i32 = row.get(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                (row.get::<_, String>(1)?, is_auto != 0),
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+/// Get a specific coin label.
+pub fn get_coin_label(conn: &Connection, outpoint: &str) -> Result<Option<String>> {
+    let mut stmt = conn.prepare("SELECT label FROM coin_labels WHERE outpoint = ?1")?;
+    let result = stmt
+        .query_row([outpoint], |row| row.get::<_, String>(0))
+        .ok();
+    Ok(result)
+}
+
+/// Get a specific coin label with is_auto flag.
+pub fn get_coin_label_with_flag(
+    conn: &Connection,
+    outpoint: &str,
+) -> Result<Option<(String, bool)>> {
+    let mut stmt = conn.prepare("SELECT label, is_auto FROM coin_labels WHERE outpoint = ?1")?;
+    let result = stmt
+        .query_row([outpoint], |row| {
+            let is_auto: i32 = row.get(1)?;
+            Ok((row.get::<_, String>(0)?, is_auto != 0))
+        })
+        .ok();
+    Ok(result)
+}
+
+/// Check if a coin has an explicit (non-auto) label.
+pub fn coin_has_explicit_label(conn: &Connection, outpoint: &str) -> Result<bool> {
+    let mut stmt = conn.prepare("SELECT 1 FROM coin_labels WHERE outpoint = ?1 AND is_auto = 0")?;
+    let exists = stmt.query_row([outpoint], |_row| Ok(true)).ok();
+    Ok(exists.unwrap_or(false))
 }
 
 //////////////////////////////
@@ -464,6 +710,21 @@ pub fn load_or_create_wallet(
     ensure_path_labels_table(&conn)?;
     ensure_coin_labels_table(&conn)?;
 
+    // Clean up orphaned auto-labels created before source_entity was tracked.
+    // Auto-labels are derived data and will be regenerated by repropagate_all_labels.
+    conn.execute(
+        "DELETE FROM tx_labels WHERE is_auto = 1 AND source_entity IS NULL",
+        [],
+    )?;
+    conn.execute(
+        "DELETE FROM address_labels WHERE is_auto = 1 AND source_entity IS NULL",
+        [],
+    )?;
+    conn.execute(
+        "DELETE FROM coin_labels WHERE is_auto = 1 AND source_entity IS NULL",
+        [],
+    )?;
+
     Ok((wallet, conn))
 }
 
@@ -578,6 +839,63 @@ mod tests {
         // Second call: must reload without panic
         let (_wallet, _conn) =
             load_or_create_wallet(&path, MAINNET_DESC, Network::Bitcoin, KEY_HEX)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_ensure_coin_labels_table_idempotent() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("labels.db").to_string_lossy().to_string();
+        let conn = open_encrypted_connection(&path, KEY_HEX)?;
+
+        // Calling twice must not fail (Bug 3)
+        ensure_coin_labels_table(&conn)?;
+        ensure_coin_labels_table(&conn)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_set_tx_label_stores_source_entity() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("labels.db").to_string_lossy().to_string();
+        let conn = open_encrypted_connection(&path, KEY_HEX)?;
+        ensure_tx_labels_table(&conn)?;
+
+        set_tx_label(&conn, "txid1", "Salary", true, Some("addr:bc1q…"))?;
+        let (label, is_auto) = get_tx_label_with_flag(&conn, "txid1")?.unwrap();
+        assert_eq!(label, "Salary");
+        assert!(is_auto);
+
+        // source_entity should be persisted
+        let source: Option<String> = conn
+            .query_row(
+                "SELECT source_entity FROM tx_labels WHERE txid = 'txid1'",
+                [],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+        assert_eq!(source.as_deref(), Some("addr:bc1q…"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_explicit_label_has_null_source_entity() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("labels.db").to_string_lossy().to_string();
+        let conn = open_encrypted_connection(&path, KEY_HEX)?;
+        ensure_tx_labels_table(&conn)?;
+
+        set_tx_label(&conn, "txid1", "Exchange", false, None)?;
+        let source: Option<String> = conn
+            .query_row(
+                "SELECT source_entity FROM tx_labels WHERE txid = 'txid1'",
+                [],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+        assert!(source.is_none());
         Ok(())
     }
 

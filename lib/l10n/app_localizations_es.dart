@@ -282,7 +282,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get saveAs => 'Guardar como…';
 
   @override
-  String get shareFile => 'Compartir';
+  String get shareFile => 'Compartir archivo';
+
+  @override
+  String get shareText => 'Compartir';
 
   @override
   String get showQrCode => 'Mostrar código QR';
@@ -292,6 +295,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get fromFile => 'Desde archivo';
+
+  @override
+  String get showAsText => 'Mostrar como texto';
+
+  @override
+  String get pasteFromClipboard => 'Pegar desde portapapeles';
+
+  @override
+  String get pasteText => 'Pegar texto';
+
+  @override
+  String get pasteTextHint => 'Pega tu contenido aquí…';
+
+  @override
+  String get clipboardEmpty => 'El portapapeles está vacío';
+
+  @override
+  String get importAction => 'Importar';
 
   @override
   String get qrNotFoundInImage => 'No se encontró código QR en la imagen';
@@ -1209,4 +1230,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get creatingTransaction => 'Transacción creadora';
+
+  @override
+  String get exportBip329Button => 'Exportar etiquetas (BIP-329)';
+
+  @override
+  String get importBip329Button => 'Importar etiquetas (BIP-329)';
+
+  @override
+  String get exportBip329Empty => 'No hay etiquetas explícitas para exportar';
+
+  @override
+  String get exportBip329Copied => 'Etiquetas copiadas';
+
+  @override
+  String get importBip329Success => 'Etiquetas importadas';
 }

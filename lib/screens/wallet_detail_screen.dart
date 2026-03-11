@@ -18,10 +18,12 @@ import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
-import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
+import 'package:deadbolt/widgets/text_export_sheet.dart'
+    show showTextExportSheet;
+import 'package:deadbolt/widgets/text_import_sheet.dart'
+    show showTextImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
-
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -51,7 +53,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     if (_autoSyncStarted || state is! WalletDetailLoaded) return;
     _autoSyncStarted = true;
     final settings = context.read<SettingsCubit>().state;
-    final electrumUrl = settings.electrumUrlForNetwork(state.walletInfo.network);
+    final electrumUrl = settings.electrumUrlForNetwork(
+      state.walletInfo.network,
+    );
     context.read<WalletDetailCubit>().startAutoSync(electrumUrl);
   }
 
@@ -66,13 +70,13 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         }
       },
       child: BlocBuilder<WalletDetailCubit, WalletDetailState>(
-      builder: (context, state) {
-        return switch (state) {
-          WalletDetailInitial() || WalletDetailLoading() => Scaffold(
+        builder: (context, state) {
+          return switch (state) {
+            WalletDetailInitial() || WalletDetailLoading() => Scaffold(
               appBar: AppBar(),
               body: const Center(child: CircularProgressIndicator()),
             ),
-          WalletDetailError(:final message) => Scaffold(
+            WalletDetailError(:final message) => Scaffold(
               appBar: AppBar(),
               body: Center(
                 child: Padding(
@@ -81,13 +85,17 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                 ),
               ),
             ),
-          WalletDetailLoaded() => _buildLoaded(context, state),
-        };
-      },
-    ));
+            WalletDetailLoaded() => _buildLoaded(context, state),
+          };
+        },
+      ),
+    );
   }
 
-  Future<void> _openSendFlow(BuildContext context, WalletDetailLoaded state) async {
+  Future<void> _openSendFlow(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
     final cubit = context.read<WalletDetailCubit>();
     await cubit.ensureCoinsLoaded();
     if (!context.mounted) return;
@@ -109,8 +117,18 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) {
     switch (action) {
+      case _WalletMenuAction.sync:
+        final electrumUrl = context
+            .read<SettingsCubit>()
+            .state
+            .electrumUrlForNetwork(state.walletInfo.network);
+        context.read<WalletDetailCubit>().sync(electrumUrl);
       case _WalletMenuAction.rescan:
         _confirmRescan(context, state);
+      case _WalletMenuAction.exportLabels:
+        _exportLabels(context, state);
+      case _WalletMenuAction.importLabels:
+        _importLabels(context, state);
     }
   }
 
@@ -145,10 +163,47 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     );
     if (confirmed == true && context.mounted) {
       final settings = context.read<SettingsCubit>().state;
-      final electrumUrl =
-          settings.electrumUrlForNetwork(state.walletInfo.network);
+      final electrumUrl = settings.electrumUrlForNetwork(
+        state.walletInfo.network,
+      );
       context.read<WalletDetailCubit>().rescan(electrumUrl);
     }
+  }
+
+  Future<void> _exportLabels(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final cubit = context.read<WalletDetailCubit>();
+    final l10n = context.l10n;
+    final content = await cubit.exportBip329Labels();
+    if (!context.mounted) return;
+    if (content == null || content.isEmpty) {
+      showErrorToast(context, l10n.exportBip329Empty);
+      return;
+    }
+    final safeName = state.walletInfo.name
+        .replaceAll(RegExp(r'[^\w\-]'), '_')
+        .toLowerCase();
+    showTextExportSheet(
+      context,
+      text: content,
+      fileName: '${safeName}_labels',
+      copiedMessage: l10n.exportBip329Copied,
+      fileExtension: 'jsonl',
+    );
+  }
+
+  Future<void> _importLabels(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final l10n = context.l10n;
+    final content = await showTextImportSheet(context);
+    if (content == null || content.trim().isEmpty) return;
+    if (!context.mounted) return;
+    final ok = await context.read<WalletDetailCubit>().importBip329Labels(content);
+    if (context.mounted && ok) showSuccessToast(context, l10n.importBip329Success);
   }
 
   Widget _buildLoaded(BuildContext context, WalletDetailLoaded state) {
@@ -170,6 +225,17 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             onSelected: (action) => _onMenuAction(context, action, state),
             itemBuilder: (_) => [
               PopupMenuItem(
+                value: _WalletMenuAction.sync,
+                enabled: !state.isSyncing,
+                child: Row(
+                  children: [
+                    const Icon(Icons.sync, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.syncButton),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
                 value: _WalletMenuAction.rescan,
                 child: Row(
                   children: [
@@ -179,15 +245,44 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                   ],
                 ),
               ),
+              PopupMenuItem(
+                value: _WalletMenuAction.exportLabels,
+                child: Row(
+                  children: [
+                    const Icon(Icons.upload_outlined, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.exportBip329Button),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: _WalletMenuAction.importLabels,
+                child: Row(
+                  children: [
+                    const Icon(Icons.download_outlined, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.importBip329Button),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
       ),
       body: SafeArea(
         child: switch (state.selectedTab) {
-          0 => _TransactionsView(state: state, onSendTap: () => _openSendFlow(context, state)),
-          1 => _AddressesView(state: state, onSendTap: () => _openSendFlow(context, state)),
-          2 => _CoinsView(state: state, onSendTap: () => _openSendFlow(context, state)),
+          0 => _TransactionsView(
+            state: state,
+            onSendTap: () => _openSendFlow(context, state),
+          ),
+          1 => _AddressesView(
+            state: state,
+            onSendTap: () => _openSendFlow(context, state),
+          ),
+          2 => _CoinsView(
+            state: state,
+            onSendTap: () => _openSendFlow(context, state),
+          ),
           _ => _DescriptorView(state: state),
         },
       ),
@@ -240,20 +335,20 @@ class _TransactionsView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(balance: state.balance, onSendTap: onSendTap),
-        const SizedBox(height: 12),
-        _SyncRow(
+        _BalanceCard(
+          balance: state.balance,
           walletInfo: state.walletInfo,
           isSyncing: state.isSyncing,
           network: network,
+          onSendTap: onSendTap,
         ),
         const SizedBox(height: 16),
         Text(
           l10n.transactionsSection,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppAccent.color,
-                fontWeight: FontWeight.bold,
-              ),
+            color: AppAccent.color,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
         // ── Unsigned transactions (PSBTs) ────────────────────────────────────
@@ -276,33 +371,25 @@ class _TransactionsView extends StatelessWidget {
               child: Text(
                 l10n.noTransactions,
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withAlpha(138),
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
                 ),
               ),
             ),
           )
         else ...[
-          ...([...state.transactions]
-                ..sort((a, b) {
-                  final aConfirmed = a.confirmationHeight != null;
-                  final bConfirmed = b.confirmationHeight != null;
-                  if (aConfirmed == bConfirmed) return 0;
-                  return aConfirmed ? 1 : -1; // unconfirmed first
-                }))
-              .map((tx) => _TransactionTile(
-                    tx: tx,
-                    network: network,
-                  )),
+          ...([...state.transactions]..sort((a, b) {
+                final aConfirmed = a.confirmationHeight != null;
+                final bConfirmed = b.confirmationHeight != null;
+                if (aConfirmed == bConfirmed) return 0;
+                return aConfirmed ? 1 : -1; // unconfirmed first
+              }))
+              .map((tx) => _TransactionTile(tx: tx, network: network)),
           if (state.hasMore)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: TextButton(
-                onPressed: () => context
-                    .read<WalletDetailCubit>()
-                    .loadMoreTransactions(),
+                onPressed: () =>
+                    context.read<WalletDetailCubit>().loadMoreTransactions(),
                 child: Text(l10n.loadMore),
               ),
             ),
@@ -336,12 +423,12 @@ class _AddressesView extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Column(
                 children: [
-                  _BalanceCard(balance: state.balance, onSendTap: onSendTap),
-                  const SizedBox(height: 12),
-                  _SyncRow(
+                  _BalanceCard(
+                    balance: state.balance,
                     walletInfo: state.walletInfo,
                     isSyncing: state.isSyncing,
                     network: state.walletInfo.network,
+                    onSendTap: onSendTap,
                   ),
                 ],
               ),
@@ -351,8 +438,9 @@ class _AddressesView extends StatelessWidget {
         body: Column(
           children: [
             TabBar(
-              onTap: (index) =>
-                  context.read<WalletDetailCubit>().selectAddressKeychain(index),
+              onTap: (index) => context
+                  .read<WalletDetailCubit>()
+                  .selectAddressKeychain(index),
               tabs: [
                 Tab(text: l10n.receiveAddresses),
                 Tab(text: l10n.changeAddresses),
@@ -468,21 +556,29 @@ class _AddressTile extends StatelessWidget {
     final l10n = context.l10n;
     final balanceSats = address.balanceSat.toInt();
     final hasBalance = balanceSats > 0;
-    final isUsedEmpty = !hasBalance && address.isUsed;
+    final isReused = hasBalance && address.txCount > 1;
     final label = address.effectiveLabel;
-    final isInherited = address.labelIsInherited;
+    final isInherited = address.isAuto;
 
-    // Badge color: green = has funds, amber = used but empty, surface = fresh
-    final badgeColor = hasBalance
-        ? Colors.green
-        : isUsedEmpty
-            ? Colors.amber
-            : Theme.of(context).colorScheme.onSurface.withAlpha(80);
-    final badgeBg = hasBalance
-        ? Colors.green.withAlpha(40)
-        : isUsedEmpty
-            ? Colors.amber.withAlpha(40)
-            : Theme.of(context).colorScheme.surfaceContainerHighest;
+    // green  = unused (ready to use)
+    // amber  = received once, has funds
+    // red    = reused (multiple receives, still has funds)
+    // grey   = spent / disabled (used and empty)
+    final Color badgeColor;
+    final Color badgeBg;
+    if (!address.isUsed) {
+      badgeColor = Colors.green;
+      badgeBg = Colors.green.withAlpha(40);
+    } else if (isReused) {
+      badgeColor = Colors.red;
+      badgeBg = Colors.red.withAlpha(40);
+    } else if (hasBalance) {
+      badgeColor = Colors.orange;
+      badgeBg = Colors.orange.withAlpha(40);
+    } else {
+      badgeColor = Theme.of(context).colorScheme.onSurface.withAlpha(80);
+      badgeBg = Theme.of(context).colorScheme.surfaceContainerHighest;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -526,17 +622,14 @@ class _AddressTile extends StatelessWidget {
                   ),
                 ],
               ),
-            ColoredAddressText(
-              address: address.address,
-              truncate: true,
-            ),
+            ColoredAddressText(address: address.address, truncate: true),
           ],
         ),
         subtitle: hasBalance
             ? Text(
                 l10n.addressBalanceSats(balanceSats),
-                style: const TextStyle(
-                  color: Colors.green,
+                style: TextStyle(
+                  color: isReused ? Colors.red : Colors.orange,
                   fontWeight: FontWeight.w600,
                 ),
               )
@@ -617,187 +710,188 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _DetailRow(
-              label: l10n.addressLabelTitle,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      address.label?.isNotEmpty == true ? address.label! : '—',
-                      style: TextStyle(
-                        color: address.label?.isNotEmpty == true
-                            ? null
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(97),
-                        fontStyle: address.label?.isNotEmpty == true
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 16),
-                    tooltip: l10n.edit,
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      showDialog<void>(
-                        context: context,
-                        builder: (ctx) => BlocProvider.value(
-                          value: context.read<WalletDetailCubit>(),
-                          child: _AddressLabelEditDialog(
-                            address: address.address,
-                            keychain: keychain,
-                            currentLabel: address.label ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            _DetailRow(
-              label: 'Address',
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ColoredAddressText(address: address.address),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined, size: 16),
-                    tooltip: l10n.copyToClipboard,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => showTextExportSheet(
-                      context,
-                      text: address.address,
-                      fileName: 'address',
-                      copiedMessage: l10n.copiedToClipboard,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _DetailRowPair(
-              label1: 'Index',
-              child1: Text(l10n.addressIndex(address.index.toInt())),
-              label2: l10n.balanceConfirmed,
-              child2: Text(
-                l10n.addressBalanceSats(balanceSats),
-                style: TextStyle(
-                  color: balanceSats > 0 ? Colors.green : null,
-                  fontWeight:
-                      balanceSats > 0 ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-            if (address.txCount > 0)
               _DetailRow(
-                label: l10n.transactionsSection,
-                child: Text(l10n.addressTxCount(address.txCount.toInt())),
-              ),
-            // Related entities via FutureBuilder
-            FutureBuilder<APIAddressDetails>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-                if (!snapshot.hasData) return const SizedBox.shrink();
-                final details = snapshot.data!;
-                final relatedUtxos = details.relatedUtxos;
-                final relatedTxs = details.relatedTxs;
-                if (relatedUtxos.isEmpty && relatedTxs.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                label: l10n.addressLabelTitle,
+                child: Row(
                   children: [
-                    if (relatedUtxos.isNotEmpty) ...[
-                      const Divider(height: 20),
-                      Text(
-                        l10n.relatedCoins,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final u in relatedUtxos)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.toll, size: 14),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    OutpointText(txid: u.txid, vout: u.vout),
-                                    if (u.utxoLabel?.isNotEmpty == true)
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.label, size: 10),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            u.utxoLabel!,
-                                            style:
-                                                const TextStyle(fontSize: 11),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ],
-                          ),
+                    Expanded(
+                      child: Text(
+                        address.label?.isNotEmpty == true
+                            ? address.label!
+                            : '—',
+                        style: TextStyle(
+                          color: address.label?.isNotEmpty == true
+                              ? null
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(97),
+                          fontStyle: address.label?.isNotEmpty == true
+                              ? FontStyle.normal
+                              : FontStyle.italic,
                         ),
-                    ],
-                    if (relatedTxs.isNotEmpty) ...[
-                      const Divider(height: 20),
-                      Text(
-                        l10n.relatedTransactions,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
                       ),
-                      const SizedBox(height: 6),
-                      for (final t in relatedTxs)
-                        _RelatedTxRow(tx: t),
-                    ],
-                  ],
-                );
-              },
-            ),
-            if (explorerUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Center(
-                  child: FilledButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse(explorerUrl),
-                      mode: LaunchMode.externalApplication,
                     ),
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: Text(l10n.openInExplorer),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 16),
+                      tooltip: l10n.edit,
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showDialog<void>(
+                          context: context,
+                          builder: (ctx) => BlocProvider.value(
+                            value: context.read<WalletDetailCubit>(),
+                            child: _AddressLabelEditDialog(
+                              address: address.address,
+                              keychain: keychain,
+                              currentLabel: address.label ?? '',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              _DetailRow(
+                label: 'Address',
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ColoredAddressText(address: address.address),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.share_outlined, size: 16),
+                      tooltip: l10n.copyToClipboard,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => showTextExportSheet(
+                        context,
+                        text: address.address,
+                        fileName: 'address',
+                        copiedMessage: l10n.copiedToClipboard,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _DetailRowPair(
+                label1: 'Index',
+                child1: Text(l10n.addressIndex(address.index.toInt())),
+                label2: l10n.balanceConfirmed,
+                child2: Text(
+                  l10n.addressBalanceSats(balanceSats),
+                  style: TextStyle(
+                    color: balanceSats > 0 ? Colors.green : null,
+                    fontWeight: balanceSats > 0
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ),
-          ],
-        ),
+              if (address.txCount > 0)
+                _DetailRow(
+                  label: l10n.transactionsSection,
+                  child: Text(l10n.addressTxCount(address.txCount.toInt())),
+                ),
+              // Related entities via FutureBuilder
+              FutureBuilder<APIAddressDetails>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const LinearProgressIndicator();
+                  }
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+                  final details = snapshot.data!;
+                  final relatedUtxos = details.relatedUtxos;
+                  final relatedTxs = details.relatedTxs;
+                  if (relatedUtxos.isEmpty && relatedTxs.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (relatedUtxos.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Text(
+                          l10n.relatedCoins,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final u in relatedUtxos)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.toll, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      OutpointText(txid: u.txid, vout: u.vout),
+                                      if (u.utxoLabel?.isNotEmpty == true)
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.label, size: 10),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              u.utxoLabel!,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                      if (relatedTxs.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Text(
+                          l10n.relatedTransactions,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final t in relatedTxs) _RelatedTxRow(tx: t),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              if (explorerUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Center(
+                    child: FilledButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse(explorerUrl),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: Text(l10n.openInExplorer),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -837,10 +931,10 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
 
   void _save(BuildContext context) {
     context.read<WalletDetailCubit>().setAddressLabel(
-          widget.address,
-          _controller.text.trim(),
-          widget.keychain,
-        );
+      widget.address,
+      _controller.text.trim(),
+      widget.keychain,
+    );
     Navigator.of(context).pop();
   }
 
@@ -874,10 +968,10 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
           TextButton(
             onPressed: () {
               context.read<WalletDetailCubit>().setAddressLabel(
-                    widget.address,
-                    '',
-                    widget.keychain,
-                  );
+                widget.address,
+                '',
+                widget.keychain,
+              );
               Navigator.of(context).pop();
             },
             child: Text(
@@ -885,10 +979,7 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
               style: const TextStyle(color: Colors.red),
             ),
           ),
-        FilledButton(
-          onPressed: () => _save(context),
-          child: Text(l10n.save),
-        ),
+        FilledButton(onPressed: () => _save(context), child: Text(l10n.save)),
       ],
     );
   }
@@ -919,12 +1010,12 @@ class _CoinsView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(balance: state.balance, onSendTap: onSendTap),
-        const SizedBox(height: 12),
-        _SyncRow(
+        _BalanceCard(
+          balance: state.balance,
           walletInfo: state.walletInfo,
           isSyncing: state.isSyncing,
           network: network,
+          onSendTap: onSendTap,
         ),
         const SizedBox(height: 16),
         Row(
@@ -933,9 +1024,9 @@ class _CoinsView extends StatelessWidget {
               child: Text(
                 l10n.coinsSection,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppAccent.color,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppAccent.color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             if (utxos.isNotEmpty)
@@ -972,13 +1063,15 @@ class _CoinsView extends StatelessWidget {
             ),
           )
         else
-          ...utxos.map((utxo) => _CoinTile(
-                utxo: utxo,
-                network: network,
-                spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
-                tipHeight: state.tipHeight,
-                keyLabels: state.keyLabels,
-              )),
+          ...utxos.map(
+            (utxo) => _CoinTile(
+              utxo: utxo,
+              network: network,
+              spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
+              tipHeight: state.tipHeight,
+              keyLabels: state.keyLabels,
+            ),
+          ),
       ],
     );
   }
@@ -1010,15 +1103,22 @@ class _CoinTile extends StatelessWidget {
     final statuses = spendPaths.isEmpty
         ? <(APISpendPath, SpendPathStatus)>[]
         : spendPaths
-            .map((p) => (p, spendPathStatus(path: p, utxo: utxo, tipHeight: tipHeight)))
-            .toList();
+              .map(
+                (p) => (
+                  p,
+                  spendPathStatus(path: p, utxo: utxo, tipHeight: tipHeight),
+                ),
+              )
+              .toList();
 
-    final unlockedCount = statuses.where((s) => s.$2 is SpendPathUnlocked).length;
+    final unlockedCount = statuses
+        .where((s) => s.$2 is SpendPathUnlocked)
+        .length;
     final hasTimelocks = spendPaths.any(
       (p) => p.relTimelock.value > 0 || p.absTimelock.value > 0,
     );
     final label = utxo.effectiveLabel;
-    final isInherited = utxo.labelIsInherited;
+    final isInherited = utxo.isAuto;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1077,20 +1177,21 @@ class _CoinTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ColoredAddressText(
-              address: utxo.address,
-              truncate: true,
-            ),
+            ColoredAddressText(address: utxo.address, truncate: true),
             const SizedBox(height: 2),
             Row(
               children: [
                 _StatusBadge(
-                  label: utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
+                  label: utxo.isConfirmed
+                      ? l10n.txConfirmed
+                      : l10n.txUnconfirmed,
                   color: utxo.isConfirmed ? Colors.green : Colors.grey,
                 ),
                 const SizedBox(width: 6),
                 _StatusBadge(
-                  label: isChange ? l10n.coinKeychainChange : l10n.coinKeychainReceive,
+                  label: isChange
+                      ? l10n.coinKeychainChange
+                      : l10n.coinKeychainReceive,
                   color: isChange ? Colors.amber : Colors.green,
                 ),
                 // Show spend path summary only when there are timelocks
@@ -1188,259 +1289,258 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _DetailRow(
-              label: l10n.coinLabelTitle,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      utxo.label?.isNotEmpty == true ? utxo.label! : '—',
-                      style: TextStyle(
-                        color: utxo.label?.isNotEmpty == true
-                            ? null
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(97),
-                        fontStyle: utxo.label?.isNotEmpty == true
-                            ? FontStyle.normal
-                            : FontStyle.italic,
+              _DetailRow(
+                label: l10n.coinLabelTitle,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        utxo.label?.isNotEmpty == true ? utxo.label! : '—',
+                        style: TextStyle(
+                          color: utxo.label?.isNotEmpty == true
+                              ? null
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(97),
+                          fontStyle: utxo.label?.isNotEmpty == true
+                              ? FontStyle.normal
+                              : FontStyle.italic,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 16),
-                    tooltip: l10n.edit,
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      showDialog<void>(
-                        context: context,
-                        builder: (ctx) => BlocProvider.value(
-                          value: context.read<WalletDetailCubit>(),
-                          child: _CoinLabelEditDialog(
-                            txid: utxo.txid,
-                            vout: utxo.vout,
-                            currentLabel: utxo.label ?? '',
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 16),
+                      tooltip: l10n.edit,
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showDialog<void>(
+                          context: context,
+                          builder: (ctx) => BlocProvider.value(
+                            value: context.read<WalletDetailCubit>(),
+                            child: _CoinLabelEditDialog(
+                              txid: utxo.txid,
+                              vout: utxo.vout,
+                              currentLabel: utxo.label ?? '',
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            _DetailRowPair(
-              label1: l10n.coinValue,
-              child1: Text(
-                '${BitcoinFormatter.formatNum(utxo.valueSat.toInt())} sats',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-              label2: l10n.txConfirmed,
-              child2: Text(
-                utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
-                style: TextStyle(
-                  color: utxo.isConfirmed ? Colors.green : Colors.grey,
-                ),
-              ),
-            ),
-            if (utxo.confirmationHeight != null)
-              _DetailRowPair(
-                label1: l10n.txDetailsBlockHeight,
-                child1: Text('${utxo.confirmationHeight}'),
-                label2: l10n.coinKeychain,
-                child2: Text(
-                  isChange ? l10n.coinKeychainChange : l10n.coinKeychainReceive,
-                ),
-              )
-            else
-              _DetailRow(
-                label: l10n.coinKeychain,
-                child: Text(
-                  isChange
-                      ? l10n.coinKeychainChange
-                      : l10n.coinKeychainReceive,
-                ),
-              ),
-            _DetailRow(
-              label: l10n.coinAddress,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ColoredAddressText(address: utxo.address),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined, size: 16),
-                    tooltip: l10n.copyToClipboard,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => showTextExportSheet(
-                      context,
-                      text: utxo.address,
-                      fileName: 'address',
-                      copiedMessage: l10n.copiedToClipboard,
+                        );
+                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            _DetailRow(
-              label: l10n.coinOutpoint,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutpointText(txid: utxo.txid, vout: utxo.vout),
+              _DetailRowPair(
+                label1: l10n.coinValue,
+                child1: Text(
+                  '${BitcoinFormatter.formatNum(utxo.valueSat.toInt())} sats',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.copy_outlined, size: 16),
-                    tooltip: l10n.copyToClipboard,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: outpoint));
-                      showSuccessToast(context, l10n.copiedToClipboard);
-                    },
+                ),
+                label2: l10n.txConfirmed,
+                child2: Text(
+                  utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
+                  style: TextStyle(
+                    color: utxo.isConfirmed ? Colors.green : Colors.grey,
                   ),
-                ],
+                ),
               ),
-            ),
-            // ── Related entities ───────────────────────────────────────────
-            FutureBuilder<APIUtxoDetails>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-                if (!snapshot.hasData) return const SizedBox.shrink();
-                final details = snapshot.data!;
-                final addrLabel = details.addressLabel;
-                final ctxo = details.creatingTx;
-                final ctxoNet =
-                    ctxo.addrReceived.toInt() - ctxo.addrSpent.toInt();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              if (utxo.confirmationHeight != null)
+                _DetailRowPair(
+                  label1: l10n.txDetailsBlockHeight,
+                  child1: Text('${utxo.confirmationHeight}'),
+                  label2: l10n.coinKeychain,
+                  child2: Text(
+                    isChange
+                        ? l10n.coinKeychainChange
+                        : l10n.coinKeychainReceive,
+                  ),
+                )
+              else
+                _DetailRow(
+                  label: l10n.coinKeychain,
+                  child: Text(
+                    isChange
+                        ? l10n.coinKeychainChange
+                        : l10n.coinKeychainReceive,
+                  ),
+                ),
+              _DetailRow(
+                label: l10n.coinAddress,
+                child: Row(
                   children: [
-                    const Divider(height: 20),
-                    if (addrLabel?.isNotEmpty == true) ...[
+                    Expanded(child: ColoredAddressText(address: utxo.address)),
+                    IconButton(
+                      icon: const Icon(Icons.share_outlined, size: 16),
+                      tooltip: l10n.copyToClipboard,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => showTextExportSheet(
+                        context,
+                        text: utxo.address,
+                        fileName: 'address',
+                        copiedMessage: l10n.copiedToClipboard,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _DetailRow(
+                label: l10n.coinOutpoint,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutpointText(txid: utxo.txid, vout: utxo.vout),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      tooltip: l10n.copyToClipboard,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: outpoint));
+                        showSuccessToast(context, l10n.copiedToClipboard);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // ── Related entities ───────────────────────────────────────────
+              FutureBuilder<APIUtxoDetails>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const LinearProgressIndicator();
+                  }
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+                  final details = snapshot.data!;
+                  final addrLabel = details.addressLabel;
+                  final ctxo = details.creatingTx;
+                  final ctxoNet =
+                      ctxo.addrReceived.toInt() - ctxo.addrSpent.toInt();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(height: 20),
+                      if (addrLabel?.isNotEmpty == true) ...[
+                        Text(
+                          l10n.relatedAddressLabel,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.label, size: 12),
+                            const SizedBox(width: 4),
+                            Text(addrLabel!),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       Text(
-                        l10n.relatedAddressLabel,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
+                        l10n.creatingTransaction,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withAlpha(178),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.label, size: 12),
-                          const SizedBox(width: 4),
-                          Text(addrLabel!),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    Text(
-                      l10n.creatingTransaction,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(178),
+                          const Icon(Icons.receipt_long, size: 14),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                OutpointText(txid: ctxo.txid),
+                                if (ctxo.label?.isNotEmpty == true)
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.label, size: 10),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        ctxo.label!,
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
                           ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.receipt_long, size: 14),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              OutpointText(txid: ctxo.txid),
-                              if (ctxo.label?.isNotEmpty == true)
-                                Row(
-                                  children: [
-                                    const Icon(Icons.label, size: 10),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      ctxo.label!,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                  ],
+                              Text(
+                                '${ctxoNet >= 0 ? '+' : ''}${BitcoinFormatter.formatNum(ctxoNet)} sats',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: ctxoNet >= 0
+                                      ? Colors.green
+                                      : Colors.orange,
                                 ),
+                              ),
+                              Text(
+                                ctxo.confirmationHeight != null
+                                    ? '${ctxo.confirmationHeight}'
+                                    : l10n.txUnconfirmed,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: ctxo.confirmationHeight != null
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface.withAlpha(140)
+                                      : Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${ctxoNet >= 0 ? '+' : ''}${BitcoinFormatter.formatNum(ctxoNet)} sats',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color:
-                                    ctxoNet >= 0 ? Colors.green : Colors.orange,
-                              ),
-                            ),
-                            Text(
-                              ctxo.confirmationHeight != null
-                                  ? '${ctxo.confirmationHeight}'
-                                  : l10n.txUnconfirmed,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: ctxo.confirmationHeight != null
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withAlpha(140)
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-            // ── Spend paths ───────────────────────────────────────────────
-            if (spendPathStatuses.isNotEmpty) ...[
-              const Divider(height: 20),
-              Text(
-                l10n.spendPathsAvailable,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
-                    ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 8),
-              for (final (path, status) in spendPathStatuses)
-                _SpendPathStatusRow(
-                  path: path,
-                  status: status,
-                  keyLabels: keyLabels,
-                ),
-            ],
-            if (explorerUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Center(
-                  child: FilledButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse(explorerUrl),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: Text(l10n.openInExplorer),
+              // ── Spend paths ───────────────────────────────────────────────
+              if (spendPathStatuses.isNotEmpty) ...[
+                const Divider(height: 20),
+                Text(
+                  l10n.spendPathsAvailable,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withAlpha(178),
                   ),
                 ),
-              ),
-          ],
-        ),
+                const SizedBox(height: 8),
+                for (final (path, status) in spendPathStatuses)
+                  _SpendPathStatusRow(
+                    path: path,
+                    status: status,
+                    keyLabels: keyLabels,
+                  ),
+              ],
+              if (explorerUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Center(
+                    child: FilledButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse(explorerUrl),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: Text(l10n.openInExplorer),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1478,9 +1578,11 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
   }
 
   void _save(BuildContext context) {
-    context
-        .read<WalletDetailCubit>()
-        .setCoinLabel(widget.txid, widget.vout, _controller.text.trim());
+    context.read<WalletDetailCubit>().setCoinLabel(
+      widget.txid,
+      widget.vout,
+      _controller.text.trim(),
+    );
     Navigator.of(context).pop();
   }
 
@@ -1513,9 +1615,11 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
         if (widget.currentLabel.isNotEmpty)
           TextButton(
             onPressed: () {
-              context
-                  .read<WalletDetailCubit>()
-                  .setCoinLabel(widget.txid, widget.vout, '');
+              context.read<WalletDetailCubit>().setCoinLabel(
+                widget.txid,
+                widget.vout,
+                '',
+              );
               Navigator.of(context).pop();
             },
             child: Text(
@@ -1523,10 +1627,7 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
               style: const TextStyle(color: Colors.red),
             ),
           ),
-        FilledButton(
-          onPressed: () => _save(context),
-          child: Text(l10n.save),
-        ),
+        FilledButton(onPressed: () => _save(context), child: Text(l10n.save)),
       ],
     );
   }
@@ -1538,19 +1639,37 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
 
 class _BalanceCard extends StatelessWidget {
   final APIBalance balance;
+  final APIWalletInfo walletInfo;
+  final bool isSyncing;
+  final APINetwork network;
   final VoidCallback? onSendTap;
 
-  const _BalanceCard({required this.balance, this.onSendTap});
+  const _BalanceCard({
+    required this.balance,
+    required this.walletInfo,
+    required this.isSyncing,
+    required this.network,
+    this.onSendTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final totalSats = balance.confirmed +
+    final settings = context.watch<SettingsCubit>().state;
+    final electrumUrl = settings.electrumUrlForNetwork(network);
+
+    final totalSats =
+        balance.confirmed +
         balance.trustedPending +
         balance.untrustedPending +
         balance.immature;
-    final btcString =
-        (totalSats.toDouble() / 100000000.0).toStringAsFixed(8);
+    final btcString = (totalSats.toDouble() / 100000000.0).toStringAsFixed(8);
+
+    final lastSynced = walletInfo.lastSyncedAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
+        : null;
+    final isStale = lastSynced == null ||
+        DateTime.now().difference(lastSynced) > const Duration(minutes: 10);
 
     return Card(
       child: Padding(
@@ -1565,16 +1684,18 @@ class _BalanceCard extends StatelessWidget {
                   child: Text(
                     l10n.balanceBtc(btcString),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                if (onSendTap != null)
+                if (onSendTap != null) ...[
                   FilledButton.icon(
                     onPressed: onSendTap,
                     icon: const Icon(Icons.send_outlined, size: 18),
                     label: Text(l10n.walletSendButton),
                   ),
+                  const SizedBox(width: 8),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -1604,10 +1725,68 @@ class _BalanceCard extends StatelessWidget {
                 ],
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    lastSynced != null
+                        ? l10n.lastSynced(_formatSyncDateTime(lastSynced))
+                        : l10n.notYetSynced,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(138),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isSyncing)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (isStale)
+                  FilledButton(
+                    onPressed: () =>
+                        context.read<WalletDetailCubit>().sync(electrumUrl),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sync, size: 18),
+                        const SizedBox(width: 8),
+                        Text(l10n.syncButton),
+                      ],
+                    ),
+                  )
+                else
+                  FilledButton.tonal(
+                    onPressed: () =>
+                        context.read<WalletDetailCubit>().sync(electrumUrl),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sync, size: 18),
+                        const SizedBox(width: 8),
+                        Text(l10n.syncButton),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatSyncDateTime(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -1631,106 +1810,37 @@ class _BalanceChip extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withAlpha(dimmed ? 97 : 178),
-              ),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withAlpha(dimmed ? 97 : 178),
+          ),
         ),
         Text(
           l10n.balanceSats(sats),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withAlpha(dimmed ? 97 : 210),
-              ),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withAlpha(dimmed ? 97 : 210),
+          ),
         ),
       ],
     );
   }
 }
 
-class _SyncRow extends StatelessWidget {
-  final APIWalletInfo walletInfo;
-  final bool isSyncing;
-  final APINetwork network;
-
-  const _SyncRow({
-    required this.walletInfo,
-    required this.isSyncing,
-    required this.network,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final settings = context.watch<SettingsCubit>().state;
-    final electrumUrl = settings.electrumUrlForNetwork(network);
-
-    final lastSynced = walletInfo.lastSyncedAt != null
-        ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
-        : null;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            lastSynced != null
-                ? l10n.lastSynced(_formatDateTime(lastSynced))
-                : l10n.notYetSynced,
-            style: TextStyle(
-              fontSize: 12,
-              color:
-                  Theme.of(context).colorScheme.onSurface.withAlpha(138),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (isSyncing)
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        else
-          FilledButton.tonal(
-            onPressed: () =>
-                context.read<WalletDetailCubit>().sync(electrumUrl),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.sync, size: 18),
-                const SizedBox(width: 8),
-                Text(l10n.syncButton),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} '
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-  }
-}
 
 class _TransactionTile extends StatelessWidget {
   final APITransaction tx;
   final APINetwork network;
 
-  const _TransactionTile({
-    required this.tx,
-    required this.network,
-  });
+  const _TransactionTile({required this.tx, required this.network});
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final fee = tx.fee;
-    final isSelfTransfer = tx.sent > BigInt.zero &&
+    final isSelfTransfer =
+        tx.sent > BigInt.zero &&
         tx.received > BigInt.zero &&
         fee != null &&
         tx.sent - tx.received == fee;
@@ -1742,10 +1852,10 @@ class _TransactionTile extends StatelessWidget {
     final txType = isSelfTransfer
         ? l10n.txSelfTransfer
         : isReceived
-            ? l10n.txReceived
-            : l10n.txSent;
+        ? l10n.txReceived
+        : l10n.txSent;
     final label = tx.effectiveLabel;
-    final isInherited = tx.labelIsInherited;
+    final isInherited = tx.isAuto;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1754,59 +1864,54 @@ class _TransactionTile extends StatelessWidget {
           isSelfTransfer
               ? Icons.swap_horiz
               : isReceived
-                  ? Icons.arrow_downward
-                  : Icons.arrow_upward,
+              ? Icons.arrow_downward
+              : Icons.arrow_upward,
           color: isSelfTransfer
               ? Colors.blue
               : isReceived
-                  ? Colors.green
-                  : Colors.orange,
+              ? Colors.green
+              : Colors.orange,
         ),
-        title: GestureDetector(
-          onTap: () => _editLabel(context),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (label != null)
-                Row(
-                  children: [
-                    Icon(
-                      isInherited ? Icons.label_outline : Icons.label,
-                      size: 12,
-                      color: isInherited
-                          ? Theme.of(context).colorScheme.outline
-                          : null,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontWeight:
-                              isInherited ? null : FontWeight.w500,
-                          fontStyle: isInherited ? FontStyle.italic : null,
-                          color: isInherited
-                              ? Theme.of(context).colorScheme.outline
-                              : null,
-                        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (label != null)
+              Row(
+                children: [
+                  Icon(
+                    isInherited ? Icons.label_outline : Icons.label,
+                    size: 12,
+                    color: isInherited
+                        ? Theme.of(context).colorScheme.outline
+                        : null,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: isInherited ? null : FontWeight.w500,
+                        fontStyle: isInherited ? FontStyle.italic : null,
+                        color: isInherited
+                            ? Theme.of(context).colorScheme.outline
+                            : null,
                       ),
                     ),
-                  ],
-                ),
-              Text(
-                txType,
-                style: label != null
-                    ? TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withAlpha(138),
-                      )
-                    : const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
-            ],
-          ),
+            Text(
+              txType,
+              style: label != null
+                  ? TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withAlpha(138),
+                    )
+                  : const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ],
         ),
         subtitle: Row(
           children: [
@@ -1818,18 +1923,16 @@ class _TransactionTile extends StatelessWidget {
                 color: isSelfTransfer
                     ? Colors.blue
                     : isReceived
-                        ? Colors.green
-                        : Colors.orange,
+                    ? Colors.green
+                    : Colors.orange,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color:
-                    (isConfirmed ? Colors.green : Colors.grey).withAlpha(40),
+                color: (isConfirmed ? Colors.green : Colors.grey).withAlpha(40),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -1844,16 +1947,6 @@ class _TransactionTile extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: () => _showDetails(context, isSelfTransfer, isReceived, netSats),
-      ),
-    );
-  }
-
-  void _editLabel(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<WalletDetailCubit>(),
-        child: _LabelEditDialog(txid: tx.txid, currentLabel: tx.label ?? ''),
       ),
     );
   }
@@ -1923,7 +2016,8 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
 
     final confirmedAt = tx.confirmationTime != null
         ? DateTime.fromMillisecondsSinceEpoch(
-            tx.confirmationTime!.toInt() * 1000)
+            tx.confirmationTime!.toInt() * 1000,
+          )
         : null;
 
     final netLabel = isSelfTransfer
@@ -1932,8 +2026,8 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
     final netColor = isSelfTransfer
         ? Colors.blue
         : isReceived
-            ? Colors.green
-            : Colors.orange;
+        ? Colors.green
+        : Colors.orange;
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
@@ -1954,246 +2048,256 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _DetailRow(
-              label: l10n.txLabelTitle,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tx.label?.isNotEmpty == true ? tx.label! : '—',
-                      style: TextStyle(
-                        color: tx.label?.isNotEmpty == true
-                            ? null
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(97),
-                        fontStyle: tx.label?.isNotEmpty == true
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 16),
-                    tooltip: l10n.edit,
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      showDialog<void>(
-                        context: context,
-                        builder: (ctx) => BlocProvider.value(
-                          value: context.read<WalletDetailCubit>(),
-                          child: _LabelEditDialog(
-                            txid: tx.txid,
-                            currentLabel: tx.label ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            _DetailRow(
-              label: l10n.txId,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tx.txid,
-                      style: const TextStyle(
-                          fontFamily: 'monospace', fontSize: 11),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.copy_outlined, size: 16),
-                    tooltip: l10n.copyToClipboard,
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: tx.txid));
-                      showSuccessToast(context, l10n.copiedToClipboard);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            if (tx.fee != null)
-              _DetailRowPair(
-                label1: l10n.txDetailsNet,
-                child1: Text(
-                  netLabel,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: netColor),
-                ),
-                label2: l10n.txDetailsFee,
-                child2: Text(
-                    '${BitcoinFormatter.formatNum(tx.fee!.toInt())} sats'),
-              )
-            else
               _DetailRow(
-                label: l10n.txDetailsNet,
-                child: Text(
-                  netLabel,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: netColor),
-                ),
-              ),
-            _DetailRowPair(
-              label1: l10n.txDetailsGrossReceived,
-              child1: Text(
-                  '${BitcoinFormatter.formatNum(tx.received.toInt())} sats'),
-              label2: l10n.txDetailsGrossSent,
-              child2: Text(
-                  '${BitcoinFormatter.formatNum(tx.sent.toInt())} sats'),
-            ),
-            if (tx.confirmationHeight != null) ...[
-              _DetailRowPair(
-                label1: l10n.txConfirmed,
-                child1: Text(
-                  l10n.txConfirmed,
-                  style: const TextStyle(color: Colors.green),
-                ),
-                label2: l10n.txDetailsBlockHeight,
-                child2: Text(BitcoinFormatter.formatNum(
-                    tx.confirmationHeight!.toInt())),
-              ),
-              if (confirmedAt != null)
-                _DetailRow(
-                  label: l10n.txDetailsConfirmedAt,
-                  child: Text(_formatDateTime(confirmedAt)),
-                ),
-            ] else
-              _DetailRow(
-                label: l10n.txConfirmed,
-                child: Text(
-                  l10n.txUnconfirmed,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ),
-            // Related entities via FutureBuilder
-            FutureBuilder<APITxDetails>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-                if (!snapshot.hasData) return const SizedBox.shrink();
-                final details = snapshot.data!;
-                final relatedUtxos = details.relatedUtxos;
-                final inputAddresses = details.inputAddresses;
-                final outputAddresses = details.outputAddresses;
-                if (relatedUtxos.isEmpty &&
-                    inputAddresses.isEmpty &&
-                    outputAddresses.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                label: l10n.txLabelTitle,
+                child: Row(
                   children: [
-                    if (relatedUtxos.isNotEmpty) ...[
-                      const Divider(height: 20),
-                      Text(
-                        l10n.relatedCoins,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final u in relatedUtxos)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.toll, size: 14),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    OutpointText(txid: u.txid, vout: u.vout),
-                                    ColoredAddressText(
-                                      address: u.address,
-                                      truncate: true,
-                                    ),
-                                    if (u.utxoLabel?.isNotEmpty == true ||
-                                        u.addressLabel?.isNotEmpty == true)
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.label, size: 10),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            (u.utxoLabel?.isNotEmpty == true
-                                                ? u.utxoLabel!
-                                                : u.addressLabel)!,
-                                            style:
-                                                const TextStyle(fontSize: 11),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ],
-                          ),
+                    Expanded(
+                      child: Text(
+                        tx.label?.isNotEmpty == true ? tx.label! : '—',
+                        style: TextStyle(
+                          color: tx.label?.isNotEmpty == true
+                              ? null
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(97),
+                          fontStyle: tx.label?.isNotEmpty == true
+                              ? FontStyle.normal
+                              : FontStyle.italic,
                         ),
-                    ],
-                    if (inputAddresses.isNotEmpty) ...[
-                      const Divider(height: 20),
-                      Text(
-                        l10n.inputAddresses,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
                       ),
-                      const SizedBox(height: 6),
-                      for (final a in inputAddresses)
-                        _RelatedAddressRow(address: a),
-                    ],
-                    if (outputAddresses.isNotEmpty) ...[
-                      const Divider(height: 20),
-                      Text(
-                        l10n.relatedAddresses,
-                        style:
-                            Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withAlpha(178),
-                                ),
-                      ),
-                      const SizedBox(height: 6),
-                      for (final a in outputAddresses)
-                        _RelatedAddressRow(address: a),
-                    ],
-                  ],
-                );
-              },
-            ),
-            if (explorerUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Center(
-                  child: FilledButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse(explorerUrl),
-                      mode: LaunchMode.externalApplication,
                     ),
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: Text(l10n.openInExplorer),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 16),
+                      tooltip: l10n.edit,
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showDialog<void>(
+                          context: context,
+                          builder: (ctx) => BlocProvider.value(
+                            value: context.read<WalletDetailCubit>(),
+                            child: _LabelEditDialog(
+                              txid: tx.txid,
+                              currentLabel: tx.label ?? '',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
-          ],
-        ),
+              _DetailRow(
+                label: l10n.txId,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tx.txid,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      tooltip: l10n.copyToClipboard,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: tx.txid));
+                        showSuccessToast(context, l10n.copiedToClipboard);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              if (tx.fee != null)
+                _DetailRowPair(
+                  label1: l10n.txDetailsNet,
+                  child1: Text(
+                    netLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: netColor,
+                    ),
+                  ),
+                  label2: l10n.txDetailsFee,
+                  child2: Text(
+                    '${BitcoinFormatter.formatNum(tx.fee!.toInt())} sats',
+                  ),
+                )
+              else
+                _DetailRow(
+                  label: l10n.txDetailsNet,
+                  child: Text(
+                    netLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: netColor,
+                    ),
+                  ),
+                ),
+              _DetailRowPair(
+                label1: l10n.txDetailsGrossReceived,
+                child1: Text(
+                  '${BitcoinFormatter.formatNum(tx.received.toInt())} sats',
+                ),
+                label2: l10n.txDetailsGrossSent,
+                child2: Text(
+                  '${BitcoinFormatter.formatNum(tx.sent.toInt())} sats',
+                ),
+              ),
+              if (tx.confirmationHeight != null) ...[
+                _DetailRowPair(
+                  label1: l10n.txConfirmed,
+                  child1: Text(
+                    l10n.txConfirmed,
+                    style: const TextStyle(color: Colors.green),
+                  ),
+                  label2: l10n.txDetailsBlockHeight,
+                  child2: Text(
+                    BitcoinFormatter.formatNum(tx.confirmationHeight!.toInt()),
+                  ),
+                ),
+                if (confirmedAt != null)
+                  _DetailRow(
+                    label: l10n.txDetailsConfirmedAt,
+                    child: Text(_formatDateTime(confirmedAt)),
+                  ),
+              ] else
+                _DetailRow(
+                  label: l10n.txConfirmed,
+                  child: Text(
+                    l10n.txUnconfirmed,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+              // Related entities via FutureBuilder
+              FutureBuilder<APITxDetails>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const LinearProgressIndicator();
+                  }
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+                  final details = snapshot.data!;
+                  final relatedUtxos = details.relatedUtxos;
+                  final inputAddresses = details.inputAddresses;
+                  final outputAddresses = details.outputAddresses;
+                  if (relatedUtxos.isEmpty &&
+                      inputAddresses.isEmpty &&
+                      outputAddresses.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (relatedUtxos.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Text(
+                          l10n.relatedCoins,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final u in relatedUtxos)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.toll, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      OutpointText(txid: u.txid, vout: u.vout),
+                                      ColoredAddressText(
+                                        address: u.address,
+                                        truncate: true,
+                                      ),
+                                      if (u.utxoLabel?.isNotEmpty == true ||
+                                          u.addressLabel?.isNotEmpty == true)
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.label, size: 10),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              (u.utxoLabel?.isNotEmpty == true
+                                                  ? u.utxoLabel!
+                                                  : u.addressLabel)!,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                      if (inputAddresses.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Text(
+                          l10n.inputAddresses,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final a in inputAddresses)
+                          _RelatedAddressRow(address: a),
+                      ],
+                      if (outputAddresses.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Text(
+                          l10n.relatedAddresses,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withAlpha(178),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final a in outputAddresses)
+                          _RelatedAddressRow(address: a),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              if (explorerUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Center(
+                    child: FilledButton.icon(
+                      onPressed: () => launchUrl(
+                        Uri.parse(explorerUrl),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: Text(l10n.openInExplorer),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2334,11 +2438,8 @@ class _DetailRow extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withAlpha(138),
-                ),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+            ),
           ),
           const SizedBox(height: 2),
           child,
@@ -2367,9 +2468,13 @@ class _DetailRowPair extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _DetailRow(label: label1, child: child1)),
+        Expanded(
+          child: _DetailRow(label: label1, child: child1),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _DetailRow(label: label2, child: child2)),
+        Expanded(
+          child: _DetailRow(label: label2, child: child2),
+        ),
       ],
     );
   }
@@ -2394,10 +2499,7 @@ class _StatusBadge extends StatelessWidget {
         color: color.withAlpha(40),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 10, color: color),
-      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
     );
   }
 }
@@ -2467,7 +2569,9 @@ class _SpendPathStatusRow extends StatelessWidget {
 
   String _pathName() {
     if (path.mfps.isEmpty) return '…';
-    final labels = path.mfps.map((m) => keyLabels[m] ?? m.toUpperCase()).toList();
+    final labels = path.mfps
+        .map((m) => keyLabels[m] ?? m.toUpperCase())
+        .toList();
     final prefix = path.threshold < path.mfps.length
         ? '${path.threshold}/${path.mfps.length} '
         : '';
@@ -2481,38 +2585,38 @@ class _SpendPathStatusRow extends StatelessWidget {
 
     final (icon, color, subtitle) = switch (status) {
       SpendPathUnlocked() => (
-          Icons.lock_open,
-          Colors.green,
-          l10n.spendPathUnlocked,
-        ),
+        Icons.lock_open,
+        Colors.green,
+        l10n.spendPathUnlocked,
+      ),
       SpendPathUnconfirmed() => (
-          Icons.hourglass_empty,
-          Colors.amber,
-          l10n.spendPathUnconfirmed,
-        ),
+        Icons.hourglass_empty,
+        Colors.amber,
+        l10n.spendPathUnconfirmed,
+      ),
       SpendPathNeedsSync() => (
-          Icons.sync_disabled,
-          Colors.grey,
-          l10n.spendPathNeedsSync,
-        ),
+        Icons.sync_disabled,
+        Colors.grey,
+        l10n.spendPathNeedsSync,
+      ),
       SpendPathAbsLocked(:final remainingBlocks, :final remainingSeconds) => (
-          Icons.lock_outline,
-          Colors.red,
-          remainingBlocks != null
-              ? l10n.spendPathLockedBlocks(remainingBlocks)
-              : remainingSeconds != null
-                  ? _formatRemainingTime(remainingSeconds)
-                  : l10n.spendPathLocked,
-        ),
+        Icons.lock_outline,
+        Colors.red,
+        remainingBlocks != null
+            ? l10n.spendPathLockedBlocks(remainingBlocks)
+            : remainingSeconds != null
+            ? _formatRemainingTime(remainingSeconds)
+            : l10n.spendPathLocked,
+      ),
       SpendPathRelLocked(:final remainingBlocks, :final remainingSeconds) => (
-          Icons.lock_clock,
-          Colors.orange,
-          remainingBlocks != null
-              ? l10n.spendPathLockedBlocks(remainingBlocks)
-              : remainingSeconds != null
-                  ? _formatRemainingTime(remainingSeconds)
-                  : l10n.spendPathLocked,
-        ),
+        Icons.lock_clock,
+        Colors.orange,
+        remainingBlocks != null
+            ? l10n.spendPathLockedBlocks(remainingBlocks)
+            : remainingSeconds != null
+            ? _formatRemainingTime(remainingSeconds)
+            : l10n.spendPathLocked,
+      ),
     };
 
     return Padding(
@@ -2534,10 +2638,7 @@ class _SpendPathStatusRow extends StatelessWidget {
                     color: cs.onSurface,
                   ),
                 ),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 11, color: color),
-                ),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: color)),
               ],
             ),
           ),
@@ -2580,9 +2681,10 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   }
 
   void _save(BuildContext context) {
-    context
-        .read<WalletDetailCubit>()
-        .setTxLabel(widget.txid, _controller.text.trim());
+    context.read<WalletDetailCubit>().setTxLabel(
+      widget.txid,
+      _controller.text.trim(),
+    );
     Navigator.of(context).pop();
   }
 
@@ -2615,9 +2717,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
         if (widget.currentLabel.isNotEmpty)
           TextButton(
             onPressed: () {
-              context
-                  .read<WalletDetailCubit>()
-                  .setTxLabel(widget.txid, '');
+              context.read<WalletDetailCubit>().setTxLabel(widget.txid, '');
               Navigator.of(context).pop();
             },
             child: Text(
@@ -2625,16 +2725,13 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
               style: const TextStyle(color: Colors.red),
             ),
           ),
-        FilledButton(
-          onPressed: () => _save(context),
-          child: Text(l10n.save),
-        ),
+        FilledButton(onPressed: () => _save(context), child: Text(l10n.save)),
       ],
     );
   }
 }
 
-enum _WalletMenuAction { rescan }
+enum _WalletMenuAction { sync, rescan, exportLabels, importLabels }
 
 // ─────────────────────────────────────────────────────────────
 // Descriptor view (tab 3)
@@ -2813,11 +2910,15 @@ class _WalletKeyCard extends StatelessWidget {
                       label ?? l10n.tapToName,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: label != null ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: label != null
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: label != null
                             ? cs.onSurface
                             : cs.onSurface.withAlpha(97),
-                        fontStyle: label != null ? FontStyle.normal : FontStyle.italic,
+                        fontStyle: label != null
+                            ? FontStyle.normal
+                            : FontStyle.italic,
                       ),
                     ),
                   ),
@@ -2829,7 +2930,8 @@ class _WalletKeyCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   onPressed: () => showTextExportSheet(
                     context,
-                    text: '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}',
+                    text:
+                        '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}',
                     fileName: 'keyspec',
                     copiedMessage: l10n.keyCopied,
                   ),
@@ -2842,11 +2944,16 @@ class _WalletKeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.pathPrefix,
-                  style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.muted)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurface.withAlpha(AppAlpha.muted),
+                  ),
                 ),
                 Expanded(
                   child: Text(
-                    keyData.derivationPath.isEmpty ? l10n.rootPath : keyData.derivationPath,
+                    keyData.derivationPath.isEmpty
+                        ? l10n.rootPath
+                        : keyData.derivationPath,
                     style: TextStyle(
                       fontSize: 12,
                       color: keyData.derivationPath.isEmpty
@@ -2864,7 +2971,10 @@ class _WalletKeyCard extends StatelessWidget {
               children: [
                 Text(
                   l10n.xpubPrefix,
-                  style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.muted)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurface.withAlpha(AppAlpha.muted),
+                  ),
                 ),
                 Expanded(
                   child: Text(
@@ -2890,8 +3000,10 @@ class _WalletKeyCard extends StatelessWidget {
       context,
       title: context.l10n.keyNameDialogTitle,
       currentName: label,
-      onSave: (name) =>
-          context.read<WalletDetailCubit>().setWalletKeyLabel(keyData.mfp, name ?? ''),
+      onSave: (name) => context.read<WalletDetailCubit>().setWalletKeyLabel(
+        keyData.mfp,
+        name ?? '',
+      ),
     );
   }
 }
@@ -2994,16 +3106,24 @@ class _WalletPathCard extends StatelessWidget {
                         label ?? l10n.tapToName,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: label != null ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: label != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                           color: label != null
                               ? cs.onSurface
                               : cs.onSurface.withAlpha(97),
-                          fontStyle: label != null ? FontStyle.normal : FontStyle.italic,
+                          fontStyle: label != null
+                              ? FontStyle.normal
+                              : FontStyle.italic,
                         ),
                       ),
                     ),
                   ),
-                  Icon(Icons.edit, size: 16, color: cs.onSurface.withAlpha(120)),
+                  Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: cs.onSurface.withAlpha(120),
+                  ),
                   const SizedBox(width: 4),
                   if (hasTimelock) _buildTimelockBadge(context, hasRelTimelock),
                   if (isTaproot && isKeyPath) _buildKeyPathBadge(context),
@@ -3019,7 +3139,9 @@ class _WalletPathCard extends StatelessWidget {
                     MfpBadge(
                       label: keyLabelProvider(mfp),
                       color: mfpColorProvider(mfp),
-                      letterSpacing: keyLabelProvider(mfp) == mfp.toUpperCase() ? 0.5 : 0.0,
+                      letterSpacing: keyLabelProvider(mfp) == mfp.toUpperCase()
+                          ? 0.5
+                          : 0.0,
                     ),
                 ],
               ),
@@ -3030,7 +3152,11 @@ class _WalletPathCard extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      const Icon(Icons.payments_outlined, size: 14, color: AppAccent.color),
+                      const Icon(
+                        Icons.payments_outlined,
+                        size: 14,
+                        color: AppAccent.color,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${BitcoinFormatter.formatDouble(path.vbSweep, 2)} vB',
@@ -3042,11 +3168,18 @@ class _WalletPathCard extends StatelessWidget {
                       ),
                       if (path.trDepth >= 0) ...[
                         _buildSeparator(context),
-                        const Icon(Icons.account_tree_outlined, size: 14, color: AppAccent.color),
+                        const Icon(
+                          Icons.account_tree_outlined,
+                          size: 14,
+                          color: AppAccent.color,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${path.trDepth}',
-                          style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(178)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurface.withAlpha(178),
+                          ),
                         ),
                       ],
                     ],
@@ -3102,15 +3235,23 @@ class _WalletPathCard extends StatelessWidget {
 
   Widget _buildTimelockBadge(BuildContext context, bool isRelative) {
     final hasRelTimelock = path.relTimelock.value > 0;
-    final relType = path.relTimelock.timelockType == APIRelativeTimelockType.blocks
+    final relType =
+        path.relTimelock.timelockType == APIRelativeTimelockType.blocks
         ? RelativeTimelockType.blocks
         : RelativeTimelockType.time;
-    final absType = path.absTimelock.timelockType == APIAbsoluteTimelockType.blocks
+    final absType =
+        path.absTimelock.timelockType == APIAbsoluteTimelockType.blocks
         ? AbsoluteTimelockType.blocks
         : AbsoluteTimelockType.timestamp;
     final label = hasRelTimelock
-        ? BitcoinFormatter.formatRelativeTimelock(relType, path.relTimelock.value)
-        : BitcoinFormatter.formatAbsoluteTimelock(absType, path.absTimelock.value);
+        ? BitcoinFormatter.formatRelativeTimelock(
+            relType,
+            path.relTimelock.value,
+          )
+        : BitcoinFormatter.formatAbsoluteTimelock(
+            absType,
+            path.absTimelock.value,
+          );
     return Padding(
       padding: const EdgeInsets.only(left: 6),
       child: Container(
@@ -3173,7 +3314,9 @@ class _WalletPathCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(
         '|',
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(77)),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(77),
+        ),
       ),
     );
   }
@@ -3183,8 +3326,10 @@ class _WalletPathCard extends StatelessWidget {
       context,
       title: context.l10n.spendPathNameDialogTitle,
       currentName: label,
-      onSave: (name) =>
-          context.read<WalletDetailCubit>().setWalletPathLabel(path.id, name ?? ''),
+      onSave: (name) => context.read<WalletDetailCubit>().setWalletPathLabel(
+        path.id,
+        name ?? '',
+      ),
     );
   }
 }

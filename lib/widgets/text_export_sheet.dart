@@ -65,6 +65,7 @@ void showTextExportSheet(
   required String text,
   required String fileName,
   required String copiedMessage,
+  String fileExtension = 'txt',
 }) {
   final l10n = context.l10n;
   showModalBottomSheet<void>(
@@ -90,26 +91,61 @@ void showTextExportSheet(
               showQrDialog(context, text);
             },
           ),
-          if (!_isMobileExport)
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: Text(l10n.saveAs),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _saveWithFilePicker(context, text, fileName);
-              },
-            ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: Text(l10n.saveAs),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await _saveWithFilePicker(context, text, fileName, fileExtension);
+            },
+          ),
           if (_isMobileExport)
             ListTile(
               leading: const Icon(Icons.share_outlined),
-              title: Text(l10n.shareFile),
+              title: Text(l10n.shareText),
               onTap: () {
                 Navigator.pop(ctx);
                 Share.share(text);
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.text_snippet_outlined),
+            title: Text(l10n.showAsText),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showAsTextDialog(context, text);
+            },
+          ),
         ],
       ),
+    ),
+  );
+}
+
+void _showAsTextDialog(BuildContext context, String text) {
+  final l10n = context.l10n;
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.showAsText),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: SingleChildScrollView(
+          child: SelectableText(
+            text,
+            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(l10n.close),
+        ),
+      ],
     ),
   );
 }
@@ -142,16 +178,22 @@ Future<void> _saveWithFilePicker(
   BuildContext context,
   String text,
   String fileName,
+  String ext,
 ) async {
   final l10n = context.l10n;
   try {
+    final bytes = utf8.encode(text);
     final savedPath = await FilePicker.platform.saveFile(
-      fileName: '$fileName.txt',
+      fileName: '$fileName.$ext',
       type: FileType.custom,
-      allowedExtensions: ['txt'],
+      allowedExtensions: [ext],
+      bytes: bytes,
     );
     if (savedPath == null) return; // user cancelled
-    await File(savedPath).writeAsBytes(utf8.encode(text));
+    // On desktop, FilePicker may not write the bytes itself.
+    if (!File(savedPath).existsSync()) {
+      await File(savedPath).writeAsBytes(bytes);
+    }
     if (context.mounted) showSuccessToast(context, l10n.savedToDownloads);
   } catch (e) {
     if (context.mounted) showErrorToast(context, l10n.exportFailed(e.toString()));

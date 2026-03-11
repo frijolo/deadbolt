@@ -14,12 +14,15 @@ use crate::core::wallet_info::{
     create_wallet_db, get_wallet_info_from_file, list_wallets_in_dir, rename_wallet_in_file,
 };
 use crate::core::wallet_persistence::{
-    delete_psbt_row, ensure_unsigned_txs_table, get_all_address_labels, get_all_coin_labels,
-    get_all_key_labels, get_all_path_labels, get_all_tx_labels, get_psbt_row, insert_psbt,
-    list_psbt_rows, open_encrypted_connection, read_wallet_info,
+    address_has_explicit_label, coin_has_explicit_label, delete_psbt_row,
+    ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
+    get_all_coin_labels_with_flag, get_all_key_labels, get_all_path_labels,
+    get_all_tx_labels_with_flag, get_coin_label_with_flag, get_psbt_row, get_tx_label_with_flag,
+    insert_psbt, list_psbt_rows, open_encrypted_connection, read_wallet_info,
     set_address_label as db_set_address_label, set_coin_label as db_set_coin_label,
     set_key_label as db_set_key_label, set_path_label as db_set_path_label,
-    set_tx_label as db_set_tx_label, touch_last_synced, update_psbt_data, PsbtRow, WalletInfoRow,
+    set_tx_label as db_set_tx_label, touch_last_synced, tx_has_explicit_label, update_psbt_data,
+    PsbtRow, WalletInfoRow,
 };
 
 /// A key label entry returned from [APIWallet::get_key_labels].
@@ -53,6 +56,21 @@ fn psbt_from_base64(s: &str) -> Result<bdk_wallet::bitcoin::psbt::Psbt> {
         .decode(s)
         .map_err(|e| anyhow::anyhow!("base64 decode: {}", e))?;
     Psbt::deserialize(&bytes).map_err(|e| anyhow::anyhow!("PSBT deserialize: {}", e))
+}
+
+/// Extract a mfp→xpub map from a descriptor string.
+/// Matches `[deadbeef/44'/0'/0']xpub6C...` style key expressions.
+fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, String> {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\](xpub[A-Za-z0-9]+)").unwrap()
+    });
+    let mut map = std::collections::HashMap::new();
+    for cap in re.captures_iter(descriptor) {
+        map.insert(cap[1].to_lowercase(), cap[2].to_string());
+    }
+    map
 }
 
 /// Compute the maximum confirmation height of the UTXOs spent by `psbt`.
@@ -109,23 +127,22 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
 }
 
 // ---------------------------------------------------------------------------
-// Label inheritance helpers
+// Label propagation helpers
 // ---------------------------------------------------------------------------
 
-/// Resolve effective label: explicit label wins; otherwise use inherited.
-/// Returns `(effective_label, is_inherited)`.
-fn resolve_label(explicit: Option<&String>, inherited: Option<&String>) -> (Option<String>, bool) {
+/// Resolve effective label: explicit (is_auto=false) wins; otherwise use auto (is_auto=true).
+/// Returns `(effective_label, is_auto)`.
+fn resolve_label(explicit: Option<&str>, auto: Option<&str>) -> (Option<String>, bool) {
     if let Some(l) = explicit.filter(|l| !l.is_empty()) {
-        return (Some(l.clone()), false);
+        return (Some(l.to_string()), false);
     }
-    if let Some(l) = inherited.filter(|l| !l.is_empty()) {
-        return (Some(l.clone()), true);
+    if let Some(l) = auto.filter(|l| !l.is_empty()) {
+        return (Some(l.to_string()), true);
     }
     (None, false)
 }
 
-/// Build a map  txid → Vec<(address, addr_label, coin_label)>  from all unspent outputs.
-/// Used to look up cluster labels for transactions and to build the related-UTXO list.
+/// Build a map txid → Vec<(address, addr_label, coin_label)> from all unspent outputs.
 #[allow(clippy::type_complexity)]
 fn build_tx_utxo_map(
     wallet: &bdk_wallet::Wallet,
@@ -154,8 +171,7 @@ fn build_tx_utxo_map(
     map
 }
 
-/// Build a map  address → Vec<(txid, tx_label, coin_label)>  from all unspent outputs.
-/// Used to look up cluster labels for addresses.
+/// Build a map address → Vec<(txid, tx_label, coin_label)> from all unspent outputs.
 #[allow(clippy::type_complexity)]
 fn build_addr_utxo_map(
     wallet: &bdk_wallet::Wallet,
@@ -182,17 +198,141 @@ fn build_addr_utxo_map(
     map
 }
 
-/// Pick the first non-empty inherited label from a list of (primary, fallback) pairs.
-fn first_inherited(pairs: &[(Option<String>, Option<String>)]) -> Option<String> {
-    for (primary, fallback) in pairs {
-        if let Some(l) = primary.as_deref().filter(|l| !l.is_empty()) {
-            return Some(l.to_string());
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum EntityType {
+    Tx,
+    Address,
+    Coin,
+}
+
+/// Build a canonical source_entity identifier for the given entity type and id.
+/// Format: `"tx:{txid}"`, `"addr:{address}"`, or `"coin:{txid}:{vout}"`.
+fn source_entity_id(source_type: EntityType, source_id: &str) -> String {
+    match source_type {
+        EntityType::Tx => format!("tx:{}", source_id),
+        EntityType::Address => format!("addr:{}", source_id),
+        EntityType::Coin => format!("coin:{}", source_id),
+    }
+}
+
+/// Propagate a label to related entities as auto-generated labels.
+/// Clears any stale auto-labels previously propagated by this source first,
+/// then writes new ones — skipping targets that already have an explicit label.
+fn propagate_label(
+    conn: &rusqlite::Connection,
+    wallet: &bdk_wallet::Wallet,
+    source_type: EntityType,
+    source_id: &str,
+    label: &str,
+) -> Result<()> {
+    let source = source_entity_id(source_type, source_id);
+
+    // Remove stale auto-labels from this source before re-propagating.
+    conn.execute(
+        "DELETE FROM tx_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+    conn.execute(
+        "DELETE FROM address_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+    conn.execute(
+        "DELETE FROM coin_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+
+    match source_type {
+        EntityType::Tx => {
+            let txid = source_id;
+            let tx_utxo_map = build_tx_utxo_map(
+                wallet,
+                &std::collections::HashMap::new(),
+                &std::collections::HashMap::new(),
+            );
+            if let Some(utxos) = tx_utxo_map.get(txid) {
+                for (address, _, _) in utxos {
+                    if !address_has_explicit_label(conn, address)? {
+                        db_set_address_label(conn, address, label, true, Some(&source))?;
+                    }
+                }
+            }
         }
-        if let Some(l) = fallback.as_deref().filter(|l| !l.is_empty()) {
-            return Some(l.to_string());
+        EntityType::Address => {
+            let address = source_id;
+            let addr_utxo_map = build_addr_utxo_map(
+                wallet,
+                &std::collections::HashMap::new(),
+                &std::collections::HashMap::new(),
+            );
+            if let Some(utxos) = addr_utxo_map.get(address) {
+                for (txid, _, _) in utxos {
+                    if !tx_has_explicit_label(conn, txid)? {
+                        db_set_tx_label(conn, txid, label, true, Some(&source))?;
+                    }
+                }
+            }
+            for utxo in wallet.list_unspent() {
+                let utxo_address = wallet
+                    .peek_address(utxo.keychain, utxo.derivation_index)
+                    .address
+                    .to_string();
+                if utxo_address == address {
+                    let outpoint = format!("{}:{}", utxo.outpoint.txid, utxo.outpoint.vout);
+                    if !coin_has_explicit_label(conn, &outpoint)? {
+                        db_set_coin_label(conn, &outpoint, label, true, Some(&source))?;
+                    }
+                }
+            }
+        }
+        EntityType::Coin => {
+            let outpoint = source_id;
+            let parts: Vec<&str> = outpoint.split(':').collect();
+            if parts.len() == 2 {
+                let txid = parts[0];
+                if !tx_has_explicit_label(conn, txid)? {
+                    db_set_tx_label(conn, txid, label, true, Some(&source))?;
+                }
+                if let Ok(vout) = parts[1].parse::<u32>() {
+                    if let Some(address_info) = wallet
+                        .list_unspent()
+                        .find(|u| u.outpoint.txid.to_string() == txid && u.outpoint.vout == vout)
+                    {
+                        let address = wallet
+                            .peek_address(address_info.keychain, address_info.derivation_index)
+                            .address
+                            .to_string();
+                        if !address_has_explicit_label(conn, &address)? {
+                            db_set_address_label(conn, &address, label, true, Some(&source))?;
+                        }
+                    }
+                }
+            }
         }
     }
-    None
+    Ok(())
+}
+
+/// Cascade delete: remove all auto-labels that were propagated from the given entity.
+/// Uses source_entity matching — safe even when multiple entities share the same label text.
+fn cascade_delete_label(
+    conn: &rusqlite::Connection,
+    source_type: EntityType,
+    source_id: &str,
+) -> Result<()> {
+    let source = source_entity_id(source_type, source_id);
+    conn.execute(
+        "DELETE FROM tx_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+    conn.execute(
+        "DELETE FROM address_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+    conn.execute(
+        "DELETE FROM coin_labels WHERE source_entity = ?1",
+        rusqlite::params![source],
+    )?;
+    Ok(())
 }
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
@@ -311,11 +451,7 @@ impl APIWallet {
         let end = (start + page_size as usize).min(txs.len());
         let has_more = end < txs.len();
 
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        // txid → Vec<(address, addr_label, coin_label)> for cluster label lookup
-        let tx_utxo_map = build_tx_utxo_map(wallet, &address_labels, &coin_labels);
+        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
 
         let page_txs: Vec<APITransaction> = if start < txs.len() {
             txs[start..end]
@@ -335,17 +471,19 @@ impl APIWallet {
 
                     let (sent, received) = wallet.sent_and_received(tx);
                     let fee = wallet.calculate_fee(tx).ok().map(|f| f.to_sat());
-                    let label = tx_labels.get(&txid).cloned();
 
-                    // Inherited: scan output UTXOs — address label > coin label
-                    let cluster = tx_utxo_map.get(&txid).map(|v| {
-                        v.iter()
-                            .map(|(_, al, cl)| (al.clone(), cl.clone()))
-                            .collect::<Vec<_>>()
-                    });
-                    let inherited = cluster.as_deref().and_then(first_inherited);
-                    let (effective_label, label_is_inherited) =
-                        resolve_label(label.as_ref(), inherited.as_ref());
+                    let label_data = tx_labels.get(&txid).cloned();
+                    let explicit: Option<String> =
+                        label_data
+                            .as_ref()
+                            .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+                    let auto: Option<String> =
+                        label_data
+                            .as_ref()
+                            .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+                    let label = explicit.clone();
+                    let (effective_label, is_auto) =
+                        resolve_label(explicit.as_deref(), auto.as_deref());
 
                     APITransaction {
                         txid,
@@ -356,7 +494,7 @@ impl APIWallet {
                         confirmation_time,
                         label,
                         effective_label,
-                        label_is_inherited,
+                        is_auto,
                     }
                 })
                 .collect()
@@ -443,13 +581,32 @@ impl APIWallet {
     }
 
     /// Persist a label for a transaction. Pass an empty string to remove it.
+    /// Automatically propagates to related entities (addresses and UTXOs).
+    /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_tx_label(&self, txid: String, label: String) -> Result<()> {
         let core = self
             .inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
-        db_set_tx_label(&core.conn, &txid, &label)
+
+        if label.is_empty() {
+            match get_tx_label_with_flag(&core.conn, &txid)? {
+                Some((_, false)) => {
+                    // Explicit label: delete the row and cascade.
+                    db_set_tx_label(&core.conn, &txid, "", false, None)?;
+                    cascade_delete_label(&core.conn, EntityType::Tx, &txid)?;
+                }
+                Some((_, true)) => {
+                    // Inherited auto-label: no-op — only the source can clear it.
+                }
+                None => {} // Nothing to do.
+            }
+        } else {
+            db_set_tx_label(&core.conn, &txid, &label, false, None)?;
+            propagate_label(&core.conn, &core.wallet, EntityType::Tx, &txid, &label)?;
+        }
+        Ok(())
     }
 
     /// Read wallet metadata from the open connection (no file re-open).
@@ -526,11 +683,7 @@ impl APIWallet {
             }
         }
 
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
-        // address → Vec<(txid, tx_label, coin_label)> for cluster label lookup
-        let addr_utxo_map = build_addr_utxo_map(wallet, &tx_labels, &coin_labels);
+        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
 
         // Collect all revealed addresses sorted by index ascending
         let mut addrs: Vec<APIAddress> = spk_index
@@ -541,17 +694,19 @@ impl APIWallet {
                 let addr_txids = per_addr_txids.get(&idx);
                 let is_used = addr_txids.is_some();
                 let tx_count = addr_txids.map(|s| s.len() as u32).unwrap_or(0);
-                let label = address_labels.get(&addr).cloned();
 
-                // Inherited: scan UTXOs at this address — tx label > coin label
-                let cluster = addr_utxo_map.get(&addr).map(|v| {
-                    v.iter()
-                        .map(|(_, tl, cl)| (tl.clone(), cl.clone()))
-                        .collect::<Vec<_>>()
-                });
-                let inherited = cluster.as_deref().and_then(first_inherited);
-                let (effective_label, label_is_inherited) =
-                    resolve_label(label.as_ref(), inherited.as_ref());
+                let label_data = address_labels.get(&addr).cloned();
+                let explicit: Option<String> =
+                    label_data
+                        .as_ref()
+                        .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+                let auto: Option<String> =
+                    label_data
+                        .as_ref()
+                        .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+                let label = explicit.clone();
+                let (effective_label, is_auto) =
+                    resolve_label(explicit.as_deref(), auto.as_deref());
 
                 APIAddress {
                     address: addr,
@@ -562,7 +717,7 @@ impl APIWallet {
                     tx_count,
                     label,
                     effective_label,
-                    label_is_inherited,
+                    is_auto,
                 }
             })
             .collect();
@@ -579,9 +734,7 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
 
         let mut utxos: Vec<APIUtxo> = wallet
             .list_unspent()
@@ -610,22 +763,22 @@ impl APIWallet {
                     "{}:{}",
                     local_output.outpoint.txid, local_output.outpoint.vout
                 );
-                let txid = local_output.outpoint.txid.to_string();
-                let label = coin_labels.get(&outpoint_key).cloned();
 
-                // Inherited: address label > tx label
-                let inherited = first_inherited(&[(
-                    address_labels
-                        .get(&address)
-                        .filter(|l| !l.is_empty())
-                        .cloned(),
-                    tx_labels.get(&txid).filter(|l| !l.is_empty()).cloned(),
-                )]);
-                let (effective_label, label_is_inherited) =
-                    resolve_label(label.as_ref(), inherited.as_ref());
+                let label_data = coin_labels.get(&outpoint_key).cloned();
+                let explicit: Option<String> =
+                    label_data
+                        .as_ref()
+                        .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+                let auto: Option<String> =
+                    label_data
+                        .as_ref()
+                        .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+                let label = explicit.clone();
+                let (effective_label, is_auto) =
+                    resolve_label(explicit.as_deref(), auto.as_deref());
 
                 APIUtxo {
-                    txid,
+                    txid: local_output.outpoint.txid.to_string(),
                     vout: local_output.outpoint.vout,
                     value_sat: local_output.txout.value.to_sat(),
                     keychain,
@@ -635,7 +788,7 @@ impl APIWallet {
                     confirmation_height,
                     label,
                     effective_label,
-                    label_is_inherited,
+                    is_auto,
                 }
             })
             .collect();
@@ -713,10 +866,7 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        let tx_utxo_map = build_tx_utxo_map(wallet, &address_labels, &coin_labels);
+        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
 
         let canonical_tx = wallet
             .transactions()
@@ -734,16 +884,18 @@ impl APIWallet {
             };
         let (sent, received) = wallet.sent_and_received(tx_ref);
         let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
-        let label = tx_labels.get(&txid).cloned();
 
-        let cluster = tx_utxo_map.get(&txid).map(|v| {
-            v.iter()
-                .map(|(_, al, cl)| (al.clone(), cl.clone()))
-                .collect::<Vec<_>>()
-        });
-        let inherited = cluster.as_deref().and_then(first_inherited);
-        let (effective_label, label_is_inherited) =
-            resolve_label(label.as_ref(), inherited.as_ref());
+        let label_data = tx_labels.get(&txid).cloned();
+        let explicit: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+        let auto: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+        let label = explicit.clone();
+        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
 
         let tx = APITransaction {
             txid: txid.clone(),
@@ -754,10 +906,12 @@ impl APIWallet {
             confirmation_time,
             label,
             effective_label,
-            label_is_inherited,
+            is_auto,
         };
 
         // Unspent output coins created by this transaction.
+        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let related_utxos = wallet
             .list_unspent()
             .filter(|u| u.outpoint.txid.to_string() == txid)
@@ -767,23 +921,20 @@ impl APIWallet {
                     .address
                     .to_string();
                 let outpoint_key = format!("{}:{}", u.outpoint.txid, u.outpoint.vout);
+                let coin_label_data = coin_labels.get(&outpoint_key).cloned();
+                let addr_label_data = address_labels.get(&address).cloned();
                 APIRelatedUtxo {
                     txid: u.outpoint.txid.to_string(),
                     vout: u.outpoint.vout,
                     address: address.clone(),
                     value_sat: u.txout.value.to_sat(),
-                    utxo_label: coin_labels
-                        .get(&outpoint_key)
-                        .filter(|l| !l.is_empty())
-                        .cloned(),
-                    address_label: address_labels
-                        .get(&address)
-                        .filter(|l| !l.is_empty())
-                        .cloned(),
+                    utxo_label: coin_label_data.map(|(l, _)| l),
+                    address_label: addr_label_data.map(|(l, _)| l),
                 }
             })
             .collect();
 
+        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let spk_index = wallet.spk_index();
         let network = wallet.network();
         let tx_map: HashMap<String, _> = wallet
@@ -833,10 +984,7 @@ impl APIWallet {
                 };
                 if let Some((k, i)) = spk_index.index_of_spk(spk.clone()) {
                     let addr_str = wallet.peek_address(*k, *i).address.to_string();
-                    let label = address_labels
-                        .get(&addr_str)
-                        .filter(|l| !l.is_empty())
-                        .cloned();
+                    let label = address_labels.get(&addr_str).map(|(l, _)| l.clone());
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(value),
@@ -864,10 +1012,7 @@ impl APIWallet {
             .map(|output| {
                 if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
                     let addr_str = wallet.peek_address(*k, *i).address.to_string();
-                    let label = address_labels
-                        .get(&addr_str)
-                        .filter(|l| !l.is_empty())
-                        .cloned();
+                    let label = address_labels.get(&addr_str).map(|(l, _)| l.clone());
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(output.value.to_sat()),
@@ -905,9 +1050,9 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
+        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
 
         let local_output = wallet
             .list_unspent()
@@ -935,29 +1080,32 @@ impl APIWallet {
                 None
             };
         let outpoint_key = format!("{}:{}", txid, vout);
-        let label = coin_labels.get(&outpoint_key).cloned();
-        let address_label = address_labels
-            .get(&address)
-            .filter(|l| !l.is_empty())
-            .cloned();
-        let tx_label = tx_labels.get(&txid).filter(|l| !l.is_empty()).cloned();
 
-        let inherited = first_inherited(&[(address_label.clone(), tx_label.clone())]);
-        let (effective_label, label_is_inherited) =
-            resolve_label(label.as_ref(), inherited.as_ref());
+        let label_data = coin_labels.get(&outpoint_key).cloned();
+        let explicit: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+        let auto: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+        let label = explicit.clone();
+        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
 
+        let utxo_address = address.clone();
         let utxo = APIUtxo {
             txid: txid.clone(),
             vout,
             value_sat: local_output.txout.value.to_sat(),
             keychain,
             derivation_index: local_output.derivation_index,
-            address,
+            address: utxo_address,
             is_confirmed,
             confirmation_height,
             label,
             effective_label,
-            label_is_inherited,
+            is_auto,
         };
 
         // The transaction that created this UTXO
@@ -975,10 +1123,12 @@ impl APIWallet {
                     } else {
                         None
                     };
+                let tx_label_data = tx_labels.get(&txid).cloned();
+                let tx_label = tx_label_data.map(|(l, _)| l);
                 // This is the creating tx: the coin is the output, nothing is spent yet.
                 APIRelatedTx {
                     txid: txid.clone(),
-                    label: tx_label.clone(),
+                    label: tx_label,
                     confirmation_height: conf_height,
                     addr_received: local_output.txout.value.to_sat(),
                     addr_spent: 0,
@@ -986,6 +1136,9 @@ impl APIWallet {
                 }
             })
             .ok_or_else(|| anyhow::anyhow!("creating transaction not found: {}", txid))?;
+
+        let address_label_data = address_labels.get(&address).cloned();
+        let address_label = address_label_data.map(|(l, _)| l);
 
         Ok(APIUtxoDetails {
             utxo,
@@ -1005,10 +1158,9 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let wallet = &core.wallet;
 
-        let address_labels = get_all_address_labels(&core.conn).unwrap_or_default();
-        let coin_labels = get_all_coin_labels(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels(&core.conn).unwrap_or_default();
-        let addr_utxo_map = build_addr_utxo_map(wallet, &tx_labels, &coin_labels);
+        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
+        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
 
         // Determine keychain + index for this address
         let spk_index = wallet.spk_index();
@@ -1065,15 +1217,17 @@ impl APIWallet {
         let used = !related_txids.is_empty();
         let tx_count = related_txids.len() as u32;
 
-        let label = address_labels.get(&address).cloned();
-        let cluster = addr_utxo_map.get(&address).map(|v| {
-            v.iter()
-                .map(|(_, tl, cl)| (tl.clone(), cl.clone()))
-                .collect::<Vec<_>>()
-        });
-        let inherited = cluster.as_deref().and_then(first_inherited);
-        let (effective_label, label_is_inherited) =
-            resolve_label(label.as_ref(), inherited.as_ref());
+        let label_data = address_labels.get(&address).cloned();
+        let explicit: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
+        let auto: Option<String> =
+            label_data
+                .as_ref()
+                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
+        let label = explicit.clone();
+        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
 
         let addr = APIAddress {
             address: address.clone(),
@@ -1084,7 +1238,7 @@ impl APIWallet {
             tx_count,
             label,
             effective_label,
-            label_is_inherited,
+            is_auto,
         };
 
         // Related UTXOs at this address
@@ -1099,14 +1253,8 @@ impl APIWallet {
                     vout: u.outpoint.vout,
                     address: address.clone(),
                     value_sat: u.txout.value.to_sat(),
-                    utxo_label: coin_labels
-                        .get(&outpoint_key)
-                        .filter(|l| !l.is_empty())
-                        .cloned(),
-                    address_label: address_labels
-                        .get(&address)
-                        .filter(|l| !l.is_empty())
-                        .cloned(),
+                    utxo_label: coin_labels.get(&outpoint_key).map(|(l, _)| l.clone()),
+                    address_label: address_labels.get(&address).map(|(l, _)| l.clone()),
                 }
             })
             .collect();
@@ -1159,7 +1307,7 @@ impl APIWallet {
                     .sum();
                 APIRelatedTx {
                     txid: txid_str.clone(),
-                    label: tx_labels.get(&txid_str).filter(|l| !l.is_empty()).cloned(),
+                    label: tx_labels.get(&txid_str).map(|(l, _)| l.clone()),
                     confirmation_height: conf_height,
                     addr_received,
                     addr_spent,
@@ -1214,16 +1362,43 @@ impl APIWallet {
     }
 
     /// Persist a label for an address. Pass an empty string to remove it.
+    /// Automatically propagates to related entities (transactions and UTXOs).
+    /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_address_label(&self, address: String, label: String) -> Result<()> {
         let core = self
             .inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
-        db_set_address_label(&core.conn, &address, &label)
+
+        if label.is_empty() {
+            match get_address_label_with_flag(&core.conn, &address)? {
+                Some((_, false)) => {
+                    // Explicit label: delete the row and cascade.
+                    db_set_address_label(&core.conn, &address, "", false, None)?;
+                    cascade_delete_label(&core.conn, EntityType::Address, &address)?;
+                }
+                Some((_, true)) => {
+                    // Inherited auto-label: no-op — only the source can clear it.
+                }
+                None => {} // Nothing to do.
+            }
+        } else {
+            db_set_address_label(&core.conn, &address, &label, false, None)?;
+            propagate_label(
+                &core.conn,
+                &core.wallet,
+                EntityType::Address,
+                &address,
+                &label,
+            )?;
+        }
+        Ok(())
     }
 
     /// Persist a label for a coin (UTXO) by outpoint. Pass an empty string to remove it.
+    /// Automatically propagates to related entities (transaction and address).
+    /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_coin_label(&self, txid: String, vout: u32, label: String) -> Result<()> {
         let core = self
@@ -1231,7 +1406,30 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let outpoint = format!("{}:{}", txid, vout);
-        db_set_coin_label(&core.conn, &outpoint, &label)
+
+        if label.is_empty() {
+            match get_coin_label_with_flag(&core.conn, &outpoint)? {
+                Some((_, false)) => {
+                    // Explicit label: delete the row and cascade.
+                    db_set_coin_label(&core.conn, &outpoint, "", false, None)?;
+                    cascade_delete_label(&core.conn, EntityType::Coin, &outpoint)?;
+                }
+                Some((_, true)) => {
+                    // Inherited auto-label: no-op — only the source can clear it.
+                }
+                None => {} // Nothing to do.
+            }
+        } else {
+            db_set_coin_label(&core.conn, &outpoint, &label, false, None)?;
+            propagate_label(
+                &core.conn,
+                &core.wallet,
+                EntityType::Coin,
+                &outpoint,
+                &label,
+            )?;
+        }
+        Ok(())
     }
 
     /// Return the current best block height from the local chain (0 if not yet synced).
@@ -1287,6 +1485,174 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         db_set_path_label(&core.conn, rust_id, &label)
+    }
+
+    /// Repropagate all existing explicit labels to their related entities.
+    /// Useful after imports or migrations. Clears all auto labels first.
+    #[frb(sync)]
+    pub fn repropagate_all_labels(&self) -> Result<()> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+
+        // Clear all auto-labels (identified by a non-NULL source_entity).
+        core.conn
+            .execute("DELETE FROM tx_labels WHERE source_entity IS NOT NULL", [])?;
+        core.conn.execute(
+            "DELETE FROM address_labels WHERE source_entity IS NOT NULL",
+            [],
+        )?;
+        core.conn.execute(
+            "DELETE FROM coin_labels WHERE source_entity IS NOT NULL",
+            [],
+        )?;
+
+        // Re-propagate only explicit labels.
+        let tx_labels = get_all_tx_labels_with_flag(&core.conn)?;
+        for (txid, (label, is_auto)) in tx_labels {
+            if !is_auto && !label.is_empty() {
+                propagate_label(&core.conn, &core.wallet, EntityType::Tx, &txid, &label)?;
+            }
+        }
+
+        let address_labels = get_all_address_labels_with_flag(&core.conn)?;
+        for (address, (label, is_auto)) in address_labels {
+            if !is_auto && !label.is_empty() {
+                propagate_label(
+                    &core.conn,
+                    &core.wallet,
+                    EntityType::Address,
+                    &address,
+                    &label,
+                )?;
+            }
+        }
+
+        let coin_labels = get_all_coin_labels_with_flag(&core.conn)?;
+        for (outpoint, (label, is_auto)) in coin_labels {
+            if !is_auto && !label.is_empty() {
+                propagate_label(
+                    &core.conn,
+                    &core.wallet,
+                    EntityType::Coin,
+                    &outpoint,
+                    &label,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // BIP-329 label import / export
+    // -----------------------------------------------------------------------
+
+    /// Export all explicit (non-auto) labels to BIP-329 JSONL format.
+    #[frb(sync)]
+    pub fn export_bip329(&self) -> Result<Vec<String>> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let conn = &core.conn;
+        let mut lines: Vec<String> = Vec::new();
+
+        for (txid, (label, is_auto)) in get_all_tx_labels_with_flag(conn)? {
+            if !is_auto && !label.is_empty() {
+                lines.push(serde_json::json!({"type":"tx","ref":txid,"label":label}).to_string());
+            }
+        }
+        for (address, (label, is_auto)) in get_all_address_labels_with_flag(conn)? {
+            if !is_auto && !label.is_empty() {
+                lines.push(
+                    serde_json::json!({"type":"addr","ref":address,"label":label}).to_string(),
+                );
+            }
+        }
+        for (outpoint, (label, is_auto)) in get_all_coin_labels_with_flag(conn)? {
+            if !is_auto && !label.is_empty() {
+                lines.push(
+                    serde_json::json!({"type":"output","ref":outpoint,"label":label}).to_string(),
+                );
+            }
+        }
+
+        // Export key labels as "xpub" type using mfp→xpub map from descriptor.
+        let wallet_info = read_wallet_info(conn)?;
+        let mfp_to_xpub = extract_xpub_mfp_map(&wallet_info.descriptor);
+        for (mfp, label) in get_all_key_labels(conn)? {
+            if !label.is_empty() {
+                if let Some(xpub) = mfp_to_xpub.get(&mfp) {
+                    lines.push(
+                        serde_json::json!({"type":"xpub","ref":xpub,"label":label}).to_string(),
+                    );
+                }
+            }
+        }
+
+        Ok(lines)
+    }
+
+    /// Import labels from BIP-329 JSONL. Sets all as explicit, then re-propagates.
+    /// Malformed lines and unknown types are silently skipped.
+    #[frb(sync)]
+    pub fn import_bip329(&self, lines: Vec<String>) -> Result<()> {
+        // Phase 1: apply under lock
+        {
+            let core = self
+                .inner
+                .lock()
+                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let conn = &core.conn;
+
+            // Build xpub→mfp reverse map from descriptor.
+            let wallet_info = read_wallet_info(conn)?;
+            let xpub_to_mfp: std::collections::HashMap<String, String> =
+                extract_xpub_mfp_map(&wallet_info.descriptor)
+                    .into_iter()
+                    .map(|(mfp, xpub)| (xpub, mfp))
+                    .collect();
+
+            for line in &lines {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let Ok(obj) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+                    continue;
+                };
+                let Some(t) = obj.get("type").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                let Some(r) = obj.get("ref").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                let Some(l) = obj.get("label").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                if l.is_empty() {
+                    continue;
+                }
+                match t {
+                    "tx" => db_set_tx_label(conn, r, l, false, None)?,
+                    "addr" => db_set_address_label(conn, r, l, false, None)?,
+                    "output" => db_set_coin_label(conn, r, l, false, None)?,
+                    "xpub" => {
+                        if let Some(mfp) = xpub_to_mfp.get(r) {
+                            db_set_key_label(conn, mfp, l)?
+                        } else {
+                            continue; // xpub not in this wallet's descriptor — ignore
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+        } // lock released
+
+        // Phase 2: re-propagate (re-acquires lock internally)
+        self.repropagate_all_labels()
     }
 
     // -----------------------------------------------------------------------

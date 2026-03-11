@@ -404,10 +404,10 @@ pub struct APIAddress {
     pub tx_count: u32,
     /// Explicit user-set label (use for editing).
     pub label: Option<String>,
-    /// Display label — own label if set, otherwise inherited from a related entity.
+    /// Display label — own label if set, otherwise propagated from a related entity.
     pub effective_label: Option<String>,
-    /// True when `effective_label` comes from a related entity (tx or UTXO), not this address.
-    pub label_is_inherited: bool,
+    /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+    pub is_auto: bool,
 }
 
 ////////////////
@@ -434,10 +434,10 @@ pub struct APITransaction {
     pub confirmation_time: Option<u64>, // Unix timestamp; None = unconfirmed
     /// Explicit user-set label (use for editing).
     pub label: Option<String>,
-    /// Display label — own label if set, otherwise inherited from a related entity.
+    /// Display label — own label if set, otherwise propagated from a related entity.
     pub effective_label: Option<String>,
-    /// True when `effective_label` comes from a related entity (address or UTXO), not this tx.
-    pub label_is_inherited: bool,
+    /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+    pub is_auto: bool,
 }
 
 /////////////////////////
@@ -467,8 +467,8 @@ pub struct APIUtxo {
     pub label: Option<String>,
     /// Display label — own label if set, otherwise inherited from a related entity.
     pub effective_label: Option<String>,
-    /// True when `effective_label` comes from a related entity (address or tx), not this UTXO.
-    pub label_is_inherited: bool,
+    /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
+    pub is_auto: bool,
 }
 
 ////////////////////

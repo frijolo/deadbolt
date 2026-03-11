@@ -120,10 +120,17 @@
   "copyToClipboard": "Copiar al portapapeles",
   "saveToDownloads": "Guardar en Descargas",
   "saveAs": "Guardar como…",
-  "shareFile": "Compartir",
+  "shareFile": "Compartir archivo",
+  "shareText": "Compartir",
   "showQrCode": "Mostrar código QR",
   "scanQrCode": "Escanear código QR",
   "fromFile": "Desde archivo",
+  "showAsText": "Mostrar como texto",
+  "pasteFromClipboard": "Pegar desde portapapeles",
+  "pasteText": "Pegar texto",
+  "pasteTextHint": "Pega tu contenido aquí…",
+  "clipboardEmpty": "El portapapeles está vacío",
+  "importAction": "Importar",
   "qrNotFoundInImage": "No se encontró código QR en la imagen",
   "cameraError": "Cámara no disponible en esta plataforma",
   "importFromQrImage": "Importar imagen QR",
@@ -571,5 +578,11 @@
   "relatedAddresses": "Direcciones de salida",
   "inputAddresses": "Direcciones de entrada",
   "relatedTransactions": "Transacciones relacionadas",
-  "creatingTransaction": "Transacción creadora"
+  "creatingTransaction": "Transacción creadora",
+
+  "exportBip329Button": "Exportar etiquetas (BIP-329)",
+  "importBip329Button": "Importar etiquetas (BIP-329)",
+  "exportBip329Empty": "No hay etiquetas explícitas para exportar",
+  "exportBip329Copied": "Etiquetas copiadas",
+  "importBip329Success": "Etiquetas importadas"
 }

@@ -7,7 +7,9 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_addr_utxo_map`, `build_tx_utxo_map`, `first_inherited`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`
+// These functions are ignored because they are not marked as `pub`: `build_addr_utxo_map`, `build_tx_utxo_map`, `cascade_delete_label`, `extract_xpub_mfp_map`, `propagate_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({
@@ -127,6 +129,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Delete a saved PSBT by id.
   void deletePsbt({required PlatformInt64 id});
 
+  /// Export all explicit (non-auto) labels to BIP-329 JSONL format.
+  List<String> exportBip329();
+
   /// Return full detail for an address: the address plus its unspent UTXOs.
   Future<APIAddressDetails> getAddressDetails({required String address});
 
@@ -155,7 +160,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required int pageSize,
   });
 
-  /// Return full detail for a transaction: the tx plus its unspent output UTXOs.
+  /// Return full detail for a transaction: the tx plus related UTXOs, input addresses,
+  /// and output addresses. External input transactions not in BDK's graph are fetched
+  /// from Electrum (using the URL stored from the last sync).
   Future<APITxDetails> getTxDetails({required String txid});
 
   /// Return full detail for a UTXO: the UTXO plus the explicit labels of its cluster peers.
@@ -166,6 +173,10 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
   Future<List<APIUtxo>> getUtxos();
+
+  /// Import labels from BIP-329 JSONL. Sets all as explicit, then re-propagates.
+  /// Malformed lines and unknown types are silently skipped.
+  void importBip329({required List<String> lines});
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
   Future<List<APIPsbtInfo>> listPsbts();
@@ -179,6 +190,10 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required String signedPsbtBase64,
   });
 
+  /// Repropagate all existing explicit labels to their related entities.
+  /// Useful after imports or migrations. Clears all auto labels first.
+  void repropagateAllLabels();
+
   /// Force a full scan regardless of sync history (re-discovers all addresses).
   Future<void> rescan({required String electrumUrl});
 
@@ -187,9 +202,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   int revealMoreAddresses({required APIKeychain keychain, required int count});
 
   /// Persist a label for an address. Pass an empty string to remove it.
+  /// Automatically propagates to related entities (transactions and UTXOs).
+  /// Clearing an inherited (auto) label is a no-op.
   void setAddressLabel({required String address, required String label});
 
   /// Persist a label for a coin (UTXO) by outpoint. Pass an empty string to remove it.
+  /// Automatically propagates to related entities (transaction and address).
+  /// Clearing an inherited (auto) label is a no-op.
   void setCoinLabel({
     required String txid,
     required int vout,
@@ -208,6 +227,8 @@ abstract class ApiWallet implements RustOpaqueInterface {
   void setPathLabel({required int rustId, required String label});
 
   /// Persist a label for a transaction. Pass an empty string to remove it.
+  /// Automatically propagates to related entities (addresses and UTXOs).
+  /// Clearing an inherited (auto) label is a no-op.
   void setTxLabel({required String txid, required String label});
 
   /// Sync with Electrum, persist, and update last_synced_at.
