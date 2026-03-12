@@ -586,9 +586,15 @@
   "relatedTransactions": "Related transactions",
   "creatingTransaction": "Creating transaction",
 
-  "exportBip329Button": "Export labels (BIP-329)",
-  "importBip329Button": "Import labels (BIP-329)",
+  "exportBip329Button": "Export",
+  "importBip329Button": "Import",
   "exportBip329Empty": "No explicit labels to export",
   "exportBip329Copied": "Labels copied",
-  "importBip329Success": "Labels imported"
+  "importBip329Success": "Labels imported",
+  "exportLabelsOption": "Labels (BIP-329)",
+
+  "overviewTab": "Overview",
+  "walletReceiveButton": "Receive",
+  "noUnusedReceiveAddress": "No unused receive address found. Try syncing first.",
+  "receiveNextAddress": "Next address"
 }

@@ -2688,13 +2688,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIRelatedAddress dco_decode_api_related_address(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return APIRelatedAddress(
       address: dco_decode_String(arr[0]),
       valueSat: dco_decode_opt_box_autoadd_u_64(arr[1]),
-      label: dco_decode_opt_String(arr[2]),
-      isMine: dco_decode_bool(arr[3]),
+      effectiveLabel: dco_decode_opt_String(arr[2]),
+      isAuto: dco_decode_bool(arr[3]),
+      isMine: dco_decode_bool(arr[4]),
     );
   }
 
@@ -2702,15 +2703,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIRelatedTx dco_decode_api_related_tx(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return APIRelatedTx(
       txid: dco_decode_String(arr[0]),
-      label: dco_decode_opt_String(arr[1]),
-      confirmationHeight: dco_decode_opt_box_autoadd_u_32(arr[2]),
-      addrReceived: dco_decode_u_64(arr[3]),
-      addrSpent: dco_decode_u_64(arr[4]),
-      fee: dco_decode_opt_box_autoadd_u_64(arr[5]),
+      effectiveLabel: dco_decode_opt_String(arr[1]),
+      isAuto: dco_decode_bool(arr[2]),
+      confirmationHeight: dco_decode_opt_box_autoadd_u_32(arr[3]),
+      addrReceived: dco_decode_u_64(arr[4]),
+      addrSpent: dco_decode_u_64(arr[5]),
+      fee: dco_decode_opt_box_autoadd_u_64(arr[6]),
     );
   }
 
@@ -2725,8 +2727,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       vout: dco_decode_u_32(arr[1]),
       address: dco_decode_String(arr[2]),
       valueSat: dco_decode_u_64(arr[3]),
-      utxoLabel: dco_decode_opt_String(arr[4]),
-      addressLabel: dco_decode_opt_String(arr[5]),
+      effectiveLabel: dco_decode_opt_String(arr[4]),
+      isAuto: dco_decode_bool(arr[5]),
     );
   }
 
@@ -2856,12 +2858,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIUtxoDetails dco_decode_api_utxo_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return APIUtxoDetails(
       utxo: dco_decode_api_utxo(arr[0]),
-      addressLabel: dco_decode_opt_String(arr[1]),
-      creatingTx: dco_decode_api_related_tx(arr[2]),
+      addressEffectiveLabel: dco_decode_opt_String(arr[1]),
+      addressLabelIsAuto: dco_decode_bool(arr[2]),
+      creatingTx: dco_decode_api_related_tx(arr[3]),
     );
   }
 
@@ -3444,12 +3447,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_address = sse_decode_String(deserializer);
     var var_valueSat = sse_decode_opt_box_autoadd_u_64(deserializer);
-    var var_label = sse_decode_opt_String(deserializer);
+    var var_effectiveLabel = sse_decode_opt_String(deserializer);
+    var var_isAuto = sse_decode_bool(deserializer);
     var var_isMine = sse_decode_bool(deserializer);
     return APIRelatedAddress(
       address: var_address,
       valueSat: var_valueSat,
-      label: var_label,
+      effectiveLabel: var_effectiveLabel,
+      isAuto: var_isAuto,
       isMine: var_isMine,
     );
   }
@@ -3458,14 +3463,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIRelatedTx sse_decode_api_related_tx(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_txid = sse_decode_String(deserializer);
-    var var_label = sse_decode_opt_String(deserializer);
+    var var_effectiveLabel = sse_decode_opt_String(deserializer);
+    var var_isAuto = sse_decode_bool(deserializer);
     var var_confirmationHeight = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_addrReceived = sse_decode_u_64(deserializer);
     var var_addrSpent = sse_decode_u_64(deserializer);
     var var_fee = sse_decode_opt_box_autoadd_u_64(deserializer);
     return APIRelatedTx(
       txid: var_txid,
-      label: var_label,
+      effectiveLabel: var_effectiveLabel,
+      isAuto: var_isAuto,
       confirmationHeight: var_confirmationHeight,
       addrReceived: var_addrReceived,
       addrSpent: var_addrSpent,
@@ -3480,15 +3487,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_vout = sse_decode_u_32(deserializer);
     var var_address = sse_decode_String(deserializer);
     var var_valueSat = sse_decode_u_64(deserializer);
-    var var_utxoLabel = sse_decode_opt_String(deserializer);
-    var var_addressLabel = sse_decode_opt_String(deserializer);
+    var var_effectiveLabel = sse_decode_opt_String(deserializer);
+    var var_isAuto = sse_decode_bool(deserializer);
     return APIRelatedUtxo(
       txid: var_txid,
       vout: var_vout,
       address: var_address,
       valueSat: var_valueSat,
-      utxoLabel: var_utxoLabel,
-      addressLabel: var_addressLabel,
+      effectiveLabel: var_effectiveLabel,
+      isAuto: var_isAuto,
     );
   }
 
@@ -3650,11 +3657,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIUtxoDetails sse_decode_api_utxo_details(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_utxo = sse_decode_api_utxo(deserializer);
-    var var_addressLabel = sse_decode_opt_String(deserializer);
+    var var_addressEffectiveLabel = sse_decode_opt_String(deserializer);
+    var var_addressLabelIsAuto = sse_decode_bool(deserializer);
     var var_creatingTx = sse_decode_api_related_tx(deserializer);
     return APIUtxoDetails(
       utxo: var_utxo,
-      addressLabel: var_addressLabel,
+      addressEffectiveLabel: var_addressEffectiveLabel,
+      addressLabelIsAuto: var_addressLabelIsAuto,
       creatingTx: var_creatingTx,
     );
   }
@@ -4357,7 +4366,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.address, serializer);
     sse_encode_opt_box_autoadd_u_64(self.valueSat, serializer);
-    sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_String(self.effectiveLabel, serializer);
+    sse_encode_bool(self.isAuto, serializer);
     sse_encode_bool(self.isMine, serializer);
   }
 
@@ -4365,7 +4375,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_api_related_tx(APIRelatedTx self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.txid, serializer);
-    sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_String(self.effectiveLabel, serializer);
+    sse_encode_bool(self.isAuto, serializer);
     sse_encode_opt_box_autoadd_u_32(self.confirmationHeight, serializer);
     sse_encode_u_64(self.addrReceived, serializer);
     sse_encode_u_64(self.addrSpent, serializer);
@@ -4382,8 +4393,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.vout, serializer);
     sse_encode_String(self.address, serializer);
     sse_encode_u_64(self.valueSat, serializer);
-    sse_encode_opt_String(self.utxoLabel, serializer);
-    sse_encode_opt_String(self.addressLabel, serializer);
+    sse_encode_opt_String(self.effectiveLabel, serializer);
+    sse_encode_bool(self.isAuto, serializer);
   }
 
   @protected
@@ -4495,7 +4506,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_api_utxo(self.utxo, serializer);
-    sse_encode_opt_String(self.addressLabel, serializer);
+    sse_encode_opt_String(self.addressEffectiveLabel, serializer);
+    sse_encode_bool(self.addressLabelIsAuto, serializer);
     sse_encode_api_related_tx(self.creatingTx, serializer);
   }
 

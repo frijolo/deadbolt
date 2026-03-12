@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
@@ -117,6 +118,10 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) {
     switch (action) {
+      case _WalletMenuAction.send:
+        _openSendFlow(context, state);
+      case _WalletMenuAction.receive:
+        _openReceiveFlow(context, state);
       case _WalletMenuAction.sync:
         final electrumUrl = context
             .read<SettingsCubit>()
@@ -126,10 +131,37 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       case _WalletMenuAction.rescan:
         _confirmRescan(context, state);
       case _WalletMenuAction.exportLabels:
-        _exportLabels(context, state);
+        _exportWithChoice(context, state);
       case _WalletMenuAction.importLabels:
-        _importLabels(context, state);
+        _importWithChoice(context, state);
     }
+  }
+
+  Future<void> _openReceiveFlow(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final cubit = context.read<WalletDetailCubit>();
+    await cubit.ensureReceiveAddressLoaded();
+    if (!context.mounted) return;
+    final fresh = cubit.state;
+    if (fresh is! WalletDetailLoaded) return;
+    final unused = fresh.receiveAddresses
+        .where((a) => !a.isUsed && (a.label == null || a.label!.isEmpty))
+        .cast<APIAddress?>()
+        .firstOrNull;
+    if (!context.mounted) return;
+    if (unused == null) {
+      showErrorToast(context, context.l10n.noUnusedReceiveAddress);
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: cubit,
+        child: _ReceiveDialog(address: unused),
+      ),
+    );
   }
 
   Future<void> _confirmRescan(
@@ -194,6 +226,64 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     );
   }
 
+  Future<void> _exportDescriptor(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final l10n = context.l10n;
+    final safeName = state.walletInfo.name
+        .replaceAll(RegExp(r'[^\w\-]'), '_')
+        .toLowerCase();
+    showTextExportSheet(
+      context,
+      text: state.walletInfo.descriptor,
+      fileName: '${safeName}_descriptor',
+      copiedMessage: l10n.copiedToClipboard,
+      fileExtension: 'txt',
+    );
+  }
+
+  Future<void> _exportWithChoice(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final l10n = context.l10n;
+    final choice = await showDialog<_ExportChoice>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.exportBip329Button),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.labels),
+            child: Row(
+              children: [
+                const Icon(Icons.label_outline, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.exportLabelsOption),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.descriptor),
+            child: Row(
+              children: [
+                const Icon(Icons.schema_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.descriptorTabLabel),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    if (choice == _ExportChoice.labels) {
+      _exportLabels(context, state);
+    } else {
+      _exportDescriptor(context, state);
+    }
+  }
+
   Future<void> _importLabels(
     BuildContext context,
     WalletDetailLoaded state,
@@ -204,6 +294,33 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     if (!context.mounted) return;
     final ok = await context.read<WalletDetailCubit>().importBip329Labels(content);
     if (context.mounted && ok) showSuccessToast(context, l10n.importBip329Success);
+  }
+
+  Future<void> _importWithChoice(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final l10n = context.l10n;
+    final choice = await showDialog<_ImportChoice>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.importBip329Button),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_ImportChoice.labels),
+            child: Row(
+              children: [
+                const Icon(Icons.label_outline, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.exportLabelsOption),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    _importLabels(context, state);
   }
 
   Widget _buildLoaded(BuildContext context, WalletDetailLoaded state) {
@@ -225,6 +342,27 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             onSelected: (action) => _onMenuAction(context, action, state),
             itemBuilder: (_) => [
               PopupMenuItem(
+                value: _WalletMenuAction.send,
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_upward, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.walletSendButton),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: _WalletMenuAction.receive,
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_downward, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.walletReceiveButton),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
                 value: _WalletMenuAction.sync,
                 enabled: !state.isSyncing,
                 child: Row(
@@ -245,6 +383,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                   ],
                 ),
               ),
+              const PopupMenuDivider(),
               PopupMenuItem(
                 value: _WalletMenuAction.exportLabels,
                 child: Row(
@@ -271,18 +410,18 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       ),
       body: SafeArea(
         child: switch (state.selectedTab) {
-          0 => _TransactionsView(
+          0 => _OverviewView(
             state: state,
             onSendTap: () => _openSendFlow(context, state),
+            onReceiveTap: () => _openReceiveFlow(context, state),
+            onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+            onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
+            onExportLabelsTap: () => _exportWithChoice(context, state),
+            onImportLabelsTap: () => _importWithChoice(context, state),
           ),
-          1 => _AddressesView(
-            state: state,
-            onSendTap: () => _openSendFlow(context, state),
-          ),
-          2 => _CoinsView(
-            state: state,
-            onSendTap: () => _openSendFlow(context, state),
-          ),
+          1 => _TransactionsView(state: state),
+          2 => _AddressesView(state: state),
+          3 => _CoinsView(state: state),
           _ => _DescriptorView(state: state),
         },
       ),
@@ -291,6 +430,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         onDestinationSelected: (index) =>
             context.read<WalletDetailCubit>().selectTab(index),
         destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: l10n.overviewTab,
+          ),
           NavigationDestination(
             icon: const Icon(Icons.swap_horiz_outlined),
             selectedIcon: const Icon(Icons.swap_horiz),
@@ -318,14 +462,457 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Transactions view (unchanged content, extracted to widget)
+// Overview view (tab 0) — balance + action buttons
+// ─────────────────────────────────────────────────────────────
+
+class _OverviewView extends StatelessWidget {
+  final WalletDetailLoaded state;
+  final VoidCallback onSendTap;
+  final VoidCallback onReceiveTap;
+  final VoidCallback onSyncTap;
+  final VoidCallback onRescanTap;
+  final VoidCallback onExportLabelsTap;
+  final VoidCallback onImportLabelsTap;
+
+  const _OverviewView({
+    required this.state,
+    required this.onSendTap,
+    required this.onReceiveTap,
+    required this.onSyncTap,
+    required this.onRescanTap,
+    required this.onExportLabelsTap,
+    required this.onImportLabelsTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final balance = state.balance;
+    final walletInfo = state.walletInfo;
+    final totalSats =
+        balance.confirmed +
+        balance.trustedPending +
+        balance.untrustedPending +
+        balance.immature;
+    final btcString = (totalSats.toDouble() / 100000000.0).toStringAsFixed(8);
+    final lastSynced = walletInfo.lastSyncedAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
+        : null;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // ── Balance card ────────────────────────────────────────────────────
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.balanceBtc(btcString),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _BalanceChip(
+                      label: l10n.balanceConfirmed,
+                      sats: balance.confirmed.toInt(),
+                    ),
+                    if (balance.trustedPending + balance.untrustedPending >
+                        BigInt.zero)
+                      _BalanceChip(
+                        label: l10n.balancePending,
+                        sats: (balance.trustedPending +
+                                balance.untrustedPending)
+                            .toInt(),
+                        dimmed: true,
+                      ),
+                    if (balance.immature > BigInt.zero)
+                      _BalanceChip(
+                        label: l10n.balanceImmature,
+                        sats: balance.immature.toInt(),
+                        dimmed: true,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        lastSynced != null
+                            ? l10n.lastSynced(_formatOverviewDateTime(lastSynced))
+                            : l10n.notYetSynced,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withAlpha(138),
+                        ),
+                      ),
+                    ),
+                    if (state.isSyncing)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ── Primary actions ─────────────────────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.arrow_upward,
+                label: l10n.walletSendButton,
+                filled: true,
+                onTap: onSendTap,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.arrow_downward,
+                label: l10n.walletReceiveButton,
+                filled: true,
+                onTap: onReceiveTap,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ── Secondary actions ───────────────────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.sync,
+                label: l10n.syncButton,
+                enabled: !state.isSyncing,
+                onTap: onSyncTap,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.manage_search,
+                label: l10n.rescanButton,
+                onTap: onRescanTap,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.upload_outlined,
+                label: l10n.exportBip329Button,
+                onTap: onExportLabelsTap,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.download_outlined,
+                label: l10n.importBip329Button,
+                onTap: onImportLabelsTap,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _formatOverviewDateTime(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year} '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    this.filled = false,
+    this.enabled = true,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: filled ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: enabled
+                    ? (filled
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant)
+                    : scheme.onSurface.withAlpha(97),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: filled ? FontWeight.bold : FontWeight.normal,
+                  color: enabled
+                      ? (filled
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant)
+                      : scheme.onSurface.withAlpha(97),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Receive dialog
+// ─────────────────────────────────────────────────────────────
+
+class _ReceiveDialog extends StatefulWidget {
+  final APIAddress address;
+
+  const _ReceiveDialog({required this.address});
+
+  @override
+  State<_ReceiveDialog> createState() => _ReceiveDialogState();
+}
+
+class _ReceiveDialogState extends State<_ReceiveDialog> {
+  late APIAddress _address;
+  late TextEditingController _labelController;
+  bool _navigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _address = widget.address;
+    _labelController = TextEditingController(text: _address.label ?? '');
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  bool _isEffectivelyUsed(APIAddress addr) =>
+      addr.isUsed || (addr.label?.isNotEmpty == true);
+
+  Future<void> _goToNext() async {
+    if (_navigating) return;
+    setState(() => _navigating = true);
+    final cubit = context.read<WalletDetailCubit>();
+    await cubit.ensureReceiveAddressLoaded();
+    if (!mounted) return;
+
+    var s = cubit.state;
+    if (s is! WalletDetailLoaded) {
+      setState(() => _navigating = false);
+      return;
+    }
+
+    APIAddress? findNext(List<APIAddress> addrs) => addrs
+        .where((a) => !_isEffectivelyUsed(a) && a.index > _address.index)
+        .cast<APIAddress?>()
+        .firstOrNull;
+
+    var next = findNext(s.receiveAddresses);
+    if (next == null) {
+      await cubit.revealMoreAddresses(APIKeychain.external_);
+      if (!mounted) return;
+      s = cubit.state;
+      if (s is WalletDetailLoaded) next = findNext(s.receiveAddresses);
+    }
+
+    if (!mounted) return;
+    if (next != null) {
+      setState(() {
+        _address = next!;
+        _labelController.text = next.label ?? '';
+        _navigating = false;
+      });
+    } else {
+      setState(() => _navigating = false);
+      showErrorToast(context, context.l10n.noUnusedReceiveAddress);
+    }
+  }
+
+  void _saveLabel(String label) {
+    context.read<WalletDetailCubit>().setAddressLabel(
+      _address.address,
+      label,
+      APIKeychain.external_,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+      title: Row(
+        children: [
+          Expanded(child: Text(l10n.walletReceiveButton)),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.cancel,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // QR code
+            Center(
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: QrImageView(
+                  data: _address.address,
+                  version: QrVersions.auto,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Index label
+            Text(
+              l10n.addressIndex(_address.index),
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.onSurface.withAlpha(138),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Address text
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                _address.address,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Label field
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _labelController,
+                    decoration: InputDecoration(
+                      labelText: l10n.addressLabelTitle,
+                      hintText: l10n.addressLabelHint,
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onSubmitted: _saveLabel,
+                    onEditingComplete: () =>
+                        _saveLabel(_labelController.text.trim()),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.check, size: 20),
+                  tooltip: l10n.save,
+                  onPressed: () => _saveLabel(_labelController.text.trim()),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton.icon(
+          icon: const Icon(Icons.copy, size: 18),
+          label: Text(l10n.copyToClipboard),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: _address.address));
+            showSuccessToast(context, l10n.copiedToClipboard);
+          },
+        ),
+        _navigating
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : TextButton.icon(
+                icon: const Icon(Icons.skip_next, size: 18),
+                label: Text(l10n.receiveNextAddress),
+                onPressed: _goToNext,
+              ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Transactions view (tab 1)
 // ─────────────────────────────────────────────────────────────
 
 class _TransactionsView extends StatelessWidget {
   final WalletDetailLoaded state;
-  final VoidCallback? onSendTap;
 
-  const _TransactionsView({required this.state, this.onSendTap});
+  const _TransactionsView({required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -335,14 +922,6 @@ class _TransactionsView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(
-          balance: state.balance,
-          walletInfo: state.walletInfo,
-          isSyncing: state.isSyncing,
-          network: network,
-          onSendTap: onSendTap,
-        ),
-        const SizedBox(height: 16),
         Text(
           l10n.transactionsSection,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -405,9 +984,8 @@ class _TransactionsView extends StatelessWidget {
 
 class _AddressesView extends StatelessWidget {
   final WalletDetailLoaded state;
-  final VoidCallback? onSendTap;
 
-  const _AddressesView({required this.state, this.onSendTap});
+  const _AddressesView({required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -416,57 +994,37 @@ class _AddressesView extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       initialIndex: state.selectedAddressKeychain,
-      child: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                children: [
-                  _BalanceCard(
-                    balance: state.balance,
-                    walletInfo: state.walletInfo,
-                    isSyncing: state.isSyncing,
-                    network: state.walletInfo.network,
-                    onSendTap: onSendTap,
-                  ),
-                ],
-              ),
+      child: Column(
+        children: [
+          TabBar(
+            onTap: (index) => context
+                .read<WalletDetailCubit>()
+                .selectAddressKeychain(index),
+            tabs: [
+              Tab(text: l10n.receiveAddresses),
+              Tab(text: l10n.changeAddresses),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _AddressList(
+                  addresses: state.receiveAddresses,
+                  loaded: state.receiveAddressesLoaded,
+                  keychain: APIKeychain.external_,
+                  network: state.walletInfo.network,
+                ),
+                _AddressList(
+                  addresses: state.changeAddresses,
+                  loaded: state.changeAddressesLoaded,
+                  keychain: APIKeychain.internal,
+                  network: state.walletInfo.network,
+                ),
+              ],
             ),
           ),
         ],
-        body: Column(
-          children: [
-            TabBar(
-              onTap: (index) => context
-                  .read<WalletDetailCubit>()
-                  .selectAddressKeychain(index),
-              tabs: [
-                Tab(text: l10n.receiveAddresses),
-                Tab(text: l10n.changeAddresses),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _AddressList(
-                    addresses: state.receiveAddresses,
-                    loaded: state.receiveAddressesLoaded,
-                    keychain: APIKeychain.external_,
-                    network: state.walletInfo.network,
-                  ),
-                  _AddressList(
-                    addresses: state.changeAddresses,
-                    loaded: state.changeAddressesLoaded,
-                    keychain: APIKeychain.internal,
-                    network: state.walletInfo.network,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -715,20 +1273,9 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        address.label?.isNotEmpty == true
-                            ? address.label!
-                            : '—',
-                        style: TextStyle(
-                          color: address.label?.isNotEmpty == true
-                              ? null
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withAlpha(97),
-                          fontStyle: address.label?.isNotEmpty == true
-                              ? FontStyle.normal
-                              : FontStyle.italic,
-                        ),
+                      child: _EffectiveLabelText(
+                        effectiveLabel: address.effectiveLabel,
+                        isAuto: address.isAuto,
                       ),
                     ),
                     IconButton(
@@ -822,41 +1369,7 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                         ),
                         const SizedBox(height: 6),
                         for (final u in relatedUtxos)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.toll, size: 14),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      OutpointText(txid: u.txid, vout: u.vout),
-                                      if (u.utxoLabel?.isNotEmpty == true)
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.label, size: 10),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              u.utxoLabel!,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _RelatedCoinRow(utxo: u),
                       ],
                       if (relatedTxs.isNotEmpty) ...[
                         const Divider(height: 20),
@@ -991,9 +1504,8 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
 
 class _CoinsView extends StatelessWidget {
   final WalletDetailLoaded state;
-  final VoidCallback? onSendTap;
 
-  const _CoinsView({required this.state, this.onSendTap});
+  const _CoinsView({required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -1010,14 +1522,6 @@ class _CoinsView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _BalanceCard(
-          balance: state.balance,
-          walletInfo: state.walletInfo,
-          isSyncing: state.isSyncing,
-          network: network,
-          onSendTap: onSendTap,
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -1294,18 +1798,9 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        utxo.label?.isNotEmpty == true ? utxo.label! : '—',
-                        style: TextStyle(
-                          color: utxo.label?.isNotEmpty == true
-                              ? null
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withAlpha(97),
-                          fontStyle: utxo.label?.isNotEmpty == true
-                              ? FontStyle.normal
-                              : FontStyle.italic,
-                        ),
+                      child: _EffectiveLabelText(
+                        effectiveLabel: utxo.effectiveLabel,
+                        isAuto: utxo.isAuto,
                       ),
                     ),
                     IconButton(
@@ -1367,10 +1862,54 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                   ),
                 ),
               _DetailRow(
+                label: l10n.coinOutpoint,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutpointText(
+                          txid: utxo.txid, vout: utxo.vout, truncate: false),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      tooltip: l10n.copyToClipboard,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: outpoint));
+                        showSuccessToast(context, l10n.copiedToClipboard);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              _DetailRow(
                 label: l10n.coinAddress,
                 child: Row(
                   children: [
-                    Expanded(child: ColoredAddressText(address: utxo.address)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FutureBuilder<APIUtxoDetails>(
+                            future: _future,
+                            builder: (ctx, snap) {
+                              if (!snap.hasData) return const SizedBox.shrink();
+                              final lbl = snap.data!.addressEffectiveLabel;
+                              if (lbl == null || lbl.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: _EffectiveLabelText(
+                                  effectiveLabel: lbl,
+                                  isAuto: snap.data!.addressLabelIsAuto,
+                                ),
+                              );
+                            },
+                          ),
+                          ColoredAddressText(address: utxo.address),
+                        ],
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.share_outlined, size: 16),
                       tooltip: l10n.copyToClipboard,
@@ -1385,25 +1924,6 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                   ],
                 ),
               ),
-              _DetailRow(
-                label: l10n.coinOutpoint,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutpointText(txid: utxo.txid, vout: utxo.vout),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_outlined, size: 16),
-                      tooltip: l10n.copyToClipboard,
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: outpoint));
-                        showSuccessToast(context, l10n.copiedToClipboard);
-                      },
-                    ),
-                  ],
-                ),
-              ),
               // ── Related entities ───────────────────────────────────────────
               FutureBuilder<APIUtxoDetails>(
                 future: _future,
@@ -1412,96 +1932,22 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                     return const LinearProgressIndicator();
                   }
                   if (!snapshot.hasData) return const SizedBox.shrink();
-                  final details = snapshot.data!;
-                  final addrLabel = details.addressLabel;
-                  final ctxo = details.creatingTx;
-                  final ctxoNet =
-                      ctxo.addrReceived.toInt() - ctxo.addrSpent.toInt();
+                  final ctxo = snapshot.data!.creatingTx;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Divider(height: 20),
-                      if (addrLabel?.isNotEmpty == true) ...[
-                        Text(
-                          l10n.relatedAddressLabel,
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withAlpha(178),
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.label, size: 12),
-                            const SizedBox(width: 4),
-                            Text(addrLabel!),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
                       Text(
-                        l10n.creatingTransaction,
+                        l10n.relatedTransactions,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withAlpha(178),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withAlpha(178),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.receipt_long, size: 14),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                OutpointText(txid: ctxo.txid),
-                                if (ctxo.label?.isNotEmpty == true)
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.label, size: 10),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        ctxo.label!,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${ctxoNet >= 0 ? '+' : ''}${BitcoinFormatter.formatNum(ctxoNet)} sats',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: ctxoNet >= 0
-                                      ? Colors.green
-                                      : Colors.orange,
-                                ),
-                              ),
-                              Text(
-                                ctxo.confirmationHeight != null
-                                    ? '${ctxo.confirmationHeight}'
-                                    : l10n.txUnconfirmed,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: ctxo.confirmationHeight != null
-                                      ? Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface.withAlpha(140)
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 6),
+                      _RelatedTxRow(tx: ctxo),
                     ],
                   );
                 },
@@ -1636,159 +2082,6 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
 // ─────────────────────────────────────────────────────────────
 // Shared widgets (balance card, sync row, tx tile, etc.)
 // ─────────────────────────────────────────────────────────────
-
-class _BalanceCard extends StatelessWidget {
-  final APIBalance balance;
-  final APIWalletInfo walletInfo;
-  final bool isSyncing;
-  final APINetwork network;
-  final VoidCallback? onSendTap;
-
-  const _BalanceCard({
-    required this.balance,
-    required this.walletInfo,
-    required this.isSyncing,
-    required this.network,
-    this.onSendTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final settings = context.watch<SettingsCubit>().state;
-    final electrumUrl = settings.electrumUrlForNetwork(network);
-
-    final totalSats =
-        balance.confirmed +
-        balance.trustedPending +
-        balance.untrustedPending +
-        balance.immature;
-    final btcString = (totalSats.toDouble() / 100000000.0).toStringAsFixed(8);
-
-    final lastSynced = walletInfo.lastSyncedAt != null
-        ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
-        : null;
-    final isStale = lastSynced == null ||
-        DateTime.now().difference(lastSynced) > const Duration(minutes: 10);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.balanceBtc(btcString),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (onSendTap != null) ...[
-                  FilledButton.icon(
-                    onPressed: onSendTap,
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: Text(l10n.walletSendButton),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _BalanceChip(
-                  label: l10n.balanceConfirmed,
-                  sats: balance.confirmed.toInt(),
-                ),
-                if (balance.trustedPending + balance.untrustedPending >
-                    BigInt.zero) ...[
-                  const SizedBox(width: 8),
-                  _BalanceChip(
-                    label: l10n.balancePending,
-                    sats: (balance.trustedPending + balance.untrustedPending)
-                        .toInt(),
-                    dimmed: true,
-                  ),
-                ],
-                if (balance.immature > BigInt.zero) ...[
-                  const SizedBox(width: 8),
-                  _BalanceChip(
-                    label: l10n.balanceImmature,
-                    sats: balance.immature.toInt(),
-                    dimmed: true,
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    lastSynced != null
-                        ? l10n.lastSynced(_formatSyncDateTime(lastSynced))
-                        : l10n.notYetSynced,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withAlpha(138),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (isSyncing)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else if (isStale)
-                  FilledButton(
-                    onPressed: () =>
-                        context.read<WalletDetailCubit>().sync(electrumUrl),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.sync, size: 18),
-                        const SizedBox(width: 8),
-                        Text(l10n.syncButton),
-                      ],
-                    ),
-                  )
-                else
-                  FilledButton.tonal(
-                    onPressed: () =>
-                        context.read<WalletDetailCubit>().sync(electrumUrl),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.sync, size: 18),
-                        const SizedBox(width: 8),
-                        Text(l10n.syncButton),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatSyncDateTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} '
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-  }
-}
 
 class _BalanceChip extends StatelessWidget {
   final String label;
@@ -2053,18 +2346,9 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        tx.label?.isNotEmpty == true ? tx.label! : '—',
-                        style: TextStyle(
-                          color: tx.label?.isNotEmpty == true
-                              ? null
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withAlpha(97),
-                          fontStyle: tx.label?.isNotEmpty == true
-                              ? FontStyle.normal
-                              : FontStyle.italic,
-                        ),
+                      child: _EffectiveLabelText(
+                        effectiveLabel: tx.effectiveLabel,
+                        isAuto: tx.isAuto,
                       ),
                     ),
                     IconButton(
@@ -2092,13 +2376,7 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        tx.txid,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
+                      child: OutpointText(txid: tx.txid, truncate: false),
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy_outlined, size: 16),
@@ -2205,48 +2483,7 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                         ),
                         const SizedBox(height: 6),
                         for (final u in relatedUtxos)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.toll, size: 14),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      OutpointText(txid: u.txid, vout: u.vout),
-                                      ColoredAddressText(
-                                        address: u.address,
-                                        truncate: true,
-                                      ),
-                                      if (u.utxoLabel?.isNotEmpty == true ||
-                                          u.addressLabel?.isNotEmpty == true)
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.label, size: 10),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              (u.utxoLabel?.isNotEmpty == true
-                                                  ? u.utxoLabel!
-                                                  : u.addressLabel)!,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _RelatedCoinRow(utxo: u),
                       ],
                       if (inputAddresses.isNotEmpty) ...[
                         const Divider(height: 20),
@@ -2316,6 +2553,8 @@ class _RelatedAddressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = address;
+    final hasLabel = a.effectiveLabel?.isNotEmpty == true;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -2323,26 +2562,27 @@ class _RelatedAddressRow extends StatelessWidget {
           Icon(
             a.isMine
                 ? Icons.account_balance_wallet_outlined
-                : Icons.send_outlined,
+                : Icons.question_mark,
             size: 14,
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ColoredAddressText(address: a.address, truncate: true),
-                if (a.label?.isNotEmpty == true)
-                  Row(
-                    children: [
-                      const Icon(Icons.label, size: 10),
-                      const SizedBox(width: 2),
-                      Text(a.label!, style: const TextStyle(fontSize: 11)),
-                    ],
-                  ),
-              ],
-            ),
+            child: hasLabel
+                ? Text(
+                    a.effectiveLabel!,
+                    style: a.isAuto
+                        ? TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: scheme.outline,
+                          )
+                        : const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : ColoredAddressText(address: a.address, truncate: true),
           ),
+          const SizedBox(width: 6),
           if (a.valueSat != null)
             Text(
               '${BitcoinFormatter.formatNum(a.valueSat!.toInt())} sats',
@@ -2363,6 +2603,96 @@ class _RelatedAddressRow extends StatelessWidget {
   }
 }
 
+class _RelatedCoinRow extends StatelessWidget {
+  final APIRelatedUtxo utxo;
+  const _RelatedCoinRow({required this.utxo});
+
+  @override
+  Widget build(BuildContext context) {
+    final u = utxo;
+    final scheme = Theme.of(context).colorScheme;
+    final hasLabel = u.effectiveLabel?.isNotEmpty == true;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.toll, size: 14),
+          const SizedBox(width: 6),
+          Expanded(
+            child: hasLabel
+                ? Text(
+                    u.effectiveLabel!,
+                    style: u.isAuto
+                        ? TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: scheme.outline,
+                          )
+                        : const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : OutpointText(txid: u.txid, vout: u.vout),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
+            style: const TextStyle(fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows an effective label in a detail dialog row, with inherited styling
+/// (italic + outline color + label_outline icon) when [isAuto] is true.
+/// Falls back to "—" when no label is set.
+class _EffectiveLabelText extends StatelessWidget {
+  final String? effectiveLabel;
+  final bool isAuto;
+  const _EffectiveLabelText(
+      {required this.effectiveLabel, required this.isAuto});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasLabel = effectiveLabel?.isNotEmpty == true;
+    if (!hasLabel) {
+      return Text(
+        '—',
+        style: TextStyle(
+          color: scheme.onSurface.withAlpha(97),
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+    if (isAuto) {
+      return Row(
+        children: [
+          Icon(Icons.label_outline, size: 14, color: scheme.outline),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              effectiveLabel!,
+              style: TextStyle(fontStyle: FontStyle.italic, color: scheme.outline),
+            ),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        const Icon(Icons.label, size: 14),
+        const SizedBox(width: 4),
+        Expanded(child: Text(effectiveLabel!)),
+      ],
+    );
+  }
+}
+
+
 class _RelatedTxRow extends StatelessWidget {
   final APIRelatedTx tx;
   const _RelatedTxRow({required this.tx});
@@ -2371,6 +2701,8 @@ class _RelatedTxRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final net = tx.addrReceived.toInt() - tx.addrSpent.toInt();
+    final hasLabel = tx.effectiveLabel?.isNotEmpty == true;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -2378,20 +2710,20 @@ class _RelatedTxRow extends StatelessWidget {
           const Icon(Icons.receipt_long, size: 14),
           const SizedBox(width: 6),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                OutpointText(txid: tx.txid),
-                if (tx.label?.isNotEmpty == true)
-                  Row(
-                    children: [
-                      const Icon(Icons.label, size: 10),
-                      const SizedBox(width: 2),
-                      Text(tx.label!, style: const TextStyle(fontSize: 11)),
-                    ],
-                  ),
-              ],
-            ),
+            child: hasLabel
+                ? Text(
+                    tx.effectiveLabel!,
+                    style: tx.isAuto
+                        ? TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: scheme.outline,
+                          )
+                        : const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : OutpointText(txid: tx.txid),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -2731,10 +3063,14 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   }
 }
 
-enum _WalletMenuAction { sync, rescan, exportLabels, importLabels }
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels }
+
+enum _ExportChoice { labels, descriptor }
+
+enum _ImportChoice { labels }
 
 // ─────────────────────────────────────────────────────────────
-// Descriptor view (tab 3)
+// Descriptor view (tab 4)
 // ─────────────────────────────────────────────────────────────
 
 Color _walletColorForMfpIndex(BuildContext context, int index) {

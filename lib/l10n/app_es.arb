@@ -580,9 +580,15 @@
   "relatedTransactions": "Transacciones relacionadas",
   "creatingTransaction": "Transacción creadora",
 
-  "exportBip329Button": "Exportar etiquetas (BIP-329)",
-  "importBip329Button": "Importar etiquetas (BIP-329)",
+  "exportBip329Button": "Exportar",
+  "importBip329Button": "Importar",
   "exportBip329Empty": "No hay etiquetas explícitas para exportar",
   "exportBip329Copied": "Etiquetas copiadas",
-  "importBip329Success": "Etiquetas importadas"
+  "importBip329Success": "Etiquetas importadas",
+  "exportLabelsOption": "Etiquetas (BIP-329)",
+
+  "overviewTab": "Resumen",
+  "walletReceiveButton": "Recibir",
+  "noUnusedReceiveAddress": "No se encontró dirección de recepción sin usar. Prueba a sincronizar primero.",
+  "receiveNextAddress": "Siguiente dirección"
 }

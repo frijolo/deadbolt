@@ -40,6 +40,24 @@ pub struct APIPathLabel {
 const STOP_GAP: usize = 20;
 const BATCH_SIZE: usize = 5;
 
+/// Resolve a label+flag pair into (explicit_label, effective_label, is_auto).
+///
+/// - `label`: non-empty and non-auto only (for editing).
+/// - `effective_label`: non-empty regardless of auto flag (for display).
+/// - `is_auto`: whether the label was auto-propagated.
+fn resolve_label(data: Option<(String, bool)>) -> (Option<String>, Option<String>, bool) {
+    let label = data
+        .as_ref()
+        .filter(|(l, a)| !a && !l.is_empty())
+        .map(|(l, _)| l.clone());
+    let effective_label = data
+        .as_ref()
+        .filter(|(l, _)| !l.is_empty())
+        .map(|(l, _)| l.clone());
+    let is_auto = data.as_ref().map(|(_, a)| *a).unwrap_or(false);
+    (label, effective_label, is_auto)
+}
+
 // ---------------------------------------------------------------------------
 // Base64 helpers (PSBT serialization)
 // ---------------------------------------------------------------------------
@@ -129,18 +147,6 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
 // ---------------------------------------------------------------------------
 // Label propagation helpers
 // ---------------------------------------------------------------------------
-
-/// Resolve effective label: explicit (is_auto=false) wins; otherwise use auto (is_auto=true).
-/// Returns `(effective_label, is_auto)`.
-fn resolve_label(explicit: Option<&str>, auto: Option<&str>) -> (Option<String>, bool) {
-    if let Some(l) = explicit.filter(|l| !l.is_empty()) {
-        return (Some(l.to_string()), false);
-    }
-    if let Some(l) = auto.filter(|l| !l.is_empty()) {
-        return (Some(l.to_string()), true);
-    }
-    (None, false)
-}
 
 /// Build a map txid → Vec<(address, addr_label, coin_label)> from all unspent outputs.
 #[allow(clippy::type_complexity)]
@@ -472,18 +478,8 @@ impl APIWallet {
                     let (sent, received) = wallet.sent_and_received(tx);
                     let fee = wallet.calculate_fee(tx).ok().map(|f| f.to_sat());
 
-                    let label_data = tx_labels.get(&txid).cloned();
-                    let explicit: Option<String> =
-                        label_data
-                            .as_ref()
-                            .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-                    let auto: Option<String> =
-                        label_data
-                            .as_ref()
-                            .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-                    let label = explicit.clone();
-                    let (effective_label, is_auto) =
-                        resolve_label(explicit.as_deref(), auto.as_deref());
+                    let (label, effective_label, is_auto) =
+                        resolve_label(tx_labels.get(&txid).cloned());
 
                     APITransaction {
                         txid,
@@ -695,18 +691,8 @@ impl APIWallet {
                 let is_used = addr_txids.is_some();
                 let tx_count = addr_txids.map(|s| s.len() as u32).unwrap_or(0);
 
-                let label_data = address_labels.get(&addr).cloned();
-                let explicit: Option<String> =
-                    label_data
-                        .as_ref()
-                        .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-                let auto: Option<String> =
-                    label_data
-                        .as_ref()
-                        .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-                let label = explicit.clone();
-                let (effective_label, is_auto) =
-                    resolve_label(explicit.as_deref(), auto.as_deref());
+                let (label, effective_label, is_auto) =
+                    resolve_label(address_labels.get(&addr).cloned());
 
                 APIAddress {
                     address: addr,
@@ -764,18 +750,8 @@ impl APIWallet {
                     local_output.outpoint.txid, local_output.outpoint.vout
                 );
 
-                let label_data = coin_labels.get(&outpoint_key).cloned();
-                let explicit: Option<String> =
-                    label_data
-                        .as_ref()
-                        .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-                let auto: Option<String> =
-                    label_data
-                        .as_ref()
-                        .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-                let label = explicit.clone();
-                let (effective_label, is_auto) =
-                    resolve_label(explicit.as_deref(), auto.as_deref());
+                let (label, effective_label, is_auto) =
+                    resolve_label(coin_labels.get(&outpoint_key).cloned());
 
                 APIUtxo {
                     txid: local_output.outpoint.txid.to_string(),
@@ -885,17 +861,7 @@ impl APIWallet {
         let (sent, received) = wallet.sent_and_received(tx_ref);
         let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
 
-        let label_data = tx_labels.get(&txid).cloned();
-        let explicit: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-        let auto: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-        let label = explicit.clone();
-        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
+        let (label, effective_label, is_auto) = resolve_label(tx_labels.get(&txid).cloned());
 
         let tx = APITransaction {
             txid: txid.clone(),
@@ -911,7 +877,6 @@ impl APIWallet {
 
         // Unspent output coins created by this transaction.
         let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let related_utxos = wallet
             .list_unspent()
             .filter(|u| u.outpoint.txid.to_string() == txid)
@@ -921,15 +886,15 @@ impl APIWallet {
                     .address
                     .to_string();
                 let outpoint_key = format!("{}:{}", u.outpoint.txid, u.outpoint.vout);
-                let coin_label_data = coin_labels.get(&outpoint_key).cloned();
-                let addr_label_data = address_labels.get(&address).cloned();
+                let (_, effective_label, is_auto) =
+                    resolve_label(coin_labels.get(&outpoint_key).cloned());
                 APIRelatedUtxo {
                     txid: u.outpoint.txid.to_string(),
                     vout: u.outpoint.vout,
                     address: address.clone(),
                     value_sat: u.txout.value.to_sat(),
-                    utxo_label: coin_label_data.map(|(l, _)| l),
-                    address_label: addr_label_data.map(|(l, _)| l),
+                    effective_label,
+                    is_auto,
                 }
             })
             .collect();
@@ -969,7 +934,8 @@ impl APIWallet {
                     return APIRelatedAddress {
                         address: "Coinbase".to_string(),
                         value_sat: None,
-                        label: None,
+                        effective_label: None,
+                        is_auto: false,
                         is_mine: false,
                     };
                 }
@@ -978,17 +944,20 @@ impl APIWallet {
                     return APIRelatedAddress {
                         address: format!("{}…:{}", &prev_txid[..8], input.previous_output.vout),
                         value_sat: None,
-                        label: None,
+                        effective_label: None,
+                        is_auto: false,
                         is_mine: false,
                     };
                 };
                 if let Some((k, i)) = spk_index.index_of_spk(spk.clone()) {
                     let addr_str = wallet.peek_address(*k, *i).address.to_string();
-                    let label = address_labels.get(&addr_str).map(|(l, _)| l.clone());
+                    let (_, effective_label, is_auto) =
+                        resolve_label(address_labels.get(&addr_str).cloned());
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(value),
-                        label,
+                        effective_label,
+                        is_auto,
                         is_mine: true,
                     }
                 } else {
@@ -998,7 +967,8 @@ impl APIWallet {
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(value),
-                        label: None,
+                        effective_label: None,
+                        is_auto: false,
                         is_mine: false,
                     }
                 }
@@ -1012,11 +982,13 @@ impl APIWallet {
             .map(|output| {
                 if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
                     let addr_str = wallet.peek_address(*k, *i).address.to_string();
-                    let label = address_labels.get(&addr_str).map(|(l, _)| l.clone());
+                    let (_, effective_label, is_auto) =
+                        resolve_label(address_labels.get(&addr_str).cloned());
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(output.value.to_sat()),
-                        label,
+                        effective_label,
+                        is_auto,
                         is_mine: true,
                     }
                 } else {
@@ -1027,7 +999,8 @@ impl APIWallet {
                     APIRelatedAddress {
                         address: addr_str,
                         value_sat: Some(output.value.to_sat()),
-                        label: None,
+                        effective_label: None,
+                        is_auto: false,
                         is_mine: false,
                     }
                 }
@@ -1081,17 +1054,8 @@ impl APIWallet {
             };
         let outpoint_key = format!("{}:{}", txid, vout);
 
-        let label_data = coin_labels.get(&outpoint_key).cloned();
-        let explicit: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-        let auto: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-        let label = explicit.clone();
-        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
+        let (label, effective_label, is_auto) =
+            resolve_label(coin_labels.get(&outpoint_key).cloned());
 
         let utxo_address = address.clone();
         let utxo = APIUtxo {
@@ -1123,12 +1087,12 @@ impl APIWallet {
                     } else {
                         None
                     };
-                let tx_label_data = tx_labels.get(&txid).cloned();
-                let tx_label = tx_label_data.map(|(l, _)| l);
+                let (_, effective_label, is_auto) = resolve_label(tx_labels.get(&txid).cloned());
                 // This is the creating tx: the coin is the output, nothing is spent yet.
                 APIRelatedTx {
                     txid: txid.clone(),
-                    label: tx_label,
+                    effective_label,
+                    is_auto,
                     confirmation_height: conf_height,
                     addr_received: local_output.txout.value.to_sat(),
                     addr_spent: 0,
@@ -1137,12 +1101,13 @@ impl APIWallet {
             })
             .ok_or_else(|| anyhow::anyhow!("creating transaction not found: {}", txid))?;
 
-        let address_label_data = address_labels.get(&address).cloned();
-        let address_label = address_label_data.map(|(l, _)| l);
+        let (_, address_effective_label, address_label_is_auto) =
+            resolve_label(address_labels.get(&address).cloned());
 
         Ok(APIUtxoDetails {
             utxo,
-            address_label,
+            address_effective_label,
+            address_label_is_auto,
             creating_tx,
         })
     }
@@ -1217,17 +1182,8 @@ impl APIWallet {
         let used = !related_txids.is_empty();
         let tx_count = related_txids.len() as u32;
 
-        let label_data = address_labels.get(&address).cloned();
-        let explicit: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { None } else { Some(l.clone()) });
-        let auto: Option<String> =
-            label_data
-                .as_ref()
-                .and_then(|(l, is_auto)| if *is_auto { Some(l.clone()) } else { None });
-        let label = explicit.clone();
-        let (effective_label, is_auto) = resolve_label(explicit.as_deref(), auto.as_deref());
+        let (label, effective_label, is_auto) =
+            resolve_label(address_labels.get(&address).cloned());
 
         let addr = APIAddress {
             address: address.clone(),
@@ -1248,13 +1204,15 @@ impl APIWallet {
             .map(|u| {
                 let outpoint_key = format!("{}:{}", u.outpoint.txid, u.outpoint.vout);
                 let txid = u.outpoint.txid.to_string();
+                let (_, effective_label, is_auto) =
+                    resolve_label(coin_labels.get(&outpoint_key).cloned());
                 APIRelatedUtxo {
                     txid: txid.clone(),
                     vout: u.outpoint.vout,
                     address: address.clone(),
                     value_sat: u.txout.value.to_sat(),
-                    utxo_label: coin_labels.get(&outpoint_key).map(|(l, _)| l.clone()),
-                    address_label: address_labels.get(&address).map(|(l, _)| l.clone()),
+                    effective_label,
+                    is_auto,
                 }
             })
             .collect();
@@ -1305,9 +1263,12 @@ impl APIWallet {
                         }
                     })
                     .sum();
+                let (_, effective_label, is_auto) =
+                    resolve_label(tx_labels.get(&txid_str).cloned());
                 APIRelatedTx {
                     txid: txid_str.clone(),
-                    label: tx_labels.get(&txid_str).map(|(l, _)| l.clone()),
+                    effective_label,
+                    is_auto,
                     confirmation_height: conf_height,
                     addr_received,
                     addr_spent,
