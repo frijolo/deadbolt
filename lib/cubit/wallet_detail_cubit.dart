@@ -663,6 +663,15 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     if (!current.descriptorLoaded) await _loadDescriptorAnalysis();
   }
 
+  /// Force-reload coins if they were already loaded (so pending PSBT
+  /// annotations stay in sync after PSBT lifecycle changes).
+  Future<void> _reloadCoinsIfLoaded() async {
+    final s = state;
+    if (s is! WalletDetailLoaded || !s.utxosLoaded) return;
+    emit(s.copyWith(utxosLoaded: false));
+    await _loadUtxos();
+  }
+
 
   /// Returns the next unused external (receive) address that is not already
   /// reserved as the recipient of a pending unsigned PSBT.
@@ -755,7 +764,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         mfps: mfps,
         sendMax: sendMax,
       );
-      unawaited(loadPsbts());
+      unawaited(loadPsbts().then((_) => _reloadCoinsIfLoaded()));
       return psbt;
     } catch (e, st) {
       _logError('WalletDetailCubit.createPsbt()', e, st);
@@ -772,6 +781,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(current.psbtAnalyses)
         ..remove(id);
       emit(current.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
+      unawaited(_reloadCoinsIfLoaded());
     } catch (e, st) {
       _logError('WalletDetailCubit.deletePsbt()', e, st);
     }
@@ -829,7 +839,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       hasMore: page.hasMore,
       currentPage: 0,
     ));
-    // Sync immediately after broadcast so balance and confirmations update.
+    // Sync immediately after broadcast — sync reloads UTXOs when utxosLoaded
+    // is true, so coins will reflect the mempool spending status correctly.
     final url = _electrumUrl ?? electrumUrl;
     sync(url);
     return txid;

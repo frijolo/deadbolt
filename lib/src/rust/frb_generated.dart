@@ -2837,8 +2837,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIUtxo dco_decode_api_utxo(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return APIUtxo(
       txid: dco_decode_String(arr[0]),
       vout: dco_decode_u_32(arr[1]),
@@ -2851,6 +2851,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       label: dco_decode_opt_String(arr[8]),
       effectiveLabel: dco_decode_opt_String(arr[9]),
       isAuto: dco_decode_bool(arr[10]),
+      pendingPsbtIds: dco_decode_list_prim_i_64_strict(arr[11]),
+      mempoolSpendingTxid: dco_decode_opt_String(arr[12]),
     );
   }
 
@@ -3072,6 +3074,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<APIWalletInfo> dco_decode_list_api_wallet_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_api_wallet_info).toList();
+  }
+
+  @protected
+  Int64List dco_decode_list_prim_i_64_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeInt64List(raw);
   }
 
   @protected
@@ -3638,6 +3646,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_label = sse_decode_opt_String(deserializer);
     var var_effectiveLabel = sse_decode_opt_String(deserializer);
     var var_isAuto = sse_decode_bool(deserializer);
+    var var_pendingPsbtIds = sse_decode_list_prim_i_64_strict(deserializer);
+    var var_mempoolSpendingTxid = sse_decode_opt_String(deserializer);
     return APIUtxo(
       txid: var_txid,
       vout: var_vout,
@@ -3650,6 +3660,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       label: var_label,
       effectiveLabel: var_effectiveLabel,
       isAuto: var_isAuto,
+      pendingPsbtIds: var_pendingPsbtIds,
+      mempoolSpendingTxid: var_mempoolSpendingTxid,
     );
   }
 
@@ -4007,6 +4019,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_api_wallet_info(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getInt64List(len_);
   }
 
   @protected
@@ -4497,6 +4516,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.label, serializer);
     sse_encode_opt_String(self.effectiveLabel, serializer);
     sse_encode_bool(self.isAuto, serializer);
+    sse_encode_list_prim_i_64_strict(self.pendingPsbtIds, serializer);
+    sse_encode_opt_String(self.mempoolSpendingTxid, serializer);
   }
 
   @protected
@@ -4816,6 +4837,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_api_wallet_info(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_prim_i_64_strict(
+    Int64List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putInt64List(self);
   }
 
   @protected

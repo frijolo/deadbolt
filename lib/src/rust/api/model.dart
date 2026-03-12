@@ -766,6 +766,14 @@ class APIUtxo {
   /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
   final bool isAuto;
 
+  /// IDs of pending PSBTs (unsigned_txs.id) that spend this UTXO.
+  /// Empty for most coins; populated by get_utxos().
+  final Int64List pendingPsbtIds;
+
+  /// TXID of an unconfirmed (mempool) transaction that spends this UTXO, if any.
+  /// Higher-priority indicator than pending_psbt_ids: the spend has already been broadcast.
+  final String? mempoolSpendingTxid;
+
   const APIUtxo({
     required this.txid,
     required this.vout,
@@ -778,6 +786,8 @@ class APIUtxo {
     this.label,
     this.effectiveLabel,
     required this.isAuto,
+    required this.pendingPsbtIds,
+    this.mempoolSpendingTxid,
   });
 
   @override
@@ -792,7 +802,9 @@ class APIUtxo {
       confirmationHeight.hashCode ^
       label.hashCode ^
       effectiveLabel.hashCode ^
-      isAuto.hashCode;
+      isAuto.hashCode ^
+      pendingPsbtIds.hashCode ^
+      mempoolSpendingTxid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -809,7 +821,9 @@ class APIUtxo {
           confirmationHeight == other.confirmationHeight &&
           label == other.label &&
           effectiveLabel == other.effectiveLabel &&
-          isAuto == other.isAuto;
+          isAuto == other.isAuto &&
+          pendingPsbtIds == other.pendingPsbtIds &&
+          mempoolSpendingTxid == other.mempoolSpendingTxid;
 }
 
 /// Full detail for a UTXO.

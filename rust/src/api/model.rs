@@ -469,6 +469,12 @@ pub struct APIUtxo {
     pub effective_label: Option<String>,
     /// True when `effective_label` is auto-propagated from a related entity, not explicitly set.
     pub is_auto: bool,
+    /// IDs of pending PSBTs (unsigned_txs.id) that spend this UTXO.
+    /// Empty for most coins; populated by get_utxos().
+    pub pending_psbt_ids: Vec<i64>,
+    /// TXID of an unconfirmed (mempool) transaction that spends this UTXO, if any.
+    /// Higher-priority indicator than pending_psbt_ids: the spend has already been broadcast.
+    pub mempool_spending_txid: Option<String>,
 }
 
 ////////////////////

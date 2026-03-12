@@ -2063,7 +2063,7 @@ abstract class AppLocalizations {
   /// No description provided for @psbtImportSignedButton.
   ///
   /// In en, this message translates to:
-  /// **'Import signed PSBT'**
+  /// **'Import signature'**
   String get psbtImportSignedButton;
 
   /// No description provided for @psbtImportFromQr.
@@ -2305,6 +2305,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Labels (BIP-329)'**
   String get exportLabelsOption;
+
+  /// No description provided for @coinPendingSpend.
+  ///
+  /// In en, this message translates to:
+  /// **'PSBT'**
+  String get coinPendingSpend;
+
+  /// No description provided for @coinMempoolSpend.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending'**
+  String get coinMempoolSpend;
+
+  /// No description provided for @coinPendingPsbtsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending transactions'**
+  String get coinPendingPsbtsSection;
 
   /// No description provided for @overviewTab.
   ///

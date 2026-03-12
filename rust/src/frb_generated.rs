@@ -3242,6 +3242,8 @@ impl SseDecode for crate::api::model::APIUtxo {
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_isAuto = <bool>::sse_decode(deserializer);
+        let mut var_pendingPsbtIds = <Vec<i64>>::sse_decode(deserializer);
+        let mut var_mempoolSpendingTxid = <Option<String>>::sse_decode(deserializer);
         return crate::api::model::APIUtxo {
             txid: var_txid,
             vout: var_vout,
@@ -3254,6 +3256,8 @@ impl SseDecode for crate::api::model::APIUtxo {
             label: var_label,
             effective_label: var_effectiveLabel,
             is_auto: var_isAuto,
+            pending_psbt_ids: var_pendingPsbtIds,
+            mempool_spending_txid: var_mempoolSpendingTxid,
         };
     }
 }
@@ -3572,6 +3576,18 @@ impl SseDecode for Vec<crate::api::model::APIWalletInfo> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::api::model::APIWalletInfo>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<i64>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -4537,6 +4553,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIUtxo {
             self.label.into_into_dart().into_dart(),
             self.effective_label.into_into_dart().into_dart(),
             self.is_auto.into_into_dart().into_dart(),
+            self.pending_psbt_ids.into_into_dart().into_dart(),
+            self.mempool_spending_txid.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4989,6 +5007,8 @@ impl SseEncode for crate::api::model::APIUtxo {
         <Option<String>>::sse_encode(self.label, serializer);
         <Option<String>>::sse_encode(self.effective_label, serializer);
         <bool>::sse_encode(self.is_auto, serializer);
+        <Vec<i64>>::sse_encode(self.pending_psbt_ids, serializer);
+        <Option<String>>::sse_encode(self.mempool_spending_txid, serializer);
     }
 }
 
@@ -5248,6 +5268,16 @@ impl SseEncode for Vec<crate::api::model::APIWalletInfo> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::model::APIWalletInfo>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <i64>::sse_encode(item, serializer);
         }
     }
 }

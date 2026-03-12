@@ -519,7 +519,7 @@
   "psbtSignerMissing": "Pendiente",
   "psbtSignerOptional": "Opcional",
   "psbtExportButton": "Exportar PSBT",
-  "psbtImportSignedButton": "Importar PSBT firmado",
+  "psbtImportSignedButton": "Importar firma",
   "psbtImportFromQr": "Escanear QR",
   "psbtImportFromFile": "Desde archivo (.psbt)",
   "psbtBroadcastButton": "Transmitir",
@@ -586,6 +586,10 @@
   "exportBip329Copied": "Etiquetas copiadas",
   "importBip329Success": "Etiquetas importadas",
   "exportLabelsOption": "Etiquetas (BIP-329)",
+
+  "coinPendingSpend": "PSBT",
+  "coinMempoolSpend": "Gastando",
+  "coinPendingPsbtsSection": "Transacciones pendientes",
 
   "overviewTab": "Resumen",
   "walletReceiveButton": "Recibir",

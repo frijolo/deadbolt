@@ -214,11 +214,26 @@ class _CoinSelectorTile extends StatelessWidget {
       }
     }
 
-    return Card(
+    final isMempool = utxo.mempoolSpendingTxid != null;
+    final isSpending = isMempool || utxo.pendingPsbtIds.isNotEmpty;
+
+    // Selection color takes priority; spending coins are faded when not selected.
+    final cardColor = isSelected
+        ? theme.colorScheme.primaryContainer.withAlpha(80)
+        : null;
+    final opacity = isSelected
+        ? 1.0
+        : isMempool
+        ? 0.35
+        : isSpending
+        ? 0.55
+        : 1.0;
+
+    return Opacity(
+      opacity: opacity,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isSelected
-          ? theme.colorScheme.primaryContainer.withAlpha(80)
-          : null,
+      color: cardColor,
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         leading: Checkbox(
@@ -237,10 +252,15 @@ class _CoinSelectorTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                _SelectorBadge(
-                  label: utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
-                  color: utxo.isConfirmed ? Colors.green : Colors.grey,
-                ),
+                // Single combined status badge: Spending > PSBT > Unconfirmed > Confirmed
+                if (isMempool)
+                  _SelectorBadge(label: l10n.coinMempoolSpend, color: Colors.red)
+                else if (utxo.pendingPsbtIds.isNotEmpty)
+                  _SelectorBadge(label: l10n.coinPendingSpend, color: Colors.orange)
+                else if (utxo.isConfirmed)
+                  _SelectorBadge(label: l10n.txConfirmed, color: Colors.green)
+                else
+                  _SelectorBadge(label: l10n.txUnconfirmed, color: Colors.grey),
                 const SizedBox(width: 6),
                 _SelectorBadge(
                   label: isChange ? l10n.coinKeychainChange : l10n.coinKeychainReceive,
@@ -255,6 +275,7 @@ class _CoinSelectorTile extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
