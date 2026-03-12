@@ -2273,13 +2273,13 @@ abstract class AppLocalizations {
   /// No description provided for @exportBip329Button.
   ///
   /// In en, this message translates to:
-  /// **'Export labels (BIP-329)'**
+  /// **'Export'**
   String get exportBip329Button;
 
   /// No description provided for @importBip329Button.
   ///
   /// In en, this message translates to:
-  /// **'Import labels (BIP-329)'**
+  /// **'Import'**
   String get importBip329Button;
 
   /// No description provided for @exportBip329Empty.
@@ -2299,6 +2299,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Labels imported'**
   String get importBip329Success;
+
+  /// No description provided for @exportLabelsOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Labels (BIP-329)'**
+  String get exportLabelsOption;
+
+  /// No description provided for @overviewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get overviewTab;
+
+  /// No description provided for @walletReceiveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive'**
+  String get walletReceiveButton;
+
+  /// No description provided for @noUnusedReceiveAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'No unused receive address found. Try syncing first.'**
+  String get noUnusedReceiveAddress;
+
+  /// No description provided for @receiveNextAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Next address'**
+  String get receiveNextAddress;
 }
 
 class _AppLocalizationsDelegate

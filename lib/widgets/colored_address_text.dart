@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 
-/// Renders a Bitcoin address with groups of 4 characters alternating between
-/// the theme's primary color and a dim foreground, for easy visual verification.
-/// Uses the app's default font (no monospace override).
+/// Renders a Bitcoin address (or txid) with groups of 4 characters alternating
+/// between the theme's primary color and a dim foreground, for easy visual
+/// verification. Uses the app's default font (no monospace override).
 ///
 /// When [truncate] is true, the address is cut from the middle keeping complete
 /// 4-character groups on both sides (responsive to available width).
+///
+/// [suffix] is appended verbatim in faint color after the main text (e.g. ':0'
+/// for outpoints). Its width is reserved before truncation so it is always
+/// fully visible.
 class ColoredAddressText extends StatelessWidget {
   final String address;
   final double? fontSize;
   final bool truncate;
+  final String suffix;
 
   const ColoredAddressText({
     super.key,
     required this.address,
     this.fontSize,
     this.truncate = false,
+    this.suffix = '',
   });
 
   TextStyle _baseStyle(BuildContext context) {
@@ -44,6 +50,7 @@ class ColoredAddressText extends StatelessWidget {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
     final dim = theme.colorScheme.onSurface.withAlpha(180);
+    final faint = theme.colorScheme.onSurface.withAlpha(120);
     final groups = _groups();
 
     return RichText(
@@ -55,6 +62,8 @@ class ColoredAddressText extends StatelessWidget {
               text: groups[i],
               style: TextStyle(color: i.isEven ? dim : primary),
             ),
+          if (suffix.isNotEmpty)
+            TextSpan(text: suffix, style: TextStyle(color: faint)),
         ],
       ),
     );
@@ -64,10 +73,15 @@ class ColoredAddressText extends StatelessWidget {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
     final dim = theme.colorScheme.onSurface.withAlpha(180);
+    final faint = theme.colorScheme.onSurface.withAlpha(120);
     final style = _baseStyle(context);
     final groups = _groups();
 
     if (groups.length <= 2) return _buildFull(context);
+
+    // Reserve space for the suffix before computing truncation budget.
+    final suffixW = suffix.isNotEmpty ? _measure(suffix, style) : 0.0;
+    final budget = maxWidth - suffixW;
 
     // Precompute widths for each group and for the ellipsis.
     final widths = groups.map((g) => _measure(g, style)).toList();
@@ -75,16 +89,16 @@ class ColoredAddressText extends StatelessWidget {
 
     // If the full address fits, show it without truncation.
     final totalW = widths.fold(0.0, (a, b) => a + b);
-    if (totalW <= maxWidth) return _buildFull(context);
+    if (totalW <= budget) return _buildFull(context);
 
-    // Precompute prefix and suffix cumulative widths.
+    // Precompute prefix and back-group cumulative widths.
     final prefixW = List<double>.filled(groups.length, 0);
-    final suffixW = List<double>.filled(groups.length, 0);
+    final backW = List<double>.filled(groups.length, 0);
     for (var i = 0; i < groups.length; i++) {
       prefixW[i] = (i == 0 ? 0 : prefixW[i - 1]) + widths[i];
     }
     for (var i = groups.length - 1; i >= 0; i--) {
-      suffixW[i] = (i == groups.length - 1 ? 0 : suffixW[i + 1]) + widths[i];
+      backW[i] = (i == groups.length - 1 ? 0 : backW[i + 1]) + widths[i];
     }
 
     // Find the maximum number of groups (front + back, with ellipsis) that fit,
@@ -94,8 +108,8 @@ class ColoredAddressText extends StatelessWidget {
     for (var total = groups.length - 1; total >= 2; total--) {
       final front = (total / 2).ceil();
       final back = total - front;
-      final w = prefixW[front - 1] + ellipsisW + suffixW[groups.length - back];
-      if (w <= maxWidth) {
+      final w = prefixW[front - 1] + ellipsisW + backW[groups.length - back];
+      if (w <= budget) {
         bestFront = front;
         bestBack = back;
         break;
@@ -115,10 +129,7 @@ class ColoredAddressText extends StatelessWidget {
               text: frontGroups[i],
               style: TextStyle(color: i.isEven ? dim : primary),
             ),
-          TextSpan(
-            text: '…',
-            style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120)),
-          ),
+          TextSpan(text: '…', style: TextStyle(color: faint)),
           for (var i = 0; i < backGroups.length; i++)
             TextSpan(
               text: backGroups[i],
@@ -127,6 +138,8 @@ class ColoredAddressText extends StatelessWidget {
                 color: (backStart + i).isEven ? dim : primary,
               ),
             ),
+          if (suffix.isNotEmpty)
+            TextSpan(text: suffix, style: TextStyle(color: faint)),
         ],
       ),
     );

@@ -1227,10 +1227,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get creatingTransaction => 'Creating transaction';
 
   @override
-  String get exportBip329Button => 'Export labels (BIP-329)';
+  String get exportBip329Button => 'Export';
 
   @override
-  String get importBip329Button => 'Import labels (BIP-329)';
+  String get importBip329Button => 'Import';
 
   @override
   String get exportBip329Empty => 'No explicit labels to export';
@@ -1240,4 +1240,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importBip329Success => 'Labels imported';
+
+  @override
+  String get exportLabelsOption => 'Labels (BIP-329)';
+
+  @override
+  String get overviewTab => 'Overview';
+
+  @override
+  String get walletReceiveButton => 'Receive';
+
+  @override
+  String get noUnusedReceiveAddress =>
+      'No unused receive address found. Try syncing first.';
+
+  @override
+  String get receiveNextAddress => 'Next address';
 }

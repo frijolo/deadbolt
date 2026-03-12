@@ -3034,12 +3034,14 @@ impl SseDecode for crate::api::model::APIRelatedAddress {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_valueSat = <Option<u64>>::sse_decode(deserializer);
-        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_isAuto = <bool>::sse_decode(deserializer);
         let mut var_isMine = <bool>::sse_decode(deserializer);
         return crate::api::model::APIRelatedAddress {
             address: var_address,
             value_sat: var_valueSat,
-            label: var_label,
+            effective_label: var_effectiveLabel,
+            is_auto: var_isAuto,
             is_mine: var_isMine,
         };
     }
@@ -3049,14 +3051,16 @@ impl SseDecode for crate::api::model::APIRelatedTx {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_txid = <String>::sse_decode(deserializer);
-        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_isAuto = <bool>::sse_decode(deserializer);
         let mut var_confirmationHeight = <Option<u32>>::sse_decode(deserializer);
         let mut var_addrReceived = <u64>::sse_decode(deserializer);
         let mut var_addrSpent = <u64>::sse_decode(deserializer);
         let mut var_fee = <Option<u64>>::sse_decode(deserializer);
         return crate::api::model::APIRelatedTx {
             txid: var_txid,
-            label: var_label,
+            effective_label: var_effectiveLabel,
+            is_auto: var_isAuto,
             confirmation_height: var_confirmationHeight,
             addr_received: var_addrReceived,
             addr_spent: var_addrSpent,
@@ -3072,15 +3076,15 @@ impl SseDecode for crate::api::model::APIRelatedUtxo {
         let mut var_vout = <u32>::sse_decode(deserializer);
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_valueSat = <u64>::sse_decode(deserializer);
-        let mut var_utxoLabel = <Option<String>>::sse_decode(deserializer);
-        let mut var_addressLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_isAuto = <bool>::sse_decode(deserializer);
         return crate::api::model::APIRelatedUtxo {
             txid: var_txid,
             vout: var_vout,
             address: var_address,
             value_sat: var_valueSat,
-            utxo_label: var_utxoLabel,
-            address_label: var_addressLabel,
+            effective_label: var_effectiveLabel,
+            is_auto: var_isAuto,
         };
     }
 }
@@ -3258,11 +3262,13 @@ impl SseDecode for crate::api::model::APIUtxoDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_utxo = <crate::api::model::APIUtxo>::sse_decode(deserializer);
-        let mut var_addressLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_addressEffectiveLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_addressLabelIsAuto = <bool>::sse_decode(deserializer);
         let mut var_creatingTx = <crate::api::model::APIRelatedTx>::sse_decode(deserializer);
         return crate::api::model::APIUtxoDetails {
             utxo: var_utxo,
-            address_label: var_addressLabel,
+            address_effective_label: var_addressEffectiveLabel,
+            address_label_is_auto: var_addressLabelIsAuto,
             creating_tx: var_creatingTx,
         };
     }
@@ -4277,7 +4283,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelatedAddress {
         [
             self.address.into_into_dart().into_dart(),
             self.value_sat.into_into_dart().into_dart(),
-            self.label.into_into_dart().into_dart(),
+            self.effective_label.into_into_dart().into_dart(),
+            self.is_auto.into_into_dart().into_dart(),
             self.is_mine.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4299,7 +4306,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelatedTx {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.txid.into_into_dart().into_dart(),
-            self.label.into_into_dart().into_dart(),
+            self.effective_label.into_into_dart().into_dart(),
+            self.is_auto.into_into_dart().into_dart(),
             self.confirmation_height.into_into_dart().into_dart(),
             self.addr_received.into_into_dart().into_dart(),
             self.addr_spent.into_into_dart().into_dart(),
@@ -4327,8 +4335,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelatedUtxo {
             self.vout.into_into_dart().into_dart(),
             self.address.into_into_dart().into_dart(),
             self.value_sat.into_into_dart().into_dart(),
-            self.utxo_label.into_into_dart().into_dart(),
-            self.address_label.into_into_dart().into_dart(),
+            self.effective_label.into_into_dart().into_dart(),
+            self.is_auto.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4544,7 +4552,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIUtxoDetails {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.utxo.into_into_dart().into_dart(),
-            self.address_label.into_into_dart().into_dart(),
+            self.address_effective_label.into_into_dart().into_dart(),
+            self.address_label_is_auto.into_into_dart().into_dart(),
             self.creating_tx.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4848,7 +4857,8 @@ impl SseEncode for crate::api::model::APIRelatedAddress {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.address, serializer);
         <Option<u64>>::sse_encode(self.value_sat, serializer);
-        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.effective_label, serializer);
+        <bool>::sse_encode(self.is_auto, serializer);
         <bool>::sse_encode(self.is_mine, serializer);
     }
 }
@@ -4857,7 +4867,8 @@ impl SseEncode for crate::api::model::APIRelatedTx {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.txid, serializer);
-        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.effective_label, serializer);
+        <bool>::sse_encode(self.is_auto, serializer);
         <Option<u32>>::sse_encode(self.confirmation_height, serializer);
         <u64>::sse_encode(self.addr_received, serializer);
         <u64>::sse_encode(self.addr_spent, serializer);
@@ -4872,8 +4883,8 @@ impl SseEncode for crate::api::model::APIRelatedUtxo {
         <u32>::sse_encode(self.vout, serializer);
         <String>::sse_encode(self.address, serializer);
         <u64>::sse_encode(self.value_sat, serializer);
-        <Option<String>>::sse_encode(self.utxo_label, serializer);
-        <Option<String>>::sse_encode(self.address_label, serializer);
+        <Option<String>>::sse_encode(self.effective_label, serializer);
+        <bool>::sse_encode(self.is_auto, serializer);
     }
 }
 
@@ -4985,7 +4996,8 @@ impl SseEncode for crate::api::model::APIUtxoDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::model::APIUtxo>::sse_encode(self.utxo, serializer);
-        <Option<String>>::sse_encode(self.address_label, serializer);
+        <Option<String>>::sse_encode(self.address_effective_label, serializer);
+        <bool>::sse_encode(self.address_label_is_auto, serializer);
         <crate::api::model::APIRelatedTx>::sse_encode(self.creating_tx, serializer);
     }
 }

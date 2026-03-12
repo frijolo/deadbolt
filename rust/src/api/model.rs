@@ -530,17 +530,20 @@ pub struct APIRelatedUtxo {
     pub vout: u32,
     pub address: String,
     pub value_sat: u64,
-    /// Explicit label on this UTXO.
-    pub utxo_label: Option<String>,
-    /// Explicit label on this UTXO's address.
-    pub address_label: Option<String>,
+    /// Display label (own or propagated via the label inheritance system).
+    pub effective_label: Option<String>,
+    /// True when `effective_label` is auto-propagated, not explicitly set on this coin.
+    pub is_auto: bool,
 }
 
 /// Compact transaction summary shown inside coin/address detail dialogs.
 #[derive(Clone)]
 pub struct APIRelatedTx {
     pub txid: String,
-    pub label: Option<String>,
+    /// Display label (own or propagated via the label inheritance system).
+    pub effective_label: Option<String>,
+    /// True when `effective_label` is auto-propagated, not explicitly set on this tx.
+    pub is_auto: bool,
     pub confirmation_height: Option<u32>,
     /// Sats received by this specific address/coin in this tx.
     pub addr_received: u64,
@@ -556,8 +559,10 @@ pub struct APIRelatedAddress {
     /// Amount at this address in this transaction. None when the previous
     /// output could not be resolved (e.g. external input tx not in graph).
     pub value_sat: Option<u64>,
-    /// Explicit label on this address (None if unlabelled or external).
-    pub label: Option<String>,
+    /// Display label (own or propagated via the label inheritance system).
+    pub effective_label: Option<String>,
+    /// True when `effective_label` is auto-propagated, not explicitly set on this address.
+    pub is_auto: bool,
     /// True if this address belongs to our wallet.
     pub is_mine: bool,
 }
@@ -578,8 +583,10 @@ pub struct APITxDetails {
 #[derive(Clone)]
 pub struct APIUtxoDetails {
     pub utxo: APIUtxo,
-    /// Explicit label on this UTXO's address.
-    pub address_label: Option<String>,
+    /// Display label for this UTXO's address — own label if set, otherwise propagated.
+    pub address_effective_label: Option<String>,
+    /// True when `address_effective_label` is auto-propagated, not explicitly set on the address.
+    pub address_label_is_auto: bool,
     /// The transaction that created this UTXO.
     pub creating_tx: APIRelatedTx,
 }

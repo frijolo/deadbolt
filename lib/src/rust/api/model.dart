@@ -359,8 +359,11 @@ class APIRelatedAddress {
   /// output could not be resolved (e.g. external input tx not in graph).
   final BigInt? valueSat;
 
-  /// Explicit label on this address (None if unlabelled or external).
-  final String? label;
+  /// Display label (own or propagated via the label inheritance system).
+  final String? effectiveLabel;
+
+  /// True when `effective_label` is auto-propagated, not explicitly set on this address.
+  final bool isAuto;
 
   /// True if this address belongs to our wallet.
   final bool isMine;
@@ -368,13 +371,18 @@ class APIRelatedAddress {
   const APIRelatedAddress({
     required this.address,
     this.valueSat,
-    this.label,
+    this.effectiveLabel,
+    required this.isAuto,
     required this.isMine,
   });
 
   @override
   int get hashCode =>
-      address.hashCode ^ valueSat.hashCode ^ label.hashCode ^ isMine.hashCode;
+      address.hashCode ^
+      valueSat.hashCode ^
+      effectiveLabel.hashCode ^
+      isAuto.hashCode ^
+      isMine.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -383,14 +391,20 @@ class APIRelatedAddress {
           runtimeType == other.runtimeType &&
           address == other.address &&
           valueSat == other.valueSat &&
-          label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          isAuto == other.isAuto &&
           isMine == other.isMine;
 }
 
 /// Compact transaction summary shown inside coin/address detail dialogs.
 class APIRelatedTx {
   final String txid;
-  final String? label;
+
+  /// Display label (own or propagated via the label inheritance system).
+  final String? effectiveLabel;
+
+  /// True when `effective_label` is auto-propagated, not explicitly set on this tx.
+  final bool isAuto;
   final int? confirmationHeight;
 
   /// Sats received by this specific address/coin in this tx.
@@ -402,7 +416,8 @@ class APIRelatedTx {
 
   const APIRelatedTx({
     required this.txid,
-    this.label,
+    this.effectiveLabel,
+    required this.isAuto,
     this.confirmationHeight,
     required this.addrReceived,
     required this.addrSpent,
@@ -412,7 +427,8 @@ class APIRelatedTx {
   @override
   int get hashCode =>
       txid.hashCode ^
-      label.hashCode ^
+      effectiveLabel.hashCode ^
+      isAuto.hashCode ^
       confirmationHeight.hashCode ^
       addrReceived.hashCode ^
       addrSpent.hashCode ^
@@ -424,7 +440,8 @@ class APIRelatedTx {
       other is APIRelatedTx &&
           runtimeType == other.runtimeType &&
           txid == other.txid &&
-          label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          isAuto == other.isAuto &&
           confirmationHeight == other.confirmationHeight &&
           addrReceived == other.addrReceived &&
           addrSpent == other.addrSpent &&
@@ -438,19 +455,19 @@ class APIRelatedUtxo {
   final String address;
   final BigInt valueSat;
 
-  /// Explicit label on this UTXO.
-  final String? utxoLabel;
+  /// Display label (own or propagated via the label inheritance system).
+  final String? effectiveLabel;
 
-  /// Explicit label on this UTXO's address.
-  final String? addressLabel;
+  /// True when `effective_label` is auto-propagated, not explicitly set on this coin.
+  final bool isAuto;
 
   const APIRelatedUtxo({
     required this.txid,
     required this.vout,
     required this.address,
     required this.valueSat,
-    this.utxoLabel,
-    this.addressLabel,
+    this.effectiveLabel,
+    required this.isAuto,
   });
 
   @override
@@ -459,8 +476,8 @@ class APIRelatedUtxo {
       vout.hashCode ^
       address.hashCode ^
       valueSat.hashCode ^
-      utxoLabel.hashCode ^
-      addressLabel.hashCode;
+      effectiveLabel.hashCode ^
+      isAuto.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -471,8 +488,8 @@ class APIRelatedUtxo {
           vout == other.vout &&
           address == other.address &&
           valueSat == other.valueSat &&
-          utxoLabel == other.utxoLabel &&
-          addressLabel == other.addressLabel;
+          effectiveLabel == other.effectiveLabel &&
+          isAuto == other.isAuto;
 }
 
 class APIRelativeTimelock {
@@ -799,21 +816,28 @@ class APIUtxo {
 class APIUtxoDetails {
   final APIUtxo utxo;
 
-  /// Explicit label on this UTXO's address.
-  final String? addressLabel;
+  /// Display label for this UTXO's address — own label if set, otherwise propagated.
+  final String? addressEffectiveLabel;
+
+  /// True when `address_effective_label` is auto-propagated, not explicitly set on the address.
+  final bool addressLabelIsAuto;
 
   /// The transaction that created this UTXO.
   final APIRelatedTx creatingTx;
 
   const APIUtxoDetails({
     required this.utxo,
-    this.addressLabel,
+    this.addressEffectiveLabel,
+    required this.addressLabelIsAuto,
     required this.creatingTx,
   });
 
   @override
   int get hashCode =>
-      utxo.hashCode ^ addressLabel.hashCode ^ creatingTx.hashCode;
+      utxo.hashCode ^
+      addressEffectiveLabel.hashCode ^
+      addressLabelIsAuto.hashCode ^
+      creatingTx.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -821,7 +845,8 @@ class APIUtxoDetails {
       other is APIUtxoDetails &&
           runtimeType == other.runtimeType &&
           utxo == other.utxo &&
-          addressLabel == other.addressLabel &&
+          addressEffectiveLabel == other.addressEffectiveLabel &&
+          addressLabelIsAuto == other.addressLabelIsAuto &&
           creatingTx == other.creatingTx;
 }
 

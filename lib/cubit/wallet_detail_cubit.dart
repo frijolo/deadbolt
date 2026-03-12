@@ -429,21 +429,22 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     final updated = current.copyWith(selectedTab: tab);
     emit(updated);
 
-    if (tab == 1) {
+    // Tab 0 = Overview, 1 = Transactions, 2 = Addresses, 3 = Coins, 4 = Descriptor
+    if (tab == 2) {
       if (!current.receiveAddressesLoaded) {
         _loadAddresses(APIKeychain.external_);
       }
       if (!current.changeAddressesLoaded) {
         _loadAddresses(APIKeychain.internal);
       }
-    } else if (tab == 2) {
+    } else if (tab == 3) {
       if (!current.utxosLoaded) {
         _loadUtxos();
       }
       if (!current.descriptorLoaded) {
         _loadDescriptorAnalysis();
       }
-    } else if (tab == 3) {
+    } else if (tab == 4) {
       if (!current.descriptorLoaded) {
         _loadDescriptorAnalysis();
       }
@@ -455,6 +456,15 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     emit(current.copyWith(selectedAddressKeychain: keychain));
+  }
+
+  /// Ensures at least the receive (external) addresses are loaded.
+  /// Used by the overview tab Receive button.
+  Future<void> ensureReceiveAddressLoaded() async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return;
+    if (current.receiveAddressesLoaded) return;
+    await _loadAddresses(APIKeychain.external_);
   }
 
   Future<void> _loadAddresses(APIKeychain keychain) async {
@@ -649,7 +659,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
   Future<void> ensureCoinsLoaded() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
-    if (!current.utxosLoaded) _loadUtxos();
+    if (!current.utxosLoaded) await _loadUtxos();
     if (!current.descriptorLoaded) await _loadDescriptorAnalysis();
   }
 
