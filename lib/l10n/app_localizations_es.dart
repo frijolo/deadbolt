@@ -1116,7 +1116,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get psbtExportButton => 'Exportar PSBT';
 
   @override
-  String get psbtImportSignedButton => 'Importar PSBT firmado';
+  String get psbtImportSignedButton => 'Importar firma';
 
   @override
   String get psbtImportFromQr => 'Escanear QR';
@@ -1248,6 +1248,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get exportLabelsOption => 'Etiquetas (BIP-329)';
+
+  @override
+  String get coinPendingSpend => 'PSBT';
+
+  @override
+  String get coinMempoolSpend => 'Gastando';
+
+  @override
+  String get coinPendingPsbtsSection => 'Transacciones pendientes';
 
   @override
   String get overviewTab => 'Resumen';

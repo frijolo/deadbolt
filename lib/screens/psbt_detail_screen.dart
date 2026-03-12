@@ -607,16 +607,10 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                               icon: const Icon(Icons.download_outlined),
                               label: Text(l10n.psbtImportSignedButton),
                             )
-                          : FilledButton.tonal(
+                          : FilledButton.tonalIcon(
                               onPressed: () => _importSigned(context),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.download_outlined, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(l10n.psbtImportSignedButton),
-                                ],
-                              ),
+                              icon: const Icon(Icons.download_outlined),
+                              label: Text(l10n.psbtImportSignedButton),
                             ),
                     ),
                   ],

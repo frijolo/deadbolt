@@ -722,6 +722,42 @@ impl APIWallet {
 
         let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
 
+        // Build outpoint → [psbt_id] map from all pending PSBTs.
+        let mut pending_map: std::collections::HashMap<String, Vec<i64>> =
+            std::collections::HashMap::new();
+        if let Ok(rows) = list_psbt_rows(&core.conn) {
+            for row in rows {
+                if let Ok(psbt) = psbt_from_base64(&row.psbt) {
+                    for txin in &psbt.unsigned_tx.input {
+                        let key = format!(
+                            "{}:{}",
+                            txin.previous_output.txid, txin.previous_output.vout
+                        );
+                        pending_map.entry(key).or_default().push(row.id);
+                    }
+                }
+            }
+        }
+
+        // Build txid → confirmation_height map for all wallet transactions.
+        // Used to determine the original confirmation status of ghost UTXOs.
+        let tx_conf_heights: std::collections::HashMap<bdk_wallet::bitcoin::Txid, Option<u32>> =
+            wallet
+                .transactions()
+                .map(|t| {
+                    let height =
+                        if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                            &t.chain_position
+                        {
+                            Some(anchor.block_id.height)
+                        } else {
+                            None
+                        };
+                    (t.tx_node.txid, height)
+                })
+                .collect();
+
+        // Regular UTXOs (unspent per BDK).
         let mut utxos: Vec<APIUtxo> = wallet
             .list_unspent()
             .map(|local_output| {
@@ -749,9 +785,9 @@ impl APIWallet {
                     "{}:{}",
                     local_output.outpoint.txid, local_output.outpoint.vout
                 );
-
                 let (label, effective_label, is_auto) =
                     resolve_label(coin_labels.get(&outpoint_key).cloned());
+                let pending_psbt_ids = pending_map.get(&outpoint_key).cloned().unwrap_or_default();
 
                 APIUtxo {
                     txid: local_output.outpoint.txid.to_string(),
@@ -765,9 +801,85 @@ impl APIWallet {
                     label,
                     effective_label,
                     is_auto,
+                    pending_psbt_ids,
+                    mempool_spending_txid: None,
                 }
             })
             .collect();
+
+        // Ghost UTXOs: coins spent by unconfirmed (mempool) transactions.
+        // BDK removes these from list_unspent() as soon as the spending tx is known,
+        // but we reconstruct them from the tx graph so they remain visible as "Spending".
+        let existing: std::collections::HashSet<String> = utxos
+            .iter()
+            .map(|u| format!("{}:{}", u.txid, u.vout))
+            .collect();
+
+        for canonical_tx in wallet.transactions() {
+            if !matches!(
+                canonical_tx.chain_position,
+                bdk_wallet::chain::ChainPosition::Unconfirmed { .. }
+            ) {
+                continue;
+            }
+            let spending_txid = canonical_tx.tx_node.txid.to_string();
+            for txin in &canonical_tx.tx_node.tx.input {
+                if txin.previous_output.is_null() {
+                    continue;
+                }
+                let outpoint_key = format!(
+                    "{}:{}",
+                    txin.previous_output.txid, txin.previous_output.vout
+                );
+                if existing.contains(&outpoint_key) {
+                    continue;
+                }
+                // Resolve the previous output via the tx graph.
+                let Some(txout) = wallet.tx_graph().get_txout(txin.previous_output) else {
+                    continue;
+                };
+                // Check whether this scriptpubkey belongs to one of our keychains.
+                let Some((keychain_kind, index)) =
+                    wallet.spk_index().index_of_spk(txout.script_pubkey.clone())
+                else {
+                    continue;
+                };
+                let api_keychain = match keychain_kind {
+                    bdk_wallet::KeychainKind::External => APIKeychain::External,
+                    bdk_wallet::KeychainKind::Internal => APIKeychain::Internal,
+                };
+                let address = wallet
+                    .peek_address(*keychain_kind, *index)
+                    .address
+                    .to_string();
+
+                // Determine whether the creating tx was confirmed.
+                let conf_height = tx_conf_heights
+                    .get(&txin.previous_output.txid)
+                    .copied()
+                    .flatten();
+
+                let (label, effective_label, is_auto) =
+                    resolve_label(coin_labels.get(&outpoint_key).cloned());
+                let pending_psbt_ids = pending_map.get(&outpoint_key).cloned().unwrap_or_default();
+
+                utxos.push(APIUtxo {
+                    txid: txin.previous_output.txid.to_string(),
+                    vout: txin.previous_output.vout,
+                    value_sat: txout.value.to_sat(),
+                    keychain: api_keychain,
+                    derivation_index: *index,
+                    address,
+                    is_confirmed: conf_height.is_some(),
+                    confirmation_height: conf_height,
+                    label,
+                    effective_label,
+                    is_auto,
+                    pending_psbt_ids,
+                    mempool_spending_txid: Some(spending_txid.clone()),
+                });
+            }
+        }
 
         utxos.sort_by(|a, b| b.value_sat.cmp(&a.value_sat).then(a.txid.cmp(&b.txid)));
         Ok(utxos)
@@ -1070,6 +1182,8 @@ impl APIWallet {
             label,
             effective_label,
             is_auto,
+            pending_psbt_ids: vec![],
+            mempool_spending_txid: None,
         };
 
         // The transaction that created this UTXO
@@ -1669,16 +1783,74 @@ impl APIWallet {
             })
             .collect();
 
+        // Pre-resolve each selected UTXO before the builder borrows the wallet.
+        // Coins spent by a mempool tx are absent from BDK's internal UTXO set;
+        // we reconstruct them as foreign UTXOs from the tx graph (full-RBF).
+        struct ResolvedUtxo {
+            outpoint: OutPoint,
+            /// Some → foreign (mempool) UTXO; None → normal internal UTXO.
+            foreign: Option<(
+                bdk_wallet::bitcoin::psbt::Input,
+                bdk_wallet::bitcoin::Weight,
+            )>,
+        }
+        let mut resolved: Vec<ResolvedUtxo> = Vec::with_capacity(selected_utxos.len());
+        for coin in &selected_utxos {
+            let outpoint = OutPoint::new(Txid::from_str(&coin.txid)?, coin.vout);
+            if core.wallet.get_utxo(outpoint).is_some() {
+                resolved.push(ResolvedUtxo {
+                    outpoint,
+                    foreign: None,
+                });
+            } else {
+                // Not in the internal UTXO set — try the tx graph (mempool coin).
+                let txout = core
+                    .wallet
+                    .tx_graph()
+                    .get_txout(outpoint)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "UTXO not found in wallet or tx graph: {}:{}",
+                            coin.txid,
+                            coin.vout
+                        )
+                    })?
+                    .clone();
+                let keychain = core
+                    .wallet
+                    .spk_index()
+                    .index_of_spk(txout.script_pubkey.clone())
+                    .map(|(k, _)| *k)
+                    .unwrap_or(KeychainKind::External);
+                let psbt_input = bdk_wallet::bitcoin::psbt::Input {
+                    witness_utxo: Some(txout),
+                    ..Default::default()
+                };
+                let satisfaction_weight = core
+                    .wallet
+                    .public_descriptor(keychain)
+                    .max_weight_to_satisfy()
+                    .unwrap_or(bdk_wallet::bitcoin::Weight::from_wu(500));
+                resolved.push(ResolvedUtxo {
+                    outpoint,
+                    foreign: Some((psbt_input, satisfaction_weight)),
+                });
+            }
+        }
+
         let mut builder = core.wallet.build_tx();
         builder.fee_rate(fee_rate);
 
         if send_max {
             // Drain all selected (or all wallet) funds to recipient, no change output.
             builder.drain_to(address.script_pubkey());
-            if !selected_utxos.is_empty() {
-                for coin in &selected_utxos {
-                    let txid = Txid::from_str(&coin.txid)?;
-                    builder.add_utxo(OutPoint::new(txid, coin.vout))?;
+            if !resolved.is_empty() {
+                for r in &resolved {
+                    if let Some((psbt_input, weight)) = &r.foreign {
+                        builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
+                    } else {
+                        builder.add_utxo(r.outpoint)?;
+                    }
                 }
                 builder.manually_selected_only();
             } else {
@@ -1687,10 +1859,13 @@ impl APIWallet {
         } else {
             let amount = Amount::from_sat(amount_sat);
             builder.add_recipient(address.script_pubkey(), amount);
-            if !selected_utxos.is_empty() {
-                for coin in &selected_utxos {
-                    let txid = Txid::from_str(&coin.txid)?;
-                    builder.add_utxo(OutPoint::new(txid, coin.vout))?;
+            if !resolved.is_empty() {
+                for r in &resolved {
+                    if let Some((psbt_input, weight)) = &r.foreign {
+                        builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
+                    } else {
+                        builder.add_utxo(r.outpoint)?;
+                    }
                 }
                 builder.manually_selected_only();
             }

@@ -1623,8 +1623,16 @@ class _CoinTile extends StatelessWidget {
     );
     final label = utxo.effectiveLabel;
     final isInherited = utxo.isAuto;
+    final isMempool = utxo.mempoolSpendingTxid != null;
+    final isSpending = isMempool || utxo.pendingPsbtIds.isNotEmpty;
 
-    return Card(
+    // Opacity: fade the tile to convey "disabled/do not reuse".
+    // Mempool (already broadcast) is more faded than PSBT-only draft.
+    final opacity = isMempool ? 0.35 : isSpending ? 0.55 : 1.0;
+
+    return Opacity(
+      opacity: opacity,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
@@ -1685,12 +1693,15 @@ class _CoinTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                _StatusBadge(
-                  label: utxo.isConfirmed
-                      ? l10n.txConfirmed
-                      : l10n.txUnconfirmed,
-                  color: utxo.isConfirmed ? Colors.green : Colors.grey,
-                ),
+                // Single combined status badge: Spending > PSBT > Unconfirmed > Confirmed
+                if (isMempool)
+                  _StatusBadge(label: l10n.coinMempoolSpend, color: Colors.red)
+                else if (utxo.pendingPsbtIds.isNotEmpty)
+                  _StatusBadge(label: l10n.coinPendingSpend, color: Colors.orange)
+                else if (utxo.isConfirmed)
+                  _StatusBadge(label: l10n.txConfirmed, color: Colors.green)
+                else
+                  _StatusBadge(label: l10n.txUnconfirmed, color: Colors.grey),
                 const SizedBox(width: 6),
                 _StatusBadge(
                   label: isChange
@@ -1698,7 +1709,6 @@ class _CoinTile extends StatelessWidget {
                       : l10n.coinKeychainReceive,
                   color: isChange ? Colors.amber : Colors.green,
                 ),
-                // Show spend path summary only when there are timelocks
                 if (hasTimelocks && spendPaths.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   _SpendPathSummaryBadge(
@@ -1712,6 +1722,7 @@ class _CoinTile extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right, size: 18),
       ),
+    ),
     );
   }
 
@@ -1971,6 +1982,38 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                     keyLabels: keyLabels,
                   ),
               ],
+              // ── Pending PSBTs ─────────────────────────────────────────────
+              Builder(builder: (context) {
+                final cubitState =
+                    context.watch<WalletDetailCubit>().state;
+                if (cubitState is! WalletDetailLoaded) {
+                  return const SizedBox.shrink();
+                }
+                final pendingIds = utxo.pendingPsbtIds
+                    .map((id) => id.toInt())
+                    .toSet();
+                final pendingPsbts = cubitState.psbts
+                    .where((p) => pendingIds.contains(p.id.toInt()))
+                    .toList();
+                if (pendingPsbts.isEmpty) return const SizedBox.shrink();
+                final labelStyle =
+                    Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(178),
+                    );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(height: 20),
+                    Text(l10n.coinPendingPsbtsSection, style: labelStyle),
+                    const SizedBox(height: 8),
+                    for (final psbt in pendingPsbts)
+                      _PendingPsbtRow(psbt: psbt),
+                  ],
+                );
+              }),
               if (explorerUrl.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -3789,6 +3832,81 @@ class _PsbtTile extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pending PSBT row shown inside the coin detail dialog
+// ─────────────────────────────────────────────────────────────
+
+class _PendingPsbtRow extends StatelessWidget {
+  final APIPsbtInfo psbt;
+
+  const _PendingPsbtRow({required this.psbt});
+
+  APISpendPath? _findSpendPath(List<APISpendPath> spendPaths) {
+    try {
+      return spendPaths.firstWhere((p) => p.id == psbt.spendPathId.toInt());
+    } catch (_) {
+      return spendPaths.isNotEmpty ? spendPaths.first : null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = psbt.label;
+    final title = label != null && label.isNotEmpty ? label : psbt.recipient;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        final cubitState =
+            context.read<WalletDetailCubit>().state as WalletDetailLoaded;
+        final spendPath = _findSpendPath(
+          cubitState.descriptorAnalysis?.spendPaths ?? [],
+        );
+        Navigator.of(context).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: context.read<WalletDetailCubit>(),
+              child: PsbtDetailScreen(psbt: psbt, spendPath: spendPath),
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.lock_clock_outlined, size: 16, color: Colors.orange),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ColoredAddressText(address: title, truncate: true),
+                  Text(
+                    '${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color:
+                          theme.colorScheme.onSurface.withAlpha(150),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: theme.colorScheme.onSurface.withAlpha(100),
+            ),
+          ],
+        ),
       ),
     );
   }

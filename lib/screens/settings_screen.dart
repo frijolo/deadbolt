@@ -227,12 +227,14 @@ class _ExplorerField extends StatefulWidget {
 
 class _ExplorerFieldState extends State<_ExplorerField> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
   bool _editing = false;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.currentUrl);
+    _focusNode = FocusNode()..addListener(_onFocusChange);
   }
 
   @override
@@ -245,8 +247,19 @@ class _ExplorerFieldState extends State<_ExplorerField> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
+  void _save() {
+    if (!_editing) return;
+    widget.onSave(_controller.text.trim());
+    setState(() => _editing = false);
   }
 
   @override
@@ -256,25 +269,14 @@ class _ExplorerFieldState extends State<_ExplorerField> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: _controller,
+        focusNode: _focusNode,
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: l10n.explorerUrlHint,
           border: const OutlineInputBorder(),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.check, size: 18),
-            tooltip: l10n.save,
-            onPressed: () {
-              widget.onSave(_controller.text.trim());
-              setState(() => _editing = false);
-              FocusScope.of(context).unfocus();
-            },
-          ),
         ),
         onTap: () => setState(() => _editing = true),
-        onSubmitted: (url) {
-          widget.onSave(url.trim());
-          setState(() => _editing = false);
-        },
+        onSubmitted: (_) => _save(),
       ),
     );
   }
@@ -292,6 +294,7 @@ class _MinFeeRateTile extends StatefulWidget {
 
 class _MinFeeRateTileState extends State<_MinFeeRateTile> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
   bool _editing = false;
 
   @override
@@ -299,6 +302,7 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
     super.initState();
     _controller =
         TextEditingController(text: widget.settings.minFeeRate.toString());
+    _focusNode = FocusNode()..addListener(_onFocusChange);
   }
 
   @override
@@ -311,11 +315,17 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
 
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
   void _save() {
+    if (!_editing) return;
     final value = double.tryParse(_controller.text.trim());
     if (value != null && value > 0) {
       widget.cubit.setMinFeeRate(value);
@@ -323,7 +333,6 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
       _controller.text = widget.settings.minFeeRate.toString();
     }
     setState(() => _editing = false);
-    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -333,16 +342,12 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextField(
         controller: _controller,
+        focusNode: _focusNode,
         decoration: InputDecoration(
           labelText: l10n.settingsMinFeeRate,
           hintText: '0.1',
           suffixText: 'sat/vB',
           border: const OutlineInputBorder(),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.check, size: 18),
-            tooltip: l10n.save,
-            onPressed: _save,
-          ),
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onTap: () => setState(() => _editing = true),
@@ -369,12 +374,14 @@ class _ElectrumField extends StatefulWidget {
 
 class _ElectrumFieldState extends State<_ElectrumField> {
   late final TextEditingController _controller;
+  late final FocusNode _focusNode;
   bool _editing = false;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.currentUrl);
+    _focusNode = FocusNode()..addListener(_onFocusChange);
   }
 
   @override
@@ -387,8 +394,19 @@ class _ElectrumFieldState extends State<_ElectrumField> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
+  void _save() {
+    if (!_editing) return;
+    widget.onSave(_controller.text.trim());
+    setState(() => _editing = false);
   }
 
   @override
@@ -398,25 +416,14 @@ class _ElectrumFieldState extends State<_ElectrumField> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: _controller,
+        focusNode: _focusNode,
         decoration: InputDecoration(
           labelText: widget.label,
           hintText: l10n.electrumUrlHint,
           border: const OutlineInputBorder(),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.check, size: 18),
-            tooltip: l10n.save,
-            onPressed: () {
-              widget.onSave(_controller.text.trim());
-              setState(() => _editing = false);
-              FocusScope.of(context).unfocus();
-            },
-          ),
         ),
         onTap: () => setState(() => _editing = true),
-        onSubmitted: (url) {
-          widget.onSave(url.trim());
-          setState(() => _editing = false);
-        },
+        onSubmitted: (_) => _save(),
       ),
     );
   }
