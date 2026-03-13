@@ -18,7 +18,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
-import 'package:deadbolt/screens/qr_scanner_screen.dart';
+import 'package:deadbolt/widgets/text_import_sheet.dart' show showPsbtImportSheet;
 
 class PsbtDetailScreen extends StatefulWidget {
   final APIPsbtInfo psbt;
@@ -37,11 +37,19 @@ class PsbtDetailScreen extends StatefulWidget {
 class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   late APIPsbtInfo _psbt;
   bool _broadcasting = false;
+  late final TextEditingController _labelController;
 
   @override
   void initState() {
     super.initState();
     _psbt = widget.psbt;
+    _labelController = TextEditingController(text: _psbt.label ?? '');
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
   }
 
   APIPsbtAnalysis? get _analysis {
@@ -62,6 +70,17 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   bool get _isReadyToBroadcast =>
       _signedCount >= _psbt.threshold.toInt() ||
       (_analysis?.isFinalized ?? false);
+
+  // ─── Label ────────────────────────────────────────────────────────────────
+
+  void _saveLabel(BuildContext context, String value) {
+    final trimmed = value.trim();
+    if (trimmed == (_psbt.label ?? '')) return;
+    final updated = context
+        .read<WalletDetailCubit>()
+        .setPsbtLabel(_psbt.id.toInt(), trimmed);
+    if (updated != null) setState(() => _psbt = updated);
+  }
 
   // ─── Timelock ─────────────────────────────────────────────────────────────
 
@@ -309,61 +328,10 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
   // ─── Import signed ────────────────────────────────────────────────────────
 
-  void _importSigned(BuildContext context) {
-    final l10n = context.l10n;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.qr_code_scanner),
-              title: Text(l10n.psbtImportFromQr),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final scanned = await QrScannerScreen.push(context);
-                if (scanned != null && context.mounted) {
-                  _mergePsbt(context, scanned.trim());
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.file_open_outlined),
-              title: Text(l10n.psbtImportFromFile),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _importFromFile(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _importFromFile(BuildContext context) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['psbt', 'txt'],
-        withData: true,
-      );
-      if (result == null || result.files.first.bytes == null) return;
-      final bytes = result.files.first.bytes!;
-      // Try to decode as UTF-8 base64 first; if that fails, raw bytes → base64
-      String psbtBase64;
-      try {
-        psbtBase64 = utf8.decode(bytes).trim();
-        // Validate it's decodable base64
-        base64Decode(psbtBase64);
-      } catch (_) {
-        psbtBase64 = base64Encode(bytes);
-      }
-      if (context.mounted) _mergePsbt(context, psbtBase64);
-    } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
-    }
+  Future<void> _importSigned(BuildContext context) async {
+    final psbtBase64 = await showPsbtImportSheet(context);
+    if (psbtBase64 == null || psbtBase64.isEmpty) return;
+    if (context.mounted) _mergePsbt(context, psbtBase64);
   }
 
   Future<void> _mergePsbt(BuildContext context, String signedBase64) async {
@@ -516,6 +484,25 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _labelController,
+                                decoration: InputDecoration(
+                                  labelText: l10n.txLabelTitle,
+                                  hintText: l10n.psbtLabelHint,
+                                  isDense: true,
+                                  border: const OutlineInputBorder(),
+                                ),
+                                onSubmitted: (v) => _saveLabel(context, v),
+                                onTapOutside: (_) =>
+                                    _saveLabel(context, _labelController.text),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         _DetailRow(
                           label: l10n.psbtRecipient,
                           value: _psbt.recipient,
@@ -567,11 +554,16 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   ...analysis.signers.map((signer) {
                     final label = keyLabels[signer.mfp];
                     final isOptional = !signer.hasSigned && signed >= threshold;
+                    // If the PSBT is finalized but partial_sigs were cleared (e.g. by an
+                    // external signer), we can't tell who signed — show as "unknown".
+                    final isUnknown =
+                        !signer.hasSigned && analysis.isFinalized;
                     return _SignerRow(
                       mfp: signer.mfp,
                       label: label,
                       hasSigned: signer.hasSigned,
-                      isOptional: isOptional,
+                      isOptional: isOptional && !isUnknown,
+                      isUnknown: isUnknown,
                     );
                   }),
 
@@ -712,12 +704,14 @@ class _SignerRow extends StatelessWidget {
   final String? label;
   final bool hasSigned;
   final bool isOptional;
+  final bool isUnknown;
 
   const _SignerRow({
     required this.mfp,
     required this.label,
     required this.hasSigned,
     this.isOptional = false,
+    this.isUnknown = false,
   });
 
   @override
@@ -726,31 +720,37 @@ class _SignerRow extends StatelessWidget {
     final theme = Theme.of(context);
     final Color color;
     final String statusText;
+    final IconData icon;
 
     if (hasSigned) {
       color = Colors.green;
       statusText = l10n.psbtSignerSigned;
+      icon = Icons.check_circle;
+    } else if (isUnknown) {
+      color = Colors.orange;
+      statusText = l10n.psbtSignerUnknown;
+      icon = Icons.help_outline;
     } else if (isOptional) {
       color = theme.colorScheme.onSurface.withAlpha(80);
       statusText = l10n.psbtSignerOptional;
+      icon = Icons.radio_button_unchecked;
     } else {
       color = theme.colorScheme.outline;
       statusText = l10n.psbtSignerMissing;
+      icon = Icons.radio_button_unchecked;
     }
+
+    final dimmed = isOptional && !isUnknown;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(
-            hasSigned ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: color,
-            size: 20,
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
           MfpBadge(
             label: mfp.substring(0, 8).toUpperCase(),
-            color: isOptional
+            color: dimmed
                 ? theme.colorScheme.onSurface.withAlpha(80)
                 : theme.colorScheme.outline,
           ),
@@ -760,7 +760,7 @@ class _SignerRow extends StatelessWidget {
               child: Text(
                 label!,
                 overflow: TextOverflow.ellipsis,
-                style: isOptional
+                style: dimmed
                     ? TextStyle(color: theme.colorScheme.onSurface.withAlpha(80))
                     : null,
               ),
@@ -810,3 +810,4 @@ class _DetailRow extends StatelessWidget {
     );
   }
 }
+

@@ -2054,6 +2054,12 @@ abstract class AppLocalizations {
   /// **'Optional'**
   String get psbtSignerOptional;
 
+  /// No description provided for @psbtSignerUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get psbtSignerUnknown;
+
   /// No description provided for @psbtExportButton.
   ///
   /// In en, this message translates to:
@@ -2107,6 +2113,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import failed: {error}'**
   String psbtMergeFailed(String error);
+
+  /// No description provided for @psbtLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a label...'**
+  String get psbtLabelHint;
 
   /// No description provided for @psbtDeleteTitle.
   ///
@@ -2306,6 +2318,24 @@ abstract class AppLocalizations {
   /// **'Labels (BIP-329)'**
   String get exportLabelsOption;
 
+  /// No description provided for @importPsbtOption.
+  ///
+  /// In en, this message translates to:
+  /// **'PSBT'**
+  String get importPsbtOption;
+
+  /// No description provided for @importPsbtMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Signatures merged'**
+  String get importPsbtMerged;
+
+  /// No description provided for @importPsbtSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'PSBT imported'**
+  String get importPsbtSaved;
+
   /// No description provided for @coinPendingSpend.
   ///
   /// In en, this message translates to:
@@ -2347,6 +2377,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next address'**
   String get receiveNextAddress;
+
+  /// No description provided for @rbfWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-RBF replacement'**
+  String get rbfWarningTitle;
+
+  /// No description provided for @rbfOriginalFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Original fee'**
+  String get rbfOriginalFee;
+
+  /// No description provided for @rbfMinFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum fee'**
+  String get rbfMinFee;
+
+  /// No description provided for @rbfMinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum rate'**
+  String get rbfMinRate;
+
+  /// No description provided for @rbfUnknownFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending a mempool UTXO — use a higher fee rate than the original tx.'**
+  String get rbfUnknownFee;
+
+  /// No description provided for @rbfFeeTooLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate too low for RBF — minimum is {rate} sat/vB'**
+  String rbfFeeTooLow(double rate);
+
+  /// No description provided for @rbfAbsFeeTooLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Total fee too low for RBF — minimum is {fee} sats'**
+  String rbfAbsFeeTooLow(int fee);
 }
 
 class _AppLocalizationsDelegate

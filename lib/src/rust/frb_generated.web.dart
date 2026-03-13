@@ -101,6 +101,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl dco_decode_api_coin_control(dynamic raw);
 
   @protected
+  APIImportPsbtResult dco_decode_api_import_psbt_result(dynamic raw);
+
+  @protected
   APIKeyLabel dco_decode_api_key_label(dynamic raw);
 
   @protected
@@ -126,6 +129,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIPubKey dco_decode_api_pub_key(dynamic raw);
+
+  @protected
+  APIRbfInfo dco_decode_api_rbf_info(dynamic raw);
 
   @protected
   APIRelatedAddress dco_decode_api_related_address(dynamic raw);
@@ -370,6 +376,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
 
   @protected
+  APIImportPsbtResult sse_decode_api_import_psbt_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIKeyLabel sse_decode_api_key_label(SseDeserializer deserializer);
 
   @protected
@@ -397,6 +408,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIPubKey sse_decode_api_pub_key(SseDeserializer deserializer);
+
+  @protected
+  APIRbfInfo sse_decode_api_rbf_info(SseDeserializer deserializer);
 
   @protected
   APIRelatedAddress sse_decode_api_related_address(
@@ -692,6 +706,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_import_psbt_result(
+    APIImportPsbtResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_key_label(APIKeyLabel self, SseSerializer serializer);
 
   @protected
@@ -723,6 +743,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_pub_key(APIPubKey self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_rbf_info(APIRbfInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_api_related_address(

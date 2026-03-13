@@ -12,6 +12,14 @@ use crate::core::error::WalletError;
 use crate::core::wallet::WalletType;
 
 static XPUB_REGEX: OnceLock<Regex> = OnceLock::new();
+static SINGLE_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+
+/// Returns true if the descriptor uses a single derivation path (e.g. /0/*) instead of <0;1>/*.
+fn is_single_path(descriptor: &str) -> bool {
+    let re = SINGLE_PATH_REGEX
+        .get_or_init(|| Regex::new(r"/\d+/\*").expect("single path regex is valid"));
+    re.is_match(descriptor)
+}
 
 /// Returns a compiled regex for matching xpub-like prefixes, compiled once.
 fn xpub_regex() -> &'static Regex {
@@ -51,6 +59,11 @@ impl DescriptorParser {
     /// This avoids creating up to 5 temporary wallets like the old approach.
     /// Falls back to wallet creation only if ambiguous.
     pub fn detect_network(&self) -> Result<Network> {
+        // Single-path descriptors (e.g. /0/*) are not supported — require <0;1>/* format
+        if is_single_path(&self.descriptor_str) {
+            return Err(WalletError::SinglePathDescriptor.into());
+        }
+
         // Extract all xpub-like prefixes from descriptor (regex compiled once via OnceLock)
         let re = xpub_regex();
 

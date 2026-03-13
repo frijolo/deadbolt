@@ -1109,6 +1109,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get psbtSignerOptional => 'Optional';
 
   @override
+  String get psbtSignerUnknown => 'Unknown';
+
+  @override
   String get psbtExportButton => 'Export PSBT';
 
   @override
@@ -1140,6 +1143,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String psbtMergeFailed(String error) {
     return 'Import failed: $error';
   }
+
+  @override
+  String get psbtLabelHint => 'Add a label...';
 
   @override
   String get psbtDeleteTitle => 'Delete PSBT';
@@ -1245,6 +1251,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportLabelsOption => 'Labels (BIP-329)';
 
   @override
+  String get importPsbtOption => 'PSBT';
+
+  @override
+  String get importPsbtMerged => 'Signatures merged';
+
+  @override
+  String get importPsbtSaved => 'PSBT imported';
+
+  @override
   String get coinPendingSpend => 'PSBT';
 
   @override
@@ -1265,4 +1280,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiveNextAddress => 'Next address';
+
+  @override
+  String get rbfWarningTitle => 'Full-RBF replacement';
+
+  @override
+  String get rbfOriginalFee => 'Original fee';
+
+  @override
+  String get rbfMinFee => 'Minimum fee';
+
+  @override
+  String get rbfMinRate => 'Minimum rate';
+
+  @override
+  String get rbfUnknownFee =>
+      'Spending a mempool UTXO — use a higher fee rate than the original tx.';
+
+  @override
+  String rbfFeeTooLow(double rate) {
+    return 'Fee rate too low for RBF — minimum is $rate sat/vB';
+  }
+
+  @override
+  String rbfAbsFeeTooLow(int fee) {
+    return 'Total fee too low for RBF — minimum is $fee sats';
+  }
 }

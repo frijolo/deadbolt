@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_addr_utxo_map`, `build_tx_utxo_map`, `cascade_delete_label`, `extract_xpub_mfp_map`, `propagate_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_addr_utxo_map`, `build_tx_utxo_map`, `cascade_delete_label`, `extract_xpub_mfp_map`, `propagate_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -151,6 +151,10 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Return all spend-path labels (rust_id → label).
   Future<List<APIPathLabel>> getPathLabels();
 
+  /// Return RBF replacement constraints for a mempool tx spending one of our UTXOs.
+  /// Fetches parent txs from Electrum when fee cannot be determined from the wallet graph.
+  Future<APIRbfInfo> getRbfInfo({required String spendingTxid});
+
   /// Return the current best block height from the local chain (0 if not yet synced).
   Future<int> getTipHeight();
 
@@ -177,6 +181,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Import labels from BIP-329 JSONL. Sets all as explicit, then re-propagates.
   /// Malformed lines and unknown types are silently skipped.
   void importBip329({required List<String> lines});
+
+  /// Import a PSBT (base64) from an external source.
+  ///
+  /// If a record with the same unsigned txid already exists, the signatures are
+  /// merged and the existing record is updated (`was_merged = true`).
+  /// Otherwise a new record is created with metadata extracted from the PSBT.
+  Future<APIImportPsbtResult> importPsbt({required String psbtBase64});
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
   Future<List<APIPsbtInfo>> listPsbts();
@@ -225,6 +236,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Persist a label for a spend path by rust_id. Pass an empty string to remove it.
   void setPathLabel({required int rustId, required String label});
+
+  /// Set or clear the label for a saved PSBT. Pass an empty string to clear.
+  APIPsbtInfo setPsbtLabel({required PlatformInt64 id, required String label});
 
   /// Persist a label for a transaction. Pass an empty string to remove it.
   /// Automatically propagates to related entities (addresses and UTXOs).

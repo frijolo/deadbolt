@@ -97,6 +97,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   final _amountCtrl = TextEditingController();
   final _feeRateCtrl = TextEditingController(text: '1.0');
   final _totalFeeCtrl = TextEditingController();
+  final _labelCtrl = TextEditingController();
   bool _creating = false;
   bool _sendMax = false;
   APISpendPath? _selectedPath;
@@ -105,6 +106,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // Selected UTXOs (chosen via CoinSelectorScreen)
   List<APIUtxo> _selectedUtxos = [];
+
+  // RBF info: mempoolSpendingTxid -> APIRbfInfo (null while loading)
+  final Map<String, APIRbfInfo?> _rbfInfos = {};
+
+  // Focus nodes for the two fee fields — explicit requestFocus() is more reliable
+  // than autofocus: true on desktop platforms.
+  final _rateFocusNode = FocusNode();
+  final _totalFocusNode = FocusNode();
 
   // Async resolution of recipient output WU via FFI.
   int? _recipientWu;
@@ -126,6 +135,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _amountCtrl.dispose();
     _feeRateCtrl.dispose();
     _totalFeeCtrl.dispose();
+    _labelCtrl.dispose();
+    _rateFocusNode.dispose();
+    _totalFocusNode.dispose();
     super.dispose();
   }
 
@@ -149,17 +161,47 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     setState(() => _feeEditMode = _FeeEditMode.none);
   }
 
-  /// Back-compute fee rate from user-entered total fee (uses wuNoChange as denominator).
-  /// Called only when the user confirms editing totalFee.
+  /// Back-compute fee rate from user-entered total fee.
+  /// Uses the actual tx weight from _txSummary (includes change output when present)
+  /// to avoid rate drift when toggling between the two fee edit modes.
   void _syncRateFromTotal() {
     final fee = int.tryParse(_totalFeeCtrl.text);
+    if (fee == null || fee <= 0) return;
+    // Prefer the actual weight from the current summary — prevents upward drift.
+    final summary = _txSummary;
+    if (summary != null) {
+      _feeRateCtrl.text = (fee / (summary.totalWu / 4.0)).toStringAsFixed(2);
+      return;
+    }
+    // Fallback when summary is unavailable (missing coins / path / recipient).
     final path = _selectedPath;
     final wu = _recipientWu;
-    if (fee == null || fee <= 0 || path == null || wu == null) return;
+    if (path == null || wu == null) return;
     final n = _selectedUtxos.length;
     if (n == 0) return;
     final wuNoChange = path.wuBase + n * path.wuIn + wu;
     _feeRateCtrl.text = (fee / (wuNoChange / 4.0)).toStringAsFixed(2);
+  }
+
+  // ─── RBF helpers ─────────────────────────────────────────────────────────
+
+  void _updateRbfInfos() {
+    final cubit = context.read<WalletDetailCubit>();
+    final txids = _selectedUtxos
+        .map((u) => u.mempoolSpendingTxid)
+        .whereType<String>()
+        .toSet();
+    // Remove stale entries.
+    _rbfInfos.removeWhere((k, _) => !txids.contains(k));
+    // Fetch new ones.
+    for (final txid in txids) {
+      if (!_rbfInfos.containsKey(txid)) {
+        _rbfInfos[txid] = null;
+        cubit.getRbfInfo(txid).then((info) {
+          if (mounted) setState(() => _rbfInfos[txid] = info);
+        });
+      }
+    }
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -212,7 +254,17 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     if (_feeEditMode == _FeeEditMode.total) {
       final fee = int.tryParse(_totalFeeCtrl.text);
       if (fee == null || fee <= 0) return null;
-      rate = fee / (wuNoChange / 4.0);
+      if (!_sendMax) {
+        // Pick the denominator that matches the tx structure the user will actually get,
+        // so feeSats == fee (no rounding drift when toggling between the two fee fields).
+        final amountHint = int.tryParse(_amountCtrl.text) ?? 0;
+        final remainderIfExactFee = totalIn - amountHint - fee;
+        rate = remainderIfExactFee >= _dustLimit
+            ? fee / (wuWithChange / 4.0) // change output present → exact fee
+            : fee / (wuNoChange / 4.0);  // no change output
+      } else {
+        rate = fee / (wuNoChange / 4.0); // sendMax: no change output
+      }
     } else {
       rate = double.tryParse(_feeRateCtrl.text);
     }
@@ -312,6 +364,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     );
     if (result != null) {
       setState(() => _selectedUtxos = result);
+      _updateRbfInfos();
     }
   }
 
@@ -415,6 +468,128 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     return null;
   }
 
+  Widget _buildRbfCard(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final resolvedInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
+    final hasLoading = _rbfInfos.values.any((v) => v == null);
+
+    // Rate constraint (fixed, from original txs — ImprovesFeerateDiagram).
+    final maxOrigRate = resolvedInfos.fold<double>(
+      0.0,
+      (m, i) => max(m, i.minFeeRateSatPerVb),
+    );
+    final currentRate = double.tryParse(_feeRateCtrl.text) ?? 0.0;
+    final rateTooLow = resolvedInfos.isNotEmpty && currentRate <= maxOrigRate;
+
+    // Absolute fee constraint (Rule 4 — depends on new tx size).
+    final summary = _txSummary;
+    final totalOrigFee =
+        resolvedInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
+    final int? actualNewVsize =
+        summary != null ? (summary.totalWu / 4.0).ceil() : null;
+    final int minFeeSat = actualNewVsize != null
+        ? totalOrigFee + actualNewVsize
+        : resolvedInfos.fold<int>(0, (m, i) => max(m, i.minFeeSat.toInt()));
+    final bool absFeeTooLow = resolvedInfos.isNotEmpty &&
+        summary != null &&
+        summary.feeSats <= minFeeSat;
+
+    final bool feeTooLow = rateTooLow || absFeeTooLow;
+    final warningColor = feeTooLow ? colorScheme.error : Colors.orange;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: warningColor.withAlpha(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: warningColor.withAlpha(80)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 16, color: warningColor),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.rbfWarningTitle,
+                  style: theme.textTheme.labelMedium?.copyWith(color: warningColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (resolvedInfos.isEmpty && hasLoading)
+              Text(
+                l10n.rbfUnknownFee,
+                style: theme.textTheme.bodySmall,
+              )
+            else if (resolvedInfos.isNotEmpty) ...[
+              Builder(builder: (ctx) {
+                // For display, show the info of the spending tx with the highest fee
+                // (i.e., strictest constraint).
+                final info = resolvedInfos.reduce(
+                  (a, b) => b.origFeeSat > a.origFeeSat ? b : a,
+                );
+                final dimColor = theme.colorScheme.onSurface.withAlpha(140);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _rbfRow(
+                      l10n.rbfOriginalFee,
+                      '${info.origFeeSat} sats  (${info.origFeeRateSatPerVb.toStringAsFixed(1)} sat/vB, ${info.origVsize} vB)',
+                      dimColor,
+                      theme,
+                    ),
+                    const SizedBox(height: 4),
+                    _rbfRow(
+                      l10n.rbfMinFee,
+                      '> $minFeeSat sats${actualNewVsize == null ? ' ~' : ''}',
+                      absFeeTooLow ? warningColor : dimColor,
+                      theme,
+                    ),
+                    const SizedBox(height: 4),
+                    _rbfRow(
+                      l10n.rbfMinRate,
+                      '> ${maxOrigRate.toStringAsFixed(1)} sat/vB',
+                      rateTooLow ? warningColor : dimColor,
+                      theme,
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rbfRow(String label, String value, Color valueColor, ThemeData theme) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(140)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(color: valueColor),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSelectedPathCard(
     BuildContext context,
     APISpendPath path,
@@ -477,14 +652,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     required bool isDecimal,
     required VoidCallback onEditTap,
     required VoidCallback onDone,
+    String? errorText,
   }) {
     if (_feeEditMode == thisMode) {
       return TextFormField(
         controller: controller,
-        autofocus: true,
+        focusNode: isDecimal ? _rateFocusNode : _totalFocusNode,
         decoration: InputDecoration(
           labelText: labelText,
           suffixText: suffixText,
+          errorText: errorText,
         ),
         keyboardType: isDecimal
             ? const TextInputType.numberWithOptions(decimal: true)
@@ -501,6 +678,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         decoration: InputDecoration(
           labelText: labelText,
           suffixText: suffixText,
+          errorText: errorText,
         ),
         isEmpty: false,
         child: Text(displayValue),
@@ -537,6 +715,36 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       return;
     }
 
+    // Two independent RBF checks (Bitcoin Core ReplacementChecks):
+    final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
+    if (resolvedRbfInfos.isNotEmpty) {
+      // 1. ImprovesFeerateDiagram: new_rate must strictly exceed orig_rate.
+      //    Fixed — independent of new tx size.
+      final maxOrigRate = resolvedRbfInfos.fold<double>(
+        0.0,
+        (m, i) => max(m, i.minFeeRateSatPerVb),
+      );
+      if (rate <= maxOrigRate) {
+        showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
+        setState(() => _feeEditMode = _FeeEditMode.rate);
+        return;
+      }
+
+      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must strictly exceed orig_fee + new_vsize × 1.
+      //    Depends on new tx size — checked only when estimate is available.
+      final summary = _txSummary;
+      if (summary != null) {
+        final newVsize = (summary.totalWu / 4.0).ceil();
+        final totalOrigFee =
+            resolvedRbfInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
+        if (summary.feeSats <= totalOrigFee + newVsize) {
+          showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
+          setState(() => _feeEditMode = _FeeEditMode.rate);
+          return;
+        }
+      }
+    }
+
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPath == null) return;
 
@@ -564,12 +772,18 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
       if (!mounted) return;
       if (psbt != null) {
+        // Apply label if provided.
+        final label = _labelCtrl.text.trim();
+        final labelledPsbt = label.isNotEmpty
+            ? (cubit.setPsbtLabel(psbt.id.toInt(), label) ?? psbt)
+            : psbt;
+
         showSuccessToast(context, l10n.createTxSuccess);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(
               value: cubit,
-              child: PsbtDetailScreen(psbt: psbt, spendPath: _selectedPath!),
+              child: PsbtDetailScreen(psbt: labelledPsbt, spendPath: _selectedPath!),
             ),
           ),
         );
@@ -589,6 +803,35 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final theme = Theme.of(context);
     final summary = _txSummary;
     final dimColor = theme.colorScheme.onSurface.withAlpha(140);
+
+    // Fee field inline validation.
+    final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
+    final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
+    final maxOrigRate =
+        resolvedRbfInfos.fold<double>(0.0, (m, i) => max(m, i.minFeeRateSatPerVb));
+    // Effective minimum rate: stricter of relay minimum and RBF diagram constraint.
+    final effectiveMinRate =
+        resolvedRbfInfos.isNotEmpty ? max(minFeeRate.toDouble(), maxOrigRate) : minFeeRate.toDouble();
+    final currentRate = double.tryParse(_feeRateCtrl.text) ?? 0.0;
+
+    // RBF absolute fee minimum (Rule 4) — depends on new tx size.
+    int rbfMinFeeSats = 0;
+    if (resolvedRbfInfos.isNotEmpty && summary != null) {
+      final newVsize = (summary.totalWu / 4.0).ceil();
+      final totalOrigFee =
+          resolvedRbfInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
+      rbfMinFeeSats = totalOrigFee + newVsize;
+    }
+
+    final String? rateErrorText =
+        currentRate > 0 && currentRate <= effectiveMinRate
+            ? 'min: ${effectiveMinRate.toStringAsFixed(2)} sat/vB'
+            : null;
+
+    final String? feeErrorText =
+        rbfMinFeeSats > 0 && summary != null && !summary.insufficientFunds && summary.feeSats <= rbfMinFeeSats
+            ? 'min: $rbfMinFeeSats sats'
+            : null;
 
     // Live display values for fee fields.
     final feeRateDisplay = _feeEditMode == _FeeEditMode.total
@@ -653,6 +896,24 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   ),
                 ),
               ),
+
+              // ── RBF warning card (always 2 children — stable indices below) ──
+              _rbfInfos.isNotEmpty
+                  ? _buildRbfCard(context)
+                  : const SizedBox.shrink(),
+              SizedBox(height: _rbfInfos.isNotEmpty ? 16 : 0),
+
+              // ── Label ──
+              TextField(
+                controller: _labelCtrl,
+                decoration: InputDecoration(
+                  labelText: l10n.txLabelTitle,
+                  hintText: l10n.psbtLabelHint,
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // ── Recipient + Self button ──
               Row(
@@ -765,25 +1026,25 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 ],
               ),
 
-              // Amount sub-info: change (normal mode) or insufficient-funds warning
-              if (summary != null) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: summary.insufficientFunds
-                      ? Text(
-                          l10n.createTxEstInsufficientFunds,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.colorScheme.error),
-                        )
-                      : (!_sendMax && summary.hasChange)
-                          ? Text(
-                              '${l10n.createTxEstChange}: ${BitcoinFormatter.formatNum(summary.changeSats)} sats',
-                              style: theme.textTheme.bodySmall?.copyWith(color: dimColor),
-                            )
-                          : const SizedBox.shrink(),
-                ),
-              ],
+              // Amount sub-info — always present (stable slot prevents ListView index shifts).
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: summary == null
+                    ? const SizedBox.shrink()
+                    : summary.insufficientFunds
+                        ? Text(
+                            l10n.createTxEstInsufficientFunds,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: theme.colorScheme.error),
+                          )
+                        : (!_sendMax && summary.hasChange)
+                            ? Text(
+                                '${l10n.createTxEstChange}: ${BitcoinFormatter.formatNum(summary.changeSats)} sats',
+                                style: theme.textTheme.bodySmall?.copyWith(color: dimColor),
+                              )
+                            : const SizedBox.shrink(),
+              ),
 
               const SizedBox(height: 16),
 
@@ -800,9 +1061,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       thisMode: _FeeEditMode.rate,
                       displayValue: feeRateDisplay,
                       isDecimal: true,
+                      errorText: rateErrorText,
                       onEditTap: () {
-                        _feeRateCtrl.text = feeRateDisplay;
+                        final rate = double.tryParse(feeRateDisplay) ?? 0.0;
+                        _feeRateCtrl.text = rate <= effectiveMinRate
+                            ? (effectiveMinRate + 0.01).toStringAsFixed(2)
+                            : feeRateDisplay;
                         setState(() => _feeEditMode = _FeeEditMode.rate);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _rateFocusNode.requestFocus();
+                        });
                       },
                       onDone: _confirmFeeRate,
                     ),
@@ -817,9 +1085,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       thisMode: _FeeEditMode.total,
                       displayValue: totalFeeDisplay,
                       isDecimal: false,
+                      errorText: feeErrorText,
                       onEditTap: () {
-                        _totalFeeCtrl.text = summary?.feeSats.toString() ?? '';
+                        final feeSats = summary?.feeSats ?? 0;
+                        _totalFeeCtrl.text = rbfMinFeeSats > 0 && feeSats <= rbfMinFeeSats
+                            ? (rbfMinFeeSats + 1).toString()
+                            : (feeSats > 0 ? feeSats.toString() : '');
                         setState(() => _feeEditMode = _FeeEditMode.total);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _totalFocusNode.requestFocus();
+                        });
                       },
                       onDone: () {
                         _syncRateFromTotal();
