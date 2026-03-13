@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 export 'package:deadbolt/cubit/wallet_detail_cubit.dart' show APIUtxo;
@@ -22,7 +23,7 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart'
     show showTextExportSheet;
 import 'package:deadbolt/widgets/text_import_sheet.dart'
-    show showTextImportSheet;
+    show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
@@ -316,11 +317,45 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               ],
             ),
           ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_ImportChoice.psbt),
+            child: Row(
+              children: [
+                const Icon(Icons.receipt_long_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.importPsbtOption),
+              ],
+            ),
+          ),
         ],
       ),
     );
     if (choice == null || !context.mounted) return;
-    _importLabels(context, state);
+    if (choice == _ImportChoice.labels) {
+      _importLabels(context, state);
+    } else {
+      _importPsbt(context);
+    }
+  }
+
+  Future<void> _importPsbt(BuildContext context) async {
+    final l10n = context.l10n;
+    final psbtBase64 = await showPsbtImportSheet(context);
+    if (psbtBase64 == null || psbtBase64.isEmpty) return;
+    if (!context.mounted) return;
+    try {
+      final imported =
+          await context.read<WalletDetailCubit>().importPsbt(psbtBase64);
+      if (imported == null) return;
+      if (context.mounted) {
+        showSuccessToast(
+          context,
+          imported.wasMerged ? l10n.importPsbtMerged : l10n.importPsbtSaved,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) showErrorToast(context, formatRustError(e));
+    }
   }
 
   Widget _buildLoaded(BuildContext context, WalletDetailLoaded state) {
@@ -1119,9 +1154,12 @@ class _AddressTile extends StatelessWidget {
     final isInherited = address.isAuto;
 
     // green  = unused (ready to use)
-    // amber  = received once, has funds
+    // orange = received once, has funds
     // red    = reused (multiple receives, still has funds)
-    // grey   = spent / disabled (used and empty)
+    // grey   = spent / disabled (used and empty) — also faded via opacity
+    final bool isSpent = address.isUsed && !hasBalance;
+    final double opacity = isSpent ? 0.45 : 1.0;
+
     final Color badgeColor;
     final Color badgeBg;
     if (!address.isUsed) {
@@ -1138,7 +1176,9 @@ class _AddressTile extends StatelessWidget {
       badgeBg = Theme.of(context).colorScheme.surfaceContainerHighest;
     }
 
-    return Card(
+    return Opacity(
+      opacity: opacity,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
@@ -1195,6 +1235,7 @@ class _AddressTile extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: () => _showDetails(context),
       ),
+    ),
     );
   }
 
@@ -3110,7 +3151,7 @@ enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels
 
 enum _ExportChoice { labels, descriptor }
 
-enum _ImportChoice { labels }
+enum _ImportChoice { labels, psbt }
 
 // ─────────────────────────────────────────────────────────────
 // Descriptor view (tab 4)

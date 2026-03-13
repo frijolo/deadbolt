@@ -22,6 +22,8 @@ pub enum WalletError {
     InvalidDescriptorSyntax,
     #[error("NetworkDetectionFailed")]
     NetworkDetectionFailed,
+    #[error("Single-path descriptor (e.g. /0/*) is not supported. Use <0;1>/* format instead.")]
+    SinglePathDescriptor,
     #[error("BuilderError: {0}")]
     BuilderError(String),
 

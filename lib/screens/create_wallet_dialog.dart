@@ -1,3 +1,5 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,6 +7,7 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
@@ -93,14 +96,37 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
               // Descriptor input (manual mode only)
               if (_sourceMode == _SourceMode.manual) ...[
+                Row(
+                  children: [
+                    Text(l10n.descriptorLabel,
+                        style: Theme.of(context).textTheme.titleSmall),
+                    const Spacer(),
+                    if (!kIsWeb)
+                      IconButton(
+                        icon: const Icon(Icons.qr_code_scanner, size: 18),
+                        tooltip: l10n.scanQrCode,
+                        onPressed: _scanDescriptorQr,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.folder_open, size: 18),
+                      tooltip: l10n.fromFile,
+                      onPressed: _importDescriptorFromFile,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 TextFormField(
                   controller: _descriptorController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    labelText: l10n.descriptorLabel,
                     hintText: l10n.descriptorHint,
                     border: const OutlineInputBorder(),
                   ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? l10n.descriptorEmpty
                       : null,
@@ -189,6 +215,26 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
           .toList(),
       onChanged: (n) => setState(() => _selectedNetwork = n!),
     );
+  }
+
+  Future<void> _scanDescriptorQr() async {
+    final result = await QrScannerScreen.push(context);
+    if (result != null && mounted) {
+      _descriptorController.text = result.trim();
+    }
+  }
+
+  Future<void> _importDescriptorFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return;
+    if (mounted) {
+      _descriptorController.text = String.fromCharCodes(bytes).trim();
+    }
   }
 
   Future<void> _onCreate() async {

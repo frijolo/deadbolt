@@ -524,6 +524,7 @@
   "psbtSignerSigned": "Signed",
   "psbtSignerMissing": "Missing",
   "psbtSignerOptional": "Optional",
+  "psbtSignerUnknown": "Unknown",
   "psbtExportButton": "Export PSBT",
   "psbtImportSignedButton": "Import signature",
   "psbtImportFromQr": "Scan QR",
@@ -548,6 +549,7 @@
       "error": { "type": "String" }
     }
   },
+  "psbtLabelHint": "Add a label...",
   "psbtDeleteTitle": "Delete PSBT",
   "psbtDeleteConfirm": "Delete this unsigned transaction?",
   "psbtExportedCopied": "PSBT copied",
@@ -592,6 +594,9 @@
   "exportBip329Copied": "Labels copied",
   "importBip329Success": "Labels imported",
   "exportLabelsOption": "Labels (BIP-329)",
+  "importPsbtOption": "PSBT",
+  "importPsbtMerged": "Signatures merged",
+  "importPsbtSaved": "PSBT imported",
 
   "coinPendingSpend": "PSBT",
   "coinMempoolSpend": "Spending",
@@ -600,5 +605,23 @@
   "overviewTab": "Overview",
   "walletReceiveButton": "Receive",
   "noUnusedReceiveAddress": "No unused receive address found. Try syncing first.",
-  "receiveNextAddress": "Next address"
+  "receiveNextAddress": "Next address",
+
+  "rbfWarningTitle": "Full-RBF replacement",
+  "rbfOriginalFee": "Original fee",
+  "rbfMinFee": "Minimum fee",
+  "rbfMinRate": "Minimum rate",
+  "rbfUnknownFee": "Spending a mempool UTXO — use a higher fee rate than the original tx.",
+  "rbfFeeTooLow": "Fee rate too low for RBF — minimum is {rate} sat/vB",
+  "@rbfFeeTooLow": {
+    "placeholders": {
+      "rate": { "type": "double" }
+    }
+  },
+  "rbfAbsFeeTooLow": "Total fee too low for RBF — minimum is {fee} sats",
+  "@rbfAbsFeeTooLow": {
+    "placeholders": {
+      "fee": { "type": "int" }
+    }
+  }
 }

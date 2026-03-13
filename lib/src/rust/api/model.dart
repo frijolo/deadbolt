@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -177,6 +177,27 @@ class APICoinControl {
           vout == other.vout;
 }
 
+/// Returned by [APIWallet::import_psbt].
+/// `was_merged` is true when the imported PSBT was combined with an existing record;
+/// false when a brand-new record was created.
+class APIImportPsbtResult {
+  final APIPsbtInfo psbt;
+  final bool wasMerged;
+
+  const APIImportPsbtResult({required this.psbt, required this.wasMerged});
+
+  @override
+  int get hashCode => psbt.hashCode ^ wasMerged.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIImportPsbtResult &&
+          runtimeType == other.runtimeType &&
+          psbt == other.psbt &&
+          wasMerged == other.wasMerged;
+}
+
 enum APIKeychain {
   /// External keychain — receive addresses (<0>/*)
   external_,
@@ -249,6 +270,9 @@ class APIPsbtAnalysis {
 class APIPsbtInfo {
   final PlatformInt64 id;
   final String psbtBase64;
+
+  /// Txid of the unsigned transaction (deterministic, independent of signatures).
+  final String txid;
   final String? label;
   final PlatformInt64 createdAt;
   final String recipient;
@@ -266,6 +290,7 @@ class APIPsbtInfo {
   const APIPsbtInfo({
     required this.id,
     required this.psbtBase64,
+    required this.txid,
     this.label,
     required this.createdAt,
     required this.recipient,
@@ -281,6 +306,7 @@ class APIPsbtInfo {
   int get hashCode =>
       id.hashCode ^
       psbtBase64.hashCode ^
+      txid.hashCode ^
       label.hashCode ^
       createdAt.hashCode ^
       recipient.hashCode ^
@@ -298,6 +324,7 @@ class APIPsbtInfo {
           runtimeType == other.runtimeType &&
           id == other.id &&
           psbtBase64 == other.psbtBase64 &&
+          txid == other.txid &&
           label == other.label &&
           createdAt == other.createdAt &&
           recipient == other.recipient &&
@@ -349,6 +376,56 @@ class APIPubKey {
           mfp == other.mfp &&
           derivationPath == other.derivationPath &&
           xpub == other.xpub;
+}
+
+class APIRbfInfo {
+  /// Fee paid by the original spending tx (sats).
+  final BigInt origFeeSat;
+
+  /// Virtual size of the original spending tx (vbytes).
+  final int origVsize;
+
+  /// Fee rate of the original spending tx (sat/vB).
+  final double origFeeRateSatPerVb;
+
+  /// Approximate minimum fee for a replacement tx.
+  /// Two constraints apply (Dart takes the max):
+  ///   Rule 4 (PaysForRBF):        orig_fee + new_vsize × 1 sat/vB
+  ///   ImprovesFeerateDiagram:     orig_fee_rate × new_vsize  (rate must not decrease)
+  /// Computed here with orig_vsize as a proxy for new_vsize (unknown at query time).
+  /// The Dart layer refines both constraints with the actual new tx vsize.
+  final BigInt minFeeSat;
+
+  /// Minimum fee rate the replacement must strictly exceed (ImprovesFeerateDiagram).
+  /// Equal to orig_fee_rate_sat_per_vb — fixed, independent of the new tx's size.
+  final double minFeeRateSatPerVb;
+
+  const APIRbfInfo({
+    required this.origFeeSat,
+    required this.origVsize,
+    required this.origFeeRateSatPerVb,
+    required this.minFeeSat,
+    required this.minFeeRateSatPerVb,
+  });
+
+  @override
+  int get hashCode =>
+      origFeeSat.hashCode ^
+      origVsize.hashCode ^
+      origFeeRateSatPerVb.hashCode ^
+      minFeeSat.hashCode ^
+      minFeeRateSatPerVb.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRbfInfo &&
+          runtimeType == other.runtimeType &&
+          origFeeSat == other.origFeeSat &&
+          origVsize == other.origVsize &&
+          origFeeRateSatPerVb == other.origFeeRateSatPerVb &&
+          minFeeSat == other.minFeeSat &&
+          minFeeRateSatPerVb == other.minFeeRateSatPerVb;
 }
 
 /// Output address entry shown inside a transaction detail dialog.

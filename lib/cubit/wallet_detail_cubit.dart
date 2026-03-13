@@ -15,7 +15,7 @@ export 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
 export 'package:deadbolt/src/rust/api/model.dart'
     show APIUtxo, APIPsbtInfo, APIPsbtAnalysis, APIPsbtSignerStatus, APICoinControl,
         APIPolicyPath, APITxDetails, APIUtxoDetails, APIAddressDetails, APIRelatedUtxo,
-        APIRelatedTx, APIRelatedAddress;
+        APIRelatedTx, APIRelatedAddress, APIRbfInfo, APIImportPsbtResult;
 
 // --- States ---
 
@@ -673,6 +673,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
   }
 
 
+  /// Returns RBF constraints for the given mempool spending txid, or null on failure.
+  Future<APIRbfInfo?> getRbfInfo(String spendingTxid) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      return await current.walletHandle.getRbfInfo(spendingTxid: spendingTxid);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns the next unused external (receive) address that is not already
   /// reserved as the recipient of a pending unsigned PSBT.
   ///
@@ -784,6 +795,59 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       unawaited(_reloadCoinsIfLoaded());
     } catch (e, st) {
       _logError('WalletDetailCubit.deletePsbt()', e, st);
+    }
+  }
+
+  /// Set or clear the label for a PSBT. Pass empty string to clear.
+  /// Returns the updated [APIPsbtInfo] or null on error.
+  APIPsbtInfo? setPsbtLabel(int id, String label) {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final updated = current.walletHandle.setPsbtLabel(id: id, label: label);
+      final updatedPsbts = current.psbts
+          .map((p) => p.id.toInt() == id ? updated : p)
+          .toList();
+      emit(current.copyWith(psbts: updatedPsbts));
+      return updated;
+    } catch (e, st) {
+      _logError('WalletDetailCubit.setPsbtLabel()', e, st);
+      return null;
+    }
+  }
+
+  /// Import a PSBT from an external base64 string.
+  /// If a record with the same txid already exists, signatures are merged.
+  /// Returns the result (with `wasMerged` flag) or null if wallet not loaded.
+  Future<APIImportPsbtResult?> importPsbt(String psbtBase64) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final result = await current.walletHandle.importPsbt(psbtBase64: psbtBase64);
+      final psbt = result.psbt;
+      final id = psbt.id.toInt();
+
+      APIPsbtAnalysis? analysis;
+      try {
+        analysis = await current.walletHandle
+            .analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
+      } catch (_) {}
+
+      List<APIPsbtInfo> updatedPsbts;
+      if (result.wasMerged) {
+        updatedPsbts = current.psbts.map((p) => p.id.toInt() == id ? psbt : p).toList();
+      } else {
+        updatedPsbts = [psbt, ...current.psbts];
+      }
+
+      final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(current.psbtAnalyses);
+      if (analysis != null) updatedAnalyses[id] = analysis;
+
+      emit(current.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
+      return result;
+    } catch (e, st) {
+      _logError('WalletDetailCubit.importPsbt()', e, st);
+      rethrow;
     }
   }
 

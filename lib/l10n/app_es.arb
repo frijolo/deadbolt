@@ -518,6 +518,7 @@
   "psbtSignerSigned": "Firmado",
   "psbtSignerMissing": "Pendiente",
   "psbtSignerOptional": "Opcional",
+  "psbtSignerUnknown": "Desconocido",
   "psbtExportButton": "Exportar PSBT",
   "psbtImportSignedButton": "Importar firma",
   "psbtImportFromQr": "Escanear QR",
@@ -542,6 +543,7 @@
       "error": { "type": "String" }
     }
   },
+  "psbtLabelHint": "Añadir etiqueta...",
   "psbtDeleteTitle": "Eliminar PSBT",
   "psbtDeleteConfirm": "¿Eliminar esta transacción sin firmar?",
   "psbtExportedCopied": "PSBT copiado",
@@ -586,6 +588,9 @@
   "exportBip329Copied": "Etiquetas copiadas",
   "importBip329Success": "Etiquetas importadas",
   "exportLabelsOption": "Etiquetas (BIP-329)",
+  "importPsbtOption": "PSBT",
+  "importPsbtMerged": "Firmas combinadas",
+  "importPsbtSaved": "PSBT importado",
 
   "coinPendingSpend": "PSBT",
   "coinMempoolSpend": "Gastando",
@@ -594,5 +599,23 @@
   "overviewTab": "Resumen",
   "walletReceiveButton": "Recibir",
   "noUnusedReceiveAddress": "No se encontró dirección de recepción sin usar. Prueba a sincronizar primero.",
-  "receiveNextAddress": "Siguiente dirección"
+  "receiveNextAddress": "Siguiente dirección",
+
+  "rbfWarningTitle": "Reemplazo Full-RBF",
+  "rbfOriginalFee": "Comisión original",
+  "rbfMinFee": "Comisión mínima",
+  "rbfMinRate": "Tasa mínima",
+  "rbfUnknownFee": "Gastando un UTXO en mempool — usa una tasa de comisión mayor que la transacción original.",
+  "rbfFeeTooLow": "Tasa de comisión demasiado baja para RBF — el mínimo es {rate} sat/vB",
+  "@rbfFeeTooLow": {
+    "placeholders": {
+      "rate": { "type": "double" }
+    }
+  },
+  "rbfAbsFeeTooLow": "Comisión total demasiado baja para RBF — el mínimo es {fee} sats",
+  "@rbfAbsFeeTooLow": {
+    "placeholders": {
+      "fee": { "type": "int" }
+    }
+  }
 }

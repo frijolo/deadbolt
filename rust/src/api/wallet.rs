@@ -4,10 +4,10 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIKeychain, APINetwork,
-    APIPolicyPath, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRelatedAddress,
-    APIRelatedTx, APIRelatedUtxo, APITransaction, APITransactionPage, APITxDetails, APIUtxo,
-    APIUtxoDetails, APIWalletInfo,
+    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIImportPsbtResult, APIKeychain,
+    APINetwork, APIPolicyPath, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo,
+    APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APITransaction, APITransactionPage,
+    APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
 };
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
@@ -17,12 +17,12 @@ use crate::core::wallet_persistence::{
     address_has_explicit_label, coin_has_explicit_label, delete_psbt_row,
     ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
     get_all_coin_labels_with_flag, get_all_key_labels, get_all_path_labels,
-    get_all_tx_labels_with_flag, get_coin_label_with_flag, get_psbt_row, get_tx_label_with_flag,
-    insert_psbt, list_psbt_rows, open_encrypted_connection, read_wallet_info,
-    set_address_label as db_set_address_label, set_coin_label as db_set_coin_label,
-    set_key_label as db_set_key_label, set_path_label as db_set_path_label,
-    set_tx_label as db_set_tx_label, touch_last_synced, tx_has_explicit_label, update_psbt_data,
-    PsbtRow, WalletInfoRow,
+    get_all_tx_labels_with_flag, get_coin_label_with_flag, get_psbt_row, get_psbt_row_by_txid,
+    get_tx_label_with_flag, insert_psbt, list_psbt_rows, open_encrypted_connection,
+    read_wallet_info, set_address_label as db_set_address_label,
+    set_coin_label as db_set_coin_label, set_key_label as db_set_key_label,
+    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label, touch_last_synced,
+    tx_has_explicit_label, update_psbt_data, update_psbt_label, PsbtRow, WalletInfoRow,
 };
 
 /// A key label entry returned from [APIWallet::get_key_labels].
@@ -56,6 +56,20 @@ fn resolve_label(data: Option<(String, bool)>) -> (Option<String>, Option<String
         .map(|(l, _)| l.clone());
     let is_auto = data.as_ref().map(|(_, a)| *a).unwrap_or(false);
     (label, effective_label, is_auto)
+}
+
+// ---------------------------------------------------------------------------
+// PSBT helpers
+// ---------------------------------------------------------------------------
+
+/// Apply a PSBT's label to its transaction (if not already explicitly labelled).
+/// Used when a PSBT is deleted after broadcast (local or external).
+fn apply_psbt_label_to_tx(conn: &rusqlite::Connection, row: &PsbtRow) {
+    if let Some(label) = &row.label {
+        if !label.is_empty() && !tx_has_explicit_label(conn, &row.txid).unwrap_or(false) {
+            let _ = db_set_tx_label(conn, &row.txid, label, false, None);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +133,7 @@ fn row_to_api_psbt(row: PsbtRow, wallet: &bdk_wallet::Wallet) -> APIPsbtInfo {
     APIPsbtInfo {
         id: row.id,
         psbt_base64: row.psbt,
+        txid: row.txid,
         label: row.label,
         created_at: row.created_at,
         recipient: row.recipient,
@@ -447,9 +462,17 @@ impl APIWallet {
 
         let mut txs: Vec<_> = wallet.transactions().collect();
         txs.sort_by(|a, b| {
-            let height_a = a.chain_position.confirmation_height_upper_bound();
-            let height_b = b.chain_position.confirmation_height_upper_bound();
-            height_b.cmp(&height_a)
+            // Unconfirmed txs have no height (None). Treat them as u32::MAX so they
+            // sort before all confirmed transactions (newest-first order).
+            let ha = a
+                .chain_position
+                .confirmation_height_upper_bound()
+                .unwrap_or(u32::MAX);
+            let hb = b
+                .chain_position
+                .confirmation_height_upper_bound()
+                .unwrap_or(u32::MAX);
+            hb.cmp(&ha)
         });
 
         let total_count = txs.len() as u32;
@@ -544,6 +567,24 @@ impl APIWallet {
 
         core.persist()?;
         touch_last_synced(&core.conn)?;
+
+        // Auto-delete PSBTs whose transaction is now known to the wallet
+        // (broadcast externally and seen by Electrum during this sync).
+        // The txid is stored at creation time — no need to re-decode the PSBT.
+        if let Ok(rows) = list_psbt_rows(&core.conn) {
+            for row in rows {
+                if row.txid.is_empty() {
+                    continue;
+                }
+                if let Ok(txid) = row.txid.parse::<bdk_wallet::bitcoin::Txid>() {
+                    if core.wallet.tx_graph().get_tx(txid).is_some() {
+                        apply_psbt_label_to_tx(&core.conn, &row);
+                        let _ = delete_psbt_row(&core.conn, row.id);
+                    }
+                }
+            }
+        }
+
         drop(core);
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;
@@ -568,6 +609,22 @@ impl APIWallet {
         core.wallet.apply_update(update)?;
         core.persist()?;
         touch_last_synced(&core.conn)?;
+
+        // Auto-delete PSBTs whose transaction is now known after rescan.
+        if let Ok(rows) = list_psbt_rows(&core.conn) {
+            for row in rows {
+                if row.txid.is_empty() {
+                    continue;
+                }
+                if let Ok(txid) = row.txid.parse::<bdk_wallet::bitcoin::Txid>() {
+                    if core.wallet.tx_graph().get_tx(txid).is_some() {
+                        apply_psbt_label_to_tx(&core.conn, &row);
+                        let _ = delete_psbt_row(&core.conn, row.id);
+                    }
+                }
+            }
+        }
+
         drop(core);
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;
@@ -1124,6 +1181,127 @@ impl APIWallet {
             related_utxos,
             input_addresses,
             output_addresses,
+        })
+    }
+
+    /// Return RBF replacement constraints for a mempool tx spending one of our UTXOs.
+    /// Fetches parent txs from Electrum when fee cannot be determined from the wallet graph.
+    pub async fn get_rbf_info(&self, spending_txid: String) -> Result<APIRbfInfo> {
+        use bdk_wallet::bitcoin::Txid;
+        use std::collections::{HashMap, HashSet};
+
+        // Phase 1: retrieve the tx + attempt fee calculation (brief lock).
+        let (tx, fee_opt, electrum_url) = {
+            let core = self
+                .inner
+                .lock()
+                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let txid: Txid = spending_txid
+                .parse()
+                .map_err(|e| anyhow::anyhow!("invalid txid: {}", e))?;
+            let tx = core
+                .wallet
+                .tx_graph()
+                .get_tx(txid)
+                .ok_or_else(|| anyhow::anyhow!("spending tx not found: {}", spending_txid))?
+                .as_ref()
+                .clone();
+            let fee_opt = core.wallet.tx_graph().calculate_fee(&tx).ok();
+            let url = self
+                .electrum_url
+                .lock()
+                .map(|u| (*u).clone())
+                .unwrap_or_default();
+            (tx, fee_opt, url)
+        };
+
+        // Phase 2: if fee unknown (external inputs), fetch parent txs from Electrum.
+        let fee_sat = match fee_opt {
+            Some(f) => f.to_sat(),
+            None => {
+                // Collect outpoints whose parent txs are missing from the wallet graph.
+                let missing_txids: Vec<Txid> = {
+                    let core = self
+                        .inner
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+                    tx.input
+                        .iter()
+                        .filter(|i| !i.previous_output.is_null())
+                        .filter(|i| {
+                            core.wallet
+                                .tx_graph()
+                                .get_txout(i.previous_output)
+                                .is_none()
+                        })
+                        .map(|i| i.previous_output.txid)
+                        .collect::<HashSet<_>>()
+                        .into_iter()
+                        .collect()
+                };
+
+                let mut parent_txs: HashMap<Txid, bdk_wallet::bitcoin::Transaction> =
+                    HashMap::new();
+                if !missing_txids.is_empty() && !electrum_url.is_empty() {
+                    use bdk_electrum::electrum_client::ElectrumApi;
+                    if let Ok(client) = bdk_electrum::electrum_client::Client::new(&electrum_url) {
+                        for id in &missing_txids {
+                            if let Ok(t) = client.transaction_get(id) {
+                                parent_txs.insert(*id, t);
+                            }
+                        }
+                    }
+                }
+
+                // Compute fee = sum(inputs) - sum(outputs).
+                let input_sum: u64 = {
+                    let core = self
+                        .inner
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+                    let mut sum = 0u64;
+                    for inp in &tx.input {
+                        if inp.previous_output.is_null() {
+                            continue;
+                        }
+                        let val = core
+                            .wallet
+                            .tx_graph()
+                            .get_txout(inp.previous_output)
+                            .map(|o| o.value.to_sat())
+                            .or_else(|| {
+                                parent_txs
+                                    .get(&inp.previous_output.txid)
+                                    .and_then(|t| t.output.get(inp.previous_output.vout as usize))
+                                    .map(|o| o.value.to_sat())
+                            })
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("input value unknown for RBF fee calc")
+                            })?;
+                        sum += val;
+                    }
+                    sum
+                };
+                let output_sum: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
+                input_sum.saturating_sub(output_sum)
+            }
+        };
+
+        let vsize = tx.weight().to_vbytes_ceil() as u32;
+        let fee_rate = if vsize > 0 {
+            fee_sat as f64 / vsize as f64
+        } else {
+            1.0
+        };
+        Ok(APIRbfInfo {
+            orig_fee_sat: fee_sat,
+            orig_vsize: vsize,
+            orig_fee_rate_sat_per_vb: fee_rate,
+            // BIP-125 Rule 4 approx (orig_vsize proxy for new_vsize; Dart refines).
+            min_fee_sat: fee_sat + vsize as u64,
+            // ImprovesFeerateDiagram constraint: new_rate must strictly exceed orig_rate.
+            // Fixed — independent of new tx size. Dart validates with strict >.
+            min_fee_rate_sat_per_vb: fee_rate,
         })
     }
 
@@ -1822,8 +2000,16 @@ impl APIWallet {
                     .index_of_spk(txout.script_pubkey.clone())
                     .map(|(k, _)| *k)
                     .unwrap_or(KeychainKind::External);
+                // BIP-174: non-taproot segwit inputs (P2WPKH, P2WSH) must include
+                // non_witness_utxo (full previous tx) in addition to witness_utxo.
+                let non_witness_utxo = core
+                    .wallet
+                    .tx_graph()
+                    .get_tx(outpoint.txid)
+                    .map(|tx| tx.as_ref().clone());
                 let psbt_input = bdk_wallet::bitcoin::psbt::Input {
                     witness_utxo: Some(txout),
+                    non_witness_utxo,
                     ..Default::default()
                 };
                 let satisfaction_weight = core
@@ -1878,6 +2064,7 @@ impl APIWallet {
 
         let psbt = builder.finish()?;
         let fee_sat = psbt.fee()?.to_sat();
+        let txid = psbt.unsigned_tx.compute_txid().to_string();
         let psbt_base64 = psbt_to_base64(&psbt);
         let recipient = address.to_string();
 
@@ -1900,6 +2087,7 @@ impl APIWallet {
         let id = insert_psbt(
             &core.conn,
             &psbt_base64,
+            &txid,
             None,
             &recipient,
             actual_amount_sat,
@@ -1916,6 +2104,7 @@ impl APIWallet {
         Ok(APIPsbtInfo {
             id,
             psbt_base64,
+            txid,
             label: None,
             created_at,
             recipient,
@@ -1951,6 +2140,23 @@ impl APIWallet {
         delete_psbt_row(&core.conn, id)
     }
 
+    /// Set or clear the label for a saved PSBT. Pass an empty string to clear.
+    #[frb(sync)]
+    pub fn set_psbt_label(&self, id: i64, label: String) -> Result<APIPsbtInfo> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let new_label = if label.is_empty() {
+            None
+        } else {
+            Some(label.as_str())
+        };
+        update_psbt_label(&core.conn, id, new_label)?;
+        let row = get_psbt_row(&core.conn, id)?;
+        Ok(row_to_api_psbt(row, &core.wallet))
+    }
+
     /// Merge partial signatures from a signed PSBT into the stored one.
     ///
     /// The signed PSBT must refer to the same transaction (same inputs/outputs).
@@ -1974,6 +2180,7 @@ impl APIWallet {
         Ok(APIPsbtInfo {
             id,
             psbt_base64: merged_base64,
+            txid: row.txid,
             label: row.label,
             created_at: row.created_at,
             recipient: row.recipient,
@@ -1983,6 +2190,138 @@ impl APIWallet {
             threshold: row.threshold,
             mfps: row.mfps,
             utxo_max_conf_height,
+        })
+    }
+
+    /// Import a PSBT (base64) from an external source.
+    ///
+    /// If a record with the same unsigned txid already exists, the signatures are
+    /// merged and the existing record is updated (`was_merged = true`).
+    /// Otherwise a new record is created with metadata extracted from the PSBT.
+    pub fn import_psbt(&self, psbt_base64: String) -> Result<APIImportPsbtResult> {
+        use std::collections::HashSet;
+
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        ensure_unsigned_txs_table(&core.conn)?;
+
+        let imported = psbt_from_base64(&psbt_base64)?;
+        let txid = imported.unsigned_tx.compute_txid().to_string();
+
+        // Merge with existing record if txid matches.
+        if let Some(row) = get_psbt_row_by_txid(&core.conn, &txid)? {
+            let mut existing = psbt_from_base64(&row.psbt)?;
+            existing.combine(imported)?;
+            let merged_base64 = psbt_to_base64(&existing);
+            update_psbt_data(&core.conn, row.id, &merged_base64)?;
+            let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
+            return Ok(APIImportPsbtResult {
+                psbt: APIPsbtInfo {
+                    id: row.id,
+                    psbt_base64: merged_base64,
+                    txid: row.txid,
+                    label: row.label,
+                    created_at: row.created_at,
+                    recipient: row.recipient,
+                    amount_sat: row.amount_sat,
+                    fee_sat: row.fee_sat,
+                    spend_path_id: row.spend_path_id,
+                    threshold: row.threshold,
+                    mfps: row.mfps,
+                    utxo_max_conf_height,
+                },
+                was_merged: true,
+            });
+        }
+
+        // New PSBT — extract metadata from the PSBT fields.
+        let tx = &imported.unsigned_tx;
+
+        // Collect unique MFPs from all inputs.
+        let mut mfp_set: HashSet<String> = HashSet::new();
+        for input in &imported.inputs {
+            for (fp, _) in input.bip32_derivation.values() {
+                mfp_set.insert(fp.to_string());
+            }
+            for (_, (fp, _)) in input.tap_key_origins.values() {
+                mfp_set.insert(fp.to_string());
+            }
+        }
+        let mfps: Vec<String> = mfp_set.into_iter().collect();
+
+        // Identify external (non-wallet) outputs as the recipient.
+        let external_outputs: Vec<_> = tx
+            .output
+            .iter()
+            .filter(|o| !core.wallet.is_mine(o.script_pubkey.clone()))
+            .collect();
+        let (recipient, amount_sat) = if external_outputs.is_empty() {
+            // Self-transfer or indeterminate — use first output.
+            let addr = bdk_wallet::bitcoin::Address::from_script(
+                &tx.output[0].script_pubkey,
+                core.wallet.network(),
+            )
+            .map(|a| a.to_string())
+            .unwrap_or_default();
+            let amt: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
+            (addr, amt)
+        } else {
+            let addr = bdk_wallet::bitcoin::Address::from_script(
+                &external_outputs[0].script_pubkey,
+                core.wallet.network(),
+            )
+            .map(|a| a.to_string())
+            .unwrap_or_default();
+            let amt: u64 = external_outputs.iter().map(|o| o.value.to_sat()).sum();
+            (addr, amt)
+        };
+
+        // Fee = witness_utxo input sum − output sum (best-effort).
+        let input_sum: u64 = imported
+            .inputs
+            .iter()
+            .filter_map(|i| i.witness_utxo.as_ref().map(|u| u.value.to_sat()))
+            .sum();
+        let output_sum: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
+        let fee_sat = input_sum.saturating_sub(output_sum);
+
+        let threshold = mfps.len().max(1) as u32;
+        let id = insert_psbt(
+            &core.conn,
+            &psbt_base64,
+            &txid,
+            None,
+            &recipient,
+            amount_sat,
+            fee_sat,
+            0,
+            threshold,
+            &mfps,
+        )?;
+
+        let created_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs() as i64;
+        let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &imported);
+
+        Ok(APIImportPsbtResult {
+            psbt: APIPsbtInfo {
+                id,
+                psbt_base64,
+                txid,
+                label: None,
+                created_at,
+                recipient,
+                amount_sat,
+                fee_sat,
+                spend_path_id: 0,
+                threshold,
+                mfps,
+                utxo_max_conf_height,
+            },
+            was_merged: false,
         })
     }
 
@@ -2073,6 +2412,8 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         let row = get_psbt_row(&core.conn, id)?;
+        // Capture label before consuming the row.
+        let psbt_label = row.label.clone();
         let mut psbt = psbt_from_base64(&row.psbt)?;
 
         // Reject broadcast if any input UTXO is unconfirmed (required for relative timelocks,
@@ -2115,6 +2456,12 @@ impl APIWallet {
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
         client.transaction_broadcast(&tx)?;
 
+        // Apply the PSBT's label to the transaction before deleting the PSBT.
+        if let Some(label) = &psbt_label {
+            if !label.is_empty() && !tx_has_explicit_label(&core.conn, &txid.to_string())? {
+                let _ = db_set_tx_label(&core.conn, &txid.to_string(), label, false, None);
+            }
+        }
         delete_psbt_row(&core.conn, id)?;
         drop(core);
         if let Ok(mut u) = self.electrum_url.lock() {

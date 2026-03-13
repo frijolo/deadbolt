@@ -484,6 +484,8 @@ pub struct APIUtxo {
 pub struct APIPsbtInfo {
     pub id: i64,
     pub psbt_base64: String,
+    /// Txid of the unsigned transaction (deterministic, independent of signatures).
+    pub txid: String,
     pub label: Option<String>,
     pub created_at: i64,
     pub recipient: String,
@@ -499,12 +501,47 @@ pub struct APIPsbtInfo {
 }
 
 //////////////////////
+// APIImportPsbt    //
+//////////////////////
+
+/// Returned by [APIWallet::import_psbt].
+/// `was_merged` is true when the imported PSBT was combined with an existing record;
+/// false when a brand-new record was created.
+pub struct APIImportPsbtResult {
+    pub psbt: APIPsbtInfo,
+    pub was_merged: bool,
+}
+
+//////////////////////
 // APICoinControl   //
 //////////////////////
 #[derive(Clone)]
 pub struct APICoinControl {
     pub txid: String,
     pub vout: u32,
+}
+
+//////////////////
+// APIRbfInfo   //
+//////////////////
+#[derive(Clone)]
+pub struct APIRbfInfo {
+    /// Fee paid by the original spending tx (sats).
+    pub orig_fee_sat: u64,
+    /// Virtual size of the original spending tx (vbytes).
+    pub orig_vsize: u32,
+    /// Fee rate of the original spending tx (sat/vB).
+    pub orig_fee_rate_sat_per_vb: f64,
+    /// Approximate minimum fee for a replacement tx.
+    /// Two constraints apply (Dart takes the max):
+    ///   Rule 4 (PaysForRBF):        orig_fee + new_vsize × 1 sat/vB
+    ///   ImprovesFeerateDiagram:     orig_fee_rate × new_vsize  (rate must not decrease)
+    /// Computed here with orig_vsize as a proxy for new_vsize (unknown at query time).
+    /// The Dart layer refines both constraints with the actual new tx vsize.
+    pub min_fee_sat: u64,
+    /// Minimum fee rate the replacement must strictly exceed (ImprovesFeerateDiagram).
+    /// Equal to orig_fee_rate_sat_per_vb — fixed, independent of the new tx's size.
+    pub min_fee_rate_sat_per_vb: f64,
 }
 
 //////////////////////////
