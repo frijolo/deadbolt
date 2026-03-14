@@ -252,14 +252,11 @@ class _CoinSelectorTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                // Single combined status badge: Spending > PSBT > Unconfirmed > Confirmed
                 if (isMempool)
                   _SelectorBadge(label: l10n.coinMempoolSpend, color: Colors.red)
                 else if (utxo.pendingPsbtIds.isNotEmpty)
                   _SelectorBadge(label: l10n.coinPendingSpend, color: Colors.orange)
-                else if (utxo.isConfirmed)
-                  _SelectorBadge(label: l10n.txConfirmed, color: Colors.green)
-                else
+                else if (!utxo.isConfirmed)
                   _SelectorBadge(label: l10n.txUnconfirmed, color: Colors.grey),
                 const SizedBox(width: 6),
                 _SelectorBadge(

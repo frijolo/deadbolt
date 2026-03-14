@@ -768,22 +768,17 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         threshold: _selectedPath!.threshold,
         mfps: _selectedPath!.mfps,
         sendMax: _sendMax,
+        label: _labelCtrl.text.trim(),
       );
 
       if (!mounted) return;
       if (psbt != null) {
-        // Apply label if provided.
-        final label = _labelCtrl.text.trim();
-        final labelledPsbt = label.isNotEmpty
-            ? (cubit.setPsbtLabel(psbt.id.toInt(), label) ?? psbt)
-            : psbt;
-
         showSuccessToast(context, l10n.createTxSuccess);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(
               value: cubit,
-              child: PsbtDetailScreen(psbt: labelledPsbt, spendPath: _selectedPath!),
+              child: PsbtDetailScreen(psbt: psbt, spendPath: _selectedPath!),
             ),
           ),
         );

@@ -126,15 +126,57 @@ fn psbt_max_utxo_conf_height(
         .reduce(i64::max)
 }
 
-fn row_to_api_psbt(row: PsbtRow, wallet: &bdk_wallet::Wallet) -> APIPsbtInfo {
+/// True when `recipient` is one of this wallet's own addresses (self-transfer).
+fn is_psbt_self_transfer(wallet: &bdk_wallet::Wallet, recipient: &str) -> bool {
+    use bdk_wallet::bitcoin::Address;
+    use std::str::FromStr;
+    let Ok(addr) = Address::from_str(recipient) else {
+        return false;
+    };
+    let Ok(addr) = addr.require_network(wallet.network()) else {
+        return false;
+    };
+    wallet
+        .spk_index()
+        .index_of_spk(addr.script_pubkey())
+        .is_some()
+}
+
+/// Compute the effective display label for a PSBT.
+/// Own label takes priority; falls back to the recipient address label.
+fn psbt_effective_label(
+    own_label: &Option<String>,
+    recipient: &str,
+    address_labels: &std::collections::HashMap<String, (String, bool)>,
+) -> (Option<String>, bool) {
+    match own_label.as_deref().filter(|l| !l.is_empty()) {
+        Some(lbl) => (Some(lbl.to_string()), false),
+        None => {
+            let (_, el, ia) = resolve_label(address_labels.get(recipient).cloned());
+            (el, ia)
+        }
+    }
+}
+
+fn row_to_api_psbt(
+    row: PsbtRow,
+    wallet: &bdk_wallet::Wallet,
+    address_labels: &std::collections::HashMap<String, (String, bool)>,
+) -> APIPsbtInfo {
     let utxo_max_conf_height = psbt_from_base64(&row.psbt)
         .ok()
         .and_then(|psbt| psbt_max_utxo_conf_height(wallet, &psbt));
+    let (effective_label, is_auto) =
+        psbt_effective_label(&row.label, &row.recipient, address_labels);
+    let is_self_transfer = is_psbt_self_transfer(wallet, &row.recipient);
     APIPsbtInfo {
         id: row.id,
         psbt_base64: row.psbt,
         txid: row.txid,
         label: row.label,
+        effective_label,
+        is_auto,
+        is_self_transfer,
         created_at: row.created_at,
         recipient: row.recipient,
         amount_sat: row.amount_sat,
@@ -2100,12 +2142,18 @@ impl APIWallet {
         let created_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs() as i64;
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
+        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &recipient);
 
         Ok(APIPsbtInfo {
             id,
             psbt_base64,
             txid,
             label: None,
+            effective_label,
+            is_auto,
+            is_self_transfer,
             created_at,
             recipient,
             amount_sat: actual_amount_sat,
@@ -2124,9 +2172,10 @@ impl APIWallet {
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         ensure_unsigned_txs_table(&core.conn)?;
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         Ok(list_psbt_rows(&core.conn)?
             .into_iter()
-            .map(|row| row_to_api_psbt(row, &core.wallet))
+            .map(|row| row_to_api_psbt(row, &core.wallet, &addr_labels))
             .collect())
     }
 
@@ -2154,7 +2203,8 @@ impl APIWallet {
         };
         update_psbt_label(&core.conn, id, new_label)?;
         let row = get_psbt_row(&core.conn, id)?;
-        Ok(row_to_api_psbt(row, &core.wallet))
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        Ok(row_to_api_psbt(row, &core.wallet, &addr_labels))
     }
 
     /// Merge partial signatures from a signed PSBT into the stored one.
@@ -2177,11 +2227,18 @@ impl APIWallet {
         update_psbt_data(&core.conn, id, &merged_base64)?;
 
         let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let (effective_label, is_auto) =
+            psbt_effective_label(&row.label, &row.recipient, &addr_labels);
+        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
         Ok(APIPsbtInfo {
             id,
             psbt_base64: merged_base64,
             txid: row.txid,
             label: row.label,
+            effective_label,
+            is_auto,
+            is_self_transfer,
             created_at: row.created_at,
             recipient: row.recipient,
             amount_sat: row.amount_sat,
@@ -2217,12 +2274,19 @@ impl APIWallet {
             let merged_base64 = psbt_to_base64(&existing);
             update_psbt_data(&core.conn, row.id, &merged_base64)?;
             let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
+            let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+            let (effective_label, is_auto) =
+                psbt_effective_label(&row.label, &row.recipient, &addr_labels);
+            let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
             return Ok(APIImportPsbtResult {
                 psbt: APIPsbtInfo {
                     id: row.id,
                     psbt_base64: merged_base64,
                     txid: row.txid,
                     label: row.label,
+                    effective_label,
+                    is_auto,
+                    is_self_transfer,
                     created_at: row.created_at,
                     recipient: row.recipient,
                     amount_sat: row.amount_sat,
@@ -2305,6 +2369,9 @@ impl APIWallet {
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs() as i64;
         let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &imported);
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
+        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &recipient);
 
         Ok(APIImportPsbtResult {
             psbt: APIPsbtInfo {
@@ -2312,6 +2379,9 @@ impl APIWallet {
                 psbt_base64,
                 txid,
                 label: None,
+                effective_label,
+                is_auto,
+                is_self_transfer,
                 created_at,
                 recipient,
                 amount_sat,
