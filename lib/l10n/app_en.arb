@@ -595,6 +595,12 @@
   "exportBip329Empty": "No explicit labels to export",
   "exportBip329Copied": "Labels copied",
   "importBip329Success": "Labels imported",
+  "exportDescriptorFormatTitle": "Export format",
+  "exportDescriptorStandard": "Standard",
+  "exportDescriptorStandardDesc": "Compatible with Nunchuk and most wallets",
+  "exportDescriptorLiana": "Liana",
+  "exportDescriptorLianaDesc": "Adds [00000000] to the unspendable key",
+
   "exportLabelsOption": "Labels (BIP-329)",
   "importPsbtOption": "PSBT",
   "importPsbtMerged": "Signatures merged",

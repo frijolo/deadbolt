@@ -589,6 +589,12 @@
   "exportBip329Empty": "No hay etiquetas explícitas para exportar",
   "exportBip329Copied": "Etiquetas copiadas",
   "importBip329Success": "Etiquetas importadas",
+  "exportDescriptorFormatTitle": "Formato de exportación",
+  "exportDescriptorStandard": "Estándar",
+  "exportDescriptorStandardDesc": "Compatible con Nunchuk y la mayoría de wallets",
+  "exportDescriptorLiana": "Liana",
+  "exportDescriptorLianaDesc": "Agrega [00000000] a la clave no gastable",
+
   "exportLabelsOption": "Etiquetas (BIP-329)",
   "importPsbtOption": "PSBT",
   "importPsbtMerged": "Firmas combinadas",
