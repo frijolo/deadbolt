@@ -984,6 +984,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get psbtStatusConfirmed => 'CONFIRMADO';
 
   @override
+  String get psbtStatusSpent => 'GASTADO';
+
+  @override
+  String get psbtSpentInputsWarning =>
+      'Uno o más inputs han sido gastados y confirmados por otra transacción. Esta PSBT ya no puede emitirse.';
+
+  @override
   String get createTxTitle => 'Crear transacción';
 
   @override

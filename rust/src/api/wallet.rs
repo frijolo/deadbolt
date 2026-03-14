@@ -158,14 +158,47 @@ fn psbt_effective_label(
     }
 }
 
+/// Build the set of outpoints that are still "live": either unspent or being
+/// spent by an unconfirmed (mempool) wallet transaction.  Any PSBT input
+/// absent from this set has been confirmed-spent by another transaction and
+/// can no longer be broadcast.
+fn build_valid_outpoints(
+    wallet: &bdk_wallet::Wallet,
+) -> std::collections::HashSet<bdk_wallet::bitcoin::OutPoint> {
+    use bdk_wallet::chain::ChainPosition;
+    let mut valid = std::collections::HashSet::new();
+    for utxo in wallet.list_unspent() {
+        valid.insert(utxo.outpoint);
+    }
+    for tx in wallet.transactions() {
+        if matches!(tx.chain_position, ChainPosition::Unconfirmed { .. }) {
+            for txin in &tx.tx_node.tx.input {
+                if !txin.previous_output.is_null() {
+                    valid.insert(txin.previous_output);
+                }
+            }
+        }
+    }
+    valid
+}
+
 fn row_to_api_psbt(
     row: PsbtRow,
     wallet: &bdk_wallet::Wallet,
     address_labels: &std::collections::HashMap<String, (String, bool)>,
+    valid_outpoints: &std::collections::HashSet<bdk_wallet::bitcoin::OutPoint>,
 ) -> APIPsbtInfo {
-    let utxo_max_conf_height = psbt_from_base64(&row.psbt)
-        .ok()
-        .and_then(|psbt| psbt_max_utxo_conf_height(wallet, &psbt));
+    let parsed_psbt = psbt_from_base64(&row.psbt).ok();
+    let utxo_max_conf_height = parsed_psbt
+        .as_ref()
+        .and_then(|psbt| psbt_max_utxo_conf_height(wallet, psbt));
+    let has_spent_inputs = parsed_psbt
+        .map(|psbt| {
+            psbt.unsigned_tx.input.iter().any(|txin| {
+                !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
+            })
+        })
+        .unwrap_or(false);
     let (effective_label, is_auto) =
         psbt_effective_label(&row.label, &row.recipient, address_labels);
     let is_self_transfer = is_psbt_self_transfer(wallet, &row.recipient);
@@ -185,6 +218,7 @@ fn row_to_api_psbt(
         threshold: row.threshold,
         mfps: row.mfps,
         utxo_max_conf_height,
+        has_spent_inputs,
     }
 }
 
@@ -2162,6 +2196,7 @@ impl APIWallet {
             threshold,
             mfps,
             utxo_max_conf_height,
+            has_spent_inputs: false, // inputs were just selected and are confirmed unspent
         })
     }
 
@@ -2173,9 +2208,10 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
         ensure_unsigned_txs_table(&core.conn)?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let valid_outpoints = build_valid_outpoints(&core.wallet);
         Ok(list_psbt_rows(&core.conn)?
             .into_iter()
-            .map(|row| row_to_api_psbt(row, &core.wallet, &addr_labels))
+            .map(|row| row_to_api_psbt(row, &core.wallet, &addr_labels, &valid_outpoints))
             .collect())
     }
 
@@ -2204,7 +2240,13 @@ impl APIWallet {
         update_psbt_label(&core.conn, id, new_label)?;
         let row = get_psbt_row(&core.conn, id)?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        Ok(row_to_api_psbt(row, &core.wallet, &addr_labels))
+        let valid_outpoints = build_valid_outpoints(&core.wallet);
+        Ok(row_to_api_psbt(
+            row,
+            &core.wallet,
+            &addr_labels,
+            &valid_outpoints,
+        ))
     }
 
     /// Merge partial signatures from a signed PSBT into the stored one.
@@ -2231,6 +2273,10 @@ impl APIWallet {
         let (effective_label, is_auto) =
             psbt_effective_label(&row.label, &row.recipient, &addr_labels);
         let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
+        let valid_outpoints = build_valid_outpoints(&core.wallet);
+        let has_spent_inputs = existing.unsigned_tx.input.iter().any(|txin| {
+            !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
+        });
         Ok(APIPsbtInfo {
             id,
             psbt_base64: merged_base64,
@@ -2247,6 +2293,7 @@ impl APIWallet {
             threshold: row.threshold,
             mfps: row.mfps,
             utxo_max_conf_height,
+            has_spent_inputs,
         })
     }
 
@@ -2278,6 +2325,10 @@ impl APIWallet {
             let (effective_label, is_auto) =
                 psbt_effective_label(&row.label, &row.recipient, &addr_labels);
             let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
+            let valid_outpoints = build_valid_outpoints(&core.wallet);
+            let has_spent_inputs = existing.unsigned_tx.input.iter().any(|txin| {
+                !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
+            });
             return Ok(APIImportPsbtResult {
                 psbt: APIPsbtInfo {
                     id: row.id,
@@ -2295,6 +2346,7 @@ impl APIWallet {
                     threshold: row.threshold,
                     mfps: row.mfps,
                     utxo_max_conf_height,
+                    has_spent_inputs,
                 },
                 was_merged: true,
             });
@@ -2372,6 +2424,10 @@ impl APIWallet {
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
         let is_self_transfer = is_psbt_self_transfer(&core.wallet, &recipient);
+        let valid_outpoints = build_valid_outpoints(&core.wallet);
+        let has_spent_inputs = imported.unsigned_tx.input.iter().any(|txin| {
+            !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
+        });
 
         Ok(APIImportPsbtResult {
             psbt: APIPsbtInfo {
@@ -2390,6 +2446,7 @@ impl APIWallet {
                 threshold,
                 mfps,
                 utxo_max_conf_height,
+                has_spent_inputs,
             },
             was_merged: false,
         })

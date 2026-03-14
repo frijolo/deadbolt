@@ -455,9 +455,9 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                     value: _PsbtMenuAction.delete,
                     child: Row(
                       children: [
-                        const Icon(Icons.delete_outline, size: 20),
+                        Icon(Icons.delete_outline, size: 20, color: Colors.red.withAlpha(180)),
                         const SizedBox(width: 12),
-                        Text(l10n.psbtDeleteTitle),
+                        Text(l10n.psbtDeleteTitle, style: TextStyle(color: Colors.red.withAlpha(180))),
                       ],
                     ),
                   ),
@@ -469,6 +469,31 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Spent inputs warning
+                if (_psbt.hasSpentInputs) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withAlpha(30),
+                      border: Border.all(color: Colors.red.withAlpha(120)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.psbtSpentInputsWarning,
+                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 // Status badge
                 _StatusBadge(
                   analysis: analysis,

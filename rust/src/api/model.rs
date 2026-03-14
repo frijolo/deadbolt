@@ -505,6 +505,9 @@ pub struct APIPsbtInfo {
     /// Used to compute unlock block for relative timelocks:
     ///   unlock_block = utxo_max_conf_height + timelock_blocks
     pub utxo_max_conf_height: Option<i64>,
+    /// True when at least one input of this PSBT has been confirmed-spent by
+    /// another transaction. The PSBT can no longer be broadcast.
+    pub has_spent_inputs: bool,
 }
 
 //////////////////////

@@ -3788,6 +3788,7 @@ class _PsbtTile extends StatelessWidget {
 
   String _statusLabel(BuildContext context) {
     final l10n = context.l10n;
+    if (psbt.hasSpentInputs) return l10n.psbtStatusSpent;
     if (analysis == null) return l10n.psbtStatusUnsigned;
     final signed = analysis!.signers.where((s) => s.hasSigned).length;
     if (analysis!.isFinalized || signed >= psbt.threshold.toInt()) {
@@ -3798,6 +3799,7 @@ class _PsbtTile extends StatelessWidget {
   }
 
   Color _statusColor(BuildContext context) {
+    if (psbt.hasSpentInputs) return Colors.red;
     if (analysis == null) return AppAccent.color;
     final signed = analysis!.signers.where((s) => s.hasSigned).length;
     if (analysis!.isFinalized || signed >= psbt.threshold.toInt()) {

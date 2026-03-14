@@ -3172,6 +3172,7 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
         let mut var_threshold = <u32>::sse_decode(deserializer);
         let mut var_mfps = <Vec<String>>::sse_decode(deserializer);
         let mut var_utxoMaxConfHeight = <Option<i64>>::sse_decode(deserializer);
+        let mut var_hasSpentInputs = <bool>::sse_decode(deserializer);
         return crate::api::model::APIPsbtInfo {
             id: var_id,
             psbt_base64: var_psbtBase64,
@@ -3188,6 +3189,7 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
             threshold: var_threshold,
             mfps: var_mfps,
             utxo_max_conf_height: var_utxoMaxConfHeight,
+            has_spent_inputs: var_hasSpentInputs,
         };
     }
 }
@@ -4477,6 +4479,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIPsbtInfo {
             self.threshold.into_into_dart().into_dart(),
             self.mfps.into_into_dart().into_dart(),
             self.utxo_max_conf_height.into_into_dart().into_dart(),
+            self.has_spent_inputs.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5122,6 +5125,7 @@ impl SseEncode for crate::api::model::APIPsbtInfo {
         <u32>::sse_encode(self.threshold, serializer);
         <Vec<String>>::sse_encode(self.mfps, serializer);
         <Option<i64>>::sse_encode(self.utxo_max_conf_height, serializer);
+        <bool>::sse_encode(self.has_spent_inputs, serializer);
     }
 }
 

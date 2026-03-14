@@ -451,6 +451,8 @@
   "psbtStatusSigned": "FIRMADO",
   "psbtStatusMempool": "MEMPOOL",
   "psbtStatusConfirmed": "CONFIRMADO",
+  "psbtStatusSpent": "GASTADO",
+  "psbtSpentInputsWarning": "Uno o más inputs han sido gastados y confirmados por otra transacción. Esta PSBT ya no puede emitirse.",
 
   "createTxTitle": "Crear transacción",
   "createTxRecipient": "Dirección destinataria",
