@@ -57,6 +57,21 @@ Future<int> calculateSpendPathId({
   absTimelock: absTimelock,
 );
 
+/// Format a Taproot descriptor for Liana compatibility.
+///
+/// Liana requires the NUMS unspendable xpub (used as TR internal key when no
+/// key-path spend exists) to carry an explicit [00000000] origin fingerprint.
+/// The BIP380 standard omits this fingerprint, which is what Deadbolt generates
+/// and what Nunchuk/most wallets expect.
+///
+/// Returns `Some(formatted_descriptor)` when the descriptor is TR with a NUMS
+/// xpub internal key (no origin). Returns `None` when the format does not apply
+/// (not TR, TR with a real key-path, or NUMS already has an origin).
+Future<String?> formatDescriptorForLiana({required String descriptor}) =>
+    RustLib.instance.api.crateApiAnalyzerFormatDescriptorForLiana(
+      descriptor: descriptor,
+    );
+
 /// Decode legacy relative timelock consensus value (for database migration)
 Future<APIRelativeTimelock> decodeLegacyRelTimelock({required int consensus}) =>
     RustLib.instance.api.crateApiAnalyzerDecodeLegacyRelTimelock(

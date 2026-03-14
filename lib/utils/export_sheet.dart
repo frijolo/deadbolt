@@ -10,8 +10,62 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLiana;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart';
+
+/// Shows the Liana/Standard format dialog when the descriptor has a NUMS
+/// unspendable key, then opens the export sheet with the chosen text.
+///
+/// If the descriptor doesn't require a format choice (not TR with NUMS key),
+/// jumps straight to the export sheet.
+Future<void> showDescriptorExportSheet(
+  BuildContext context, {
+  required String descriptor,
+  required String fileName,
+  required String copiedMessage,
+}) async {
+  final lianaDescriptor = await formatDescriptorForLiana(descriptor: descriptor);
+
+  String exportText = descriptor;
+  if (lianaDescriptor != null && context.mounted) {
+    final l10n = context.l10n;
+    final useLiana = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.exportDescriptorFormatTitle),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: Text(l10n.exportDescriptorStandard),
+              subtitle: Text(l10n.exportDescriptorStandardDesc),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: ListTile(
+              leading: const Icon(Icons.schema_outlined),
+              title: Text(l10n.exportDescriptorLiana),
+              subtitle: Text(l10n.exportDescriptorLianaDesc),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (useLiana == null || !context.mounted) return;
+    if (useLiana) exportText = lianaDescriptor;
+  }
+
+  if (!context.mounted) return;
+  showTextExportSheet(
+    context,
+    text: exportText,
+    fileName: fileName,
+    copiedMessage: copiedMessage,
+  );
+}
 
 /// Shows a bottom sheet with export options (clipboard, save-as, share).
 /// Works the same from the project list and project detail screens.

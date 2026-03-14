@@ -1260,6 +1260,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get importBip329Success => 'Etiquetas importadas';
 
   @override
+  String get exportDescriptorFormatTitle => 'Formato de exportación';
+
+  @override
+  String get exportDescriptorStandard => 'Estándar';
+
+  @override
+  String get exportDescriptorStandardDesc =>
+      'Compatible con Nunchuk y la mayoría de wallets';
+
+  @override
+  String get exportDescriptorLiana => 'Liana';
+
+  @override
+  String get exportDescriptorLianaDesc =>
+      'Agrega [00000000] a la clave no gastable';
+
+  @override
   String get exportLabelsOption => 'Etiquetas (BIP-329)';
 
   @override

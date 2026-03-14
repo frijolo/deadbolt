@@ -119,6 +119,67 @@ pub fn calculate_spend_path_id(
     spend_path::calculate_spend_path_id(threshold as usize, &mfps, rel_timelock, abs_timelock)
 }
 
+/// Format a Taproot descriptor for Liana compatibility.
+///
+/// Liana requires the NUMS unspendable xpub (used as TR internal key when no
+/// key-path spend exists) to carry an explicit [00000000] origin fingerprint.
+/// The BIP380 standard omits this fingerprint, which is what Deadbolt generates
+/// and what Nunchuk/most wallets expect.
+///
+/// Returns `Some(formatted_descriptor)` when the descriptor is TR with a NUMS
+/// xpub internal key (no origin). Returns `None` when the format does not apply
+/// (not TR, TR with a real key-path, or NUMS already has an origin).
+pub fn format_descriptor_for_liana(descriptor: String) -> Result<Option<String>> {
+    use bdk_wallet::keys::DescriptorPublicKey;
+    use bdk_wallet::miniscript::Descriptor;
+
+    let parsed: Descriptor<DescriptorPublicKey> = match descriptor.parse() {
+        Ok(d) => d,
+        Err(_) => return Ok(None),
+    };
+
+    let tr = match &parsed {
+        Descriptor::Tr(tr) => tr,
+        _ => return Ok(None),
+    };
+
+    let internal_key = tr.internal_key();
+
+    // Check if the internal key is the NUMS unspendable xpub with no origin
+    let is_nums = PubKey::try_from(internal_key.clone())
+        .map(|pk| pk.is_unspendable())
+        .unwrap_or(false);
+
+    if !is_nums {
+        return Ok(None);
+    }
+
+    // Check that the internal key has no existing origin (so we don't double-add).
+    // BDK uses XPub for simple paths and MultiXPub for multi-path (<0;1>/*) keys.
+    let has_origin = match internal_key {
+        DescriptorPublicKey::XPub(xkey) => xkey.origin.is_some(),
+        DescriptorPublicKey::MultiXPub(xkey) => xkey.origin.is_some(),
+        DescriptorPublicKey::Single(_) => false,
+    };
+    if has_origin {
+        return Ok(None);
+    }
+
+    // Canonical descriptor string (BDK adds checksum — strip it)
+    let desc_str = parsed.to_string();
+    let desc_body = match desc_str.rfind('#') {
+        Some(idx) => &desc_str[..idx],
+        None => &desc_str,
+    };
+
+    // Prepend [00000000] origin to the NUMS xpub
+    let internal_key_str = internal_key.to_string();
+    let liana_key_str = format!("[00000000]{}", internal_key_str);
+    let liana_desc = desc_body.replacen(&internal_key_str, &liana_key_str, 1);
+
+    Ok(Some(liana_desc))
+}
+
 /// Decode legacy relative timelock consensus value (for database migration)
 pub fn decode_legacy_rel_timelock(consensus: u32) -> APIRelativeTimelock {
     APIRelativeTimelock::from_consensus(consensus)
@@ -520,5 +581,43 @@ mod tests {
         let result =
             validate_descriptor_network("not_a_descriptor".to_string(), APINetwork::Bitcoin);
         assert!(result.is_err());
+    }
+
+    // --- format_descriptor_for_liana ---
+
+    #[test]
+    fn test_format_descriptor_for_liana_multipath_nums() -> Result<()> {
+        // Testnet TR descriptor with NUMS xpub as MultiXPub (uses <0;1>/*)
+        // This is a real Deadbolt-generated descriptor.
+        let descriptor = "tr(tpubD6NzVbkrYhZ4WgRd5dPVwkWEXmzmAuLiJr8SZEtVgsYuE5d5dXLNwf4aFjftJTncXjMPAZmsoUfB615QLkSoqCxkMpKVFcPA4iCf5giaNYT/<0;1>/*,{and_v(v:and_v(v:pk([4061aff0/48'/1'/0'/2']tpubDFAv39stw4ELPsWiyqNL2UcFwruoVdX89CEpzJwb1TV3k9JgW6tLPUicWJvRT5iUSH7HHdt6rXtgRSX5TWJZqDcwJZZTtj1WTcHLUCC7eXC/<0;1>/*),pk([ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K/<0;1>/*)),older(1)),{{and_v(v:multi_a(2,[4061aff0/48'/1'/0'/2']tpubDFAv39stw4ELPsWiyqNL2UcFwruoVdX89CEpzJwb1TV3k9JgW6tLPUicWJvRT5iUSH7HHdt6rXtgRSX5TWJZqDcwJZZTtj1WTcHLUCC7eXC/<2;3>/*,[f3d33d4f/48'/1'/0'/2']tpubDFLYS7v5vvjyhLMotrmn6KzdN46jJ8ife9yD8DUMygtNCR4U389Wr46vJj7kG9bJPqFmLSet7hAP5fVJvyc97x9fhKZ7Zm9cTdvMxHqT55h/<0;1>/*,[ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K/<2;3>/*),older(2)),and_v(v:multi_a(2,[4061aff0/48'/1'/0'/2']tpubDFAv39stw4ELPsWiyqNL2UcFwruoVdX89CEpzJwb1TV3k9JgW6tLPUicWJvRT5iUSH7HHdt6rXtgRSX5TWJZqDcwJZZTtj1WTcHLUCC7eXC/<4;5>/*,[a045ca01/48'/1'/0'/2']tpubDE2KGCrYbgcNjvSyHG9ytdgR5LhGj8GvWpCGgcMvsTZnuuqE259tatGFhTbg2BvRfoziW4soM8Mhgk6juTAKNaM19GauMPEerjbeY2R2p9J/<0;1>/*,[ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K/<4;5>/*),older(3))},{and_v(v:multi_a(2,[4061aff0/48'/1'/0'/2']tpubDFAv39stw4ELPsWiyqNL2UcFwruoVdX89CEpzJwb1TV3k9JgW6tLPUicWJvRT5iUSH7HHdt6rXtgRSX5TWJZqDcwJZZTtj1WTcHLUCC7eXC/<6;7>/*,[ca6205d9/48'/1'/0'/2']tpubDE7Kf5xBnX5qHJKbAk3JdzxRg1hjoaxHkwCQBQHTAR32NYr6BKhbN78hENp59actsGTsUKjrqhTXCXbmW4hy5NGc5s1Ap9Mx66cKzvyzWaT/<0;1>/*,[ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K/<6;7>/*),older(4)),{and_v(v:multi_a(1,[4061aff0/48'/1'/0'/2']tpubDFAv39stw4ELPsWiyqNL2UcFwruoVdX89CEpzJwb1TV3k9JgW6tLPUicWJvRT5iUSH7HHdt6rXtgRSX5TWJZqDcwJZZTtj1WTcHLUCC7eXC/<8;9>/*,[ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K/<8;9>/*),older(5)),and_v(v:multi_a(1,[a045ca01/48'/1'/0'/2']tpubDE2KGCrYbgcNjvSyHG9ytdgR5LhGj8GvWpCGgcMvsTZnuuqE259tatGFhTbg2BvRfoziW4soM8Mhgk6juTAKNaM19GauMPEerjbeY2R2p9J/<2;3>/*,[ca6205d9/48'/1'/0'/2']tpubDE7Kf5xBnX5qHJKbAk3JdzxRg1hjoaxHkwCQBQHTAR32NYr6BKhbN78hENp59actsGTsUKjrqhTXCXbmW4hy5NGc5s1Ap9Mx66cKzvyzWaT/<2;3>/*,[f3d33d4f/48'/1'/0'/2']tpubDFLYS7v5vvjyhLMotrmn6KzdN46jJ8ife9yD8DUMygtNCR4U389Wr46vJj7kG9bJPqFmLSet7hAP5fVJvyc97x9fhKZ7Zm9cTdvMxHqT55h/<2;3>/*),older(6))}}}})#2fdut6vr";
+
+        let result = format_descriptor_for_liana(descriptor.to_string())?;
+
+        let liana = result.expect("Should return Some for TR with NUMS xpub internal key");
+        assert!(
+            liana.starts_with("tr([00000000]tpub"),
+            "Liana descriptor should start with tr([00000000]tpub, got: {}",
+            &liana[..50.min(liana.len())]
+        );
+        assert!(
+            !liana.contains('#'),
+            "Liana descriptor should not have a checksum"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_descriptor_for_liana_returns_none_for_non_tr() -> Result<()> {
+        let wsh = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*,[c61af686/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*))#0wct5td0";
+        assert!(format_descriptor_for_liana(wsh.to_string())?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_descriptor_for_liana_returns_none_for_tr_with_real_keypath() -> Result<()> {
+        // TR descriptor where the internal key has a real origin (real key-path spend)
+        let tr_with_keypath = "tr([c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*)#qpe8g8yf";
+        assert!(format_descriptor_for_liana(tr_with_keypath.to_string())?.is_none());
+        Ok(())
     }
 }

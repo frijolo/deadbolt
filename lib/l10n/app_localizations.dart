@@ -2324,6 +2324,36 @@ abstract class AppLocalizations {
   /// **'Labels imported'**
   String get importBip329Success;
 
+  /// No description provided for @exportDescriptorFormatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export format'**
+  String get exportDescriptorFormatTitle;
+
+  /// No description provided for @exportDescriptorStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get exportDescriptorStandard;
+
+  /// No description provided for @exportDescriptorStandardDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatible with Nunchuk and most wallets'**
+  String get exportDescriptorStandardDesc;
+
+  /// No description provided for @exportDescriptorLiana.
+  ///
+  /// In en, this message translates to:
+  /// **'Liana'**
+  String get exportDescriptorLiana;
+
+  /// No description provided for @exportDescriptorLianaDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds [00000000] to the unspendable key'**
+  String get exportDescriptorLianaDesc;
+
   /// No description provided for @exportLabelsOption.
   ///
   /// In en, this message translates to:

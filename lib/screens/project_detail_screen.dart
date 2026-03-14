@@ -13,7 +13,6 @@ import 'package:deadbolt/widgets/editable_key_card.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/path_card.dart';
-import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve a color for an MFP using the cubit index + theme palette.
@@ -329,9 +328,9 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
           IconButton(
             icon: const Icon(Icons.ios_share, size: 18),
             tooltip: l10n.copyDescriptorTooltip,
-            onPressed: () => showTextExportSheet(
+            onPressed: () => showDescriptorExportSheet(
               context,
-              text: descriptor,
+              descriptor: descriptor,
               fileName: 'descriptor',
               copiedMessage: l10n.descriptorCopied,
             ),

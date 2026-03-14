@@ -20,6 +20,7 @@ import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart'
     show showTextExportSheet;
 import 'package:deadbolt/widgets/text_import_sheet.dart'
@@ -235,12 +236,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final safeName = state.walletInfo.name
         .replaceAll(RegExp(r'[^\w\-]'), '_')
         .toLowerCase();
-    showTextExportSheet(
+    await showDescriptorExportSheet(
       context,
-      text: state.walletInfo.descriptor,
+      descriptor: state.walletInfo.descriptor,
       fileName: '${safeName}_descriptor',
       copiedMessage: l10n.copiedToClipboard,
-      fileExtension: 'txt',
     );
   }
 
@@ -3236,9 +3236,9 @@ class _DescriptorView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined, size: 16),
             tooltip: l10n.copyDescriptorTooltip,
-            onPressed: () => showTextExportSheet(
+            onPressed: () => showDescriptorExportSheet(
               context,
-              text: descriptor,
+              descriptor: descriptor,
               fileName: 'descriptor',
               copiedMessage: l10n.descriptorCopied,
             ),
