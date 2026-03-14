@@ -1,2 +1,15 @@
 ignore:
   - "rust/src/frb_generated.rs"
+
+coverage:
+  precision: 2
+  round: down
+  status:
+    project:
+      default:
+        target: auto      # use current coverage as baseline
+        threshold: 2%     # fail if coverage drops more than 2%
+    patch:
+      default:
+        target: 70%       # new code in PRs must have ≥70% coverage
+        threshold: 5%
