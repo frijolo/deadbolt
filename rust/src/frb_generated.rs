@@ -3161,6 +3161,9 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
         let mut var_psbtBase64 = <String>::sse_decode(deserializer);
         let mut var_txid = <String>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
+        let mut var_isAuto = <bool>::sse_decode(deserializer);
+        let mut var_isSelfTransfer = <bool>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_recipient = <String>::sse_decode(deserializer);
         let mut var_amountSat = <u64>::sse_decode(deserializer);
@@ -3174,6 +3177,9 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
             psbt_base64: var_psbtBase64,
             txid: var_txid,
             label: var_label,
+            effective_label: var_effectiveLabel,
+            is_auto: var_isAuto,
+            is_self_transfer: var_isSelfTransfer,
             created_at: var_createdAt,
             recipient: var_recipient,
             amount_sat: var_amountSat,
@@ -4460,6 +4466,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIPsbtInfo {
             self.psbt_base64.into_into_dart().into_dart(),
             self.txid.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
+            self.effective_label.into_into_dart().into_dart(),
+            self.is_auto.into_into_dart().into_dart(),
+            self.is_self_transfer.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.recipient.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
@@ -5102,6 +5111,9 @@ impl SseEncode for crate::api::model::APIPsbtInfo {
         <String>::sse_encode(self.psbt_base64, serializer);
         <String>::sse_encode(self.txid, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.effective_label, serializer);
+        <bool>::sse_encode(self.is_auto, serializer);
+        <bool>::sse_encode(self.is_self_transfer, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.recipient, serializer);
         <u64>::sse_encode(self.amount_sat, serializer);

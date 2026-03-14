@@ -486,7 +486,14 @@ pub struct APIPsbtInfo {
     pub psbt_base64: String,
     /// Txid of the unsigned transaction (deterministic, independent of signatures).
     pub txid: String,
+    /// Explicit user-set label (use for editing).
     pub label: Option<String>,
+    /// Display label — own label if set, otherwise inherited from the recipient address.
+    pub effective_label: Option<String>,
+    /// True when `effective_label` is auto-propagated from the recipient address label.
+    pub is_auto: bool,
+    /// True when the recipient is one of this wallet's own addresses.
+    pub is_self_transfer: bool,
     pub created_at: i64,
     pub recipient: String,
     pub amount_sat: u64,

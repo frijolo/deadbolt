@@ -2781,21 +2781,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIPsbtInfo dco_decode_api_psbt_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return APIPsbtInfo(
       id: dco_decode_i_64(arr[0]),
       psbtBase64: dco_decode_String(arr[1]),
       txid: dco_decode_String(arr[2]),
       label: dco_decode_opt_String(arr[3]),
-      createdAt: dco_decode_i_64(arr[4]),
-      recipient: dco_decode_String(arr[5]),
-      amountSat: dco_decode_u_64(arr[6]),
-      feeSat: dco_decode_u_64(arr[7]),
-      spendPathId: dco_decode_u_32(arr[8]),
-      threshold: dco_decode_u_32(arr[9]),
-      mfps: dco_decode_list_String(arr[10]),
-      utxoMaxConfHeight: dco_decode_opt_box_autoadd_i_64(arr[11]),
+      effectiveLabel: dco_decode_opt_String(arr[4]),
+      isAuto: dco_decode_bool(arr[5]),
+      isSelfTransfer: dco_decode_bool(arr[6]),
+      createdAt: dco_decode_i_64(arr[7]),
+      recipient: dco_decode_String(arr[8]),
+      amountSat: dco_decode_u_64(arr[9]),
+      feeSat: dco_decode_u_64(arr[10]),
+      spendPathId: dco_decode_u_32(arr[11]),
+      threshold: dco_decode_u_32(arr[12]),
+      mfps: dco_decode_list_String(arr[13]),
+      utxoMaxConfHeight: dco_decode_opt_box_autoadd_i_64(arr[14]),
     );
   }
 
@@ -3568,6 +3571,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_psbtBase64 = sse_decode_String(deserializer);
     var var_txid = sse_decode_String(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
+    var var_effectiveLabel = sse_decode_opt_String(deserializer);
+    var var_isAuto = sse_decode_bool(deserializer);
+    var var_isSelfTransfer = sse_decode_bool(deserializer);
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_recipient = sse_decode_String(deserializer);
     var var_amountSat = sse_decode_u_64(deserializer);
@@ -3581,6 +3587,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       psbtBase64: var_psbtBase64,
       txid: var_txid,
       label: var_label,
+      effectiveLabel: var_effectiveLabel,
+      isAuto: var_isAuto,
+      isSelfTransfer: var_isSelfTransfer,
       createdAt: var_createdAt,
       recipient: var_recipient,
       amountSat: var_amountSat,
@@ -4544,6 +4553,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.psbtBase64, serializer);
     sse_encode_String(self.txid, serializer);
     sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_String(self.effectiveLabel, serializer);
+    sse_encode_bool(self.isAuto, serializer);
+    sse_encode_bool(self.isSelfTransfer, serializer);
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_String(self.recipient, serializer);
     sse_encode_u_64(self.amountSat, serializer);

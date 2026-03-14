@@ -760,11 +760,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     required int threshold,
     required List<String> mfps,
     bool sendMax = false,
+    String? label,
   }) async {
     final current = state;
     if (current is! WalletDetailLoaded) return null;
     try {
-      final psbt = current.walletHandle.createPsbt(
+      APIPsbtInfo psbt = current.walletHandle.createPsbt(
         recipientAddress: recipientAddress,
         amountSat: BigInt.from(amountSat),
         feeRateSatPerVb: feeRateSatPerVb,
@@ -775,6 +776,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         mfps: mfps,
         sendMax: sendMax,
       );
+      // Apply label synchronously before loadPsbts() dispatches to thread pool,
+      // to avoid a race where listPsbts() reads the DB before the label is written.
+      if (label != null && label.isNotEmpty) {
+        psbt = setPsbtLabel(psbt.id.toInt(), label) ?? psbt;
+      }
       unawaited(loadPsbts().then((_) => _reloadCoinsIfLoaded()));
       return psbt;
     } catch (e, st) {

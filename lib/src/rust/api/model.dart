@@ -273,7 +273,18 @@ class APIPsbtInfo {
 
   /// Txid of the unsigned transaction (deterministic, independent of signatures).
   final String txid;
+
+  /// Explicit user-set label (use for editing).
   final String? label;
+
+  /// Display label — own label if set, otherwise inherited from the recipient address.
+  final String? effectiveLabel;
+
+  /// True when `effective_label` is auto-propagated from the recipient address label.
+  final bool isAuto;
+
+  /// True when the recipient is one of this wallet's own addresses.
+  final bool isSelfTransfer;
   final PlatformInt64 createdAt;
   final String recipient;
   final BigInt amountSat;
@@ -292,6 +303,9 @@ class APIPsbtInfo {
     required this.psbtBase64,
     required this.txid,
     this.label,
+    this.effectiveLabel,
+    required this.isAuto,
+    required this.isSelfTransfer,
     required this.createdAt,
     required this.recipient,
     required this.amountSat,
@@ -308,6 +322,9 @@ class APIPsbtInfo {
       psbtBase64.hashCode ^
       txid.hashCode ^
       label.hashCode ^
+      effectiveLabel.hashCode ^
+      isAuto.hashCode ^
+      isSelfTransfer.hashCode ^
       createdAt.hashCode ^
       recipient.hashCode ^
       amountSat.hashCode ^
@@ -326,6 +343,9 @@ class APIPsbtInfo {
           psbtBase64 == other.psbtBase64 &&
           txid == other.txid &&
           label == other.label &&
+          effectiveLabel == other.effectiveLabel &&
+          isAuto == other.isAuto &&
+          isSelfTransfer == other.isSelfTransfer &&
           createdAt == other.createdAt &&
           recipient == other.recipient &&
           amountSat == other.amountSat &&

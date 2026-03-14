@@ -1734,14 +1734,11 @@ class _CoinTile extends StatelessWidget {
             const SizedBox(height: 2),
             Row(
               children: [
-                // Single combined status badge: Spending > PSBT > Unconfirmed > Confirmed
                 if (isMempool)
                   _StatusBadge(label: l10n.coinMempoolSpend, color: Colors.red)
                 else if (utxo.pendingPsbtIds.isNotEmpty)
                   _StatusBadge(label: l10n.coinPendingSpend, color: Colors.orange)
-                else if (utxo.isConfirmed)
-                  _StatusBadge(label: l10n.txConfirmed, color: Colors.green)
-                else
+                else if (!utxo.isConfirmed)
                   _StatusBadge(label: l10n.txUnconfirmed, color: Colors.grey),
                 const SizedBox(width: 6),
                 _StatusBadge(
@@ -2225,7 +2222,6 @@ class _TransactionTile extends StatelessWidget {
     final netSats = isSelfTransfer
         ? fee.toInt()
         : (isReceived ? tx.received - tx.sent : tx.sent - tx.received).toInt();
-    final isConfirmed = tx.confirmationHeight != null;
     final txType = isSelfTransfer
         ? l10n.txSelfTransfer
         : isReceived
@@ -2277,55 +2273,72 @@ class _TransactionTile extends StatelessWidget {
                   ),
                 ],
               ),
-            Text(
-              txType,
-              style: label != null
-                  ? TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withAlpha(138),
-                    )
-                  : const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-        subtitle: Row(
-          children: [
-            Text(
-              isSelfTransfer
-                  ? '-${BitcoinFormatter.formatNum(netSats)} sats'
-                  : '${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(netSats)} sats',
-              style: TextStyle(
-                color: isSelfTransfer
-                    ? Colors.blue
-                    : isReceived
-                    ? Colors.green
-                    : Colors.orange,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: (isConfirmed ? Colors.green : Colors.grey).withAlpha(40),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
+            if (label == null)
+              Text(
+                txType,
                 style: TextStyle(
-                  fontSize: 10,
-                  color: isConfirmed ? Colors.green : Colors.grey,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
                 ),
               ),
-            ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        subtitle: Text(
+          isSelfTransfer
+              ? '-${BitcoinFormatter.formatNum(netSats)} sats'
+              : '${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(netSats)} sats',
+          style: TextStyle(
+            color: isSelfTransfer
+                ? Colors.blue
+                : isReceived
+                ? Colors.green
+                : Colors.orange,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (tx.confirmationTime != null)
+              Text(
+                _formatTimestamp(tx.confirmationTime!),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(40),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  l10n.txUnconfirmed,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18),
+          ],
+        ),
         onTap: () => _showDetails(context, isSelfTransfer, isReceived, netSats),
       ),
     );
+  }
+
+  String _formatTimestamp(BigInt unixSeconds) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(
+      unixSeconds.toInt() * 1000,
+      isUtc: false,
+    );
+    final y = dt.year.toString();
+    final mo = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final mi = dt.minute.toString().padLeft(2, '0');
+    return '$y/$mo/$d $h:$mi';
   }
 
   void _showDetails(
@@ -3785,13 +3798,13 @@ class _PsbtTile extends StatelessWidget {
   }
 
   Color _statusColor(BuildContext context) {
-    if (analysis == null) return Theme.of(context).colorScheme.outline;
+    if (analysis == null) return AppAccent.color;
     final signed = analysis!.signers.where((s) => s.hasSigned).length;
     if (analysis!.isFinalized || signed >= psbt.threshold.toInt()) {
       return Colors.green;
     }
-    if (signed > 0) return Colors.orange;
-    return Theme.of(context).colorScheme.outline;
+    if (signed > 0) return Colors.amber;
+    return AppAccent.color;
   }
 
   APISpendPath? _findSpendPath() {
@@ -3808,58 +3821,72 @@ class _PsbtTile extends StatelessWidget {
     final theme = Theme.of(context);
     final statusColor = _statusColor(context);
     final statusLabel = _statusLabel(context);
-    final signed = analysis?.signers.where((s) => s.hasSigned).length ?? 0;
+    final isSelfTransfer = psbt.isSelfTransfer;
+    final effectiveLabel = psbt.effectiveLabel;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withAlpha(40),
-          child: Icon(Icons.lock_clock_outlined, size: 18, color: statusColor),
-        ),
-        title: Row(
+        leading: Icon(Icons.lock_clock_outlined, color: AppAccent.color),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                border: Border.all(color: statusColor),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                statusLabel,
-                style: TextStyle(
-                  color: statusColor,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Row(
+            if (effectiveLabel != null)
+              Row(
                 children: [
-                  Text('→ ', style: Theme.of(context).textTheme.bodySmall),
+                  Icon(
+                    psbt.isAuto ? Icons.label_outline : Icons.label,
+                    size: 12,
+                    color: psbt.isAuto ? theme.colorScheme.outline : null,
+                  ),
+                  const SizedBox(width: 4),
                   Expanded(
-                    child: ColoredAddressText(
-                      address: psbt.recipient,
-                      truncate: true,
+                    child: Text(
+                      effectiveLabel,
+                      style: TextStyle(
+                        fontWeight: psbt.isAuto ? null : FontWeight.w500,
+                        fontStyle: psbt.isAuto ? FontStyle.italic : null,
+                        color: psbt.isAuto ? theme.colorScheme.outline : null,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
+            if (effectiveLabel == null)
+              Text(
+                isSelfTransfer ? l10n.txSelfTransfer : l10n.txSent,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurface.withAlpha(138),
+                ),
+              ),
           ],
         ),
         subtitle: Text(
-          '${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats'
-          ' · ${l10n.psbtSignaturesTitle(signed, psbt.threshold, psbt.mfps.length)}',
+          '-${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
           style: TextStyle(
-            fontSize: 11,
-            color: theme.colorScheme.onSurface.withAlpha(150),
+            color: AppAccent.color,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusColor.withAlpha(40),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                statusLabel,
+                style: TextStyle(fontSize: 10, color: statusColor),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18),
+          ],
+        ),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -3898,8 +3925,10 @@ class _PendingPsbtRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = psbt.label;
-    final title = label != null && label.isNotEmpty ? label : psbt.recipient;
+    final effectiveLabel = psbt.effectiveLabel;
+    final title = effectiveLabel != null && effectiveLabel.isNotEmpty
+        ? effectiveLabel
+        : psbt.recipient;
 
     return InkWell(
       borderRadius: BorderRadius.circular(8),
@@ -3929,7 +3958,15 @@ class _PendingPsbtRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ColoredAddressText(address: title, truncate: true),
+                  effectiveLabel != null && effectiveLabel.isNotEmpty
+                      ? Text(
+                          effectiveLabel,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontStyle: psbt.isAuto ? FontStyle.italic : FontStyle.normal,
+                          ),
+                        )
+                      : ColoredAddressText(address: title, truncate: true),
                   Text(
                     '${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
                     style: TextStyle(
