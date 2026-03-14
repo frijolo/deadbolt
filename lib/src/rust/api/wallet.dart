@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_addr_utxo_map`, `build_tx_utxo_map`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_addr_utxo_map`, `build_tx_utxo_map`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 

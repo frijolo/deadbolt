@@ -298,6 +298,10 @@ class APIPsbtInfo {
   ///   unlock_block = utxo_max_conf_height + timelock_blocks
   final PlatformInt64? utxoMaxConfHeight;
 
+  /// True when at least one input of this PSBT has been confirmed-spent by
+  /// another transaction. The PSBT can no longer be broadcast.
+  final bool hasSpentInputs;
+
   const APIPsbtInfo({
     required this.id,
     required this.psbtBase64,
@@ -314,6 +318,7 @@ class APIPsbtInfo {
     required this.threshold,
     required this.mfps,
     this.utxoMaxConfHeight,
+    required this.hasSpentInputs,
   });
 
   @override
@@ -332,7 +337,8 @@ class APIPsbtInfo {
       spendPathId.hashCode ^
       threshold.hashCode ^
       mfps.hashCode ^
-      utxoMaxConfHeight.hashCode;
+      utxoMaxConfHeight.hashCode ^
+      hasSpentInputs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -353,7 +359,8 @@ class APIPsbtInfo {
           spendPathId == other.spendPathId &&
           threshold == other.threshold &&
           mfps == other.mfps &&
-          utxoMaxConfHeight == other.utxoMaxConfHeight;
+          utxoMaxConfHeight == other.utxoMaxConfHeight &&
+          hasSpentInputs == other.hasSpentInputs;
 }
 
 class APIPsbtSignerStatus {

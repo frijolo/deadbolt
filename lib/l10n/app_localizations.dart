@@ -1838,6 +1838,18 @@ abstract class AppLocalizations {
   /// **'CONFIRMED'**
   String get psbtStatusConfirmed;
 
+  /// No description provided for @psbtStatusSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'SPENT'**
+  String get psbtStatusSpent;
+
+  /// No description provided for @psbtSpentInputsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'One or more inputs have been confirmed spent by another transaction. This PSBT can no longer be broadcast.'**
+  String get psbtSpentInputsWarning;
+
   /// No description provided for @createTxTitle.
   ///
   /// In en, this message translates to:

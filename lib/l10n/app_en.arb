@@ -457,6 +457,8 @@
   "psbtStatusSigned": "SIGNED",
   "psbtStatusMempool": "MEMPOOL",
   "psbtStatusConfirmed": "CONFIRMED",
+  "psbtStatusSpent": "SPENT",
+  "psbtSpentInputsWarning": "One or more inputs have been confirmed spent by another transaction. This PSBT can no longer be broadcast.",
 
   "createTxTitle": "Create Transaction",
   "createTxRecipient": "Recipient address",
