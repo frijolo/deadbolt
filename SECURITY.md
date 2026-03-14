@@ -148,10 +148,10 @@ We will credit you in the security advisory unless you prefer to remain anonymou
    - Older versions may have known vulnerabilities
 
 2. **Understand what Deadbolt does**
-   - Analyzes Bitcoin descriptors (read-only)
+   - Analyzes Bitcoin descriptors and manages on-device wallets
    - Does NOT handle private keys
-   - Does NOT connect to the internet (offline analysis)
-   - Does NOT send data to external servers
+   - Wallet sync connects only to the Electrum server you configure — no data sent to third parties
+   - Does NOT collect telemetry or analytics
 
 3. **Protect your descriptors**
    - Descriptors contain public keys (not private keys)
@@ -186,12 +186,12 @@ flutter build <platform> --release
 
 ### Current Implementation
 
-- ✅ **GPG-signed releases** - All binaries are cryptographically signed
-- ✅ **Checksum verification** - SHA256 checksums for all releases
+- ✅ **GPG-signed checksums** - SHA256SUMS file is cryptographically signed with GPG
+- ✅ **Checksum verification** - SHA256 checksums for all release binaries
 - ✅ **Signed commits** - All commits are GPG-signed (enabled from v1.0.0)
 - ✅ **Signed tags** - All version tags are GPG-signed
 - ✅ **Dependency pinning** - Exact version dependencies to prevent supply chain attacks
-- ✅ **Offline operation** - No network access required (no data leaks)
+- ✅ **No telemetry** - No analytics, tracking, or data sent to external servers
 - ✅ **Memory safety** - Core logic in Rust (memory-safe language)
 - ✅ **CI/CD verification** - Automated testing on all platforms
 

@@ -10,14 +10,18 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 
 ## Features
 
-- **Descriptor Parsing**: Supports all Bitcoin descriptor types (P2PKH, P2WPKH, P2WSH, multisig, etc.)
+- **Descriptor Parsing**: Supports all Bitcoin descriptor types (P2PKH, P2WPKH, P2WSH, multisig, Taproot, miniscript, etc.)
 - **Network Detection**: Automatically identifies mainnet, testnet, signet, or regtest
 - **Public Key Extraction**: Parses extended public keys (xpub, ypub, zpub, tpub, etc.)
 - **Spend Path Analysis**: Identifies all possible spending conditions in complex descriptors
 - **Fee Estimation**: Calculates transaction weight for each spend path
-- **Offline Operation**: No internet connection required - complete privacy
+- **Wallet Management**: Create on-device wallets, sync balances via Electrum, view UTXOs and transactions
+- **PSBT Building**: Build unsigned transactions with optional coin control and RBF support
+- **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
+- **QR Support**: Import/export descriptors and PSBTs via QR codes
+- **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server
 - **Cross-Platform**: Available for Android, Linux, and Windows
-- **Signed Releases**: All binaries are GPG-signed for verification
+- **Signed Releases**: SHA256 checksums are GPG-signed for release verification
 
 ## Installation
 
@@ -97,8 +101,8 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 
 ### Prerequisites
 
-- **Flutter SDK** (3.x or later): [Install Flutter](https://docs.flutter.dev/get-started/install)
-- **Rust toolchain** (1.70+): [Install Rust](https://rustup.rs/)
+- **Flutter SDK** (3.10.7 or later): [Install Flutter](https://docs.flutter.dev/get-started/install)
+- **Rust toolchain** (latest stable): [Install Rust](https://rustup.rs/)
 - **flutter_rust_bridge_codegen**: `cargo install flutter_rust_bridge_codegen --version 2.11.1`
 - Platform-specific dependencies:
   - **Android**: Android SDK, NDK r26d
@@ -147,7 +151,7 @@ deadbolt/
 ├── lib/                    # Dart/Flutter code
 │   ├── main.dart          # App entry point
 │   ├── screens/           # UI screens
-│   ├── cubits/            # BLoC state management
+│   ├── cubit/             # BLoC state management
 │   └── src/rust/          # Auto-generated FFI bindings (DO NOT EDIT)
 ├── rust/                  # Rust core logic
 │   ├── src/
@@ -199,10 +203,10 @@ Deadbolt is Bitcoin-related software - security is critical. See [SECURITY.md](S
 
 Deadbolt is designed with privacy in mind:
 
-- **No network access** - Completely offline operation
 - **No telemetry** - No analytics, tracking, or data collection
-- **No third-party services** - No external dependencies at runtime
+- **No built-in servers** - Wallet sync connects only to the Electrum server you configure
 - **Local storage only** - Data stays on your device
+- **Descriptor analysis is fully offline** - No network access needed to parse and analyze descriptors
 
 However, be aware:
 - Descriptors contain public keys and reveal wallet structure
