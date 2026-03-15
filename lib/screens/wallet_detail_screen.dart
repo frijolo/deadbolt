@@ -763,7 +763,11 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
   void initState() {
     super.initState();
     _address = widget.address;
-    _labelController = TextEditingController(text: _address.label ?? '');
+    final initialLabel = _address.label ?? '';
+    _labelController = TextEditingController.fromValue(TextEditingValue(
+      text: initialLabel,
+      selection: TextSelection.collapsed(offset: initialLabel.length),
+    ));
   }
 
   @override
@@ -994,8 +998,11 @@ class _TransactionsView extends StatelessWidget {
           ...([...state.transactions]..sort((a, b) {
                 final aConfirmed = a.confirmationHeight != null;
                 final bConfirmed = b.confirmationHeight != null;
-                if (aConfirmed == bConfirmed) return 0;
-                return aConfirmed ? 1 : -1; // unconfirmed first
+                if (aConfirmed != bConfirmed) return aConfirmed ? 1 : -1; // unconfirmed first
+                if (!aConfirmed) return a.txid.compareTo(b.txid); // stable for unconfirmed
+                final cmp = b.confirmationHeight!.compareTo(a.confirmationHeight!); // newest first
+                if (cmp != 0) return cmp;
+                return a.txid.compareTo(b.txid); // stable tiebreaker within same block
               }))
               .map((tx) => _TransactionTile(tx: tx, network: network)),
           if (state.hasMore)
@@ -1323,7 +1330,6 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        Navigator.of(context).pop();
                         showDialog<void>(
                           context: context,
                           builder: (ctx) => BlocProvider.value(
@@ -1474,7 +1480,10 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentLabel);
+    _controller = TextEditingController.fromValue(TextEditingValue(
+      text: widget.currentLabel,
+      selection: TextSelection.collapsed(offset: widget.currentLabel.length),
+    ));
   }
 
   @override
@@ -1856,7 +1865,6 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        Navigator.of(context).pop();
                         showDialog<void>(
                           context: context,
                           builder: (ctx) => BlocProvider.value(
@@ -1935,28 +1943,51 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FutureBuilder<APIUtxoDetails>(
-                            future: _future,
-                            builder: (ctx, snap) {
-                              if (!snap.hasData) return const SizedBox.shrink();
-                              final lbl = snap.data!.addressEffectiveLabel;
-                              if (lbl == null || lbl.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: _EffectiveLabelText(
-                                  effectiveLabel: lbl,
-                                  isAuto: snap.data!.addressLabelIsAuto,
+                      child: InkWell(
+                        onTap: () {
+                          final cubit = context.read<WalletDetailCubit>();
+                          Navigator.of(context).pop();
+                          showDialog<void>(
+                            context: context,
+                            builder: (ctx) => BlocProvider.value(
+                              value: cubit,
+                              child: _AddressDetailByStringDialog(
+                                address: utxo.address,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                        child: FutureBuilder<APIUtxoDetails>(
+                          future: _future,
+                          builder: (ctx, snap) {
+                            final lbl = snap.data?.addressEffectiveLabel;
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (lbl != null && lbl.isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 2),
+                                          child: _EffectiveLabelText(
+                                            effectiveLabel: lbl,
+                                            isAuto:
+                                                snap.data!.addressLabelIsAuto,
+                                          ),
+                                        ),
+                                      ColoredAddressText(address: utxo.address),
+                                    ],
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
-                          ColoredAddressText(address: utxo.address),
-                        ],
+                                const Icon(Icons.chevron_right, size: 14),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
                     IconButton(
@@ -2095,7 +2126,10 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentLabel);
+    _controller = TextEditingController.fromValue(TextEditingValue(
+      text: widget.currentLabel,
+      selection: TextSelection.collapsed(offset: widget.currentLabel.length),
+    ));
   }
 
   @override
@@ -2452,7 +2486,6 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        Navigator.of(context).pop();
                         showDialog<void>(
                           context: context,
                           builder: (ctx) => BlocProvider.value(
@@ -2647,12 +2680,24 @@ class _RelatedAddressRow extends StatelessWidget {
   final APIRelatedAddress address;
   const _RelatedAddressRow({required this.address});
 
+  void _showDetail(BuildContext context) {
+    final cubit = context.read<WalletDetailCubit>();
+    Navigator.of(context).pop();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: cubit,
+        child: _AddressDetailByStringDialog(address: address.address),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = address;
     final hasLabel = a.effectiveLabel?.isNotEmpty == true;
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
+    final inner = Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
@@ -2694,9 +2739,21 @@ class _RelatedAddressRow extends StatelessWidget {
                 fontStyle: FontStyle.italic,
               ),
             ),
+          if (a.isMine) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 14),
+          ],
         ],
       ),
     );
+    if (a.isMine) {
+      return InkWell(
+        onTap: () => _showDetail(context),
+        borderRadius: BorderRadius.circular(4),
+        child: inner,
+      );
+    }
+    return inner;
   }
 }
 
@@ -2704,41 +2761,172 @@ class _RelatedCoinRow extends StatelessWidget {
   final APIRelatedUtxo utxo;
   const _RelatedCoinRow({required this.utxo});
 
+  void _showDetail(BuildContext context) {
+    final cubit = context.read<WalletDetailCubit>();
+    Navigator.of(context).pop();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: cubit,
+        child: _CoinDetailByOutpointDialog(txid: utxo.txid, vout: utxo.vout),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final u = utxo;
     final scheme = Theme.of(context).colorScheme;
     final hasLabel = u.effectiveLabel?.isNotEmpty == true;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.toll, size: 14),
-          const SizedBox(width: 6),
-          Expanded(
-            child: hasLabel
-                ? Text(
-                    u.effectiveLabel!,
-                    style: u.isAuto
-                        ? TextStyle(
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                            color: scheme.outline,
-                          )
-                        : const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : OutpointText(txid: u.txid, vout: u.vout),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-            style: const TextStyle(fontSize: 11),
-          ),
-        ],
+    return InkWell(
+      onTap: () => _showDetail(context),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.toll, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: hasLabel
+                  ? Text(
+                      u.effectiveLabel!,
+                      style: u.isAuto
+                          ? TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: scheme.outline,
+                            )
+                          : const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : OutpointText(txid: u.txid, vout: u.vout),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
+              style: const TextStyle(fontSize: 11),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 14),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Loads a UTXO by outpoint and shows its detail dialog.
+/// Used when navigating to a coin from a related-entity row, where only txid/vout
+/// are available and the full APIUtxo may not be pre-loaded in state.
+class _CoinDetailByOutpointDialog extends StatefulWidget {
+  final String txid;
+  final int vout;
+  const _CoinDetailByOutpointDialog({required this.txid, required this.vout});
+
+  @override
+  State<_CoinDetailByOutpointDialog> createState() =>
+      _CoinDetailByOutpointDialogState();
+}
+
+class _CoinDetailByOutpointDialogState
+    extends State<_CoinDetailByOutpointDialog> {
+  late final Future<APIUtxoDetails> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = (context.read<WalletDetailCubit>().state as WalletDetailLoaded)
+        .walletHandle
+        .getUtxoDetails(txid: widget.txid, vout: widget.vout);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<APIUtxoDetails>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const AlertDialog(
+            content: SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        final state =
+            context.read<WalletDetailCubit>().state as WalletDetailLoaded;
+        final utxo = snapshot.data!.utxo;
+        final spendPaths = state.descriptorAnalysis?.spendPaths ?? [];
+        final statuses = spendPaths
+            .map((p) => (
+                  p,
+                  spendPathStatus(
+                    path: p,
+                    utxo: utxo,
+                    tipHeight: state.tipHeight,
+                  ),
+                ))
+            .toList();
+        return _CoinDetailDialog(
+          utxo: utxo,
+          network: state.walletInfo.network,
+          spendPathStatuses: statuses,
+          keyLabels: state.keyLabels,
+        );
+      },
+    );
+  }
+}
+
+/// Loads an address by its string and shows its detail dialog.
+/// Used when navigating to an address from a related-entity row, where only the
+/// address string is available (no full APIAddress pre-loaded in state).
+class _AddressDetailByStringDialog extends StatefulWidget {
+  final String address;
+  const _AddressDetailByStringDialog({required this.address});
+
+  @override
+  State<_AddressDetailByStringDialog> createState() =>
+      _AddressDetailByStringDialogState();
+}
+
+class _AddressDetailByStringDialogState
+    extends State<_AddressDetailByStringDialog> {
+  late final Future<APIAddressDetails> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = (context.read<WalletDetailCubit>().state as WalletDetailLoaded)
+        .walletHandle
+        .getAddressDetails(address: widget.address);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<APIAddressDetails>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const AlertDialog(
+            content: SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        final state =
+            context.read<WalletDetailCubit>().state as WalletDetailLoaded;
+        final details = snapshot.data!;
+        return _AddressDetailDialog(
+          address: details.address,
+          keychain: details.address.keychain,
+          network: state.walletInfo.network,
+        );
+      },
     );
   }
 }
@@ -2794,58 +2982,129 @@ class _RelatedTxRow extends StatelessWidget {
   final APIRelatedTx tx;
   const _RelatedTxRow({required this.tx});
 
+  void _showDetail(BuildContext context) {
+    final cubitState = context.read<WalletDetailCubit>().state;
+    if (cubitState is! WalletDetailLoaded) return;
+    final network = cubitState.walletInfo.network;
+
+    // Prefer the full APITransaction from the loaded list for accurate amounts.
+    final fullTx = cubitState.transactions
+        .where((t) => t.txid == tx.txid)
+        .firstOrNull;
+
+    final APITransaction apiTx;
+    final bool isSelfTransfer;
+    final bool isReceived;
+    final int netSats;
+
+    if (fullTx != null) {
+      final fee = fullTx.fee;
+      isSelfTransfer = fullTx.sent > BigInt.zero &&
+          fullTx.received > BigInt.zero &&
+          fee != null &&
+          fullTx.sent - fullTx.received == fee;
+      isReceived = !isSelfTransfer && fullTx.received > fullTx.sent;
+      netSats = isSelfTransfer
+          ? fee.toInt()
+          : (isReceived
+              ? fullTx.received - fullTx.sent
+              : fullTx.sent - fullTx.received)
+              .toInt();
+      apiTx = fullTx;
+    } else {
+      // Fallback: use partial info from APIRelatedTx.
+      final net = tx.addrReceived.toInt() - tx.addrSpent.toInt();
+      isSelfTransfer = false;
+      isReceived = net >= 0;
+      netSats = net.abs();
+      apiTx = APITransaction(
+        txid: tx.txid,
+        received: tx.addrReceived,
+        sent: tx.addrSpent,
+        fee: tx.fee,
+        confirmationHeight: tx.confirmationHeight,
+        confirmationTime: null,
+        label: null,
+        effectiveLabel: tx.effectiveLabel,
+        isAuto: tx.isAuto,
+      );
+    }
+
+    final cubit = context.read<WalletDetailCubit>();
+    Navigator.of(context).pop();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: cubit,
+        child: _TxDetailDialog(
+          tx: apiTx,
+          network: network,
+          isSelfTransfer: isSelfTransfer,
+          isReceived: isReceived,
+          netSats: netSats,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final net = tx.addrReceived.toInt() - tx.addrSpent.toInt();
     final hasLabel = tx.effectiveLabel?.isNotEmpty == true;
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.receipt_long, size: 14),
-          const SizedBox(width: 6),
-          Expanded(
-            child: hasLabel
-                ? Text(
-                    tx.effectiveLabel!,
-                    style: tx.isAuto
-                        ? TextStyle(
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                            color: scheme.outline,
-                          )
-                        : const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : OutpointText(txid: tx.txid),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${net >= 0 ? '+' : ''}${BitcoinFormatter.formatNum(net)} sats',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: net >= 0 ? Colors.green : Colors.orange,
+    return InkWell(
+      onTap: () => _showDetail(context),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.receipt_long, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: hasLabel
+                  ? Text(
+                      tx.effectiveLabel!,
+                      style: tx.isAuto
+                          ? TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: scheme.outline,
+                            )
+                          : const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : OutpointText(txid: tx.txid),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${net >= 0 ? '+' : ''}${BitcoinFormatter.formatNum(net)} sats',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: net >= 0 ? Colors.green : Colors.orange,
+                  ),
                 ),
-              ),
-              Text(
-                tx.confirmationHeight != null
-                    ? '${tx.confirmationHeight}'
-                    : l10n.txUnconfirmed,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: tx.confirmationHeight != null
-                      ? Theme.of(context).colorScheme.onSurface.withAlpha(140)
-                      : Colors.grey,
+                Text(
+                  tx.confirmationHeight != null
+                      ? '${tx.confirmationHeight}'
+                      : l10n.txUnconfirmed,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: tx.confirmationHeight != null
+                        ? Theme.of(context).colorScheme.onSurface.withAlpha(140)
+                        : Colors.grey,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 14),
+          ],
+        ),
       ),
     );
   }
@@ -3100,7 +3359,10 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentLabel);
+    _controller = TextEditingController.fromValue(TextEditingValue(
+      text: widget.currentLabel,
+      selection: TextSelection.collapsed(offset: widget.currentLabel.length),
+    ));
   }
 
   @override

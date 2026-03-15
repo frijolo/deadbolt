@@ -110,8 +110,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       _pollTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
         _pollFrame();
       });
-    } catch (_) {
+    } catch (e) {
       // No camera / GStreamer not installed — show file fallback.
+      debugPrint('Desktop camera init failed: $e');
       if (mounted) setState(() => _cameraInitFailed = true);
     }
   }
@@ -139,8 +140,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (mounted) {
         setState(() => _previewImage = uiImage);
       }
-    } catch (_) {
-      // Ignore transient capture errors.
+    } catch (e) {
+      debugPrint('Desktop camera frame capture error: $e');
     }
   }
 
