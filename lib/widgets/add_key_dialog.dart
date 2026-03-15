@@ -1,14 +1,12 @@
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/text_import_sheet.dart';
 
 /// Pattern for parsing keyspec format: [mfp/path]xpub
 final _keyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
@@ -118,45 +116,22 @@ void showAddKeyDialog(
                   textCapitalization: TextCapitalization.none,
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (!kIsWeb)
-                      TextButton.icon(
-                        icon: const Icon(Icons.qr_code_scanner, size: 16),
-                        label: Text(l10n.scanQrCode),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppAccent.color,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () async {
-                          final result = await QrScannerScreen.push(ctx);
-                          if (result != null) {
-                            keyspecController.text = result.trim();
-                          }
-                        },
-                      ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.folder_open, size: 16),
-                      label: Text(l10n.fromFile),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppAccent.color,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onPressed: () async {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.any,
-                          withData: true,
-                        );
-                        if (result == null || result.files.isEmpty) return;
-                        final bytes = result.files.first.bytes;
-                        if (bytes != null) {
-                          keyspecController.text =
-                              String.fromCharCodes(bytes).trim();
-                        }
-                      },
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.download_outlined, size: 16),
+                    label: Text(l10n.importAction),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppAccent.color,
+                      visualDensity: VisualDensity.compact,
                     ),
-                  ],
+                    onPressed: () async {
+                      final result = await showTextImportSheet(ctx);
+                      if (result != null) {
+                        keyspecController.text = result.trim();
+                      }
+                    },
+                  ),
                 ),
               ],
 

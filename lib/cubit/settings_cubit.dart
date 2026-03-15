@@ -78,6 +78,22 @@ class AppSettings {
     return '$base/tx/$txid';
   }
 
+  AppSettings copyWithElectrum(APINetwork network, String url) => switch (network) {
+    APINetwork.bitcoin => copyWith(electrumMainnet: url),
+    APINetwork.testnet => copyWith(electrumTestnet: url),
+    APINetwork.testnet4 => copyWith(electrumTestnet4: url),
+    APINetwork.signet => copyWith(electrumSignet: url),
+    APINetwork.regtest => copyWith(electrumRegtest: url),
+  };
+
+  AppSettings copyWithExplorer(APINetwork network, String url) => switch (network) {
+    APINetwork.bitcoin => copyWith(explorerMainnet: url),
+    APINetwork.testnet => copyWith(explorerTestnet: url),
+    APINetwork.testnet4 => copyWith(explorerTestnet4: url),
+    APINetwork.signet => copyWith(explorerSignet: url),
+    APINetwork.regtest => copyWith(explorerRegtest: url),
+  };
+
   AppSettings copyWith({
     Locale? locale,
     APINetwork? network,
@@ -132,6 +148,27 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _explorerRegtestKey = 'explorerRegtest';
   static const _minFeeRateKey = 'minFeeRate';
 
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> _getPrefs() async =>
+      _prefs ??= await SharedPreferences.getInstance();
+
+  static String _electrumKeyFor(APINetwork network) => switch (network) {
+    APINetwork.bitcoin => _electrumMainnetKey,
+    APINetwork.testnet => _electrumTestnetKey,
+    APINetwork.testnet4 => _electrumTestnet4Key,
+    APINetwork.signet => _electrumSignetKey,
+    APINetwork.regtest => _electrumRegtestKey,
+  };
+
+  static String _explorerKeyFor(APINetwork network) => switch (network) {
+    APINetwork.bitcoin => _explorerMainnetKey,
+    APINetwork.testnet => _explorerTestnetKey,
+    APINetwork.testnet4 => _explorerTestnet4Key,
+    APINetwork.signet => _explorerSignetKey,
+    APINetwork.regtest => _explorerRegtestKey,
+  };
+
   SettingsCubit()
       : super(const AppSettings(
           locale: Locale('en'),
@@ -148,7 +185,7 @@ class SettingsCubit extends Cubit<AppSettings> {
       walletType: APIWalletType.p2Tr,
     );
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final localeCode = prefs.getString(_localeKey) ?? 'en';
     final networkName = prefs.getString(_networkKey) ?? APINetwork.testnet.name;
     final walletTypeName =
@@ -186,74 +223,44 @@ class SettingsCubit extends Cubit<AppSettings> {
   }
 
   Future<void> setLocale(Locale locale) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_localeKey, locale.languageCode);
     emit(state.copyWith(locale: locale));
   }
 
   Future<void> setNetwork(APINetwork network) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_networkKey, network.name);
     emit(state.copyWith(network: network));
   }
 
   Future<void> setWalletType(APIWalletType walletType) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_walletTypeKey, walletType.name);
     emit(state.copyWith(walletType: walletType));
   }
 
   Future<void> setAppTheme(AppTheme appTheme) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_themeKey, appTheme.name);
     emit(state.copyWith(appTheme: appTheme));
   }
 
   Future<void> setExplorerUrl(APINetwork network, String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    switch (network) {
-      case APINetwork.bitcoin:
-        await prefs.setString(_explorerMainnetKey, url);
-        emit(state.copyWith(explorerMainnet: url));
-      case APINetwork.testnet:
-        await prefs.setString(_explorerTestnetKey, url);
-        emit(state.copyWith(explorerTestnet: url));
-      case APINetwork.testnet4:
-        await prefs.setString(_explorerTestnet4Key, url);
-        emit(state.copyWith(explorerTestnet4: url));
-      case APINetwork.signet:
-        await prefs.setString(_explorerSignetKey, url);
-        emit(state.copyWith(explorerSignet: url));
-      case APINetwork.regtest:
-        await prefs.setString(_explorerRegtestKey, url);
-        emit(state.copyWith(explorerRegtest: url));
-    }
+    final prefs = await _getPrefs();
+    await prefs.setString(_explorerKeyFor(network), url);
+    emit(state.copyWithExplorer(network, url));
   }
 
   Future<void> setMinFeeRate(double value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setDouble(_minFeeRateKey, value);
     emit(state.copyWith(minFeeRate: value));
   }
 
   Future<void> setElectrumUrl(APINetwork network, String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    switch (network) {
-      case APINetwork.bitcoin:
-        await prefs.setString(_electrumMainnetKey, url);
-        emit(state.copyWith(electrumMainnet: url));
-      case APINetwork.testnet:
-        await prefs.setString(_electrumTestnetKey, url);
-        emit(state.copyWith(electrumTestnet: url));
-      case APINetwork.testnet4:
-        await prefs.setString(_electrumTestnet4Key, url);
-        emit(state.copyWith(electrumTestnet4: url));
-      case APINetwork.signet:
-        await prefs.setString(_electrumSignetKey, url);
-        emit(state.copyWith(electrumSignet: url));
-      case APINetwork.regtest:
-        await prefs.setString(_electrumRegtestKey, url);
-        emit(state.copyWith(electrumRegtest: url));
-    }
+    final prefs = await _getPrefs();
+    await prefs.setString(_electrumKeyFor(network), url);
+    emit(state.copyWithElectrum(network, url));
   }
 }

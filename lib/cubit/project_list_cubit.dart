@@ -2,19 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_api;
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/utils/constants.dart';
 
 typedef ProjectExportData = ({String jsonString, String fileName});
-
-/// Characters not allowed in export file names.
-final _invalidFileNameCharsRegex = RegExp(r'[^\w\s-]');
 
 // --- States ---
 
@@ -37,7 +35,7 @@ class ProjectListError extends ProjectListState {
 
 // --- Cubit ---
 
-class ProjectListCubit extends Cubit<ProjectListState> {
+class ProjectListCubit extends Cubit<ProjectListState> with CubitErrorLogger {
   final AppDatabase _db;
   final ProjectDescriptorService _service;
   StreamSubscription<List<Project>>? _subscription;
@@ -48,20 +46,11 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     _watch();
   }
 
-  void _logError(String context, Object error, StackTrace stackTrace) {
-    debugPrint('════════════════════════════════════════════════════════════');
-    debugPrint('ERROR in $context:');
-    debugPrint('$error');
-    debugPrint('Stack trace:');
-    debugPrint('$stackTrace');
-    debugPrint('════════════════════════════════════════════════════════════');
-  }
-
   void _watch() {
     _subscription = _db.watchAllProjects().listen(
       (projects) => emit(ProjectListLoaded(projects)),
       onError: (e, stackTrace) {
-        _logError('ProjectListCubit stream', e, stackTrace);
+        logError('ProjectListCubit stream', e, stackTrace);
         emit(ProjectListError(e.toString()));
       },
     );
@@ -84,7 +73,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
       await _persistAnalysisResults(projectId, result);
       return projectId;
     } catch (e, stackTrace) {
-      _logError('ProjectListCubit.createProject()', e, stackTrace);
+      logError('ProjectListCubit.createProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -105,7 +94,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
 
       return projectId;
     } catch (e, stackTrace) {
-      _logError('ProjectListCubit.createEmptyProject()', e, stackTrace);
+      logError('ProjectListCubit.createEmptyProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -138,10 +127,10 @@ class ProjectListCubit extends Cubit<ProjectListState> {
       );
 
       final fileName =
-          '${project.name.replaceAll(_invalidFileNameCharsRegex, '_')}.deadbolt.json';
+          '${project.name.replaceAll(invalidFileNameCharsRegex, '_')}.deadbolt.json';
       return (jsonString: exportData.toJsonString(), fileName: fileName);
     } catch (e, stackTrace) {
-      _logError('ProjectListCubit.buildProjectExportData()', e, stackTrace);
+      logError('ProjectListCubit.buildProjectExportData()', e, stackTrace);
       rethrow;
     }
   }
@@ -150,7 +139,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
     try {
       await _db.deleteProject(id);
     } catch (e, stackTrace) {
-      _logError('ProjectListCubit.deleteProject()', e, stackTrace);
+      logError('ProjectListCubit.deleteProject()', e, stackTrace);
       rethrow;
     }
   }
@@ -176,7 +165,7 @@ class ProjectListCubit extends Cubit<ProjectListState> {
       );
       return projectId;
     } catch (e, stackTrace) {
-      _logError('ProjectListCubit.importProject()', e, stackTrace);
+      logError('ProjectListCubit.importProject()', e, stackTrace);
       rethrow;
     }
   }

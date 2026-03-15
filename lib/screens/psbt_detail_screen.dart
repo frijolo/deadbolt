@@ -43,7 +43,11 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   void initState() {
     super.initState();
     _psbt = widget.psbt;
-    _labelController = TextEditingController(text: _psbt.label ?? '');
+    final initialLabel = _psbt.label ?? '';
+    _labelController = TextEditingController.fromValue(TextEditingValue(
+      text: initialLabel,
+      selection: TextSelection.collapsed(offset: initialLabel.length),
+    ));
   }
 
   @override
@@ -499,6 +503,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   analysis: analysis,
                   threshold: _psbt.threshold.toInt(),
                   mfpCount: _psbt.mfps.length,
+                  hasSpentInputs: _psbt.hasSpentInputs,
                 ),
                 const SizedBox(height: 16),
 
@@ -671,11 +676,13 @@ class _StatusBadge extends StatelessWidget {
   final APIPsbtAnalysis? analysis;
   final int threshold;
   final int mfpCount;
+  final bool hasSpentInputs;
 
   const _StatusBadge({
     required this.analysis,
     required this.threshold,
     required this.mfpCount,
+    required this.hasSpentInputs,
   });
 
   @override
@@ -683,23 +690,28 @@ class _StatusBadge extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
 
-    if (analysis == null) {
+    if (!hasSpentInputs && analysis == null) {
       return const SizedBox.shrink();
     }
 
-    final signed = analysis!.signers.where((s) => s.hasSigned).length;
     final String label;
     final Color color;
 
-    if (analysis!.isFinalized || signed >= threshold) {
-      label = l10n.psbtStatusSigned;
-      color = Colors.green;
-    } else if (signed > 0) {
-      label = l10n.psbtStatusPartial;
-      color = Colors.orange;
+    if (hasSpentInputs) {
+      label = l10n.psbtStatusSpent;
+      color = Colors.red;
     } else {
-      label = l10n.psbtStatusUnsigned;
-      color = theme.colorScheme.outline;
+      final signed = analysis!.signers.where((s) => s.hasSigned).length;
+      if (analysis!.isFinalized || signed >= threshold) {
+        label = l10n.psbtStatusSigned;
+        color = Colors.green;
+      } else if (signed > 0) {
+        label = l10n.psbtStatusPartial;
+        color = Colors.orange;
+      } else {
+        label = l10n.psbtStatusUnsigned;
+        color = theme.colorScheme.outline;
+      }
     }
 
     return Align(

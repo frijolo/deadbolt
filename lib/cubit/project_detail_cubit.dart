@@ -5,6 +5,7 @@ import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
+import 'package:deadbolt/utils/constants.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -13,9 +14,6 @@ import 'package:deadbolt/src/rust/api/model.dart';
 
 // Re-export editable models so existing imports of this file keep working.
 export 'package:deadbolt/models/editable_models.dart';
-
-/// Characters not allowed in export file names.
-final _invalidFileNameCharsRegex = RegExp(r'[^\w\s-]');
 
 // --- States ---
 
@@ -427,6 +425,80 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     emit(s.copyWith(editedKeys: keys, isDirty: true));
   }
 
+  List<String> _validatePaths(
+    List<EditableSpendPath> paths,
+    Set<String> availableMfps,
+    bool isTaproot,
+  ) {
+    final errors = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final path = paths[i];
+      if (path.mfps.isEmpty) {
+        errors.add('Spend path ${i + 1}: Must have at least one key');
+      }
+      for (final mfp in path.mfps) {
+        if (!availableMfps.contains(mfp)) {
+          errors.add('Spend path ${i + 1}: Key $mfp not found');
+        }
+      }
+      if (path.threshold < 1) {
+        errors.add('Spend path ${i + 1}: Threshold must be at least 1');
+      }
+      if (path.threshold > path.mfps.length) {
+        errors.add('Spend path ${i + 1}: Threshold cannot exceed number of keys');
+      }
+    }
+    if (isTaproot) {
+      final keyPathCount = paths.where((p) => p.isKeyPath).length;
+      if (keyPathCount > 1) {
+        errors.add('Only one spend path can be marked as key-path in Taproot descriptors.');
+      }
+    }
+    return errors;
+  }
+
+  List<APIPubKey> _buildApiKeys(List<EditableKey> editedKeys, Set<String> usedMfps) {
+    return editedKeys
+        .where((k) => usedMfps.contains(k.mfp))
+        .map((k) => APIPubKey(
+              mfp: k.mfp,
+              derivationPath: k.derivationPath,
+              xpub: k.xpub,
+            ))
+        .toList();
+  }
+
+  List<APISpendPathDef> _buildApiPaths(List<EditableSpendPath> editedPaths) {
+    return editedPaths.map((ep) {
+      final relTimelock = ep.timelockMode == TimelockMode.relative
+          ? APIRelativeTimelock(
+              timelockType: ep.relTimelockType.toRust(),
+              value: ep.relTimelockValue,
+            )
+          : APIRelativeTimelock(
+              timelockType: APIRelativeTimelockType.blocks,
+              value: 0,
+            );
+      final absTimelock = ep.timelockMode == TimelockMode.absolute
+          ? APIAbsoluteTimelock(
+              timelockType: ep.absTimelockType.toRust(),
+              value: ep.absTimelockValue,
+            )
+          : APIAbsoluteTimelock(
+              timelockType: APIAbsoluteTimelockType.blocks,
+              value: 0,
+            );
+      return APISpendPathDef(
+        threshold: ep.threshold,
+        mfps: ep.mfps,
+        relTimelock: relTimelock,
+        absTimelock: absTimelock,
+        isKeyPath: ep.isKeyPath,
+        priority: ep.priority,
+      );
+    }).toList();
+  }
+
   Future<void> regenerateDescriptor({
     required String buildingDescriptorMessage,
     required String buildingDescriptorMultiPathMessage,
@@ -443,41 +515,10 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
     try {
       // Validate all paths before proceeding
-      final validationErrors = <String>[];
       final walletType = s.editedWalletType ?? APIWalletType.values.byName(s.project.walletType);
       final isTaproot = walletType == APIWalletType.p2Tr;
-
-      // Validate that all referenced MFPs exist in edited keys
       final availableMfps = s.editedKeys!.map((k) => k.mfp).toSet();
-      for (var i = 0; i < s.editedPaths!.length; i++) {
-        final path = s.editedPaths![i];
-        if (path.mfps.isEmpty) {
-          validationErrors.add('Spend path ${i + 1}: Must have at least one key');
-        }
-        // Check that all MFPs in path exist in available keys
-        for (var mfp in path.mfps) {
-          if (!availableMfps.contains(mfp)) {
-            validationErrors.add('Spend path ${i + 1}: Key $mfp not found');
-          }
-        }
-        if (path.threshold < 1) {
-          validationErrors.add('Spend path ${i + 1}: Threshold must be at least 1');
-        }
-        if (path.threshold > path.mfps.length) {
-          validationErrors
-              .add('Spend path ${i + 1}: Threshold cannot exceed number of keys');
-        }
-      }
-
-      // Taproot-specific validation: ensure only one key-path
-      if (isTaproot) {
-        final keyPathCount = s.editedPaths!.where((p) => p.isKeyPath).length;
-        if (keyPathCount > 1) {
-          validationErrors.add(
-            'Only one spend path can be marked as key-path in Taproot descriptors.'
-          );
-        }
-      }
+      final validationErrors = _validatePaths(s.editedPaths!, availableMfps, isTaproot);
 
       if (validationErrors.isNotEmpty) {
         // Show validation errors as toast, don't change state
@@ -532,53 +573,10 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         for (final k in s.editedKeys!) k.mfp: k.customName,
       };
 
-      // Convert edited keys to API keys (only keys used in spend paths)
-      final usedMfps = s.editedPaths!
-          .expand((p) => p.mfps)
-          .toSet();
-      final apiKeys = s.editedKeys!
-          .where((k) => usedMfps.contains(k.mfp))
-          .map((k) => APIPubKey(
-                mfp: k.mfp,
-                derivationPath: k.derivationPath,
-                xpub: k.xpub,
-              ))
-          .toList();
-
-      // Convert edited paths to API spend path defs
-      final apiPaths = s.editedPaths!
-          .map((ep) {
-            // Only send the active timelock based on mode
-            final relTimelock = ep.timelockMode == TimelockMode.relative
-                ? APIRelativeTimelock(
-                    timelockType: ep.relTimelockType.toRust(),
-                    value: ep.relTimelockValue,
-                  )
-                : APIRelativeTimelock(
-                    timelockType: APIRelativeTimelockType.blocks,
-                    value: 0,
-                  );
-
-            final absTimelock = ep.timelockMode == TimelockMode.absolute
-                ? APIAbsoluteTimelock(
-                    timelockType: ep.absTimelockType.toRust(),
-                    value: ep.absTimelockValue,
-                  )
-                : APIAbsoluteTimelock(
-                    timelockType: APIAbsoluteTimelockType.blocks,
-                    value: 0,
-                  );
-
-            return APISpendPathDef(
-              threshold: ep.threshold,
-              mfps: ep.mfps,
-              relTimelock: relTimelock,
-              absTimelock: absTimelock,
-              isKeyPath: ep.isKeyPath,
-              priority: ep.priority,
-            );
-          })
-          .toList();
+      // Convert edited keys and paths to API types
+      final usedMfps = s.editedPaths!.expand((p) => p.mfps).toSet();
+      final apiKeys = _buildApiKeys(s.editedKeys!, usedMfps);
+      final apiPaths = _buildApiPaths(s.editedPaths!);
 
       // Build new descriptor via Rust (walletType already declared above)
       final newDescriptor = await _service.buildDescriptor(
@@ -776,7 +774,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     );
 
     final fileName =
-        '${s.project.name.replaceAll(_invalidFileNameCharsRegex, '_')}.deadbolt.json';
+        '${s.project.name.replaceAll(invalidFileNameCharsRegex, '_')}.deadbolt.json';
     return (jsonString: exportData.toJsonString(), fileName: fileName);
   }
 }

@@ -1,12 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_service.dart';
-import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor;
-import 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
+import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor, APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
 
@@ -163,7 +162,7 @@ class WalletDetailError extends WalletDetailState {
 
 // --- Cubit ---
 
-class WalletDetailCubit extends Cubit<WalletDetailState> {
+class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   final WalletService _service;
   static const _pageSize = 25;
   static const _revealCount = 20;
@@ -205,15 +204,6 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
     return super.close();
   }
 
-  void _logError(String context, Object error, StackTrace stackTrace) {
-    debugPrint('════════════════════════════════════════════════════════════');
-    debugPrint('ERROR in $context:');
-    debugPrint('$error');
-    debugPrint('Stack trace:');
-    debugPrint('$stackTrace');
-    debugPrint('════════════════════════════════════════════════════════════');
-  }
-
   void clearError() {
     if (state is WalletDetailLoaded) {
       emit((state as WalletDetailLoaded).copyWith(errorMessage: null));
@@ -238,9 +228,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
           try {
             psbtAnalyses[psbt.id.toInt()] =
                 await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-          } catch (_) {}
+          } catch (_) {
+            // Skip per-PSBT analysis errors — show PSBT without signer status.
+          }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        logError('WalletDetailCubit.load() PSBTs', e, st);
+      }
 
       emit(WalletDetailLoaded(
         walletHandle: handle,
@@ -259,7 +253,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       // Transactions tab without needing to visit the Descriptor tab first.
       _loadDescriptorAnalysis();
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit.load()', e, stackTrace);
+      logError('WalletDetailCubit.load()', e, stackTrace);
       emit(WalletDetailError(formatRustError(e)));
     }
   }
@@ -299,9 +293,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
             try {
               psbtAnalyses[psbt.id.toInt()] =
                   await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-            } catch (_) {}
+            } catch (_) {
+              // Skip per-PSBT analysis errors — show PSBT without signer status.
+            }
           }
-        } catch (_) {}
+        } catch (e, st) {
+          logError('WalletDetailCubit.sync() PSBTs', e, st);
+        }
       }
 
       // Read descriptor fields from the state at emit time, not from `current`
@@ -336,7 +334,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         psbtsLoaded: current.psbtsLoaded,
       ));
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit.sync()', e, stackTrace);
+      logError('WalletDetailCubit.sync()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(
           isSyncing: false,
@@ -385,7 +383,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         utxosLoaded: false,
       ));
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit.rescan()', e, stackTrace);
+      logError('WalletDetailCubit.rescan()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(
           isSyncing: false,
@@ -413,7 +411,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         currentPage: nextPage,
       ));
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit.loadMoreTransactions()', e, stackTrace);
+      logError('WalletDetailCubit.loadMoreTransactions()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -485,7 +483,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         ));
       }
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit._loadAddresses()', e, stackTrace);
+      logError('WalletDetailCubit._loadAddresses()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -500,7 +498,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       if (state is! WalletDetailLoaded) return;
       emit((state as WalletDetailLoaded).copyWith(utxos: utxos, utxosLoaded: true));
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit._loadUtxos()', e, stackTrace);
+      logError('WalletDetailCubit._loadUtxos()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -519,7 +517,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       // Reload full list after revealing
       await _loadAddresses(keychain);
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
+      logError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -586,7 +584,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         descriptorLoaded: true,
       ));
     } catch (e, stackTrace) {
-      _logError('WalletDetailCubit._loadDescriptorAnalysis()', e, stackTrace);
+      logError('WalletDetailCubit._loadDescriptorAnalysis()', e, stackTrace);
     }
   }
 
@@ -623,7 +621,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       final lines = current.walletHandle.exportBip329();
       return lines.join('\n');
     } catch (e, st) {
-      _logError('exportBip329Labels', e, st);
+      logError('exportBip329Labels', e, st);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -644,7 +642,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       await _refreshAllAfterLabelChange();
       return true;
     } catch (e, st) {
-      _logError('importBip329Labels', e, st);
+      logError('importBip329Labels', e, st);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
       }
@@ -745,7 +743,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
         psbtsLoaded: true,
       ));
     } catch (e, st) {
-      _logError('WalletDetailCubit.loadPsbts()', e, st);
+      logError('WalletDetailCubit.loadPsbts()', e, st);
     }
   }
 
@@ -784,7 +782,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       unawaited(loadPsbts().then((_) => _reloadCoinsIfLoaded()));
       return psbt;
     } catch (e, st) {
-      _logError('WalletDetailCubit.createPsbt()', e, st);
+      logError('WalletDetailCubit.createPsbt()', e, st);
       rethrow;
     }
   }
@@ -800,7 +798,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       emit(current.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
       unawaited(_reloadCoinsIfLoaded());
     } catch (e, st) {
-      _logError('WalletDetailCubit.deletePsbt()', e, st);
+      logError('WalletDetailCubit.deletePsbt()', e, st);
     }
   }
 
@@ -817,7 +815,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       emit(current.copyWith(psbts: updatedPsbts));
       return updated;
     } catch (e, st) {
-      _logError('WalletDetailCubit.setPsbtLabel()', e, st);
+      logError('WalletDetailCubit.setPsbtLabel()', e, st);
       return null;
     }
   }
@@ -837,7 +835,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       try {
         analysis = await current.walletHandle
             .analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-      } catch (_) {}
+      } catch (e, st) {
+        logError('WalletDetailCubit.importPsbt() analyze', e, st);
+      }
 
       List<APIPsbtInfo> updatedPsbts;
       if (result.wasMerged) {
@@ -852,7 +852,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       emit(current.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
       return result;
     } catch (e, st) {
-      _logError('WalletDetailCubit.importPsbt()', e, st);
+      logError('WalletDetailCubit.importPsbt()', e, st);
       rethrow;
     }
   }
@@ -871,7 +871,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       try {
         analysis = await current.walletHandle
             .analyzePsbt(psbtBase64: updated.psbtBase64, mfps: updated.mfps);
-      } catch (_) {}
+      } catch (e, st) {
+        logError('WalletDetailCubit.mergePsbt() analyze', e, st);
+      }
 
       final updatedPsbts = current.psbts
           .map((p) => p.id.toInt() == id ? updated : p)
@@ -882,7 +884,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> {
       emit(current.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
       return updated;
     } catch (e, st) {
-      _logError('WalletDetailCubit.mergePsbt()', e, st);
+      logError('WalletDetailCubit.mergePsbt()', e, st);
       rethrow;
     }
   }

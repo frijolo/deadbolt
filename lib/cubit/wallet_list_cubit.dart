@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
@@ -22,7 +22,7 @@ class WalletListError extends WalletListState {
 
 // --- Cubit ---
 
-class WalletListCubit extends Cubit<WalletListState> {
+class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
   final WalletService _service;
 
   WalletListCubit({WalletService? service})
@@ -31,21 +31,12 @@ class WalletListCubit extends Cubit<WalletListState> {
     refresh();
   }
 
-  void _logError(String context, Object error, StackTrace stackTrace) {
-    debugPrint('════════════════════════════════════════════════════════════');
-    debugPrint('ERROR in $context:');
-    debugPrint('$error');
-    debugPrint('Stack trace:');
-    debugPrint('$stackTrace');
-    debugPrint('════════════════════════════════════════════════════════════');
-  }
-
   Future<void> refresh() async {
     try {
       final wallets = await _service.listWallets();
       emit(WalletListLoaded(wallets));
     } catch (e, stackTrace) {
-      _logError('WalletListCubit.refresh()', e, stackTrace);
+      logError('WalletListCubit.refresh()', e, stackTrace);
       emit(WalletListError(e.toString()));
     }
   }
@@ -66,7 +57,7 @@ class WalletListCubit extends Cubit<WalletListState> {
       await refresh();
       return info.walletPath;
     } catch (e, stackTrace) {
-      _logError('WalletListCubit.createWallet()', e, stackTrace);
+      logError('WalletListCubit.createWallet()', e, stackTrace);
       rethrow;
     }
   }
@@ -76,7 +67,7 @@ class WalletListCubit extends Cubit<WalletListState> {
       await _service.deleteWallet(walletPath);
       await refresh();
     } catch (e, stackTrace) {
-      _logError('WalletListCubit.deleteWallet()', e, stackTrace);
+      logError('WalletListCubit.deleteWallet()', e, stackTrace);
       rethrow;
     }
   }
