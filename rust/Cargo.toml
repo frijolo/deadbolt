@@ -20,9 +20,31 @@ hex = "0.4.3"
 serde_json = "1"
 base64 = "0.22"
 rusqlite = { version = "0.31", features = ["bundled-sqlcipher-vendored-openssl"] }
+# Hardware wallet support.
+# async-hwi "bitbox" feature is transport-agnostic: works on Android (ChannelTransport)
+# and desktop (HID) — no hidapi required at this level.
+# USB-specific deps (bitbox-api usb, hidapi) are restricted to non-Android.
+async-trait = "0.1"
+async-hwi = { version = "0.0.30", default-features = false, features = ["bitbox"] }
+bitbox-api = { version = "0.9", features = ["tokio", "multithreaded"] }
+tokio = { version = "1", features = ["sync", "time"] }
+# Android Noise handshake implementation (used on all targets for codegen, active only on Android)
+noise-protocol = "0.2"
+noise-rust-crypto = "0.6"
+base32 = "0.4"
+prost = "0.13"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+# USB HID only available on desktop targets
+bitbox-api = { version = "0.9", features = ["usb", "tokio", "multithreaded"] }
+hidapi = "2"
 
 [dev-dependencies]
 tempfile = "3"
+
+[patch.crates-io]
+bitbox-api = { git = "https://github.com/frijolo/bitbox-api-rs.git", branch = "custom-transport" }
+async-hwi = { path = "../../async-hwi" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

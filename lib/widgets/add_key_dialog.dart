@@ -6,10 +6,64 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
 import 'package:deadbolt/widgets/text_import_sheet.dart';
 
 /// Pattern for parsing keyspec format: [mfp/path]xpub
 final _keyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
+
+/// Returns the standard BIP derivation path for the given wallet type and network.
+///
+/// For P2TR, [existingKeyCount] distinguishes single-sig (0 keys → m/86')
+/// from multisig (1+ keys already present → m/48'/.../2').
+String _defaultDerivationPath(
+  APIWalletType walletType,
+  APINetwork network,
+  int existingKeyCount,
+) {
+  final coin = network == APINetwork.bitcoin ? '0' : '1';
+  return switch (walletType) {
+    APIWalletType.p2Pkh => "m/44'/$coin'/0'",
+    APIWalletType.p2Wpkh => "m/84'/$coin'/0'",
+    APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/0'",
+    APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/0'/1'",
+    APIWalletType.p2Tr =>
+      existingKeyCount > 0 ? "m/48'/$coin'/0'/2'" : "m/86'/$coin'/0'",
+    APIWalletType.unknown => "m/86'/$coin'/0'",
+  };
+}
+
+Future<String?> _showDerivationPathPicker(
+  BuildContext context,
+  String initialPath,
+) async {
+  final controller = TextEditingController(text: initialPath);
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Derivation path'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: "m/86'/0'/0'"),
+        style: const TextStyle(fontFamily: 'monospace'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final path = controller.text.trim();
+            if (path.isNotEmpty) Navigator.pop(ctx, path);
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+}
 
 void showAddKeyDialog(
   BuildContext context,
@@ -116,22 +170,55 @@ void showAddKeyDialog(
                   textCapitalization: TextCapitalization.none,
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.download_outlined, size: 16),
-                    label: Text(l10n.importAction),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppAccent.color,
-                      visualDensity: VisualDensity.compact,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.download_outlined, size: 16),
+                      label: Text(l10n.importAction),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppAccent.color,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () async {
+                        final result = await showTextImportSheet(ctx);
+                        if (result != null) {
+                          keyspecController.text = result.trim();
+                        }
+                      },
                     ),
-                    onPressed: () async {
-                      final result = await showTextImportSheet(ctx);
-                      if (result != null) {
-                        keyspecController.text = result.trim();
-                      }
-                    },
-                  ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.hardware, size: 16),
+                      label: const Text('Hardware wallet'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppAccent.color,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () async {
+                        final network = APINetwork.values
+                            .byName(currentState.project.network);
+                        final walletType = currentState.editedWalletType ??
+                            APIWalletType.values
+                                .byName(currentState.project.walletType);
+                        final suggested = _defaultDerivationPath(
+                          walletType,
+                          network,
+                          currentState.editedKeys!.length,
+                        );
+                        final path = await _showDerivationPathPicker(
+                            ctx, suggested);
+                        if (path == null || !ctx.mounted) return;
+                        final keyspec = await showHwXpubSheet(
+                          ctx,
+                          derivationPath: path,
+                          network: network,
+                        );
+                        if (keyspec != null) {
+                          keyspecController.text = keyspec.trim();
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
 

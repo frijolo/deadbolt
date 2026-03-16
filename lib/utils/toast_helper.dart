@@ -26,6 +26,29 @@ void showSuccessToast(BuildContext context, String message) {
   );
 }
 
+/// Show an info toast (amber, neutral status)
+void showInfoToast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.white, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.amber.shade800,
+      duration: const Duration(seconds: 4),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+
 /// Show an error toast (red with copy button)
 void showErrorToast(BuildContext context, String message) {
   final copiedLabel = context.l10n.errorCopiedToClipboard;
