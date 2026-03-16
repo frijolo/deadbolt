@@ -21,6 +21,9 @@ import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
+import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
+import 'package:deadbolt/widgets/hw_wallet_sheet.dart'
+    show showHwVerifyAddressSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart'
     show showTextExportSheet;
 import 'package:deadbolt/widgets/text_import_sheet.dart'
@@ -453,6 +456,12 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
             onExportLabelsTap: () => _exportWithChoice(context, state),
             onImportLabelsTap: () => _importWithChoice(context, state),
+            onHwTap: () => showHwActionsSheet(
+              context,
+              walletName: state.walletInfo.name,
+              descriptor: state.walletInfo.descriptor,
+              network: state.walletInfo.network,
+            ),
           ),
           1 => _TransactionsView(state: state),
           2 => _AddressesView(state: state),
@@ -508,6 +517,7 @@ class _OverviewView extends StatelessWidget {
   final VoidCallback onRescanTap;
   final VoidCallback onExportLabelsTap;
   final VoidCallback onImportLabelsTap;
+  final VoidCallback onHwTap;
 
   const _OverviewView({
     required this.state,
@@ -517,6 +527,7 @@ class _OverviewView extends StatelessWidget {
     required this.onRescanTap,
     required this.onExportLabelsTap,
     required this.onImportLabelsTap,
+    required this.onHwTap,
   });
 
   @override
@@ -670,6 +681,12 @@ class _OverviewView extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        _ActionButton(
+          icon: Icons.memory,
+          label: 'Hardware wallet',
+          onTap: onHwTap,
         ),
       ],
     );
@@ -885,9 +902,11 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: SelectableText(
-                _address.address,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              child: Center(
+                child: ColoredAddressText(
+                  address: _address.address,
+                  fontSize: 12,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -916,18 +935,35 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            // Copy + Verify row
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: Text(l10n.copyToClipboard),
+                    onPressed: () {
+                      Clipboard.setData(
+                          ClipboardData(text: _address.address));
+                      showSuccessToast(context, l10n.copiedToClipboard);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.memory, size: 16),
+                    label: const Text('Verify'),
+                    onPressed: () => _verifyOnDevice(context),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton.icon(
-          icon: const Icon(Icons.copy, size: 18),
-          label: Text(l10n.copyToClipboard),
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: _address.address));
-            showSuccessToast(context, l10n.copiedToClipboard);
-          },
-        ),
         _navigating
             ? const SizedBox(
                 width: 20,
@@ -940,6 +976,20 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
                 onPressed: _goToNext,
               ),
       ],
+    );
+  }
+
+  Future<void> _verifyOnDevice(BuildContext context) async {
+    final state =
+        context.read<WalletDetailCubit>().state as WalletDetailLoaded?;
+    if (state == null) return;
+    await showHwVerifyAddressSheet(
+      context,
+      descriptor: state.walletInfo.descriptor,
+      network: state.walletInfo.network,
+      keychain: APIKeychain.external_,
+      index: _address.index,
+      address: _address.address,
     );
   }
 }
@@ -1296,6 +1346,10 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
     final balanceSats = address.balanceSat.toInt();
     final settings = context.read<SettingsCubit>().state;
     final explorerUrl = settings.explorerAddressUrl(network, address.address);
+    final walletState = context.read<WalletDetailCubit>().state;
+    final descriptor = walletState is WalletDetailLoaded
+        ? walletState.walletInfo.descriptor
+        : '';
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
@@ -1436,20 +1490,40 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                   );
                 },
               ),
-              if (explorerUrl.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Center(
-                    child: FilledButton.icon(
-                      onPressed: () => launchUrl(
-                        Uri.parse(explorerUrl),
-                        mode: LaunchMode.externalApplication,
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => showHwVerifyAddressSheet(
+                          context,
+                          descriptor: descriptor,
+                          network: network,
+                          keychain: keychain,
+                          index: address.index,
+                          address: address.address,
+                        ),
+                        icon: const Icon(Icons.memory, size: 16),
+                        label: const Text('Verify on device'),
                       ),
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      label: Text(l10n.openInExplorer),
                     ),
-                  ),
+                    if (explorerUrl.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => launchUrl(
+                            Uri.parse(explorerUrl),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: Text(l10n.openInExplorer),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -3423,6 +3497,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
 }
 
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels }
+
 
 enum _ExportChoice { labels, descriptor }
 

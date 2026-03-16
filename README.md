@@ -17,6 +17,7 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Fee Estimation**: Calculates transaction weight for each spend path
 - **Wallet Management**: Create on-device wallets, sync balances via Electrum, view UTXOs and transactions
 - **PSBT Building**: Build unsigned transactions with optional coin control and RBF support
+- **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
 - **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
 - **QR Support**: Import/export descriptors and PSBTs via QR codes
 - **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server
@@ -48,6 +49,8 @@ tar -xzf deadbolt-linux-x64.tar.gz
 cd deadbolt
 ./deadbolt
 ```
+
+**Hardware wallet (BitBox02) on Linux**: a udev rule is required to access the HID device without root. See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md) for the one-line setup command.
 
 ### Windows
 

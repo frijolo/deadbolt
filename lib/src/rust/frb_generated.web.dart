@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/analyzer.dart';
+import 'api/hw_wallet.dart';
 import 'api/model.dart';
 import 'api/wallet.dart';
 import 'core/spend_path.dart';
@@ -101,6 +102,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl dco_decode_api_coin_control(dynamic raw);
 
   @protected
+  APIHwConnectResult dco_decode_api_hw_connect_result(dynamic raw);
+
+  @protected
+  APIHwDevice dco_decode_api_hw_device(dynamic raw);
+
+  @protected
+  APIHwSessionInfo dco_decode_api_hw_session_info(dynamic raw);
+
+  @protected
   APIImportPsbtResult dco_decode_api_import_psbt_result(dynamic raw);
 
   @protected
@@ -182,6 +192,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAbsoluteTimelock dco_decode_box_autoadd_api_absolute_timelock(dynamic raw);
 
   @protected
+  APIHwSessionInfo dco_decode_box_autoadd_api_hw_session_info(dynamic raw);
+
+  @protected
   APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(dynamic raw);
 
   @protected
@@ -219,6 +232,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APICoinControl> dco_decode_list_api_coin_control(dynamic raw);
+
+  @protected
+  List<APIHwDevice> dco_decode_list_api_hw_device(dynamic raw);
 
   @protected
   List<APIKeyLabel> dco_decode_list_api_key_label(dynamic raw);
@@ -269,10 +285,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  APIHwSessionInfo? dco_decode_opt_box_autoadd_api_hw_session_info(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -282,6 +304,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -374,6 +399,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
+
+  @protected
+  APIHwConnectResult sse_decode_api_hw_connect_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIHwDevice sse_decode_api_hw_device(SseDeserializer deserializer);
+
+  @protected
+  APIHwSessionInfo sse_decode_api_hw_session_info(SseDeserializer deserializer);
 
   @protected
   APIImportPsbtResult sse_decode_api_import_psbt_result(
@@ -471,6 +507,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIHwSessionInfo sse_decode_box_autoadd_api_hw_session_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIRelativeTimelock sse_decode_box_autoadd_api_relative_timelock(
     SseDeserializer deserializer,
   );
@@ -512,6 +553,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APICoinControl> sse_decode_list_api_coin_control(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<APIHwDevice> sse_decode_list_api_hw_device(SseDeserializer deserializer);
 
   @protected
   List<APIKeyLabel> sse_decode_list_api_key_label(SseDeserializer deserializer);
@@ -582,10 +626,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  APIHwSessionInfo? sse_decode_opt_box_autoadd_api_hw_session_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -595,6 +647,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -702,6 +757,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_coin_control(
     APICoinControl self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_hw_connect_result(
+    APIHwConnectResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_hw_device(APIHwDevice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_hw_session_info(
+    APIHwSessionInfo self,
     SseSerializer serializer,
   );
 
@@ -823,6 +893,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_api_hw_session_info(
+    APIHwSessionInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_api_relative_timelock(
     APIRelativeTimelock self,
     SseSerializer serializer,
@@ -871,6 +947,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_coin_control(
     List<APICoinControl> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_hw_device(
+    List<APIHwDevice> self,
     SseSerializer serializer,
   );
 
@@ -968,6 +1050,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -975,6 +1060,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_hw_session_info(
+    APIHwSessionInfo? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
@@ -987,6 +1078,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

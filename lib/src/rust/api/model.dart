@@ -177,6 +177,93 @@ class APICoinControl {
           vout == other.vout;
 }
 
+/// Result of [`connect_hw_device`] / [`connect_hw_device_android`].
+class APIHwConnectResult {
+  /// Opaque session identifier used in subsequent hw_* calls.
+  final String sessionId;
+
+  /// If `Some(code)`: show the code to the user and call `wait_hw_pairing`.
+  /// If `None`: device was already paired; it is ready immediately.
+  final String? pairingCode;
+
+  const APIHwConnectResult({required this.sessionId, this.pairingCode});
+
+  @override
+  int get hashCode => sessionId.hashCode ^ pairingCode.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIHwConnectResult &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          pairingCode == other.pairingCode;
+}
+
+/// A detected hardware wallet device (BitBox02 or similar).
+class APIHwDevice {
+  /// Platform-specific device path used to open it (e.g. hidapi path on Linux).
+  final String devicePath;
+
+  /// Human-readable product name, e.g. "BitBox02".
+  final String productString;
+
+  /// USB serial number (may be empty).
+  final String serialNumber;
+
+  const APIHwDevice({
+    required this.devicePath,
+    required this.productString,
+    required this.serialNumber,
+  });
+
+  @override
+  int get hashCode =>
+      devicePath.hashCode ^ productString.hashCode ^ serialNumber.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIHwDevice &&
+          runtimeType == other.runtimeType &&
+          devicePath == other.devicePath &&
+          productString == other.productString &&
+          serialNumber == other.serialNumber;
+}
+
+/// Device info readable from a connected session via [`get_hw_session_info`]
+/// or [`hw_active_session`].
+class APIHwSessionInfo {
+  /// Opaque session identifier used for subsequent operations.
+  final String sessionId;
+
+  /// Human-readable product name, e.g. "BitBox02".
+  final String productString;
+
+  /// Root fingerprint (lowercase hex, 8 chars), e.g. "aabbccdd".
+  /// Empty string if pairing has not been completed yet.
+  final String rootFingerprint;
+
+  const APIHwSessionInfo({
+    required this.sessionId,
+    required this.productString,
+    required this.rootFingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^ productString.hashCode ^ rootFingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIHwSessionInfo &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          productString == other.productString &&
+          rootFingerprint == other.rootFingerprint;
+}
+
 /// Returned by [APIWallet::import_psbt].
 /// `was_merged` is true when the imported PSBT was combined with an existing record;
 /// false when a brand-new record was created.

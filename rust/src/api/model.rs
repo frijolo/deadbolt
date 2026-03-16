@@ -654,6 +654,41 @@ pub struct APIAddressDetails {
     pub related_txs: Vec<APIRelatedTx>,
 }
 
+////////////////////
+// Hardware wallet //
+////////////////////
+
+/// A detected hardware wallet device (BitBox02 or similar).
+pub struct APIHwDevice {
+    /// Platform-specific device path used to open it (e.g. hidapi path on Linux).
+    pub device_path: String,
+    /// Human-readable product name, e.g. "BitBox02".
+    pub product_string: String,
+    /// USB serial number (may be empty).
+    pub serial_number: String,
+}
+
+/// Result of [`connect_hw_device`] / [`connect_hw_device_android`].
+pub struct APIHwConnectResult {
+    /// Opaque session identifier used in subsequent hw_* calls.
+    pub session_id: String,
+    /// If `Some(code)`: show the code to the user and call `wait_hw_pairing`.
+    /// If `None`: device was already paired; it is ready immediately.
+    pub pairing_code: Option<String>,
+}
+
+/// Device info readable from a connected session via [`get_hw_session_info`]
+/// or [`hw_active_session`].
+pub struct APIHwSessionInfo {
+    /// Opaque session identifier used for subsequent operations.
+    pub session_id: String,
+    /// Human-readable product name, e.g. "BitBox02".
+    pub product_string: String,
+    /// Root fingerprint (lowercase hex, 8 chars), e.g. "aabbccdd".
+    /// Empty string if pairing has not been completed yet.
+    pub root_fingerprint: String,
+}
+
 ///////////////
 // APIPubKey //
 ///////////////

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Ok, Result};
 use bdk_wallet::bitcoin::bip32::{ChildNumber, DerivationPath};
+use bdk_wallet::bitcoin::hashes::{sha256, Hash, HashEngine};
 use bdk_wallet::bitcoin::psbt::Input;
 use bdk_wallet::bitcoin::transaction::Version;
 use bdk_wallet::bitcoin::{
@@ -19,7 +20,6 @@ use bdk_wallet::rusqlite::Connection;
 #[expect(deprecated)]
 use bdk_wallet::SignOptions;
 use bdk_wallet::{KeychainKind, PersistedWallet, Update, Wallet};
-use secp256k1::hashes::{sha256, Hash, HashEngine};
 
 use crate::core::error::WalletError;
 

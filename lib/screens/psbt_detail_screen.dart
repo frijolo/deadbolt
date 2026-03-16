@@ -17,6 +17,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwSignSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
 import 'package:deadbolt/widgets/text_import_sheet.dart' show showPsbtImportSheet;
 
@@ -388,6 +389,29 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
+  // ─── Hardware wallet signing ───────────────────────────────────────────────
+
+  Future<void> _signWithHw(BuildContext context) async {
+    final walletState = context.read<WalletDetailCubit>().state;
+    final network = walletState is WalletDetailLoaded
+        ? walletState.walletInfo.network
+        : APINetwork.bitcoin;
+
+    final descriptor = walletState is WalletDetailLoaded
+        ? walletState.walletInfo.descriptor
+        : null;
+
+    final signedBase64 = await showHwSignSheet(
+      context,
+      psbtBase64: _psbt.psbtBase64,
+      network: network,
+      descriptor: descriptor,
+    );
+
+    if (signedBase64 == null || !context.mounted) return;
+    _mergePsbt(context, signedBase64);
+  }
+
   void _delete(BuildContext context) {
     final l10n = context.l10n;
     showDialog<void>(
@@ -636,6 +660,15 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                             ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                // Sign directly with a connected hardware wallet
+                OutlinedButton.icon(
+                  onPressed: _isReadyToBroadcast
+                      ? null // already signed; no need
+                      : () => _signWithHw(context),
+                  icon: const Icon(Icons.hardware_outlined, size: 18),
+                  label: const Text('Sign with hardware wallet'),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
