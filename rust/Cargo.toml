@@ -44,7 +44,7 @@ tempfile = "3"
 
 [patch.crates-io]
 bitbox-api = { git = "https://github.com/frijolo/bitbox-api-rs.git", branch = "custom-transport" }
-async-hwi = { path = "../../async-hwi" }
+async-hwi = { git = "https://github.com/frijolo/async-hwi.git", branch = "bitbox-usb-feature" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
