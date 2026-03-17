@@ -12,7 +12,6 @@ flutter_rust_bridge = "=2.11.1"
 bdk_wallet = { version = "2.3.0", features = ["rusqlite", "keys-bip39", "compiler"] }
 anyhow = {version = "1.0", features = ["backtrace"]}
 rand = { version = "0.9", features = ["os_rng"] }
-secp256k1 = "0.29"
 thiserror = "2"
 bdk_electrum = "0.23.2"
 regex = "1"
@@ -28,11 +27,6 @@ async-trait = "0.1"
 async-hwi = { version = "0.0.30", default-features = false, features = ["bitbox"] }
 bitbox-api = { version = "0.9", features = ["tokio", "multithreaded"] }
 tokio = { version = "1", features = ["sync", "time"] }
-# Android Noise handshake implementation (used on all targets for codegen, active only on Android)
-noise-protocol = "0.2"
-noise-rust-crypto = "0.6"
-base32 = "0.4"
-prost = "0.13"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets
