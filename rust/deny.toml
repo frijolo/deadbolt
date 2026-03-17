@@ -12,7 +12,13 @@ allow = [
     "MITNFA",             # hex_lit (bitcoin dep)
     "OpenSSL",            # aws-lc-sys (rustls dep)
     "MPL-2.0",            # webpki-roots (electrum-client dep)
+    "Unlicense",          # noise-protocol (async-hwi dep)
 ]
+
+[[licenses.clarify]]
+name = "async-hwi"
+expression = "MIT"        # no license field in manifest; upstream repo is MIT
+license-files = []
 
 [bans]
 multiple-versions = "warn"
