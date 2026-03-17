@@ -69,13 +69,20 @@ void main() {
 
   group('ProjectDetailCubit — loading', () {
     blocTest<ProjectDetailCubit, ProjectDetailState>(
-      'loads project data on construction',
+      'loads project data on construction and auto-enters edit mode',
       build: () => ProjectDetailCubit(db, projectId, service: mockService),
       expect: () => [
+        // First emit: loaded from DB (not yet editing)
         isA<ProjectDetailLoaded>()
             .having((s) => s.project.name, 'name', 'Test Project')
             .having((s) => s.keys, 'keys', hasLength(1))
-            .having((s) => s.spendPaths, 'spendPaths', hasLength(1)),
+            .having((s) => s.spendPaths, 'spendPaths', hasLength(1))
+            .having((s) => s.isEditing, 'isEditing', false),
+        // Second emit: edit mode auto-entered
+        isA<ProjectDetailLoaded>()
+            .having((s) => s.isEditing, 'isEditing', true)
+            .having((s) => s.editedKeys, 'editedKeys', hasLength(1))
+            .having((s) => s.editedPaths, 'editedPaths', hasLength(1)),
       ],
     );
 
@@ -106,18 +113,18 @@ void main() {
     );
 
     blocTest<ProjectDetailCubit, ProjectDetailState>(
-      'discardEdits returns to view mode',
+      'discardEdits resets editable state and stays in edit mode',
       build: () => ProjectDetailCubit(db, projectId, service: mockService),
       act: (cubit) async {
         await Future<void>.delayed(Duration.zero);
-        cubit.enterEditMode();
         cubit.discardEdits();
       },
       verify: (cubit) {
         final s = cubit.state as ProjectDetailLoaded;
-        expect(s.isEditing, false);
-        expect(s.editedPaths, isNull);
-        expect(s.editedKeys, isNull);
+        expect(s.isEditing, true);
+        expect(s.isDirty, false);
+        expect(s.editedPaths, isNotNull);
+        expect(s.editedKeys, isNotNull);
       },
     );
 

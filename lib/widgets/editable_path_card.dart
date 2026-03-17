@@ -1,33 +1,22 @@
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
-import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
-import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
-import 'package:deadbolt/widgets/edit_name_dialog.dart';
-import 'package:deadbolt/widgets/timelock_dialog.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/path_card.dart'
+    show PathTimelockBadge, PathKeyPathBadge;
+import 'package:deadbolt/widgets/spend_path_edit_sheet.dart';
 
 class EditablePathCard extends StatelessWidget {
   final int index;
   final EditableSpendPath path;
   final List<ProjectKey> availableKeys;
   final Color Function(String) mfpColorProvider;
-  final ValueChanged<int> onThresholdChanged;
-  final void Function(String mfp) onMfpAdded;
-  final void Function(String mfp) onMfpRemoved;
-  final ValueChanged<TimelockMode> onTimelockModeChanged;
-  final ValueChanged<RelativeTimelockType> onRelTimelockTypeChanged;
-  final ValueChanged<int> onRelTimelockValueChanged;
-  final ValueChanged<AbsoluteTimelockType> onAbsTimelockTypeChanged;
-  final ValueChanged<int> onAbsTimelockValueChanged;
-  final VoidCallback onDelete;
-  final VoidCallback onAddNewKey;
   final bool isTaproot;
-  final ValueChanged<bool>? onKeyPathChanged;
-  final ValueChanged<String?>? onNameEdit;
-  final ValueChanged<int>? onPriorityChanged;
+  final ProjectDetailCubit cubit;
 
   const EditablePathCard({
     super.key,
@@ -35,547 +24,221 @@ class EditablePathCard extends StatelessWidget {
     required this.path,
     required this.availableKeys,
     required this.mfpColorProvider,
-    required this.onThresholdChanged,
-    required this.onMfpAdded,
-    required this.onMfpRemoved,
-    required this.onTimelockModeChanged,
-    required this.onRelTimelockTypeChanged,
-    required this.onRelTimelockValueChanged,
-    required this.onAbsTimelockTypeChanged,
-    required this.onAbsTimelockValueChanged,
-    required this.onDelete,
-    required this.onAddNewKey,
-    this.isTaproot = false,
-    this.onKeyPathChanged,
-    this.onNameEdit,
-    this.onPriorityChanged,
+    required this.isTaproot,
+    required this.cubit,
   });
 
-  String? _getValidationError(BuildContext context) {
-    final l = context.l10n;
-    if (path.mfps.isEmpty) return l.mustHaveAtLeastOneKey;
-    if (path.threshold < 1) return l.thresholdMustBeAtLeastOne;
-    if (path.threshold > path.mfps.length) return l.thresholdCannotExceed;
-    return null;
-  }
+  bool get _hasValidationError =>
+      path.mfps.isEmpty ||
+      path.threshold < 1 ||
+      path.threshold > path.mfps.length;
 
-  @override
-  Widget build(BuildContext context) {
-    final validationError = _getValidationError(context);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: validationError != null
-          ? Colors.red.withAlpha(20)
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            if (validationError != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(32),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.red.withAlpha(100)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        validationError,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            _buildTimelockAndPriorityRow(context),
-            const SizedBox(height: 12),
-            _buildKeysSection(context),
-            const SizedBox(height: 12),
-            _buildThresholdRow(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    final canBeKeyPath = path.canBeKeyPath;
-    final showKeyPathBadge = isTaproot && canBeKeyPath;
-
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 14,
-          backgroundColor: AppAccent.color.withAlpha(32),
-          child: Text(
-            '${index + 1}',
-            style: const TextStyle(
-              color: AppAccent.color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => _showNameDialog(context),
-            child: Text(
-              path.customName ?? l10n.tapToName,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: path.customName != null
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: path.customName != null
-                    ? cs.onSurface
-                    : cs.onSurface.withAlpha(97),
-                fontStyle: path.customName != null
-                    ? FontStyle.normal
-                    : FontStyle.italic,
-              ),
-            ),
-          ),
-        ),
-        if (showKeyPathBadge)
-          Padding(
-            padding: const EdgeInsets.only(left: 6),
-            child: InkWell(
-              onTap: onKeyPathChanged != null
-                  ? () => onKeyPathChanged!(!path.isKeyPath)
-                  : null,
-              borderRadius: BorderRadius.circular(4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: path.isKeyPath
-                      ? Colors.blue.withAlpha(32)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: path.isKeyPath
-                        ? Colors.blue.withAlpha(100)
-                        : cs.onSurface.withAlpha(61),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.key,
-                      size: 10,
-                      color: path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      path.isKeyPath ? l10n.keyPathBadge : l10n.setAsKeyPath,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20),
-          color: Colors.red.withAlpha(180),
-          onPressed: onDelete,
-          tooltip: l10n.removePathTooltip,
-          visualDensity: VisualDensity.compact,
-        ),
-      ],
-    );
-  }
+  bool get _hasTimelock =>
+      path.timelockMode != TimelockMode.none &&
+      ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
+          (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
 
   String _getKeyLabel(String mfp) {
     final key = availableKeys.where((k) => k.mfp == mfp).firstOrNull;
     return key?.customName ?? mfp.toUpperCase();
   }
 
-  Widget _buildKeysSection(BuildContext context) {
-    final l10n = context.l10n;
-    final unusedKeys =
-        availableKeys.where((k) => !path.mfps.contains(k.mfp)).toList();
+  String _autoPathLabel() =>
+      BitcoinFormatter.pathLabel(path.threshold, path.mfps, _getKeyLabel);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: _hasValidationError ? Colors.red.withAlpha(20) : null,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: _buildLeading(context),
+        title: _buildTitle(context, cs),
+        subtitle: _buildSubtitle(context),
+        trailing: Icon(
+          Icons.edit_outlined,
+          size: 18,
+          color: cs.onSurface.withAlpha(AppAlpha.muted),
+        ),
+        onTap: () => showSpendPathEditSheet(
+          context,
+          cubit: cubit,
+          index: index,
+          isTaproot: isTaproot,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeading(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: _hasValidationError
+                ? Colors.red.withAlpha(AppAlpha.subtle)
+                : AppAccent.color.withAlpha(AppAlpha.subtle),
+            child: Icon(
+              path.mfps.length == 1 ? Icons.key : Icons.diversity_3,
+              color: _hasValidationError ? Colors.red : AppAccent.color,
+              size: 20,
+            ),
+          ),
+          if (path.mfps.length > 1)
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppAccent.color.withAlpha(AppAlpha.mediumLow),
+                  border: Border.all(color: AppAccent.color, width: 1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${path.threshold}/${path.mfps.length}',
+                  style: TextStyle(
+                    color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitle(BuildContext context, ColorScheme cs) {
+    final hasCustomName = path.customName != null;
+    final displayName = hasCustomName ? path.customName! : _autoPathLabel();
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            displayName,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: hasCustomName ? FontWeight.w600 : FontWeight.normal,
+              color: hasCustomName
+                  ? cs.onSurface
+                  : cs.onSurface.withAlpha(AppAlpha.muted),
+              fontStyle: hasCustomName ? FontStyle.normal : FontStyle.italic,
+            ),
+          ),
+        ),
+        if (_hasTimelock)
+          PathTimelockBadge(
+            isRelative: path.timelockMode == TimelockMode.relative,
+            label: path.timelockMode == TimelockMode.relative
+                ? BitcoinFormatter.formatRelativeTimelock(
+                    path.relTimelockType, path.relTimelockValue)
+                : BitcoinFormatter.formatAbsoluteTimelock(
+                    path.absTimelockType, path.absTimelockValue),
+          ),
+        if (isTaproot && path.isKeyPath) const PathKeyPathBadge(),
+      ],
+    );
+  }
+
+  Widget _buildSubtitle(BuildContext context) {
+    if (path.mfps.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+
+    // Look up last-saved DB path for computed stats.
+    // Hidden when dirty: values reflect the last build, not current edits.
+    final state = cubit.state;
+    final ProjectSpendPath? dbPath =
+        (state is ProjectDetailLoaded &&
+                !state.isDirty &&
+                path.originalDbId != null)
+            ? state.spendPaths
+                .where((p) => p.id == path.originalDbId)
+                .firstOrNull
+            : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.keysLabel,
-          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
-        ),
         const SizedBox(height: 4),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (var mfp in path.mfps)
-              _buildRemovableMfpBadge(
-                context,
-                _getKeyLabel(mfp),
-                mfpColorProvider(mfp),
-                mfp,
-              ),
-            _buildAddKeyButton(context, unusedKeys),
+            ...path.mfps.map((mfp) {
+              final label = _getKeyLabel(mfp);
+              return MfpBadge(
+                label: label,
+                color: mfpColorProvider(mfp),
+                letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
+              );
+            }),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildRemovableMfpBadge(BuildContext context, String label, Color color, String mfp) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2, right: 2),
-      decoration: BoxDecoration(
-        color: color.withAlpha(32),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(64), width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: cs.onSurface.withAlpha(210),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
-            ),
-          ),
-          const SizedBox(width: 2),
-          InkWell(
-            onTap: () => onMfpRemoved(mfp),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Icon(Icons.close, size: 14, color: color.withAlpha(180)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static const _newKeysentinel = '__new_key__';
-
-  Widget _buildAddKeyButton(BuildContext context, List<ProjectKey> unusedKeys) {
-    final l10n = context.l10n;
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 32),
-      onSelected: (value) {
-        if (value == _newKeysentinel) {
-          onAddNewKey();
-        } else {
-          onMfpAdded(value);
-        }
-      },
-      itemBuilder: (context) => [
-        ...unusedKeys.map((k) => PopupMenuItem<String>(
-              value: k.mfp,
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: mfpColorProvider(k.mfp),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    k.mfp.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  if (k.customName != null) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      k.customName!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            )),
-        if (unusedKeys.isNotEmpty) const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: _newKeysentinel,
-          child: Row(
-            children: [
-              const Icon(Icons.add, size: 16, color: AppAccent.color),
-              const SizedBox(width: 8),
-              Text(l10n.newKey, style: const TextStyle(color: AppAccent.color)),
-            ],
-          ),
-        ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: AppAccent.color.withAlpha(100),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add, size: 14, color: AppAccent.color),
-            const SizedBox(width: 4),
-            Text(
-              l10n.addKeyButton,
-              style: const TextStyle(fontSize: 12, color: AppAccent.color),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimelockAndPriorityRow(BuildContext context) {
-    final isScriptPath = isTaproot && !path.isKeyPath;
-    return Row(
-      children: [
-        _buildTimelockButton(context),
-        if (isScriptPath) ...[
-          const Spacer(),
-          _buildPriorityBadge(context),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildThresholdRow(BuildContext context) {
-    final l10n = context.l10n;
-    final maxThreshold = path.mfps.isEmpty ? 1 : path.mfps.length;
-    final currentThreshold = path.threshold.clamp(1, maxThreshold);
-
-    return Row(
-      children: [
-        Text(
-          l10n.thresholdLabel,
-          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
-        ),
-        const SizedBox(width: 12),
-        PopupMenuButton<int>(
-          offset: const Offset(0, 32),
-          onSelected: (value) => onThresholdChanged(value),
-          tooltip: l10n.changeThresholdTooltip,
-          itemBuilder: (context) => List.generate(
-            maxThreshold,
-            (i) => PopupMenuItem(
-              value: i + 1,
-              child: Text('${i + 1}'),
-            ),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppAccent.color.withAlpha(32),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppAccent.color.withAlpha(64)),
-            ),
+        if (dbPath != null) ...[
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$currentThreshold',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
-                ),
+                const Icon(Icons.payments_outlined,
+                    size: 13, color: AppAccent.color),
                 const SizedBox(width: 4),
-                const Icon(Icons.edit, size: 12, color: AppAccent.color),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          l10n.ofCount(path.mfps.length),
-          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimelockButton(BuildContext context) {
-    final l10n = context.l10n;
-    final hasTimelock = path.timelockMode != TimelockMode.none &&
-        ((path.timelockMode == TimelockMode.relative && path.relTimelockValue > 0) ||
-         (path.timelockMode == TimelockMode.absolute && path.absTimelockValue > 0));
-
-    final IconData timelockIcon;
-    final String timelockText;
-
-    if (!hasTimelock) {
-      timelockIcon = Icons.lock_clock;
-      timelockText = l10n.noTimelock;
-    } else if (path.timelockMode == TimelockMode.relative) {
-      timelockIcon = Icons.update;
-      timelockText = BitcoinFormatter.formatRelativeTimelock(
-        path.relTimelockType,
-        path.relTimelockValue,
-      );
-    } else {
-      timelockIcon = Icons.event_available;
-      timelockText = BitcoinFormatter.formatAbsoluteTimelock(
-        path.absTimelockType,
-        path.absTimelockValue,
-      );
-    }
-
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () => _showTimelockDialog(context),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: hasTimelock ? AppAccent.color.withAlpha(32) : cs.onSurface.withAlpha(26),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: hasTimelock ? AppAccent.color.withAlpha(64) : cs.onSurface.withAlpha(61),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(timelockIcon, size: 14,
-                color: hasTimelock ? AppAccent.color : cs.onSurface.withAlpha(138)),
-            const SizedBox(width: 4),
-            Text(
-              timelockText,
-              style: TextStyle(
-                fontSize: 11,
-                color: hasTimelock ? cs.onSurface : cs.onSurface.withAlpha(138),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.edit, size: 12,
-                color: hasTimelock ? AppAccent.color.withAlpha(180) : cs.onSurface.withAlpha(97)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriorityBadge(BuildContext context) {
-    final l10n = context.l10n;
-    final p = path.priority;
-    final maxOption = (p + 1).clamp(0, 9);
-    final active = p > 0;
-
-    return PopupMenuButton<int>(
-      offset: const Offset(0, 32),
-      onSelected: (value) => onPriorityChanged?.call(value),
-      tooltip: l10n.changePriorityTooltip,
-      itemBuilder: (context) => List.generate(
-        maxOption + 1,
-        (i) => PopupMenuItem(value: i, child: Text('$i')),
-      ),
-      child: Builder(
-        builder: (context) {
-          final cs = Theme.of(context).colorScheme;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: active ? AppAccent.color.withAlpha(32) : cs.onSurface.withAlpha(26),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: active ? AppAccent.color.withAlpha(64) : cs.onSurface.withAlpha(61),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
                 Text(
-                  l10n.priorityBadge(p),
+                  '${BitcoinFormatter.formatDouble(dbPath.vbSweep, 2)} vB',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: active ? cs.onSurface.withAlpha(178) : cs.onSurface.withAlpha(97),
+                    fontSize: 11,
+                    color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.edit, size: 12,
-                    color: active ? AppAccent.color : cs.onSurface.withAlpha(97)),
+                if (dbPath.trDepth >= 0) ...[
+                  _buildSeparator(context),
+                  const Icon(Icons.account_tree_outlined,
+                      size: 13, color: AppAccent.color),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${dbPath.trDepth}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withAlpha(AppAlpha.mediumHigh)),
+                  ),
+                ],
+                if (dbPath.priority > 0) ...[
+                  _buildSeparator(context),
+                  const Icon(Icons.keyboard_double_arrow_up,
+                      size: 13, color: AppAccent.color),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${dbPath.priority}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withAlpha(AppAlpha.mediumHigh)),
+                  ),
+                ],
               ],
             ),
-          );
-        },
-      ),
+          ),
+        ],
+      ],
     );
   }
 
-  void _showNameDialog(BuildContext context) {
-    showEditNameDialog(
-      context,
-      title: context.l10n.spendPathNameDialogTitle,
-      currentName: path.customName,
-      onSave: (name) => onNameEdit?.call(name),
-    );
-  }
-
-  void _showTimelockDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => TimelockDialog(
-        initialMode: path.timelockMode,
-        initialRelType: path.relTimelockType,
-        initialRelValue: path.relTimelockValue,
-        initialAbsType: path.absTimelockType,
-        initialAbsValue: path.absTimelockValue,
-        onSave: (mode, relType, relValue, absType, absValue) {
-          if (relValue == 0 && absValue == 0) {
-            mode = TimelockMode.none;
-          }
-          if (mode != path.timelockMode) {
-            onTimelockModeChanged(mode);
-          }
-          if (relType != path.relTimelockType) {
-            onRelTimelockTypeChanged(relType);
-          }
-          if (relValue != path.relTimelockValue) {
-            onRelTimelockValueChanged(relValue);
-          }
-          if (absType != path.absTimelockType) {
-            onAbsTimelockTypeChanged(absType);
-          }
-          if (absValue != path.absTimelockValue) {
-            onAbsTimelockValueChanged(absValue);
-          }
-        },
-      ),
+  Widget _buildSeparator(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text('|',
+          style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(77))),
     );
   }
 }

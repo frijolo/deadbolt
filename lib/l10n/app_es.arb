@@ -79,6 +79,7 @@
   "discardChangesTooltip": "Descartar cambios",
   "moreOptionsTooltip": "Más opciones",
   "buildFabLabel": "Construir",
+  "descriptorOutdatedBanner": "Descriptor desactualizado · toca Construir para regenerar",
   "keysSection": "Claves ({count})",
   "@keysSection": {
     "placeholders": {
@@ -190,6 +191,9 @@
   "rootPath": "(raíz)",
   "xpubPrefix": "Xpub: ",
   "keyNameDialogTitle": "Nombre de clave",
+  "keyFingerprintLabel": "Fingerprint",
+  "keyDerivPathLabel": "Ruta de derivación",
+  "keyXpubLabel": "Clave pública extendida",
   "removeKeyTooltip": "Eliminar clave",
   "keyInUseTooltip": "Clave en uso - no se puede eliminar",
 
@@ -214,6 +218,8 @@
     }
   },
   "thresholdLabel": "Umbral",
+  "sweepCostLabel": "Coste de barrido",
+  "trDepthLabel": "Profundidad TR",
   "changePriorityTooltip": "Cambiar prioridad",
   "timelockDialogTitle": "Timelock",
   "relativeTimelock": "Relativo",

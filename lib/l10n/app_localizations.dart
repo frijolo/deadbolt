@@ -464,6 +464,12 @@ abstract class AppLocalizations {
   /// **'Build'**
   String get buildFabLabel;
 
+  /// No description provided for @descriptorOutdatedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor outdated · tap Build to regenerate'**
+  String get descriptorOutdatedBanner;
+
   /// No description provided for @keysSection.
   ///
   /// In en, this message translates to:
@@ -902,6 +908,24 @@ abstract class AppLocalizations {
   /// **'Key name'**
   String get keyNameDialogTitle;
 
+  /// No description provided for @keyFingerprintLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint'**
+  String get keyFingerprintLabel;
+
+  /// No description provided for @keyDerivPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Derivation path'**
+  String get keyDerivPathLabel;
+
+  /// No description provided for @keyXpubLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Extended public key'**
+  String get keyXpubLabel;
+
   /// No description provided for @removeKeyTooltip.
   ///
   /// In en, this message translates to:
@@ -979,6 +1003,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Threshold'**
   String get thresholdLabel;
+
+  /// No description provided for @sweepCostLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweep cost'**
+  String get sweepCostLabel;
+
+  /// No description provided for @trDepthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TR depth'**
+  String get trDepthLabel;
 
   /// No description provided for @changePriorityTooltip.
   ///

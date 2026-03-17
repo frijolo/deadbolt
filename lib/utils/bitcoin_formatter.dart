@@ -6,6 +6,19 @@ class BitcoinFormatter {
   /// Format an integer with locale-aware thousands separators (e.g. 1,234,567).
   static String formatNum(int n) => NumberFormat.decimalPattern().format(n);
 
+  /// Auto-generate a spend path display label from its participants.
+  /// Returns "Name" for single-key paths, "M/N · Key1, Key2" for multisig.
+  static String pathLabel(
+    int threshold,
+    List<String> mfps,
+    String Function(String mfp) keyLabel,
+  ) {
+    if (mfps.isEmpty) return '';
+    final names = mfps.map(keyLabel).toList();
+    if (mfps.length == 1) return names.first;
+    return '$threshold/${mfps.length} · ${names.join(', ')}';
+  }
+
   /// Format a double with locale-aware thousands separators and fixed decimal places.
   static String formatDouble(double n, int decimalDigits) =>
       NumberFormat.decimalPatternDigits(decimalDigits: decimalDigits).format(n);

@@ -169,7 +169,6 @@ class ProjectListScreen extends StatelessWidget {
                       builder: (_) => ProjectDetailScreen(
                         db: db,
                         projectId: project.id,
-                        initialAction: 'edit',
                       ),
                     ),
                   );

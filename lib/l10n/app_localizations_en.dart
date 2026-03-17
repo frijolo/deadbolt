@@ -197,6 +197,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get buildFabLabel => 'Build';
 
   @override
+  String get descriptorOutdatedBanner =>
+      'Descriptor outdated · tap Build to regenerate';
+
+  @override
   String keysSection(int count) {
     return 'Keys ($count)';
   }
@@ -438,6 +442,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keyNameDialogTitle => 'Key name';
 
   @override
+  String get keyFingerprintLabel => 'Fingerprint';
+
+  @override
+  String get keyDerivPathLabel => 'Derivation path';
+
+  @override
+  String get keyXpubLabel => 'Extended public key';
+
+  @override
   String get removeKeyTooltip => 'Remove key';
 
   @override
@@ -479,6 +492,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thresholdLabel => 'Threshold';
+
+  @override
+  String get sweepCostLabel => 'Sweep cost';
+
+  @override
+  String get trDepthLabel => 'TR depth';
 
   @override
   String get changePriorityTooltip => 'Change priority';

@@ -9,10 +9,10 @@ import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart';
-import 'package:deadbolt/widgets/editable_key_card.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
-import 'package:deadbolt/widgets/path_card.dart';
+import 'package:deadbolt/widgets/descriptor_tab.dart';
+import 'package:deadbolt/widgets/spend_path_edit_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve a color for an MFP using the cubit index + theme palette.
@@ -31,51 +31,30 @@ Color _colorForMfp(BuildContext context, ProjectDetailCubit cubit, String mfp) {
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
   final int projectId;
-  final String? initialAction;
 
   const ProjectDetailScreen({
     super.key,
     required this.db,
     required this.projectId,
-    this.initialAction,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => ProjectDetailCubit(db, projectId),
-      child: _ProjectDetailView(initialAction: initialAction),
+      child: const _ProjectDetailView(),
     );
   }
 }
 
-class _ProjectDetailView extends StatefulWidget {
-  final String? initialAction;
-
-  const _ProjectDetailView({this.initialAction});
-
-  @override
-  State<_ProjectDetailView> createState() => _ProjectDetailViewState();
-}
-
-class _ProjectDetailViewState extends State<_ProjectDetailView> {
-  bool _initialActionTriggered = false;
+class _ProjectDetailView extends StatelessWidget {
+  const _ProjectDetailView();
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<ProjectDetailCubit, ProjectDetailState>(
       listener: (context, state) {
         if (state is! ProjectDetailLoaded) return;
-
-        // Enter edit mode automatically when requested (e.g. from project list)
-        if (!_initialActionTriggered && widget.initialAction == 'edit') {
-          _initialActionTriggered = true;
-          final cubit = context.read<ProjectDetailCubit>();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            cubit.enterEditMode();
-          });
-        }
 
         // Show error toast
         if (state.errorMessage != null) {
@@ -129,58 +108,58 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     final l10n = context.l10n;
     final cubit = context.read<ProjectDetailCubit>();
     final project = state.project;
-    final isEditing = state.isEditing;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !state.isDirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscardEdits(context, cubit, state);
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: GestureDetector(
           onTap: () => _editProjectName(context, cubit, project.name),
           child: Text(project.name),
         ),
         actions: [
-          if (isEditing)
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.discardChangesTooltip,
-              onPressed: () => _confirmDiscardEdits(context, cubit, state),
-            )
-          else
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: l10n.moreOptionsTooltip,
-              offset: const Offset(0, 40),
-              onSelected: (value) async {
-                if (value == 'edit') {
-                  cubit.enterEditMode();
-                } else if (value == 'export') {
-                  if (context.mounted) {
-                    _showExportProjectSheet(context, cubit);
-                  }
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: l10n.moreOptionsTooltip,
+            offset: const Offset(0, 40),
+            onSelected: (value) async {
+              if (value == 'discard') {
+                if (context.mounted) {
+                  _confirmDiscardEdits(context, cubit, state);
                 }
-              },
-              itemBuilder: (context) => [
+              } else if (value == 'export') {
+                if (context.mounted) {
+                  _showExportProjectSheet(context, cubit);
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              if (state.isDirty)
                 PopupMenuItem(
-                  value: 'edit',
+                  value: 'discard',
                   child: Row(
                     children: [
-                      const Icon(Icons.edit_outlined, size: 20),
+                      const Icon(Icons.undo, size: 20),
                       const SizedBox(width: 12),
-                      Text(l10n.edit),
+                      Text(l10n.discardChangesTooltip),
                     ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'export',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.file_upload_outlined, size: 20),
-                      const SizedBox(width: 12),
-                      Text(l10n.export),
-                    ],
-                  ),
+              PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    const Icon(Icons.file_upload_outlined, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.export),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
       floatingActionButton: state.isDirty
@@ -199,47 +178,56 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
             )
           : null,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Info header with badges (wallet type badge is clickable in edit mode)
-            _buildInfoHeader(context, cubit, state, isEditing: isEditing),
-            const SizedBox(height: 8),
-            // Descriptor (expandable) — only in read mode
-            if (!isEditing) ...[
-              _buildDescriptorSection(context, project.descriptor),
-              const SizedBox(height: 8),
+        child: DefaultTabController(
+          length: 3,
+          child: Column(
+            children: [
+              // Info header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: _buildInfoHeader(context, cubit, state),
+              ),
+              // Tab bar — Spend Paths first, Descriptor last
+              TabBar(
+                tabs: [
+                  Tab(text: l10n.spendPathsSection(state.displayPathCount)),
+                  Tab(text: l10n.keysSection(state.displayKeyCount)),
+                  Tab(text: l10n.descriptorSectionTitle),
+                ],
+              ),
+              // Tab content
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _SpendPathsSection(state: state, cubit: cubit),
+                    _KeysSection(state: state, cubit: cubit),
+                    DescriptorTab(
+                      descriptor: project.descriptor,
+                      isDirty: state.isDirty,
+                    ),
+                  ],
+                ),
+              ),
             ],
-            // Keys section
-            _KeysSection(state: state, cubit: cubit),
-            const SizedBox(height: 8),
-            // Spend paths section
-            _SpendPathsSection(state: state, cubit: cubit),
-          ],
+          ),
         ),
       ),
-    );
+    ), // close Scaffold
+    ); // close PopScope
   }
 
   Widget _buildInfoHeader(
     BuildContext context,
     ProjectDetailCubit cubit,
-    ProjectDetailLoaded state, {
-    required bool isEditing,
-  }) {
-    final currentType = isEditing
-        ? (state.editedWalletType ??
-            APIWalletType.values.byName(state.project.walletType))
-        : APIWalletType.values.byName(state.project.walletType);
+    ProjectDetailLoaded state,
+  ) {
+    final currentType = state.currentWalletType;
 
     return Row(
       children: [
         _buildBadge(context, localizedNetworkDisplayName(context, state.project.network)),
         const SizedBox(width: 8),
-        if (isEditing)
-          _buildEditableWalletTypeBadge(context, cubit, state, currentType)
-        else
-          _buildBadge(context, localizedWalletTypeName(context, currentType)),
+        _buildEditableWalletTypeBadge(context, cubit, state, currentType),
       ],
     );
   }
@@ -314,51 +302,6 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     );
   }
 
-  Widget _buildDescriptorSection(BuildContext context, String descriptor) {
-    final l10n = context.l10n;
-    return ExpansionTile(
-      title: Text(
-        l10n.descriptorSectionTitle,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-      tilePadding: EdgeInsets.zero,
-      children: [
-        Card(
-          margin: const EdgeInsets.only(bottom: 4),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SelectableText(
-                  descriptor,
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.share_outlined, size: 16),
-                    tooltip: l10n.copyDescriptorTooltip,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => showDescriptorExportSheet(
-                      context,
-                      descriptor: descriptor,
-                      fileName: 'descriptor',
-                      copiedMessage: l10n.descriptorCopied,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   void _editProjectName(
       BuildContext context, ProjectDetailCubit cubit, String currentName) {
@@ -466,30 +409,23 @@ class _KeysSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isEditing = state.isEditing;
-    final displayKeys = isEditing ? state.editedKeys! : state.keys;
+    final editedKeys = state.editedKeys ?? [];
 
-    if (!isEditing && displayKeys.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return ExpansionTile(
-      key: const ValueKey('keys_expansion_tile'),
-      title: Text(
-        l10n.keysSection(displayKeys.length),
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: isEditing ? AppAccent.color : null,
-            ),
-      ),
-      tilePadding: EdgeInsets.zero,
-      initiallyExpanded: state.keysExpanded,
-      onExpansionChanged: (expanded) => cubit.toggleKeysExpanded(expanded),
+    return Column(
       children: [
-        if (isEditing) ...[
-          for (final key in state.editedKeys!)
-            _buildEditableKey(context, key),
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            children: [
+              for (final key in editedKeys)
+                _buildEditableKey(context, key),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => showAddKeyDialog(context, cubit),
               icon: const Icon(Icons.add, size: 18),
@@ -500,26 +436,24 @@ class _KeysSection extends StatelessWidget {
               ),
             ),
           ),
-        ] else ...[
-          for (final key in state.keys)
-            KeyCard(
-              keyData: key,
-              allKeys: state.keys,
-              mfpColor: _colorForMfp(context, cubit, key.mfp),
-              onNameEdit: (name) => cubit.updateKeyName(key.id, name),
-            ),
-        ],
+        ),
       ],
     );
   }
 
   Widget _buildEditableKey(BuildContext context, EditableKey key) {
     final isInUse = state.editedPaths!.any((path) => path.mfps.contains(key.mfp));
-    return EditableKeyCard(
-      keyData: key,
-      allKeys: state.editedKeys!,
+    return KeyCard(
+      mfp: key.mfp,
+      derivationPath: key.derivationPath,
+      xpub: key.xpub,
+      label: key.customName,
       mfpColor: _colorForMfp(context, cubit, key.mfp),
-      onNameEdit: (name) => cubit.updateKeyCustomName(key.mfp, name),
+      onNameSave: (name) => cubit.updateKeyCustomName(key.mfp, name),
+      isDuplicateName: (name) => state.editedKeys!.any((k) =>
+          k.mfp != key.mfp &&
+          k.customName != null &&
+          k.customName!.toLowerCase() == name.toLowerCase()),
       onDelete: () => cubit.removeKey(key.mfp),
       canDelete: !isInUse,
     );
@@ -535,62 +469,45 @@ class _SpendPathsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isEditing = state.isEditing;
-    final editedPaths = state.editedPaths;
-    final editedKeys = state.editedKeys;
+    final editedPaths = state.editedPaths ?? [];
+    final editedKeys = state.editedKeys ?? [];
+    final isTaproot = state.currentWalletType == APIWalletType.p2Tr;
 
-    final pathCount = isEditing ? editedPaths!.length : state.spendPaths.length;
-
-    return ExpansionTile(
-      key: const ValueKey('spend_paths_expansion_tile'),
-      title: Text(
-        l10n.spendPathsSection(pathCount),
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: isEditing ? AppAccent.color : null,
-            ),
-      ),
-      tilePadding: EdgeInsets.zero,
-      initiallyExpanded: state.spendPathsExpanded,
-      onExpansionChanged: (expanded) => cubit.toggleSpendPathsExpanded(expanded),
+    return Column(
       children: [
-        if (isEditing && editedPaths != null && editedKeys != null) ...[
-          for (var i = 0; i < editedPaths.length; i++)
-            EditablePathCard(
-              index: i,
-              path: editedPaths[i],
-              availableKeys: editedKeys
-                  .map((k) => k.toProjectKey(state.project.id))
-                  .toList(),
-              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
-              onThresholdChanged: (v) => cubit.updatePathThreshold(i, v),
-              onMfpAdded: (mfp) => cubit.addMfpToPath(i, mfp),
-              onMfpRemoved: (mfp) => cubit.removeMfpFromPath(i, mfp),
-              onTimelockModeChanged: (m) => cubit.updatePathTimelockMode(i, m),
-              onRelTimelockTypeChanged: (t) =>
-                  cubit.updatePathRelTimelockType(i, t),
-              onRelTimelockValueChanged: (v) =>
-                  cubit.updatePathRelTimelockValue(i, v),
-              onAbsTimelockTypeChanged: (t) =>
-                  cubit.updatePathAbsTimelockType(i, t),
-              onAbsTimelockValueChanged: (v) =>
-                  cubit.updatePathAbsTimelockValue(i, v),
-              onDelete: () => cubit.removeSpendPath(i),
-              onAddNewKey: () => showAddKeyDialog(
-                context,
-                cubit,
-                onKeyAdded: (mfp) => cubit.addMfpToPath(i, mfp),
-              ),
-              isTaproot: (state.editedWalletType ??
-                         APIWalletType.values.byName(state.project.walletType)) ==
-                         APIWalletType.p2Tr,
-              onKeyPathChanged: (v) => cubit.updatePathIsKeyPath(i, v),
-              onNameEdit: (name) => cubit.updatePathCustomName(i, name),
-              onPriorityChanged: (p) => cubit.updatePathPriority(i, p),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            children: [
+              for (var i = 0; i < editedPaths.length; i++)
+                EditablePathCard(
+                  index: i,
+                  path: editedPaths[i],
+                  availableKeys: editedKeys
+                      .map((k) => k.toProjectKey(state.project.id))
+                      .toList(),
+                  mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
+                  isTaproot: isTaproot,
+                  cubit: cubit,
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: cubit.addSpendPath,
+              onPressed: () {
+                final newIndex = editedPaths.length;
+                cubit.addSpendPath();
+                showSpendPathEditSheet(
+                  context,
+                  cubit: cubit,
+                  index: newIndex,
+                  isTaproot: isTaproot,
+                );
+              },
               icon: const Icon(Icons.add, size: 18),
               label: Text(l10n.addSpendPath),
               style: OutlinedButton.styleFrom(
@@ -599,16 +516,7 @@ class _SpendPathsSection extends StatelessWidget {
               ),
             ),
           ),
-        ] else ...[
-          for (final sp in state.spendPaths)
-            PathCard(
-              path: sp,
-              keys: state.keys,
-              mfpColorProvider: (mfp) => _colorForMfp(context, cubit, mfp),
-              onNameEdit: (name) => cubit.updateSpendPathName(sp.id, name),
-              isTaproot: state.project.walletType.toUpperCase() == 'P2TR',
-            ),
-        ],
+        ),
       ],
     );
   }

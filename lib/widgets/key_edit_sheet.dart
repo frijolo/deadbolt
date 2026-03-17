@@ -1,0 +1,292 @@
+import 'package:flutter/material.dart';
+
+import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/edit_name_dialog.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart';
+
+/// Opens a key detail / edit bottom sheet.
+///
+/// [onDelete] is only non-null when deletion is possible.
+/// [canDelete] controls whether the delete button is enabled (key not in use).
+void showKeySheet(
+  BuildContext context, {
+  required String mfp,
+  required String? initialName,
+  required String derivationPath,
+  required String xpub,
+  required Color mfpColor,
+  required void Function(String? name) onNameSave,
+  bool Function(String name)? isDuplicateName,
+  VoidCallback? onDelete,
+  bool canDelete = false,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _KeySheetContent(
+      mfp: mfp,
+      initialName: initialName,
+      derivationPath: derivationPath,
+      xpub: xpub,
+      mfpColor: mfpColor,
+      onNameSave: onNameSave,
+      isDuplicateName: isDuplicateName,
+      onDelete: onDelete,
+      canDelete: canDelete,
+    ),
+  );
+}
+
+class _KeySheetContent extends StatefulWidget {
+  final String mfp;
+  final String? initialName;
+  final String derivationPath;
+  final String xpub;
+  final Color mfpColor;
+  final void Function(String? name) onNameSave;
+  final bool Function(String name)? isDuplicateName;
+  final VoidCallback? onDelete;
+  final bool canDelete;
+
+  const _KeySheetContent({
+    required this.mfp,
+    required this.initialName,
+    required this.derivationPath,
+    required this.xpub,
+    required this.mfpColor,
+    required this.onNameSave,
+    this.isDuplicateName,
+    this.onDelete,
+    this.canDelete = false,
+  });
+
+  @override
+  State<_KeySheetContent> createState() => _KeySheetContentState();
+}
+
+class _KeySheetContentState extends State<_KeySheetContent> {
+  late String? _currentName;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentName = widget.initialName;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withAlpha(40),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                children: [
+                  _buildNameSection(context, cs, l10n),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  _buildInfoSection(context, cs, l10n),
+                  if (widget.onDelete != null) ...[
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    _buildDeleteButton(context, l10n),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNameSection(
+      BuildContext context, ColorScheme cs, AppLocalizations l10n) {
+    final hasName = _currentName != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.keyNameDialogTitle,
+          style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+        ),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: () => _showNameDialog(context),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _currentName ?? widget.mfp.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: hasName ? FontWeight.w600 : FontWeight.normal,
+                    color:
+                        hasName ? cs.onSurface : cs.onSurface.withAlpha(97),
+                    fontStyle:
+                        hasName ? FontStyle.normal : FontStyle.italic,
+                  ),
+                ),
+              ),
+              Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(120)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoSection(
+      BuildContext context, ColorScheme cs, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InfoRow(
+          label: l10n.keyFingerprintLabel,
+          child: MfpBadge(
+            label: widget.mfp.toUpperCase(),
+            color: widget.mfpColor,
+            letterSpacing: 0.5,
+          ),
+        ),
+        _InfoRow(
+          label: l10n.keyDerivPathLabel,
+          child: Text(
+            widget.derivationPath.isEmpty
+                ? l10n.rootPath
+                : widget.derivationPath,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              color: widget.derivationPath.isEmpty ? AppAccent.color : null,
+            ),
+          ),
+        ),
+        _InfoRow(
+          label: l10n.keyXpubLabel,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SelectableText(
+                  widget.xpub,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.ios_share, size: 18),
+                tooltip: l10n.copyKeyspecTooltip,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                color: cs.onSurface.withAlpha(AppAlpha.muted),
+                onPressed: () => showTextExportSheet(
+                  context,
+                  text:
+                      '[${widget.mfp}/${widget.derivationPath}]${widget.xpub}',
+                  fileName: 'keyspec',
+                  copiedMessage: l10n.keyCopied,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeleteButton(BuildContext context, AppLocalizations l10n) {
+    final can = widget.canDelete;
+    return OutlinedButton.icon(
+      onPressed: can
+          ? () {
+              Navigator.of(context).pop();
+              widget.onDelete!();
+            }
+          : null,
+      icon: Icon(
+        can ? Icons.delete_outline : Icons.delete_forever_outlined,
+        size: 18,
+      ),
+      label: Text(can ? l10n.removeKeyTooltip : l10n.keyInUseTooltip),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: can ? Colors.red : null,
+        side: BorderSide(
+          color: can
+              ? Colors.red.withAlpha(128)
+              : Colors.grey.withAlpha(128),
+        ),
+      ),
+    );
+  }
+
+  void _showNameDialog(BuildContext context) {
+    showEditNameDialog(
+      context,
+      title: context.l10n.keyNameDialogTitle,
+      currentName: _currentName,
+      onSave: (name) {
+        setState(() => _currentName = name);
+        widget.onNameSave(name);
+      },
+      isDuplicate: widget.isDuplicateName,
+    );
+  }
+}
+
+/// Label + value row matching the _DetailRow style used in coin/tx detail dialogs.
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _InfoRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+            ),
+          ),
+          const SizedBox(height: 2),
+          child,
+        ],
+      ),
+    );
+  }
+}

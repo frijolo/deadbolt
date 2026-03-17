@@ -79,6 +79,7 @@
   "discardChangesTooltip": "Discard changes",
   "moreOptionsTooltip": "More options",
   "buildFabLabel": "Build",
+  "descriptorOutdatedBanner": "Descriptor outdated · tap Build to regenerate",
   "keysSection": "Keys ({count})",
   "@keysSection": {
     "placeholders": {
@@ -196,6 +197,9 @@
   "rootPath": "(root)",
   "xpubPrefix": "Xpub: ",
   "keyNameDialogTitle": "Key name",
+  "keyFingerprintLabel": "Fingerprint",
+  "keyDerivPathLabel": "Derivation path",
+  "keyXpubLabel": "Extended public key",
   "removeKeyTooltip": "Remove key",
   "keyInUseTooltip": "Key in use - cannot delete",
 
@@ -220,6 +224,8 @@
     }
   },
   "thresholdLabel": "Threshold",
+  "sweepCostLabel": "Sweep cost",
+  "trDepthLabel": "TR depth",
   "changePriorityTooltip": "Change priority",
   "timelockDialogTitle": "Timelock",
   "relativeTimelock": "Relative",

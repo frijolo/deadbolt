@@ -1,91 +1,89 @@
 import 'package:flutter/material.dart';
 
-import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
-import 'package:deadbolt/widgets/edit_name_dialog.dart';
-import 'package:deadbolt/widgets/key_card_base.dart';
+import 'package:deadbolt/widgets/key_edit_sheet.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 
+/// Unified key card used in both the project designer (edit mode) and the
+/// wallet detail view (read-only mode).
+///
+/// When [onDelete] is provided the card shows an edit icon and exposes delete
+/// functionality inside the sheet.  Without it, a chevron is shown instead
+/// and the sheet only allows renaming.
 class KeyCard extends StatelessWidget {
-  final ProjectKey keyData;
-  final List<ProjectKey> allKeys;
+  final String mfp;
+  final String derivationPath;
+  final String xpub;
+  final String? label;
   final Color mfpColor;
-  final ValueChanged<String?>? onNameEdit;
+  final ValueChanged<String?> onNameSave;
+  final bool Function(String)? isDuplicateName;
+  final VoidCallback? onDelete;
+  final bool canDelete;
 
   const KeyCard({
     super.key,
-    required this.keyData,
-    required this.allKeys,
+    required this.mfp,
+    required this.derivationPath,
+    required this.xpub,
     required this.mfpColor,
-    this.onNameEdit,
+    required this.onNameSave,
+    this.label,
+    this.isDuplicateName,
+    this.onDelete,
+    this.canDelete = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
+    final hasLabel = label != null;
+    final isEditMode = onDelete != null;
+    final derivPath = derivationPath.isEmpty ? l10n.rootPath : derivationPath;
+    final derivColor = derivationPath.isEmpty
+        ? AppAccent.color
+        : cs.onSurface.withAlpha(AppAlpha.secondary);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: mfpColor.withAlpha(AppAlpha.subtle),
+          child: Icon(Icons.key, color: mfpColor, size: 18),
+        ),
+        title: Text(
+          label ?? mfp.toUpperCase(),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: hasLabel ? FontWeight.w600 : FontWeight.normal,
+            color: hasLabel
+                ? cs.onSurface
+                : cs.onSurface.withAlpha(AppAlpha.muted),
+            fontStyle: hasLabel ? FontStyle.normal : FontStyle.italic,
+          ),
+        ),
+        subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // MFP badge + custom name + copy button row
-            KeyCardHeader(
-              mfp: keyData.mfp,
-              mfpColor: mfpColor,
-              customName: keyData.customName,
-              tapToNameLabel: l10n.tapToName,
-              copyKeyspecTooltip: l10n.copyKeyspecTooltip,
-              keyCopiedMessage: l10n.keyCopied,
-              keyspec: '[${keyData.mfp}/${keyData.derivationPath}]${keyData.xpub}',
-              onNameTap: () => _showNameDialog(context),
-            ),
-            const SizedBox(height: 8),
-            // Derivation path
-            Row(
-              children: [
-                Text(
-                  l10n.pathPrefix,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurface.withAlpha(AppAlpha.muted),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    keyData.derivationPath.isEmpty
-                        ? l10n.rootPath
-                        : keyData.derivationPath,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: keyData.derivationPath.isEmpty
-                          ? AppAccent.color
-                          : cs.onSurface.withAlpha(AppAlpha.mediumHigh),
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 4),
-            // Xpub
             Row(
               children: [
-                Text(
-                  l10n.xpubPrefix,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onSurface.withAlpha(AppAlpha.muted),
-                  ),
+                MfpBadge(
+                  label: mfp.toUpperCase(),
+                  color: mfpColor,
+                  letterSpacing: 0.5,
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    keyData.xpub,
+                    derivPath,
                     style: TextStyle(
                       fontSize: 11,
-                      color: cs.onSurface.withAlpha(AppAlpha.secondary),
+                      color: derivColor,
                       fontFamily: 'monospace',
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -93,22 +91,36 @@ class KeyCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 2),
+            Text(
+              xpub,
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withAlpha(AppAlpha.secondary),
+                fontFamily: 'monospace',
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
+        trailing: Icon(
+          isEditMode ? Icons.edit_outlined : Icons.chevron_right,
+          size: 18,
+          color: isEditMode ? cs.onSurface.withAlpha(AppAlpha.muted) : null,
+        ),
+        onTap: () => showKeySheet(
+          context,
+          mfp: mfp,
+          initialName: label,
+          derivationPath: derivationPath,
+          xpub: xpub,
+          mfpColor: mfpColor,
+          onNameSave: onNameSave,
+          isDuplicateName: isDuplicateName,
+          onDelete: onDelete,
+          canDelete: canDelete,
+        ),
       ),
-    );
-  }
-
-  void _showNameDialog(BuildContext context) {
-    showEditNameDialog(
-      context,
-      title: context.l10n.keyNameDialogTitle,
-      currentName: keyData.customName,
-      onSave: (name) => onNameEdit?.call(name),
-      isDuplicate: (name) => allKeys.any((k) =>
-          k.id != keyData.id &&
-          k.customName != null &&
-          k.customName!.toLowerCase() == name.toLowerCase()),
     );
   }
 }

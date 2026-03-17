@@ -53,6 +53,12 @@ class ProjectDetailLoaded extends ProjectDetailState {
 
   bool get isEditing => editedPaths != null && editedKeys != null;
 
+  APIWalletType get currentWalletType =>
+      editedWalletType ?? APIWalletType.values.byName(project.walletType);
+
+  int get displayPathCount => (editedPaths ?? spendPaths).length;
+  int get displayKeyCount => (editedKeys ?? keys).length;
+
   ProjectDetailLoaded copyWith({
     List<EditableSpendPath>? editedPaths,
     List<EditableKey>? editedKeys,
@@ -134,10 +140,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         spendPathsExpanded: preserveSpendPathsExpanded,
       ));
 
-      // Auto-enter edit mode for empty projects
-      if (project.descriptor.isEmpty) {
-        enterEditMode();
-      }
+      // Always enter edit mode so keys and paths are immediately editable
+      enterEditMode();
     } catch (e) {
       emit(ProjectDetailError(formatRustError(e)));
     }
@@ -182,7 +186,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     if (s is! ProjectDetailLoaded || s.isEditing) return;
     final editablePaths = s.spendPaths.map(EditableSpendPath.fromDb).toList();
     final editableKeys = s.keys.map(EditableKey.fromDb).toList();
-    final currentWalletType = APIWalletType.values.byName(s.project.walletType);
+    final currentWalletType = s.currentWalletType;
     emit(s.copyWith(
       editedPaths: editablePaths,
       editedKeys: editableKeys,
@@ -194,12 +198,15 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   void discardEdits() {
     final s = state;
     if (s is! ProjectDetailLoaded) return;
-    emit(ProjectDetailLoaded(
-      project: s.project,
-      keys: s.keys,
-      spendPaths: s.spendPaths,
-      keysExpanded: s.keysExpanded,
-      spendPathsExpanded: s.spendPathsExpanded,
+    // Reset editable buffers to the last saved DB state without leaving edit mode
+    final editablePaths = s.spendPaths.map(EditableSpendPath.fromDb).toList();
+    final editableKeys = s.keys.map(EditableKey.fromDb).toList();
+    final currentWalletType = s.currentWalletType;
+    emit(s.copyWith(
+      editedPaths: editablePaths,
+      editedKeys: editableKeys,
+      editedWalletType: currentWalletType,
+      isDirty: false,
     ));
   }
 
@@ -263,8 +270,21 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   void updatePathPriority(int pathIndex, int priority) =>
       _updatePath(pathIndex, (p) => p.copyWith(priority: priority.clamp(0, 9)));
 
-  void updatePathCustomName(int pathIndex, String? customName) =>
-      _updatePath(pathIndex, (p) => p.withCustomName(customName));
+  Future<void> updatePathCustomName(int pathIndex, String? customName) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedPaths == null) return;
+    final paths = List.of(s.editedPaths!);
+    if (pathIndex < 0 || pathIndex >= paths.length) return;
+    final path = paths[pathIndex];
+
+    paths[pathIndex] = path.withCustomName(customName);
+    // Relabeling does not affect the descriptor — update UI first, then persist.
+    emit(s.copyWith(editedPaths: paths));
+
+    if (path.originalDbId != null) {
+      await _db.updateSpendPathName(path.originalDbId!, customName);
+    }
+  }
 
   /// Update the wallet type in edit mode
   void updateWalletType(APIWalletType walletType) {
@@ -272,7 +292,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     if (s is! ProjectDetailLoaded || !s.isEditing) return;
 
     List<EditableSpendPath>? updatedPaths;
-    final currentWalletType = s.editedWalletType ?? APIWalletType.values.byName(s.project.walletType);
+    final currentWalletType = s.currentWalletType;
 
     // When changing wallet type, handle keypath states
     if (s.editedPaths != null) {
@@ -412,17 +432,15 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
     final oldKey = keys[index];
 
-    // Update in database if it has a database ID
+    keys[index] = oldKey.withCustomName(customName);
+    // Relabeling does not affect the descriptor — update UI first, then persist.
+    emit(s.copyWith(editedKeys: keys));
+
     if (oldKey.originalDbId != null) {
       await (_db.update(_db.projectKeys)
             ..where((k) => k.id.equals(oldKey.originalDbId!)))
-          .write(ProjectKeysCompanion(
-        customName: Value(customName),
-      ));
+          .write(ProjectKeysCompanion(customName: Value(customName)));
     }
-
-    keys[index] = oldKey.withCustomName(customName);
-    emit(s.copyWith(editedKeys: keys, isDirty: true));
   }
 
   List<String> _validatePaths(
@@ -515,7 +533,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
     try {
       // Validate all paths before proceeding
-      final walletType = s.editedWalletType ?? APIWalletType.values.byName(s.project.walletType);
+      final walletType = s.currentWalletType;
       final isTaproot = walletType == APIWalletType.p2Tr;
       final availableMfps = s.editedKeys!.map((k) => k.mfp).toSet();
       final validationErrors = _validatePaths(s.editedPaths!, availableMfps, isTaproot);
