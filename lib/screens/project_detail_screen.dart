@@ -322,34 +322,37 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       tilePadding: EdgeInsets.zero,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.ios_share, size: 18),
-            tooltip: l10n.copyDescriptorTooltip,
-            onPressed: () => showDescriptorExportSheet(
-              context,
-              descriptor: descriptor,
-              fileName: 'descriptor',
-              copiedMessage: l10n.descriptorCopied,
-            ),
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(width: 8),
-          // Chevron icon placeholder to maintain alignment
-          const Icon(Icons.expand_more),
-        ],
-      ),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: SelectableText(
-            descriptor,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+        Card(
+          margin: const EdgeInsets.only(bottom: 4),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 4, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(
+                  descriptor,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.share_outlined, size: 16),
+                    tooltip: l10n.copyDescriptorTooltip,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => showDescriptorExportSheet(
+                      context,
+                      descriptor: descriptor,
+                      fileName: 'descriptor',
+                      copiedMessage: l10n.descriptorCopied,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
