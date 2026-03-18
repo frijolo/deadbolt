@@ -73,6 +73,13 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   APINetwork _selectedNetwork = APINetwork.testnet;
   bool _isCreating = false;
 
+  // Protection
+  APIProtectionType _protectionType = APIProtectionType.deviceKey;
+  final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscurePasswordConfirm = true;
+
   // Sentinel used to detect "New project" selection in the dropdown.
   static final _newProjectSentinel = Project(
     id: -1,
@@ -100,6 +107,8 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   void dispose() {
     _nameController.dispose();
     _descriptorController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
     super.dispose();
   }
 
@@ -197,6 +206,9 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               // Network — always shown so the user can pick the exact
               // testnet variant (testnet / testnet4 / signet / regtest)
               _buildNetworkDropdown(context),
+
+              const SizedBox(height: 16),
+              _buildProtectionSection(context),
 
               const SizedBox(height: 24),
 
@@ -308,6 +320,94 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     });
   }
 
+  Widget _buildProtectionSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Wallet protection',
+            style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        RadioGroup<APIProtectionType>(
+          groupValue: _protectionType,
+          onChanged: (v) => setState(() => _protectionType = v!),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Radio<APIProtectionType>(
+                      value: APIProtectionType.deviceKey),
+                  const Expanded(
+                    child: Text('Device key (automatic)'),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Radio<APIProtectionType>(
+                      value: APIProtectionType.userPassword),
+                  const Expanded(
+                    child: Text('Password protection'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (_protectionType == APIProtectionType.userPassword) ...[
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword
+                    ? Icons.visibility_off
+                    : Icons.visibility),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            validator: (v) {
+              if (_protectionType != APIProtectionType.userPassword) {
+                return null;
+              }
+              if (v == null || v.isEmpty) return 'Password cannot be empty';
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _passwordConfirmController,
+            obscureText: _obscurePasswordConfirm,
+            decoration: InputDecoration(
+              labelText: 'Confirm password',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePasswordConfirm
+                    ? Icons.visibility_off
+                    : Icons.visibility),
+                onPressed: () => setState(
+                    () => _obscurePasswordConfirm = !_obscurePasswordConfirm),
+              ),
+            ),
+            validator: (v) {
+              if (_protectionType != APIProtectionType.userPassword) {
+                return null;
+              }
+              if (v != _passwordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildNetworkDropdown(BuildContext context) {
     final l10n = context.l10n;
     return DropdownButtonFormField<APINetwork>(
@@ -369,10 +469,15 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
     setState(() => _isCreating = true);
     try {
+      final password = _protectionType == APIProtectionType.userPassword
+          ? _passwordController.text
+          : null;
       final walletPath = await widget.cubit.createWallet(
         name: _nameController.text.trim(),
         descriptor: desc,
         network: _selectedNetwork,
+        protectionType: _protectionType,
+        password: password,
       );
 
       if (_sourceMode == _SourceMode.fromProject && _selectedProject != null) {

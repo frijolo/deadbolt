@@ -703,6 +703,13 @@ pub fn touch_last_synced(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Re-key an existing SQLCipher database from `old_key_hex` to `new_key_hex`.
+pub fn rekey_database(path: &str, old_key_hex: &str, new_key_hex: &str) -> Result<()> {
+    let conn = open_encrypted_connection(path, old_key_hex)?;
+    conn.execute_batch(&format!("PRAGMA rekey = \"x'{}'\"", new_key_hex))?;
+    Ok(())
+}
+
 /// Open an encrypted SQLite connection using SQLCipher.
 pub fn open_encrypted_connection(path: &str, key_hex: &str) -> Result<Connection> {
     let conn = Connection::open(path)?;

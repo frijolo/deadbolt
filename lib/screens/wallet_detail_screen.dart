@@ -1,6 +1,12 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart' show Share, XFile;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,7 +23,10 @@ import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/password_prompt_dialog.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -76,20 +85,38 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<WalletDetailCubit, WalletDetailState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         _maybeStartAutoSync(context, state);
         if (state is WalletDetailLoaded && state.errorMessage != null) {
           showErrorToast(context, state.errorMessage!);
           context.read<WalletDetailCubit>().clearError();
         }
+        if (state is WalletDetailNeedsPassword) {
+          final password = await showPasswordPrompt(
+            context,
+            title: 'Enter wallet password',
+            subtitle: 'This wallet is protected with a password.',
+          );
+          if (password != null && context.mounted) {
+            context
+                .read<WalletDetailCubit>()
+                .load(state.walletPath, password: password);
+          } else if (context.mounted) {
+            // User cancelled — pop back to wallet list
+            Navigator.of(context).maybePop();
+          }
+        }
       },
       child: BlocBuilder<WalletDetailCubit, WalletDetailState>(
         builder: (context, state) {
           return switch (state) {
-            WalletDetailInitial() || WalletDetailLoading() => Scaffold(
-              appBar: AppBar(),
-              body: const Center(child: CircularProgressIndicator()),
-            ),
+            WalletDetailInitial() ||
+            WalletDetailLoading() ||
+            WalletDetailNeedsPassword() =>
+              Scaffold(
+                appBar: AppBar(),
+                body: const Center(child: CircularProgressIndicator()),
+              ),
             WalletDetailError(:final message) => Scaffold(
               appBar: AppBar(),
               body: Center(
@@ -299,6 +326,80 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     }
   }
 
+  Future<void> _exportBackup(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final walletPath = state.walletInfo.walletPath;
+    final walletName = state.walletInfo.name;
+    final service = WalletService();
+    final deviceKey = await service.getOrCreateEncryptionKey();
+    final openPassword = service.getCachedPassword(walletPath);
+
+    if (!context.mounted) return;
+
+    // Always ask for an export password for portability
+    final exportPassword = await showPasswordPrompt(
+      context,
+      title: 'Set backup password',
+      subtitle: 'This password protects the backup file.',
+      confirmRequired: true,
+    );
+    if (exportPassword == null || !context.mounted) return;
+
+    final List<int> backupBytes;
+    try {
+      backupBytes = await rust_wallet.exportWalletBackup(
+        walletPath: walletPath,
+        deviceKeyHex: deviceKey,
+        openPassword: openPassword,
+        exportPassword: exportPassword,
+      );
+    } catch (e) {
+      if (context.mounted) showErrorToast(context, formatRustError(e));
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    final safeName = walletName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final fileName = '$safeName.deadbolt';
+
+    // Desktop: native save dialog. Mobile: share sheet.
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final file = File(p.join(tempDir.path, fileName));
+        await file.writeAsBytes(backupBytes);
+        if (context.mounted) {
+          await Share.shareXFiles(
+            [XFile(file.path, mimeType: 'application/octet-stream')],
+            subject: fileName,
+          );
+        }
+      } catch (e) {
+        if (context.mounted) showErrorToast(context, formatRustError(e));
+      }
+    } else {
+      try {
+        final savedPath = await FilePicker.platform.saveFile(
+          fileName: fileName,
+          type: FileType.any,
+          bytes: Uint8List.fromList(backupBytes),
+        );
+        if (savedPath == null) return;
+        // Some desktop implementations don't write the bytes themselves
+        if (!File(savedPath).existsSync()) {
+          await File(savedPath).writeAsBytes(backupBytes);
+        }
+        if (context.mounted) showSuccessToast(context, 'Backup saved');
+      } catch (e) {
+        if (context.mounted) showErrorToast(context, formatRustError(e));
+      }
+    }
+  }
+
   Future<void> _exportLabels(
     BuildContext context,
     WalletDetailLoaded state,
@@ -369,14 +470,26 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               ],
             ),
           ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
+            child: const Row(
+              children: [
+                Icon(Icons.save_alt_outlined, size: 20),
+                SizedBox(width: 12),
+                Text('Wallet'),
+              ],
+            ),
+          ),
         ],
       ),
     );
     if (choice == null || !context.mounted) return;
     if (choice == _ExportChoice.labels) {
       _exportLabels(context, state);
-    } else {
+    } else if (choice == _ExportChoice.descriptor) {
       _exportDescriptor(context, state);
+    } else {
+      _exportBackup(context, state);
     }
   }
 
@@ -3602,7 +3715,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject }
 
 
-enum _ExportChoice { labels, descriptor }
+enum _ExportChoice { labels, descriptor, wallet }
 
 enum _ImportChoice { labels, psbt }
 

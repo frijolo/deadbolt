@@ -129,6 +129,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPolicyPath dco_decode_api_policy_path(dynamic raw);
 
   @protected
+  APIProtectionType dco_decode_api_protection_type(dynamic raw);
+
+  @protected
   APIPsbtAnalysis dco_decode_api_psbt_analysis(dynamic raw);
 
   @protected
@@ -181,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletInfo dco_decode_api_wallet_info(dynamic raw);
+
+  @protected
+  APIWalletProtection dco_decode_api_wallet_protection(dynamic raw);
 
   @protected
   APIWalletType dco_decode_api_wallet_type(dynamic raw);
@@ -432,6 +438,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIPolicyPath sse_decode_api_policy_path(SseDeserializer deserializer);
 
   @protected
+  APIProtectionType sse_decode_api_protection_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIPsbtAnalysis sse_decode_api_psbt_analysis(SseDeserializer deserializer);
 
   @protected
@@ -494,6 +505,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletInfo sse_decode_api_wallet_info(SseDeserializer deserializer);
+
+  @protected
+  APIWalletProtection sse_decode_api_wallet_protection(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIWalletType sse_decode_api_wallet_type(SseDeserializer deserializer);
@@ -797,6 +813,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_policy_path(APIPolicyPath self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_protection_type(
+    APIProtectionType self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_psbt_analysis(
     APIPsbtAnalysis self,
     SseSerializer serializer,
@@ -879,6 +901,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_wallet_info(APIWalletInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_wallet_protection(
+    APIWalletProtection self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_wallet_type(APIWalletType self, SseSerializer serializer);

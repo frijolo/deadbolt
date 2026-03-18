@@ -78,6 +78,27 @@ impl From<APINetwork> for Network {
     }
 }
 
+///////////////////////////
+// APIProtectionType     //
+///////////////////////////
+
+/// Which protection scheme wraps the per-wallet data key.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum APIProtectionType {
+    /// Wrapped with the device key (automatic, no password needed).
+    DeviceKey,
+    /// Wrapped with a key derived from a user password (Argon2id).
+    UserPassword,
+}
+
+/// Protection information returned as part of `APIWalletInfo`.
+#[derive(Debug, Clone)]
+pub struct APIWalletProtection {
+    pub protection_type: APIProtectionType,
+    /// True when this wallet requires a password to open.
+    pub needs_password: bool,
+}
+
 ///////////////////
 // APIWalletInfo //
 ///////////////////
@@ -89,6 +110,7 @@ pub struct APIWalletInfo {
     pub network: APINetwork,
     pub created_at: i64,
     pub last_synced_at: Option<i64>,
+    pub protection: APIWalletProtection,
 }
 
 ///////////////////

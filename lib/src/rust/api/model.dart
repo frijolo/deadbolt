@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -334,6 +334,15 @@ class APIPolicyPath {
           runtimeType == other.runtimeType &&
           policyId == other.policyId &&
           path == other.path;
+}
+
+/// Which protection scheme wraps the per-wallet data key.
+enum APIProtectionType {
+  /// Wrapped with the device key (automatic, no password needed).
+  deviceKey,
+
+  /// Wrapped with a key derived from a user password (Argon2id).
+  userPassword,
 }
 
 class APIPsbtAnalysis {
@@ -1062,6 +1071,7 @@ class APIWalletInfo {
   final APINetwork network;
   final PlatformInt64 createdAt;
   final PlatformInt64? lastSyncedAt;
+  final APIWalletProtection protection;
 
   const APIWalletInfo({
     required this.walletPath,
@@ -1070,6 +1080,7 @@ class APIWalletInfo {
     required this.network,
     required this.createdAt,
     this.lastSyncedAt,
+    required this.protection,
   });
 
   @override
@@ -1079,7 +1090,8 @@ class APIWalletInfo {
       descriptor.hashCode ^
       network.hashCode ^
       createdAt.hashCode ^
-      lastSyncedAt.hashCode;
+      lastSyncedAt.hashCode ^
+      protection.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1091,7 +1103,32 @@ class APIWalletInfo {
           descriptor == other.descriptor &&
           network == other.network &&
           createdAt == other.createdAt &&
-          lastSyncedAt == other.lastSyncedAt;
+          lastSyncedAt == other.lastSyncedAt &&
+          protection == other.protection;
+}
+
+/// Protection information returned as part of `APIWalletInfo`.
+class APIWalletProtection {
+  final APIProtectionType protectionType;
+
+  /// True when this wallet requires a password to open.
+  final bool needsPassword;
+
+  const APIWalletProtection({
+    required this.protectionType,
+    required this.needsPassword,
+  });
+
+  @override
+  int get hashCode => protectionType.hashCode ^ needsPassword.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIWalletProtection &&
+          runtimeType == other.runtimeType &&
+          protectionType == other.protectionType &&
+          needsPassword == other.needsPassword;
 }
 
 enum APIWalletType {

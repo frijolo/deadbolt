@@ -155,6 +155,11 @@ class WalletDetailLoaded extends WalletDetailState {
 // Sentinel used by copyWith to distinguish "not provided" from explicit null.
 const Object _keep = Object();
 
+class WalletDetailNeedsPassword extends WalletDetailState {
+  final String walletPath;
+  WalletDetailNeedsPassword(this.walletPath);
+}
+
 class WalletDetailError extends WalletDetailState {
   final String message;
   WalletDetailError(this.message);
@@ -210,10 +215,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  Future<void> load(String walletPath) async {
+  Future<void> load(String walletPath, {String? password}) async {
     emit(WalletDetailLoading());
     try {
-      final handle = await _service.openWallet(walletPath);
+      // Cache the password if provided so subsequent operations can use it.
+      if (password != null) _service.cachePassword(walletPath, password);
+      final handle = await _service.openWallet(walletPath, password: password);
       final walletInfo = await handle.getInfo();
       final balance = await handle.getBalance();
       final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
@@ -253,8 +260,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Transactions tab without needing to visit the Descriptor tab first.
       _loadDescriptorAnalysis();
     } catch (e, stackTrace) {
-      logError('WalletDetailCubit.load()', e, stackTrace);
-      emit(WalletDetailError(formatRustError(e)));
+      final errMsg = formatRustError(e);
+      if (errMsg.contains('Password required')) {
+        emit(WalletDetailNeedsPassword(walletPath));
+      } else {
+        logError('WalletDetailCubit.load()', e, stackTrace);
+        emit(WalletDetailError(errMsg));
+      }
     }
   }
 

@@ -45,12 +45,16 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
     required String name,
     required String descriptor,
     required APINetwork network,
+    APIProtectionType protectionType = APIProtectionType.deviceKey,
+    String? password,
   }) async {
     try {
       final info = await _service.createWallet(
         name: name,
         descriptor: descriptor,
         network: network,
+        protectionType: protectionType,
+        password: password,
       );
       await refresh();
       return info.walletPath;

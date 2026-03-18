@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `aes_gcm_decrypt`, `aes_gcm_encrypt`, `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -26,36 +26,46 @@ Future<APIWalletInfo> createWallet({
   required String name,
   required String descriptor,
   required APINetwork network,
-  required String encryptionKeyHex,
+  required String deviceKeyHex,
+  required APIProtectionType protectionType,
+  String? password,
 }) => RustLib.instance.api.crateApiWalletCreateWallet(
   walletsDir: walletsDir,
   name: name,
   descriptor: descriptor,
   network: network,
-  encryptionKeyHex: encryptionKeyHex,
+  deviceKeyHex: deviceKeyHex,
+  protectionType: protectionType,
+  password: password,
 );
 
 /// Read metadata from an existing wallet file.
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
 Future<APIWalletInfo> getWalletInfo({
   required String walletPath,
-  required String encryptionKeyHex,
+  required String deviceKeyHex,
+  String? password,
 }) => RustLib.instance.api.crateApiWalletGetWalletInfo(
   walletPath: walletPath,
-  encryptionKeyHex: encryptionKeyHex,
+  deviceKeyHex: deviceKeyHex,
+  password: password,
 );
 
 /// Rename a wallet (updates wallet_info.name in the file).
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
 Future<void> renameWallet({
   required String walletPath,
   required String name,
-  required String encryptionKeyHex,
+  required String deviceKeyHex,
+  String? password,
 }) => RustLib.instance.api.crateApiWalletRenameWallet(
   walletPath: walletPath,
   name: name,
-  encryptionKeyHex: encryptionKeyHex,
+  deviceKeyHex: deviceKeyHex,
+  password: password,
 );
 
-/// Delete a wallet's .db, .db-wal, and .db-shm files. No encryption key needed.
+/// Delete a wallet's .db, .db-wal, .db-shm, and .db.meta files.
 Future<void> deleteWallet({required String walletPath}) =>
     RustLib.instance.api.crateApiWalletDeleteWallet(walletPath: walletPath);
 
@@ -63,12 +73,61 @@ Future<void> deleteWallet({required String walletPath}) =>
 ///
 /// Reads descriptor and network from wallet_info inside the encrypted file,
 /// then opens the BDK wallet in a single SQLite connection.
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
 Future<ApiWallet> openWallet({
   required String walletPath,
-  required String encryptionKeyHex,
+  required String deviceKeyHex,
+  String? password,
 }) => RustLib.instance.api.crateApiWalletOpenWallet(
   walletPath: walletPath,
-  encryptionKeyHex: encryptionKeyHex,
+  deviceKeyHex: deviceKeyHex,
+  password: password,
+);
+
+/// Check whether a wallet requires a password to open.
+Future<bool> walletRequiresPassword({required String walletPath}) => RustLib
+    .instance
+    .api
+    .crateApiWalletWalletRequiresPassword(walletPath: walletPath);
+
+/// Export a wallet to a self-contained encrypted `.deadbolt` backup.
+///
+/// The backup is always encrypted with `export_password` via Argon2id, so it is
+/// portable regardless of the original protection type.
+///
+/// The returned bytes should be saved as a `.deadbolt` file.
+Future<Uint8List> exportWalletBackup({
+  required String walletPath,
+  required String deviceKeyHex,
+  String? openPassword,
+  required String exportPassword,
+}) => RustLib.instance.api.crateApiWalletExportWalletBackup(
+  walletPath: walletPath,
+  deviceKeyHex: deviceKeyHex,
+  openPassword: openPassword,
+  exportPassword: exportPassword,
+);
+
+/// Import a `.deadbolt` backup and add it as a new wallet in `wallets_dir`.
+///
+/// Returns the `APIWalletInfo` of the restored wallet.
+Future<APIWalletInfo> importWalletBackup({
+  required List<int> backupBytes,
+  required String importPassword,
+  required String deviceKeyHex,
+  required String walletsDir,
+}) => RustLib.instance.api.crateApiWalletImportWalletBackup(
+  backupBytes: backupBytes,
+  importPassword: importPassword,
+  deviceKeyHex: deviceKeyHex,
+  walletsDir: walletsDir,
+);
+
+/// Inspect a `.deadbolt` backup and return its protection type without decrypting it.
+Future<APIProtectionType> inspectWalletBackup({
+  required List<int> backupBytes,
+}) => RustLib.instance.api.crateApiWalletInspectWalletBackup(
+  backupBytes: backupBytes,
 );
 
 /// Strip non-essential fields from a PSBT to reduce QR code size.

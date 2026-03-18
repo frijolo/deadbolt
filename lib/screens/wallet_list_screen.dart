@@ -1,16 +1,22 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -33,6 +39,7 @@ class WalletListScreen extends StatelessWidget {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               if (value == 'new') _showCreateDialog(context);
+              if (value == 'import') _importBackup(context);
             },
             itemBuilder: (_) => [
               PopupMenuItem(
@@ -42,6 +49,16 @@ class WalletListScreen extends StatelessWidget {
                     const Icon(Icons.add),
                     const SizedBox(width: 8),
                     Text(l10n.menuNew),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'import',
+                child: Row(
+                  children: [
+                    Icon(Icons.restore_outlined),
+                    SizedBox(width: 8),
+                    Text('Import wallet'),
                   ],
                 ),
               ),
@@ -252,6 +269,73 @@ class WalletListScreen extends StatelessWidget {
           builder: (_) => WalletDetailScreen(walletPath: walletPath),
         ),
       );
+    }
+  }
+
+  Future<void> _importBackup(BuildContext context) async {
+    // 1. Pick the .deadbolt file
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return;
+
+    if (!context.mounted) return;
+
+    // 2. Inspect backup to determine protection type
+    APIProtectionType backupType;
+    try {
+      backupType = await rust_wallet.inspectWalletBackup(backupBytes: bytes);
+    } catch (e) {
+      if (context.mounted) showErrorToast(context, formatRustError(e));
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    // 3. Prompt for import password
+    final importSubtitle = backupType == APIProtectionType.userPassword
+        ? 'This backup is password-protected.'
+        : 'Enter the password that was used when exporting this backup.';
+    final importPassword = await showPasswordPrompt(
+      context,
+      title: 'Enter backup password',
+      subtitle: importSubtitle,
+    );
+    if (importPassword == null) return;
+
+    if (!context.mounted) return;
+
+    // 4. Import
+    try {
+      final service = WalletService();
+      final deviceKey = await service.getOrCreateEncryptionKey();
+      final walletsDir = await service.getWalletsDir();
+
+      final info = await rust_wallet.importWalletBackup(
+        backupBytes: bytes,
+        importPassword: importPassword,
+        deviceKeyHex: deviceKey,
+        walletsDir: walletsDir,
+      );
+
+      if (!context.mounted) return;
+
+      // Refresh list
+      await context.read<WalletListCubit>().refresh();
+
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WalletDetailScreen(walletPath: info.walletPath),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) showErrorToast(context, formatRustError(e));
     }
   }
 

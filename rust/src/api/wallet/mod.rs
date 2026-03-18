@@ -5,14 +5,18 @@ use flutter_rust_bridge::frb;
 
 use crate::api::model::{
     APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIImportPsbtResult, APIKeychain,
-    APINetwork, APIPolicyPath, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo,
-    APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APITransaction, APITransactionPage,
-    APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
+    APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
+    APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
+    APITransaction, APITransactionPage, APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
+    APIWalletProtection,
 };
+use crate::core::key_protection::ProtectionMeta;
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
-    create_wallet_db, get_wallet_info_from_file, list_wallets_in_dir, rename_wallet_in_file,
+    create_wallet_db, generate_uuid_v4, get_wallet_info_from_file, list_wallets_in_dir,
+    rename_wallet_in_file, resolve_wallet_key, wallet_needs_password, WalletProtectionRequest,
 };
+use crate::core::wallet_meta::{delete_meta, read_meta};
 use crate::core::wallet_persistence::{
     address_has_explicit_label, coin_has_explicit_label, delete_psbt_row,
     ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
@@ -232,6 +236,7 @@ fn row_to_api_psbt(
 
 fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletInfo> {
     let network = APINetwork::try_from(row.network.as_str())?;
+    let protection = protection_for_path(&wallet_path);
     Ok(APIWalletInfo {
         wallet_path,
         name: row.name,
@@ -239,7 +244,21 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
         network,
         created_at: row.created_at,
         last_synced_at: row.last_synced_at,
+        protection,
     })
+}
+
+fn protection_for_path(wallet_path: &str) -> APIWalletProtection {
+    match read_meta(wallet_path) {
+        Ok(ProtectionMeta::UserPassword { .. }) => APIWalletProtection {
+            protection_type: APIProtectionType::UserPassword,
+            needs_password: true,
+        },
+        _ => APIWalletProtection {
+            protection_type: APIProtectionType::DeviceKey,
+            needs_password: false,
+        },
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -503,31 +522,54 @@ pub fn create_wallet(
     name: String,
     descriptor: String,
     network: APINetwork,
-    encryption_key_hex: String,
+    device_key_hex: String,
+    protection_type: APIProtectionType,
+    password: Option<String>,
 ) -> Result<APIWalletInfo> {
+    let protection = match protection_type {
+        APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
+        APIProtectionType::UserPassword => {
+            let pwd = password
+                .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
+            WalletProtectionRequest::UserPassword { password: pwd }
+        }
+    };
     let (path, row) = create_wallet_db(
         &wallets_dir,
         &name,
         &descriptor,
         network.as_str(),
-        &encryption_key_hex,
+        &device_key_hex,
+        protection,
     )?;
     row_to_api_info(path, row)
 }
 
 /// Read metadata from an existing wallet file.
-pub fn get_wallet_info(wallet_path: String, encryption_key_hex: String) -> Result<APIWalletInfo> {
-    let row = get_wallet_info_from_file(&wallet_path, &encryption_key_hex)?;
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
+pub fn get_wallet_info(
+    wallet_path: String,
+    device_key_hex: String,
+    password: Option<String>,
+) -> Result<APIWalletInfo> {
+    let row = get_wallet_info_from_file(&wallet_path, &device_key_hex, password.as_deref())?;
     row_to_api_info(wallet_path, row)
 }
 
 /// Rename a wallet (updates wallet_info.name in the file).
-pub fn rename_wallet(wallet_path: String, name: String, encryption_key_hex: String) -> Result<()> {
-    rename_wallet_in_file(&wallet_path, &name, &encryption_key_hex)
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
+pub fn rename_wallet(
+    wallet_path: String,
+    name: String,
+    device_key_hex: String,
+    password: Option<String>,
+) -> Result<()> {
+    rename_wallet_in_file(&wallet_path, &name, &device_key_hex, password.as_deref())
 }
 
-/// Delete a wallet's .db, .db-wal, and .db-shm files. No encryption key needed.
+/// Delete a wallet's .db, .db-wal, .db-shm, and .db.meta files.
 pub fn delete_wallet(wallet_path: String) -> Result<()> {
+    delete_meta(&wallet_path);
     for suffix in ["", "-wal", "-shm"] {
         let p = format!("{}{}", wallet_path, suffix);
         if std::path::Path::new(&p).exists() {
@@ -541,20 +583,31 @@ pub fn delete_wallet(wallet_path: String) -> Result<()> {
 ///
 /// Reads descriptor and network from wallet_info inside the encrypted file,
 /// then opens the BDK wallet in a single SQLite connection.
-pub fn open_wallet(wallet_path: String, encryption_key_hex: String) -> Result<APIWallet> {
+/// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
+pub fn open_wallet(
+    wallet_path: String,
+    device_key_hex: String,
+    password: Option<String>,
+) -> Result<APIWallet> {
+    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, password.as_deref())?;
     let (descriptor, network) = {
-        let conn = open_encrypted_connection(&wallet_path, &encryption_key_hex)?;
+        let conn = open_encrypted_connection(&wallet_path, &data_key)?;
         let row = read_wallet_info(&conn)?;
         let network: bdk_wallet::bitcoin::Network =
             APINetwork::try_from(row.network.as_str())?.into();
         (row.descriptor, network)
     };
-    let core = CoreWallet::open(&wallet_path, &descriptor, network, &encryption_key_hex)?;
+    let core = CoreWallet::open(&wallet_path, &descriptor, network, &data_key)?;
     Ok(APIWallet {
         inner: Mutex::new(core),
         path: wallet_path,
         electrum_url: Mutex::new(String::new()),
     })
+}
+
+/// Check whether a wallet requires a password to open.
+pub fn wallet_requires_password(wallet_path: String) -> bool {
+    wallet_needs_password(&wallet_path)
 }
 
 /// Live wallet handle. Open once with [open_wallet], then call methods directly.
@@ -568,6 +621,227 @@ pub struct APIWallet {
 }
 
 impl APIWallet {}
+
+// ---------------------------------------------------------------------------
+// Backup functions (.deadbolt format)
+// ---------------------------------------------------------------------------
+//
+// Format v1:
+// {
+//   "version": 1,
+//   "wallet_name": "...",
+//   "network": "bitcoin",
+//   "created_at": 1234567890,
+//   "protection": { "type": 1, "salt": "<hex>", "m_cost": 65536, "t_cost": 3, "p_cost": 1 },
+//   "data_key_wrapped": "<hex(nonce||AES-GCM(export_key, data_key_bytes))>",
+//   "data": "<base64(nonce||AES-GCM(export_key, raw_sqlcipher_db_bytes))>"
+// }
+//
+// The backup password always protects both the raw DB file and the data_key.
+// On import: derive export_key → unwrap data_key → decrypt DB → re-key to new data_key.
+
+fn aes_gcm_encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
+    use aes_gcm::{
+        aead::{Aead, KeyInit},
+        Aes256Gcm, Nonce,
+    };
+    use rand::rngs::OsRng;
+    use rand::TryRngCore;
+
+    let key_bytes = hex::decode(key_hex)?;
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+        .map_err(|e| anyhow::anyhow!("AES-GCM key init: {}", e))?;
+    let mut nonce_bytes = [0u8; 12];
+    OsRng
+        .try_fill_bytes(&mut nonce_bytes)
+        .expect("OS RNG failed");
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ct = cipher
+        .encrypt(nonce, plaintext)
+        .map_err(|e| anyhow::anyhow!("AES-GCM encrypt: {}", e))?;
+    let mut out = nonce_bytes.to_vec();
+    out.extend_from_slice(&ct);
+    Ok(out)
+}
+
+fn aes_gcm_decrypt(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
+    use aes_gcm::{
+        aead::{Aead, KeyInit},
+        Aes256Gcm, Nonce,
+    };
+    if ciphertext.len() < 12 {
+        return Err(anyhow::anyhow!("Ciphertext too short"));
+    }
+    let key_bytes = hex::decode(key_hex)?;
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+        .map_err(|e| anyhow::anyhow!("AES-GCM key init: {}", e))?;
+    let nonce = Nonce::from_slice(&ciphertext[..12]);
+    cipher
+        .decrypt(nonce, &ciphertext[12..])
+        .map_err(|_| anyhow::anyhow!("Decryption failed — wrong password or corrupted data"))
+}
+
+/// Export a wallet to a self-contained encrypted `.deadbolt` backup.
+///
+/// The backup is always encrypted with `export_password` via Argon2id, so it is
+/// portable regardless of the original protection type.
+///
+/// The returned bytes should be saved as a `.deadbolt` file.
+pub fn export_wallet_backup(
+    wallet_path: String,
+    device_key_hex: String,
+    open_password: Option<String>,
+    export_password: String,
+) -> Result<Vec<u8>> {
+    use crate::core::key_protection::{
+        derive_key_from_password, generate_salt, DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
+    };
+    use base64::{engine::general_purpose, Engine as _};
+
+    // Resolve the data key to verify access
+    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
+
+    // Read wallet info for metadata
+    let conn = open_encrypted_connection(&wallet_path, &data_key)?;
+    let row = read_wallet_info(&conn)?;
+    drop(conn);
+
+    // Read raw DB bytes (SQLCipher-encrypted with data_key)
+    let db_bytes = std::fs::read(&wallet_path)?;
+
+    // Derive export key from export_password
+    let salt = generate_salt();
+    let export_key = derive_key_from_password(
+        &export_password,
+        &salt,
+        DEFAULT_M_COST,
+        DEFAULT_T_COST,
+        DEFAULT_P_COST,
+    )?;
+
+    // Encrypt raw DB bytes with export_key
+    let encrypted_db = aes_gcm_encrypt(&export_key, &db_bytes)?;
+    let data_b64 = general_purpose::STANDARD.encode(&encrypted_db);
+
+    // Wrap data_key with export_key so the importer can re-key the DB
+    let data_key_bytes = hex::decode(&data_key)?;
+    let encrypted_data_key = aes_gcm_encrypt(&export_key, &data_key_bytes)?;
+    let data_key_wrapped = hex::encode(&encrypted_data_key);
+
+    let backup = serde_json::json!({
+        "version": 1,
+        "wallet_name": row.name,
+        "network": row.network,
+        "created_at": row.created_at,
+        "protection": {
+            "type": 1,
+            "salt": salt,
+            "m_cost": DEFAULT_M_COST,
+            "t_cost": DEFAULT_T_COST,
+            "p_cost": DEFAULT_P_COST
+        },
+        "data_key_wrapped": data_key_wrapped,
+        "data": data_b64
+    });
+
+    Ok(serde_json::to_vec(&backup)?)
+}
+
+/// Import a `.deadbolt` backup and add it as a new wallet in `wallets_dir`.
+///
+/// Returns the `APIWalletInfo` of the restored wallet.
+pub fn import_wallet_backup(
+    backup_bytes: Vec<u8>,
+    import_password: String,
+    device_key_hex: String,
+    wallets_dir: String,
+) -> Result<APIWalletInfo> {
+    use crate::core::key_protection::{
+        derive_key_from_password, generate_data_key, wrap_key, ProtectionMeta,
+    };
+    use crate::core::wallet_meta::write_meta;
+    use base64::{engine::general_purpose, Engine as _};
+
+    let backup: serde_json::Value = serde_json::from_slice(&backup_bytes)
+        .map_err(|e| anyhow::anyhow!("Invalid backup format: {}", e))?;
+
+    let version = backup["version"]
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("Missing version in backup"))?;
+    if version != 1 {
+        return Err(anyhow::anyhow!("Unsupported backup version: {}", version));
+    }
+
+    let protection = &backup["protection"];
+    let salt = protection["salt"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing salt in backup"))?;
+    let m_cost = protection["m_cost"].as_u64().unwrap_or(65536) as u32;
+    let t_cost = protection["t_cost"].as_u64().unwrap_or(3) as u32;
+    let p_cost = protection["p_cost"].as_u64().unwrap_or(1) as u32;
+
+    let data_b64 = backup["data"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing data in backup"))?;
+    let data_key_wrapped_hex = backup["data_key_wrapped"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing data_key_wrapped in backup"))?;
+
+    // Derive import key
+    let import_key = derive_key_from_password(&import_password, salt, m_cost, t_cost, p_cost)?;
+
+    // Unwrap the original data_key
+    let data_key_encrypted = hex::decode(data_key_wrapped_hex)?;
+    let data_key_bytes = aes_gcm_decrypt(&import_key, &data_key_encrypted)?;
+    let data_key = hex::encode(&data_key_bytes);
+
+    // Decrypt raw DB bytes
+    let encrypted_db = general_purpose::STANDARD
+        .decode(data_b64)
+        .map_err(|e| anyhow::anyhow!("base64 decode: {}", e))?;
+    let db_bytes = aes_gcm_decrypt(&import_key, &encrypted_db)?;
+
+    // Write restored DB to wallets_dir with a new UUID filename
+    std::fs::create_dir_all(&wallets_dir)?;
+    let uuid = generate_uuid_v4();
+    let path = std::path::Path::new(&wallets_dir)
+        .join(format!("{}.db", uuid))
+        .to_string_lossy()
+        .to_string();
+
+    // Write raw DB bytes (SQLCipher-encrypted with original data_key)
+    std::fs::write(&path, &db_bytes)?;
+
+    // Re-key to a fresh data_key and create DeviceKey meta
+    let new_data_key = generate_data_key();
+    crate::core::wallet_persistence::rekey_database(&path, &data_key, &new_data_key)?;
+
+    let wrapped_key = wrap_key(&new_data_key, &device_key_hex)?;
+    let meta = ProtectionMeta::DeviceKey {
+        version: 1,
+        wrapped_key,
+    };
+    write_meta(&path, &meta)?;
+
+    // Read info from the restored wallet
+    let conn = crate::core::wallet_persistence::open_encrypted_connection(&path, &new_data_key)?;
+    let row = crate::core::wallet_persistence::read_wallet_info(&conn)?;
+    drop(conn);
+
+    row_to_api_info(path, row)
+}
+
+/// Inspect a `.deadbolt` backup and return its protection type without decrypting it.
+pub fn inspect_wallet_backup(backup_bytes: Vec<u8>) -> Result<APIProtectionType> {
+    let backup: serde_json::Value = serde_json::from_slice(&backup_bytes)
+        .map_err(|e| anyhow::anyhow!("Invalid backup format: {}", e))?;
+    let ptype = backup["protection"]["type"].as_u64().unwrap_or(0);
+    Ok(if ptype == 1 {
+        APIProtectionType::UserPassword
+    } else {
+        APIProtectionType::DeviceKey
+    })
+}
 
 /// Strip non-essential fields from a PSBT to reduce QR code size.
 ///
@@ -614,6 +888,8 @@ mod tests {
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
             KEY_HEX.to_string(),
+            APIProtectionType::DeviceKey,
+            None,
         )
     }
 
@@ -634,7 +910,7 @@ mod tests {
         let dir = tempdir()?;
         let info = make_wallet(&dir)?;
 
-        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string())?;
+        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
         let balance = handle.get_balance()?;
 
         assert_eq!(balance.confirmed, 0);
@@ -649,7 +925,7 @@ mod tests {
         let dir = tempdir()?;
         let info = make_wallet(&dir)?;
 
-        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string())?;
+        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
         let page = handle.get_transactions(0, 20)?;
 
         assert_eq!(page.total_count, 0);
@@ -663,7 +939,7 @@ mod tests {
         let dir = tempdir()?;
         let info = make_wallet(&dir)?;
 
-        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string())?;
+        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
         let page = handle.get_transactions(10, 20)?;
 
         assert_eq!(page.total_count, 0);
@@ -677,7 +953,7 @@ mod tests {
         let dir = tempdir()?;
         let info = make_wallet(&dir)?;
 
-        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string())?;
+        let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
         let b1 = handle.get_balance()?;
         let b2 = handle.get_balance()?;
 
@@ -690,7 +966,7 @@ mod tests {
         let dir = tempdir()?;
         let info = make_wallet(&dir)?;
 
-        let handle = open_wallet(info.wallet_path.clone(), KEY_HEX.to_string())?;
+        let handle = open_wallet(info.wallet_path.clone(), KEY_HEX.to_string(), None)?;
         let fetched = handle.get_info()?;
 
         assert_eq!(fetched.name, "Test Wallet");
@@ -710,6 +986,8 @@ mod tests {
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
             KEY_HEX.to_string(),
+            APIProtectionType::DeviceKey,
+            None,
         )?;
         create_wallet(
             wallets_dir.clone(),
@@ -717,6 +995,8 @@ mod tests {
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
             KEY_HEX.to_string(),
+            APIProtectionType::DeviceKey,
+            None,
         )?;
 
         let list = list_wallets(wallets_dir, KEY_HEX.to_string())?;
@@ -733,9 +1013,10 @@ mod tests {
             info.wallet_path.clone(),
             "Renamed".to_string(),
             KEY_HEX.to_string(),
+            None,
         )?;
 
-        let updated = get_wallet_info(info.wallet_path, KEY_HEX.to_string())?;
+        let updated = get_wallet_info(info.wallet_path, KEY_HEX.to_string(), None)?;
         assert_eq!(updated.name, "Renamed");
         Ok(())
     }
