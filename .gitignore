@@ -115,3 +115,5 @@ lcov.info
 *.db-wal
 *.sqlite
 *.sqlite3
+
+memory/
