@@ -103,6 +103,40 @@ pub fn derive_key_from_password(
     Ok(hex::encode(output))
 }
 
+/// AES-256-GCM encrypt arbitrary bytes under `key_hex`.
+/// Returns `nonce[12] || ciphertext || tag`.
+pub fn encrypt_bytes(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
+    let key_bytes = hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key_bytes).map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
+    let mut nonce_bytes = [0u8; 12];
+    OsRng
+        .try_fill_bytes(&mut nonce_bytes)
+        .expect("OS RNG failed");
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ct = cipher
+        .encrypt(nonce, plaintext)
+        .map_err(|e| anyhow!("AES-GCM encrypt: {}", e))?;
+    let mut out = nonce_bytes.to_vec();
+    out.extend_from_slice(&ct);
+    Ok(out)
+}
+
+/// AES-256-GCM decrypt bytes produced by [`encrypt_bytes`].
+/// Input must be `nonce[12] || ciphertext || tag`.
+pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
+    if ciphertext.len() < 12 {
+        return Err(anyhow!("Ciphertext too short"));
+    }
+    let key_bytes = hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key_bytes).map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
+    let nonce = Nonce::from_slice(&ciphertext[..12]);
+    cipher
+        .decrypt(nonce, &ciphertext[12..])
+        .map_err(|_| anyhow!("Decryption failed — wrong password or corrupted data"))
+}
+
 /// Default Argon2id parameters (~300ms on a modern CPU).
 pub const DEFAULT_M_COST: u32 = 65536;
 pub const DEFAULT_T_COST: u32 = 3;

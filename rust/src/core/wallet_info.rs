@@ -3,10 +3,10 @@ use rand::rngs::OsRng;
 use rand::TryRngCore;
 
 use crate::core::key_protection::{
-    generate_data_key, generate_salt, wrap_key, ProtectionMeta, DEFAULT_M_COST, DEFAULT_P_COST,
-    DEFAULT_T_COST,
+    generate_data_key, generate_salt, resolve_data_key, wrap_key, ProtectionMeta, DEFAULT_M_COST,
+    DEFAULT_P_COST, DEFAULT_T_COST,
 };
-use crate::core::wallet_meta::{meta_exists, read_meta, write_meta};
+use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
     load_or_create_wallet, open_encrypted_connection, read_wallet_info, rekey_database,
     upsert_wallet_info, WalletInfoRow,
@@ -163,23 +163,31 @@ pub fn list_wallets_in_dir(
         }
         let path_str = path.to_string_lossy().to_string();
 
-        // Migrate legacy wallet (no .meta sidecar) — use device key directly
-        if !meta_exists(&path_str) {
-            if let Err(e) = migrate_legacy_wallet(&path_str, device_key_hex) {
-                // If migration fails (e.g. wrong key), skip silently
-                eprintln!("Wallet migration skipped for '{}': {}", path_str, e);
-                continue;
+        // Read the .meta sidecar (single filesystem read per wallet).
+        // If absent, the wallet predates the key-envelope format — migrate it first.
+        let meta = match read_meta(&path_str) {
+            Ok(m) => m,
+            Err(_) => {
+                if let Err(e) = migrate_legacy_wallet(&path_str, device_key_hex) {
+                    eprintln!("Wallet migration skipped for '{}': {}", path_str, e);
+                    continue;
+                }
+                match read_meta(&path_str) {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                }
             }
+        };
+
+        // UserPassword wallets cannot be listed without the password — skip.
+        if matches!(meta, ProtectionMeta::UserPassword { .. }) {
+            continue;
         }
 
-        // Now read via resolved key
-        let key = match resolve_wallet_key(&path_str, device_key_hex, None) {
+        // DeviceKey wallet — resolve key directly from the already-read meta.
+        let key = match resolve_data_key(&meta, device_key_hex) {
             Ok(k) => k,
-            Err(_) => {
-                // UserPassword wallets cannot be listed without the password.
-                // They will appear once the user opens them and the metadata is cached.
-                continue;
-            }
+            Err(_) => continue,
         };
 
         let conn = match open_encrypted_connection(&path_str, &key) {

@@ -10,7 +10,7 @@ use crate::api::model::{
     APITransaction, APITransactionPage, APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
     APIWalletProtection,
 };
-use crate::core::key_protection::ProtectionMeta;
+use crate::core::key_protection::{decrypt_bytes, encrypt_bytes, ProtectionMeta};
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
     create_wallet_db, generate_uuid_v4, get_wallet_info_from_file, list_wallets_in_dir,
@@ -640,47 +640,6 @@ impl APIWallet {}
 // The backup password always protects both the raw DB file and the data_key.
 // On import: derive export_key → unwrap data_key → decrypt DB → re-key to new data_key.
 
-fn aes_gcm_encrypt(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
-    use aes_gcm::{
-        aead::{Aead, KeyInit},
-        Aes256Gcm, Nonce,
-    };
-    use rand::rngs::OsRng;
-    use rand::TryRngCore;
-
-    let key_bytes = hex::decode(key_hex)?;
-    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
-        .map_err(|e| anyhow::anyhow!("AES-GCM key init: {}", e))?;
-    let mut nonce_bytes = [0u8; 12];
-    OsRng
-        .try_fill_bytes(&mut nonce_bytes)
-        .expect("OS RNG failed");
-    let nonce = Nonce::from_slice(&nonce_bytes);
-    let ct = cipher
-        .encrypt(nonce, plaintext)
-        .map_err(|e| anyhow::anyhow!("AES-GCM encrypt: {}", e))?;
-    let mut out = nonce_bytes.to_vec();
-    out.extend_from_slice(&ct);
-    Ok(out)
-}
-
-fn aes_gcm_decrypt(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
-    use aes_gcm::{
-        aead::{Aead, KeyInit},
-        Aes256Gcm, Nonce,
-    };
-    if ciphertext.len() < 12 {
-        return Err(anyhow::anyhow!("Ciphertext too short"));
-    }
-    let key_bytes = hex::decode(key_hex)?;
-    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
-        .map_err(|e| anyhow::anyhow!("AES-GCM key init: {}", e))?;
-    let nonce = Nonce::from_slice(&ciphertext[..12]);
-    cipher
-        .decrypt(nonce, &ciphertext[12..])
-        .map_err(|_| anyhow::anyhow!("Decryption failed — wrong password or corrupted data"))
-}
-
 /// Export a wallet to a self-contained encrypted `.deadbolt` backup.
 ///
 /// The backup is always encrypted with `export_password` via Argon2id, so it is
@@ -720,12 +679,12 @@ pub fn export_wallet_backup(
     )?;
 
     // Encrypt raw DB bytes with export_key
-    let encrypted_db = aes_gcm_encrypt(&export_key, &db_bytes)?;
+    let encrypted_db = encrypt_bytes(&export_key, &db_bytes)?;
     let data_b64 = general_purpose::STANDARD.encode(&encrypted_db);
 
     // Wrap data_key with export_key so the importer can re-key the DB
     let data_key_bytes = hex::decode(&data_key)?;
-    let encrypted_data_key = aes_gcm_encrypt(&export_key, &data_key_bytes)?;
+    let encrypted_data_key = encrypt_bytes(&export_key, &data_key_bytes)?;
     let data_key_wrapped = hex::encode(&encrypted_data_key);
 
     let backup = serde_json::json!({
@@ -792,14 +751,14 @@ pub fn import_wallet_backup(
 
     // Unwrap the original data_key
     let data_key_encrypted = hex::decode(data_key_wrapped_hex)?;
-    let data_key_bytes = aes_gcm_decrypt(&import_key, &data_key_encrypted)?;
+    let data_key_bytes = decrypt_bytes(&import_key, &data_key_encrypted)?;
     let data_key = hex::encode(&data_key_bytes);
 
     // Decrypt raw DB bytes
     let encrypted_db = general_purpose::STANDARD
         .decode(data_b64)
         .map_err(|e| anyhow::anyhow!("base64 decode: {}", e))?;
-    let db_bytes = aes_gcm_decrypt(&import_key, &encrypted_db)?;
+    let db_bytes = decrypt_bytes(&import_key, &encrypted_db)?;
 
     // Write restored DB to wallets_dir with a new UUID filename
     std::fs::create_dir_all(&wallets_dir)?;

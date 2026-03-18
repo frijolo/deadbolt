@@ -218,8 +218,16 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<void> load(String walletPath, {String? password}) async {
     emit(WalletDetailLoading());
     try {
-      // Cache the password if provided so subsequent operations can use it.
       if (password != null) _service.cachePassword(walletPath, password);
+      // If no password is available (provided or cached), check upfront whether
+      // one is required — avoids brittle string matching on the Rust error.
+      final effectivePassword =
+          password ?? _service.getCachedPassword(walletPath);
+      if (effectivePassword == null &&
+          await _service.walletRequiresPassword(walletPath)) {
+        emit(WalletDetailNeedsPassword(walletPath));
+        return;
+      }
       final handle = await _service.openWallet(walletPath, password: password);
       final walletInfo = await handle.getInfo();
       final balance = await handle.getBalance();
@@ -260,13 +268,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Transactions tab without needing to visit the Descriptor tab first.
       _loadDescriptorAnalysis();
     } catch (e, stackTrace) {
-      final errMsg = formatRustError(e);
-      if (errMsg.contains('Password required')) {
-        emit(WalletDetailNeedsPassword(walletPath));
-      } else {
-        logError('WalletDetailCubit.load()', e, stackTrace);
-        emit(WalletDetailError(errMsg));
-      }
+      logError('WalletDetailCubit.load()', e, stackTrace);
+      emit(WalletDetailError(formatRustError(e)));
     }
   }
 
