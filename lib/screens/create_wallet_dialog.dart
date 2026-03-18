@@ -7,7 +7,9 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
+import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
@@ -15,12 +17,47 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
+/// Opens [CreateWalletDialog] pre-filled with [project], then navigates to
+/// [WalletDetailScreen] on success.  Shows an error toast if [project] has no
+/// descriptor.
+Future<void> createWalletFromProject(
+    BuildContext context, Project project) async {
+  if (project.descriptor.isEmpty) {
+    showErrorToast(context, context.l10n.projectHasNoDescriptor);
+    return;
+  }
+  final cubit = WalletListCubit();
+  final walletPath = await Navigator.push<String>(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => BlocProvider.value(
+        value: cubit,
+        child: CreateWalletDialog(cubit: cubit, preselectedProject: project),
+      ),
+    ),
+  );
+  if (walletPath != null && context.mounted) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WalletDetailScreen(walletPath: walletPath),
+      ),
+    );
+  }
+}
+
 enum _SourceMode { fromProject, manual }
 
 class CreateWalletDialog extends StatefulWidget {
   final WalletListCubit cubit;
+  final Project? preselectedProject;
 
-  const CreateWalletDialog({super.key, required this.cubit});
+  const CreateWalletDialog({
+    super.key,
+    required this.cubit,
+    this.preselectedProject,
+  });
 
   @override
   State<CreateWalletDialog> createState() => _CreateWalletDialogState();
@@ -35,6 +72,29 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   Project? _selectedProject;
   APINetwork _selectedNetwork = APINetwork.testnet;
   bool _isCreating = false;
+
+  // Sentinel used to detect "New project" selection in the dropdown.
+  static final _newProjectSentinel = Project(
+    id: -1,
+    name: '',
+    descriptor: '',
+    network: 'bitcoin',
+    walletType: 'p2wpkh',
+    createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preselectedProject != null) {
+      final p = widget.preselectedProject!;
+      _sourceMode = _SourceMode.fromProject;
+      _selectedProject = p;
+      _nameController.text = p.name;
+      _selectedNetwork = APINetwork.values.byName(p.network);
+    }
+  }
 
   @override
   void dispose() {
@@ -166,22 +226,40 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         .where((p) => p.descriptor.isNotEmpty)
         .toList();
 
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<Project>(
+        key: ValueKey(_selectedProject),
         initialValue: _selectedProject,
         decoration: InputDecoration(
           labelText: l10n.selectProjectLabel,
           border: const OutlineInputBorder(),
         ),
-        items: projects
-            .map((p) => DropdownMenuItem(
-                  value: p,
-                  child: Text(
-                      '${p.name} (${localizedNetworkDisplayName(context, p.network)})'),
-                ))
-            .toList(),
+        items: [
+          DropdownMenuItem(
+            value: _newProjectSentinel,
+            child: Row(
+              children: [
+                Icon(Icons.add_circle_outline, size: 16, color: primary),
+                const SizedBox(width: 8),
+                Text(l10n.newProjectEntry,
+                    style: TextStyle(color: primary)),
+              ],
+            ),
+          ),
+          ...projects.map((p) => DropdownMenuItem(
+                value: p,
+                child: Text(
+                    '${p.name} (${localizedNetworkDisplayName(context, p.network)})'),
+              )),
+        ],
         onChanged: (p) {
+          if (identical(p, _newProjectSentinel)) {
+            _openCreateProjectDialog(context);
+            return;
+          }
           setState(() {
             _selectedProject = p;
             if (p != null && _nameController.text.isEmpty) {
@@ -193,9 +271,41 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
             }
           });
         },
-        validator: (v) => v == null ? l10n.selectProjectLabel : null,
+        validator: (v) =>
+            (v == null || identical(v, _newProjectSentinel))
+                ? l10n.selectProjectLabel
+                : null,
       ),
     );
+  }
+
+  Future<void> _openCreateProjectDialog(BuildContext context) async {
+    final projectCubit = context.read<ProjectListCubit>();
+    final projectId = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => CreateProjectDialog(cubit: projectCubit),
+      ),
+    );
+    if (projectId == null || !mounted) return;
+
+    final state = projectCubit.state;
+    if (state is! ProjectListLoaded) return;
+
+    final newProject =
+        state.projects.where((p) => p.id == projectId).firstOrNull;
+    if (newProject == null) return;
+
+    setState(() {
+      _selectedProject = newProject;
+      if (_nameController.text.isEmpty) {
+        _nameController.text = newProject.name;
+      }
+      if (newProject.descriptor.isNotEmpty) {
+        _selectedNetwork = APINetwork.values.byName(newProject.network);
+      }
+    });
   }
 
   Widget _buildNetworkDropdown(BuildContext context) {
@@ -241,6 +351,8 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final desc = _activeDescriptor;
+    // Capture db before any async gap so context is safe to use
+    final db = context.read<AppDatabase>();
 
     // Validate descriptor ↔ network compatibility via Rust before any async work
     if (desc.isNotEmpty) {
@@ -257,18 +369,14 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
     setState(() => _isCreating = true);
     try {
-      final int? sourceProjectId =
-          _sourceMode == _SourceMode.fromProject ? _selectedProject!.id : null;
-
       final walletPath = await widget.cubit.createWallet(
         name: _nameController.text.trim(),
         descriptor: desc,
         network: _selectedNetwork,
-        sourceProjectId: sourceProjectId,
       );
 
       if (_sourceMode == _SourceMode.fromProject && _selectedProject != null) {
-        await _copyProjectLabels(_selectedProject!, walletPath);
+        await _copyProjectLabels(_selectedProject!, walletPath, db);
       }
 
       if (mounted) Navigator.pop(context, walletPath);
@@ -278,16 +386,18 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     }
   }
 
-  Future<void> _copyProjectLabels(Project project, String walletPath) async {
+  Future<void> _copyProjectLabels(
+      Project project, String walletPath, AppDatabase db) async {
     try {
-      final db = AppDatabase();
-      final keys = await db.getKeysForProject(project.id);
-      final paths = await db.getSpendPathsForProject(project.id);
+      final (keys, paths) = await (
+        db.getKeysForProject(project.id),
+        db.getSpendPathsForProject(project.id),
+      ).wait;
 
       final labeledKeys =
           keys.where((k) => k.customName != null && k.customName!.isNotEmpty);
-      final labeledPaths = paths
-          .where((p) => p.customName != null && p.customName!.isNotEmpty);
+      final labeledPaths =
+          paths.where((p) => p.customName != null && p.customName!.isNotEmpty);
 
       if (labeledKeys.isEmpty && labeledPaths.isEmpty) return;
 

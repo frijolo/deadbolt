@@ -275,6 +275,13 @@
 
   "walletsTitle": "Wallets",
   "noWallets": "No wallets yet.\nTap + to create one.",
+  "noWalletsGuidedTitle": "No wallets yet",
+  "noWalletsGuidedBody": "Step 1: Go to Designer to analyze your descriptor.\nStep 2: Come back here to create a wallet from it.",
+  "goToDesigner": "Go to Designer",
+  "enterDescriptorManually": "I already have a descriptor",
+  "createWalletFromProject": "Create wallet",
+  "generateProjectFromWallet": "Analyze in Designer",
+  "projectHasNoDescriptor": "This project has no descriptor yet. Build one first.",
   "loadingWallets": "Loading wallets...",
   "deleteWalletTitle": "Delete wallet",
   "deleteWalletConfirm": "Delete \"{name}\"?",
@@ -290,6 +297,7 @@
   "sourceProjectFromProject": "From project",
   "sourceProjectManual": "Manual descriptor",
   "selectProjectLabel": "Select project",
+  "newProjectEntry": "New project…",
   "createWalletButton": "Create Wallet",
   "creatingWallet": "Creating wallet...",
 

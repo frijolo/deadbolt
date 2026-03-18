@@ -613,6 +613,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noWallets => 'No wallets yet.\nTap + to create one.';
 
   @override
+  String get noWalletsGuidedTitle => 'No wallets yet';
+
+  @override
+  String get noWalletsGuidedBody =>
+      'Step 1: Go to Designer to analyze your descriptor.\nStep 2: Come back here to create a wallet from it.';
+
+  @override
+  String get goToDesigner => 'Go to Designer';
+
+  @override
+  String get enterDescriptorManually => 'I already have a descriptor';
+
+  @override
+  String get createWalletFromProject => 'Create wallet';
+
+  @override
+  String get generateProjectFromWallet => 'Analyze in Designer';
+
+  @override
+  String get projectHasNoDescriptor =>
+      'This project has no descriptor yet. Build one first.';
+
+  @override
   String get loadingWallets => 'Loading wallets...';
 
   @override
@@ -643,6 +666,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectProjectLabel => 'Select project';
+
+  @override
+  String get newProjectEntry => 'New project…';
 
   @override
   String get createWalletButton => 'Create Wallet';

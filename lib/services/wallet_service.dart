@@ -60,7 +60,6 @@ class WalletService {
     required String name,
     required String descriptor,
     required APINetwork network,
-    int? sourceProjectId,
   }) async {
     final walletsDir = await getWalletsDir();
     final keyHex = await getOrCreateEncryptionKey();
@@ -69,7 +68,6 @@ class WalletService {
       name: name.isEmpty ? 'Unnamed wallet' : name,
       descriptor: descriptor,
       network: network,
-      sourceProjectId: sourceProjectId,
       encryptionKeyHex: keyHex,
     );
   }

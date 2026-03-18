@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
+import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -34,6 +36,7 @@ import 'package:deadbolt/widgets/text_export_sheet.dart'
 import 'package:deadbolt/widgets/text_import_sheet.dart'
     show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
+import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 class WalletDetailScreen extends StatelessWidget {
@@ -144,6 +147,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         _exportWithChoice(context, state);
       case _WalletMenuAction.importLabels:
         _importWithChoice(context, state);
+      case _WalletMenuAction.generateProject:
+        _generateProjectFromWallet(context, state);
     }
   }
 
@@ -172,6 +177,88 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         child: _ReceiveDialog(address: unused),
       ),
     );
+  }
+
+  Future<void> _generateProjectFromWallet(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    final projectCubit = context.read<ProjectListCubit>();
+    final db = context.read<AppDatabase>();
+
+    final existingProject = projectCubit.state is ProjectListLoaded
+        ? (projectCubit.state as ProjectListLoaded)
+            .projects
+            .where((p) => p.descriptor == state.walletInfo.descriptor)
+            .firstOrNull
+        : null;
+
+    if (existingProject != null && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProjectDetailScreen(
+            db: db,
+            projectId: existingProject.id,
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final projectId = await projectCubit.createProject(
+        descriptor: state.walletInfo.descriptor,
+        name: state.walletInfo.name,
+      );
+      if (!context.mounted) return;
+      await _copyWalletLabelsToProject(
+        db: db,
+        projectId: projectId,
+        keyLabels: state.keyLabels,
+        pathLabels: state.pathLabels,
+      );
+      if (!context.mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProjectDetailScreen(
+            db: db,
+            projectId: projectId,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        showErrorToast(context, formatRustError(e));
+      }
+    }
+  }
+
+  Future<void> _copyWalletLabelsToProject({
+    required AppDatabase db,
+    required int projectId,
+    required Map<String, String> keyLabels,
+    required Map<int, String> pathLabels,
+  }) async {
+    try {
+      final keys = await db.getKeysForProject(projectId);
+      for (final key in keys) {
+        final label = keyLabels[key.mfp];
+        if (label != null && label.isNotEmpty) {
+          await db.updateKeyName(key.id, label);
+        }
+      }
+      final paths = await db.getSpendPathsForProject(projectId);
+      for (final path in paths) {
+        final label = pathLabels[path.rustId];
+        if (label != null && label.isNotEmpty) {
+          await db.updateSpendPathName(path.id, label);
+        }
+      }
+    } catch (e, st) {
+      debugPrint('Failed to copy wallet labels to project: $e\n$st');
+    }
   }
 
   Future<void> _confirmRescan(
@@ -444,6 +531,17 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                     const Icon(Icons.download_outlined, size: 20),
                     const SizedBox(width: 12),
                     Text(l10n.importBip329Button),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: _WalletMenuAction.generateProject,
+                child: Row(
+                  children: [
+                    const Icon(Icons.design_services_outlined, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.generateProjectFromWallet),
                   ],
                 ),
               ),
@@ -3501,7 +3599,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   }
 }
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels }
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject }
 
 
 enum _ExportChoice { labels, descriptor }

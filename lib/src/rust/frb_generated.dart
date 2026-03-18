@@ -332,7 +332,6 @@ abstract class RustLibApi extends BaseApi {
     required String name,
     required String descriptor,
     required APINetwork network,
-    PlatformInt64? sourceProjectId,
     required String encryptionKeyHex,
   });
 
@@ -2314,7 +2313,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String name,
     required String descriptor,
     required APINetwork network,
-    PlatformInt64? sourceProjectId,
     required String encryptionKeyHex,
   }) {
     return handler.executeNormal(
@@ -2325,7 +2323,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(name, serializer);
           sse_encode_String(descriptor, serializer);
           sse_encode_api_network(network, serializer);
-          sse_encode_opt_box_autoadd_i_64(sourceProjectId, serializer);
           sse_encode_String(encryptionKeyHex, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -2339,14 +2336,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiWalletCreateWalletConstMeta,
-        argValues: [
-          walletsDir,
-          name,
-          descriptor,
-          network,
-          sourceProjectId,
-          encryptionKeyHex,
-        ],
+        argValues: [walletsDir, name, descriptor, network, encryptionKeyHex],
         apiImpl: this,
       ),
     );
@@ -2359,7 +2349,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       "name",
       "descriptor",
       "network",
-      "sourceProjectId",
       "encryptionKeyHex",
     ],
   );
@@ -3661,16 +3650,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIWalletInfo dco_decode_api_wallet_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return APIWalletInfo(
       walletPath: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       descriptor: dco_decode_String(arr[2]),
       network: dco_decode_api_network(arr[3]),
-      sourceProjectId: dco_decode_opt_box_autoadd_i_64(arr[4]),
-      createdAt: dco_decode_i_64(arr[5]),
-      lastSyncedAt: dco_decode_opt_box_autoadd_i_64(arr[6]),
+      createdAt: dco_decode_i_64(arr[4]),
+      lastSyncedAt: dco_decode_opt_box_autoadd_i_64(arr[5]),
     );
   }
 
@@ -4584,7 +4572,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_name = sse_decode_String(deserializer);
     var var_descriptor = sse_decode_String(deserializer);
     var var_network = sse_decode_api_network(deserializer);
-    var var_sourceProjectId = sse_decode_opt_box_autoadd_i_64(deserializer);
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_lastSyncedAt = sse_decode_opt_box_autoadd_i_64(deserializer);
     return APIWalletInfo(
@@ -4592,7 +4579,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       name: var_name,
       descriptor: var_descriptor,
       network: var_network,
-      sourceProjectId: var_sourceProjectId,
       createdAt: var_createdAt,
       lastSyncedAt: var_lastSyncedAt,
     );
@@ -5546,7 +5532,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.name, serializer);
     sse_encode_String(self.descriptor, serializer);
     sse_encode_api_network(self.network, serializer);
-    sse_encode_opt_box_autoadd_i_64(self.sourceProjectId, serializer);
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_opt_box_autoadd_i_64(self.lastSyncedAt, serializer);
   }

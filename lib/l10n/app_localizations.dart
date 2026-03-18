@@ -1238,6 +1238,48 @@ abstract class AppLocalizations {
   /// **'No wallets yet.\nTap + to create one.'**
   String get noWallets;
 
+  /// No description provided for @noWalletsGuidedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No wallets yet'**
+  String get noWalletsGuidedTitle;
+
+  /// No description provided for @noWalletsGuidedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 1: Go to Designer to analyze your descriptor.\nStep 2: Come back here to create a wallet from it.'**
+  String get noWalletsGuidedBody;
+
+  /// No description provided for @goToDesigner.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Designer'**
+  String get goToDesigner;
+
+  /// No description provided for @enterDescriptorManually.
+  ///
+  /// In en, this message translates to:
+  /// **'I already have a descriptor'**
+  String get enterDescriptorManually;
+
+  /// No description provided for @createWalletFromProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Create wallet'**
+  String get createWalletFromProject;
+
+  /// No description provided for @generateProjectFromWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze in Designer'**
+  String get generateProjectFromWallet;
+
+  /// No description provided for @projectHasNoDescriptor.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has no descriptor yet. Build one first.'**
+  String get projectHasNoDescriptor;
+
   /// No description provided for @loadingWallets.
   ///
   /// In en, this message translates to:
@@ -1297,6 +1339,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select project'**
   String get selectProjectLabel;
+
+  /// No description provided for @newProjectEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'New project…'**
+  String get newProjectEntry;
 
   /// No description provided for @createWalletButton.
   ///

@@ -30,7 +30,6 @@ pub fn create_wallet_db(
     name: &str,
     descriptor: &str,
     network_str: &str,
-    source_project_id: Option<i64>,
     key_hex: &str,
 ) -> Result<(String, WalletInfoRow)> {
     use std::path::Path;
@@ -52,20 +51,12 @@ pub fn create_wallet_db(
     let (_wallet, conn) = load_or_create_wallet(&path_str, descriptor, network, key_hex)?;
 
     // Write metadata row
-    upsert_wallet_info(
-        &conn,
-        name,
-        descriptor,
-        network_str,
-        source_project_id,
-        created_at,
-    )?;
+    upsert_wallet_info(&conn, name, descriptor, network_str, created_at)?;
 
     let row = WalletInfoRow {
         name: name.to_string(),
         descriptor: descriptor.to_string(),
         network: network_str.to_string(),
-        source_project_id,
         created_at,
         last_synced_at: None,
     };
@@ -159,8 +150,7 @@ mod tests {
         let dir = tempdir()?;
         let wallets_dir = dir.path().to_string_lossy().to_string();
 
-        let (path, row) =
-            create_wallet_db(&wallets_dir, "Test", MAINNET_DESC, "bitcoin", None, KEY_HEX)?;
+        let (path, row) = create_wallet_db(&wallets_dir, "Test", MAINNET_DESC, "bitcoin", KEY_HEX)?;
 
         assert!(std::path::Path::new(&path).exists());
         assert!(path.ends_with(".db"));
@@ -183,24 +173,10 @@ mod tests {
         let dir = tempdir()?;
         let wallets_dir = dir.path().to_string_lossy().to_string();
 
-        create_wallet_db(
-            &wallets_dir,
-            "Wallet A",
-            MAINNET_DESC,
-            "bitcoin",
-            None,
-            KEY_HEX,
-        )?;
+        create_wallet_db(&wallets_dir, "Wallet A", MAINNET_DESC, "bitcoin", KEY_HEX)?;
         // Small sleep to ensure different created_at timestamps
         std::thread::sleep(std::time::Duration::from_secs(1));
-        create_wallet_db(
-            &wallets_dir,
-            "Wallet B",
-            MAINNET_DESC,
-            "bitcoin",
-            None,
-            KEY_HEX,
-        )?;
+        create_wallet_db(&wallets_dir, "Wallet B", MAINNET_DESC, "bitcoin", KEY_HEX)?;
 
         let list = list_wallets_in_dir(&wallets_dir, KEY_HEX);
         assert_eq!(list.len(), 2);
@@ -216,7 +192,7 @@ mod tests {
         let wallets_dir = dir.path().to_string_lossy().to_string();
 
         // Create a real wallet
-        create_wallet_db(&wallets_dir, "Real", MAINNET_DESC, "bitcoin", None, KEY_HEX)?;
+        create_wallet_db(&wallets_dir, "Real", MAINNET_DESC, "bitcoin", KEY_HEX)?;
 
         // Create a non-.db file — should be ignored
         std::fs::write(dir.path().join("notes.txt"), b"ignore me")?;
@@ -237,18 +213,11 @@ mod tests {
         let dir = tempdir()?;
         let wallets_dir = dir.path().to_string_lossy().to_string();
 
-        let (path, _) = create_wallet_db(
-            &wallets_dir,
-            "MyWallet",
-            MAINNET_DESC,
-            "bitcoin",
-            Some(7),
-            KEY_HEX,
-        )?;
+        let (path, _) =
+            create_wallet_db(&wallets_dir, "MyWallet", MAINNET_DESC, "bitcoin", KEY_HEX)?;
 
         let row = get_wallet_info_from_file(&path, KEY_HEX)?;
         assert_eq!(row.name, "MyWallet");
-        assert_eq!(row.source_project_id, Some(7));
         Ok(())
     }
 
@@ -257,14 +226,8 @@ mod tests {
         let dir = tempdir()?;
         let wallets_dir = dir.path().to_string_lossy().to_string();
 
-        let (path, _) = create_wallet_db(
-            &wallets_dir,
-            "Original",
-            MAINNET_DESC,
-            "bitcoin",
-            None,
-            KEY_HEX,
-        )?;
+        let (path, _) =
+            create_wallet_db(&wallets_dir, "Original", MAINNET_DESC, "bitcoin", KEY_HEX)?;
 
         rename_wallet_in_file(&path, "Renamed", KEY_HEX)?;
 

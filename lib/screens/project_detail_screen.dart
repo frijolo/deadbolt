@@ -8,6 +8,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart';
 import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
@@ -134,6 +135,10 @@ class _ProjectDetailView extends StatelessWidget {
                 if (context.mounted) {
                   _showExportProjectSheet(context, cubit);
                 }
+              } else if (value == 'createWallet') {
+                if (context.mounted) {
+                  _createWalletFromProject(context, state.project);
+                }
               }
             },
             itemBuilder: (context) => [
@@ -155,6 +160,16 @@ class _ProjectDetailView extends StatelessWidget {
                     const Icon(Icons.file_upload_outlined, size: 20),
                     const SizedBox(width: 12),
                     Text(l10n.export),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'createWallet',
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_outlined, size: 20),
+                    const SizedBox(width: 12),
+                    Text(l10n.createWalletFromProject),
                   ],
                 ),
               ),
@@ -380,6 +395,10 @@ class _ProjectDetailView extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _createWalletFromProject(
+          BuildContext context, Project project) =>
+      createWalletFromProject(context, project);
 
   void _showExportProjectSheet(BuildContext context, ProjectDetailCubit cubit) {
     final payload = cubit.buildExportPayload();

@@ -1060,7 +1060,6 @@ class APIWalletInfo {
   final String name;
   final String descriptor;
   final APINetwork network;
-  final PlatformInt64? sourceProjectId;
   final PlatformInt64 createdAt;
   final PlatformInt64? lastSyncedAt;
 
@@ -1069,7 +1068,6 @@ class APIWalletInfo {
     required this.name,
     required this.descriptor,
     required this.network,
-    this.sourceProjectId,
     required this.createdAt,
     this.lastSyncedAt,
   });
@@ -1080,7 +1078,6 @@ class APIWalletInfo {
       name.hashCode ^
       descriptor.hashCode ^
       network.hashCode ^
-      sourceProjectId.hashCode ^
       createdAt.hashCode ^
       lastSyncedAt.hashCode;
 
@@ -1093,7 +1090,6 @@ class APIWalletInfo {
           name == other.name &&
           descriptor == other.descriptor &&
           network == other.network &&
-          sourceProjectId == other.sourceProjectId &&
           createdAt == other.createdAt &&
           lastSyncedAt == other.lastSyncedAt;
 }

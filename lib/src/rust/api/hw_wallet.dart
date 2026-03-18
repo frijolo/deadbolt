@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `session_info_from`
+// These functions are ignored because they are not marked as `pub`: `session_info_from`, `sync_rt`
 
 /// Returns all BitBox02 devices currently connected via USB HID.
 /// Always empty on Android — enumerate via the `deadbolt/hw_wallet` channel.

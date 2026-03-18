@@ -87,7 +87,6 @@ pub struct APIWalletInfo {
     pub name: String,
     pub descriptor: String,
     pub network: APINetwork,
-    pub source_project_id: Option<i64>,
     pub created_at: i64,
     pub last_synced_at: Option<i64>,
 }

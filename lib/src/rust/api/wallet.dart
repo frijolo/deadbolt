@@ -26,14 +26,12 @@ Future<APIWalletInfo> createWallet({
   required String name,
   required String descriptor,
   required APINetwork network,
-  PlatformInt64? sourceProjectId,
   required String encryptionKeyHex,
 }) => RustLib.instance.api.crateApiWalletCreateWallet(
   walletsDir: walletsDir,
   name: name,
   descriptor: descriptor,
   network: network,
-  sourceProjectId: sourceProjectId,
   encryptionKeyHex: encryptionKeyHex,
 );
 

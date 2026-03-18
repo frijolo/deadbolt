@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
@@ -15,7 +16,7 @@ class WalletListScreen extends StatelessWidget {
   final int navIndex;
   final void Function(int)? onNavigate;
 
-  const WalletListScreen({super.key, this.navIndex = 1, this.onNavigate});
+  const WalletListScreen({super.key, this.navIndex = 0, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -73,29 +74,7 @@ class WalletListScreen extends StatelessWidget {
               WalletListError(:final message) =>
                 Center(child: Text(message)),
               WalletListLoaded(:final wallets) => wallets.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            l10n.noWallets,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withAlpha(138),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          FilledButton.icon(
-                            onPressed: () => _showCreateDialog(context),
-                            icon: const Icon(Icons.add),
-                            label: Text(l10n.menuNew),
-                          ),
-                        ],
-                      ),
-                    )
+                  ? _buildEmptyState(context)
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: wallets.length,
@@ -106,6 +85,72 @@ class WalletListScreen extends StatelessWidget {
                     ),
             };
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = context.l10n;
+    final projectState = context.watch<ProjectListCubit>().state;
+    final hasProjects = projectState is ProjectListLoaded &&
+        projectState.projects.isNotEmpty;
+
+    if (hasProjects) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.noWallets,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => _showCreateDialog(context),
+              icon: const Icon(Icons.add),
+              label: Text(l10n.menuNew),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.noWalletsGuidedTitle,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.noWalletsGuidedBody,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => onNavigate?.call(1),
+              icon: const Icon(Icons.design_services_outlined),
+              label: Text(l10n.goToDesigner),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _showCreateDialog(context),
+              icon: const Icon(Icons.edit_outlined),
+              label: Text(l10n.enterDescriptorManually),
+            ),
+          ],
         ),
       ),
     );

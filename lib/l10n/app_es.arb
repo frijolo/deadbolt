@@ -269,6 +269,13 @@
 
   "walletsTitle": "Billeteras",
   "noWallets": "No hay billeteras.\nToca + para crear una.",
+  "noWalletsGuidedTitle": "Aún no hay billeteras",
+  "noWalletsGuidedBody": "Paso 1: Ve al Diseñador para analizar tu descriptor.\nPaso 2: Vuelve aquí para crear una billetera.",
+  "goToDesigner": "Ir al Diseñador",
+  "enterDescriptorManually": "Ya tengo un descriptor",
+  "createWalletFromProject": "Crear billetera",
+  "generateProjectFromWallet": "Analizar en Diseñador",
+  "projectHasNoDescriptor": "Este proyecto aún no tiene descriptor. Constrúyelo primero.",
   "loadingWallets": "Cargando billeteras...",
   "deleteWalletTitle": "Eliminar billetera",
   "deleteWalletConfirm": "¿Eliminar \"{name}\"?",
@@ -284,6 +291,7 @@
   "sourceProjectFromProject": "Desde proyecto",
   "sourceProjectManual": "Descriptor manual",
   "selectProjectLabel": "Seleccionar proyecto",
+  "newProjectEntry": "Nuevo proyecto…",
   "createWalletButton": "Crear Billetera",
   "creatingWallet": "Creando billetera...",
 

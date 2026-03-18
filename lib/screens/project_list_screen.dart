@@ -8,6 +8,7 @@ import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
+import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -174,6 +175,8 @@ class ProjectListScreen extends StatelessWidget {
                   );
                 } else if (value == 'export') {
                   await _exportProject(context, project);
+                } else if (value == 'createWallet') {
+                  await _createWalletFromProject(context, project);
                 } else if (value == 'delete') {
                   _confirmDelete(context, project);
                 }
@@ -196,6 +199,16 @@ class ProjectListScreen extends StatelessWidget {
                       const Icon(Icons.file_upload_outlined, size: 20),
                       const SizedBox(width: 12),
                       Text(l10n.export),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'createWallet',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.account_balance_wallet_outlined, size: 20),
+                      const SizedBox(width: 12),
+                      Text(l10n.createWalletFromProject),
                     ],
                   ),
                 ),
@@ -259,6 +272,10 @@ class ProjectListScreen extends StatelessWidget {
       );
     }
   }
+
+  Future<void> _createWalletFromProject(
+          BuildContext context, Project project) =>
+      createWalletFromProject(context, project);
 
   void _confirmDelete(BuildContext context, Project project) {
     final l10n = context.l10n;

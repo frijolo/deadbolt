@@ -25,7 +25,7 @@ class CreateProjectDialog extends StatefulWidget {
 class _CreateProjectDialogState extends State<CreateProjectDialog> {
   final _descriptorController = TextEditingController();
   final _nameController = TextEditingController();
-  CreateMode _mode = CreateMode.importDescriptor;
+  CreateMode _mode = CreateMode.fromScratch;
   late APINetwork _selectedNetwork;
   late APIWalletType _selectedWalletType;
   bool _loading = false;

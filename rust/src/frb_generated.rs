@@ -2609,7 +2609,6 @@ fn wire__crate__api__wallet__create_wallet_impl(
             let api_name = <String>::sse_decode(&mut deserializer);
             let api_descriptor = <String>::sse_decode(&mut deserializer);
             let api_network = <crate::api::model::APINetwork>::sse_decode(&mut deserializer);
-            let api_source_project_id = <Option<i64>>::sse_decode(&mut deserializer);
             let api_encryption_key_hex = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -2620,7 +2619,6 @@ fn wire__crate__api__wallet__create_wallet_impl(
                             api_name,
                             api_descriptor,
                             api_network,
-                            api_source_project_id,
                             api_encryption_key_hex,
                         )?;
                         Ok(output_ok)
@@ -4147,7 +4145,6 @@ impl SseDecode for crate::api::model::APIWalletInfo {
         let mut var_name = <String>::sse_decode(deserializer);
         let mut var_descriptor = <String>::sse_decode(deserializer);
         let mut var_network = <crate::api::model::APINetwork>::sse_decode(deserializer);
-        let mut var_sourceProjectId = <Option<i64>>::sse_decode(deserializer);
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_lastSyncedAt = <Option<i64>>::sse_decode(deserializer);
         return crate::api::model::APIWalletInfo {
@@ -4155,7 +4152,6 @@ impl SseDecode for crate::api::model::APIWalletInfo {
             name: var_name,
             descriptor: var_descriptor,
             network: var_network,
-            source_project_id: var_sourceProjectId,
             created_at: var_createdAt,
             last_synced_at: var_lastSyncedAt,
         };
@@ -5668,7 +5664,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIWalletInfo {
             self.name.into_into_dart().into_dart(),
             self.descriptor.into_into_dart().into_dart(),
             self.network.into_into_dart().into_dart(),
-            self.source_project_id.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.last_synced_at.into_into_dart().into_dart(),
         ]
@@ -6151,7 +6146,6 @@ impl SseEncode for crate::api::model::APIWalletInfo {
         <String>::sse_encode(self.name, serializer);
         <String>::sse_encode(self.descriptor, serializer);
         <crate::api::model::APINetwork>::sse_encode(self.network, serializer);
-        <Option<i64>>::sse_encode(self.source_project_id, serializer);
         <i64>::sse_encode(self.created_at, serializer);
         <Option<i64>>::sse_encode(self.last_synced_at, serializer);
     }

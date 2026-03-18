@@ -11,7 +11,6 @@ pub struct WalletInfoRow {
     pub name: String,
     pub descriptor: String,
     pub network: String,
-    pub source_project_id: Option<i64>,
     pub created_at: i64,
     pub last_synced_at: Option<i64>,
 }
@@ -22,25 +21,23 @@ pub fn upsert_wallet_info(
     name: &str,
     descriptor: &str,
     network: &str,
-    source_project_id: Option<i64>,
     created_at: i64,
 ) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS wallet_info (
-            id                INTEGER PRIMARY KEY CHECK (id = 1),
-            name              TEXT NOT NULL,
-            descriptor        TEXT NOT NULL,
-            network           TEXT NOT NULL,
-            source_project_id INTEGER,
-            created_at        INTEGER NOT NULL,
-            last_synced_at    INTEGER
+            id             INTEGER PRIMARY KEY CHECK (id = 1),
+            name           TEXT NOT NULL,
+            descriptor     TEXT NOT NULL,
+            network        TEXT NOT NULL,
+            created_at     INTEGER NOT NULL,
+            last_synced_at INTEGER
         );",
     )?;
     conn.execute(
         "INSERT OR REPLACE INTO wallet_info
-         (id, name, descriptor, network, source_project_id, created_at)
-         VALUES (1, ?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![name, descriptor, network, source_project_id, created_at],
+         (id, name, descriptor, network, created_at)
+         VALUES (1, ?1, ?2, ?3, ?4)",
+        rusqlite::params![name, descriptor, network, created_at],
     )?;
     Ok(())
 }
@@ -48,7 +45,7 @@ pub fn upsert_wallet_info(
 /// Read the single wallet_info row.
 pub fn read_wallet_info(conn: &Connection) -> Result<WalletInfoRow> {
     conn.query_row(
-        "SELECT name, descriptor, network, source_project_id, created_at, last_synced_at
+        "SELECT name, descriptor, network, created_at, last_synced_at
          FROM wallet_info WHERE id = 1",
         [],
         |row| {
@@ -56,9 +53,8 @@ pub fn read_wallet_info(conn: &Connection) -> Result<WalletInfoRow> {
                 name: row.get(0)?,
                 descriptor: row.get(1)?,
                 network: row.get(2)?,
-                source_project_id: row.get(3)?,
-                created_at: row.get(4)?,
-                last_synced_at: row.get(5)?,
+                created_at: row.get(3)?,
+                last_synced_at: row.get(4)?,
             })
         },
     )
@@ -773,20 +769,12 @@ mod tests {
         let path = dir.path().join("test.db").to_string_lossy().to_string();
         let conn = open_encrypted_connection(&path, KEY_HEX)?;
 
-        upsert_wallet_info(
-            &conn,
-            "My Wallet",
-            "desc",
-            "bitcoin",
-            Some(42),
-            1_700_000_000,
-        )?;
+        upsert_wallet_info(&conn, "My Wallet", "desc", "bitcoin", 1_700_000_000)?;
         let row = read_wallet_info(&conn)?;
 
         assert_eq!(row.name, "My Wallet");
         assert_eq!(row.descriptor, "desc");
         assert_eq!(row.network, "bitcoin");
-        assert_eq!(row.source_project_id, Some(42));
         assert_eq!(row.created_at, 1_700_000_000);
         assert!(row.last_synced_at.is_none());
         Ok(())
@@ -798,8 +786,8 @@ mod tests {
         let path = dir.path().join("test.db").to_string_lossy().to_string();
         let conn = open_encrypted_connection(&path, KEY_HEX)?;
 
-        upsert_wallet_info(&conn, "Old Name", "desc", "testnet", None, 1_000)?;
-        upsert_wallet_info(&conn, "New Name", "desc", "testnet", None, 1_000)?;
+        upsert_wallet_info(&conn, "Old Name", "desc", "testnet", 1_000)?;
+        upsert_wallet_info(&conn, "New Name", "desc", "testnet", 1_000)?;
         let row = read_wallet_info(&conn)?;
 
         assert_eq!(row.name, "New Name");
@@ -812,7 +800,7 @@ mod tests {
         let path = dir.path().join("test.db").to_string_lossy().to_string();
         let conn = open_encrypted_connection(&path, KEY_HEX)?;
 
-        upsert_wallet_info(&conn, "Wallet", "desc", "bitcoin", None, 1_000)?;
+        upsert_wallet_info(&conn, "Wallet", "desc", "bitcoin", 1_000)?;
         assert!(read_wallet_info(&conn)?.last_synced_at.is_none());
 
         touch_last_synced(&conn)?;

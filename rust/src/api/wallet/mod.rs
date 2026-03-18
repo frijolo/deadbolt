@@ -237,7 +237,6 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
         name: row.name,
         descriptor: row.descriptor,
         network,
-        source_project_id: row.source_project_id,
         created_at: row.created_at,
         last_synced_at: row.last_synced_at,
     })
@@ -504,7 +503,6 @@ pub fn create_wallet(
     name: String,
     descriptor: String,
     network: APINetwork,
-    source_project_id: Option<i64>,
     encryption_key_hex: String,
 ) -> Result<APIWalletInfo> {
     let (path, row) = create_wallet_db(
@@ -512,7 +510,6 @@ pub fn create_wallet(
         &name,
         &descriptor,
         network.as_str(),
-        source_project_id,
         &encryption_key_hex,
     )?;
     row_to_api_info(path, row)
@@ -616,7 +613,6 @@ mod tests {
             "Test Wallet".to_string(),
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
-            None,
             KEY_HEX.to_string(),
         )
     }
@@ -713,7 +709,6 @@ mod tests {
             "W1".to_string(),
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
-            None,
             KEY_HEX.to_string(),
         )?;
         create_wallet(
@@ -721,7 +716,6 @@ mod tests {
             "W2".to_string(),
             MAINNET_DESC.to_string(),
             APINetwork::Bitcoin,
-            None,
             KEY_HEX.to_string(),
         )?;
 

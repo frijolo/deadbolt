@@ -45,14 +45,12 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
     required String name,
     required String descriptor,
     required APINetwork network,
-    int? sourceProjectId,
   }) async {
     try {
       final info = await _service.createWallet(
         name: name,
         descriptor: descriptor,
         network: network,
-        sourceProjectId: sourceProjectId,
       );
       await refresh();
       return info.walletPath;

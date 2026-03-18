@@ -30,12 +30,12 @@ class AppNavDrawer extends StatelessWidget {
           ),
         ),
         NavigationDrawerDestination(
-          icon: const Icon(Icons.design_services_outlined),
-          label: Text(l10n.navDesigner),
-        ),
-        NavigationDrawerDestination(
           icon: const Icon(Icons.account_balance_wallet_outlined),
           label: Text(l10n.navWallet),
+        ),
+        NavigationDrawerDestination(
+          icon: const Icon(Icons.design_services_outlined),
+          label: Text(l10n.navDesigner),
         ),
         NavigationDrawerDestination(
           icon: const Icon(Icons.settings_outlined),
