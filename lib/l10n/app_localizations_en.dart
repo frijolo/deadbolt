@@ -701,6 +701,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get walletPasswordProtected => 'Password protected';
+
+  @override
   String get notYetSynced => 'Not yet synced';
 
   @override

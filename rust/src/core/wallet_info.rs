@@ -72,7 +72,7 @@ pub fn create_wallet_db(
     upsert_wallet_info(&conn, name, descriptor, network_str, created_at)?;
 
     // Build and write the protection meta sidecar
-    let meta = build_protection_meta(&data_key, device_key_hex, protection)?;
+    let meta = build_protection_meta(&data_key, device_key_hex, protection, Some(name))?;
     write_meta(&path_str, &meta)?;
 
     let row = WalletInfoRow {
@@ -91,6 +91,7 @@ fn build_protection_meta(
     data_key: &str,
     device_key_hex: &str,
     protection: WalletProtectionRequest,
+    display_name: Option<&str>,
 ) -> Result<ProtectionMeta> {
     match protection {
         WalletProtectionRequest::DeviceKey => {
@@ -118,6 +119,7 @@ fn build_protection_meta(
                 t_cost: DEFAULT_T_COST,
                 p_cost: DEFAULT_P_COST,
                 wrapped_key,
+                display_name: display_name.map(|s| s.to_string()),
             })
         }
     }
@@ -179,8 +181,27 @@ pub fn list_wallets_in_dir(
             }
         };
 
-        // UserPassword wallets cannot be listed without the password — skip.
-        if matches!(meta, ProtectionMeta::UserPassword { .. }) {
+        // UserPassword wallets: include them as locked entries so they appear
+        // in the list with a lock indicator. Name comes from the meta sidecar
+        // (written at creation time) or falls back to a generic placeholder.
+        if let ProtectionMeta::UserPassword {
+            ref display_name, ..
+        } = meta
+        {
+            let name = display_name
+                .as_deref()
+                .unwrap_or("Locked Wallet")
+                .to_string();
+            results.push((
+                path_str,
+                WalletInfoRow {
+                    name,
+                    descriptor: String::new(),
+                    network: "bitcoin".to_string(),
+                    created_at: 0,
+                    last_synced_at: None,
+                },
+            ));
             continue;
         }
 
@@ -493,6 +514,62 @@ mod tests {
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].1.name, "Wallet B");
         assert_eq!(list[1].1.name, "Wallet A");
+        Ok(())
+    }
+
+    #[test]
+    fn test_list_wallets_includes_password_protected() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let wallets_dir = dir.path().to_string_lossy().to_string();
+
+        // Create a device-key wallet
+        create_wallet_db(
+            &wallets_dir,
+            "Open Wallet",
+            MAINNET_DESC,
+            "bitcoin",
+            DEVICE_KEY,
+            WalletProtectionRequest::DeviceKey,
+        )?;
+
+        // Create a password-protected wallet
+        create_wallet_db(
+            &wallets_dir,
+            "Secret Vault",
+            MAINNET_DESC,
+            "bitcoin",
+            DEVICE_KEY,
+            WalletProtectionRequest::UserPassword {
+                password: "s3cr3t".to_string(),
+            },
+        )?;
+
+        // Both wallets must appear in the list
+        let list = list_wallets_in_dir(&wallets_dir, DEVICE_KEY);
+        assert_eq!(
+            list.len(),
+            2,
+            "Both wallets (open + locked) should be listed"
+        );
+
+        let names: Vec<&str> = list.iter().map(|(_, row)| row.name.as_str()).collect();
+        assert!(names.contains(&"Open Wallet"), "Open wallet must appear");
+        assert!(
+            names.contains(&"Secret Vault"),
+            "Password wallet must appear with its name"
+        );
+
+        // The password wallet's row has empty descriptor and no sync date
+        let locked = list.iter().find(|(_, r)| r.name == "Secret Vault").unwrap();
+        assert!(
+            locked.1.descriptor.is_empty(),
+            "Locked wallet descriptor must be empty"
+        );
+        assert!(
+            locked.1.last_synced_at.is_none(),
+            "Locked wallet has no last_synced_at"
+        );
+
         Ok(())
     }
 

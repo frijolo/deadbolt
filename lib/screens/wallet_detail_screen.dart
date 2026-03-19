@@ -1591,9 +1591,17 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _EffectiveLabelText(
-                        effectiveLabel: address.effectiveLabel,
-                        isAuto: address.isAuto,
+                      child: _LiveEffectiveLabelText(
+                        resolve: (s) {
+                          final match = [
+                            ...s.receiveAddresses,
+                            ...s.changeAddresses,
+                          ].where((a) => a.address == widget.address.address).firstOrNull;
+                          final item = match ?? widget.address;
+                          return (item.effectiveLabel, item.isAuto);
+                        },
+                        fallbackLabel: widget.address.effectiveLabel,
+                        fallbackIsAuto: widget.address.isAuto,
                       ),
                     ),
                     IconButton(
@@ -2146,9 +2154,16 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _EffectiveLabelText(
-                        effectiveLabel: utxo.effectiveLabel,
-                        isAuto: utxo.isAuto,
+                      child: _LiveEffectiveLabelText(
+                        resolve: (s) {
+                          final match = s.utxos
+                              .where((u) => u.txid == widget.utxo.txid && u.vout == widget.utxo.vout)
+                              .firstOrNull;
+                          final item = match ?? widget.utxo;
+                          return (item.effectiveLabel, item.isAuto);
+                        },
+                        fallbackLabel: widget.utxo.effectiveLabel,
+                        fallbackIsAuto: widget.utxo.isAuto,
                       ),
                     ),
                     IconButton(
@@ -2767,9 +2782,16 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _EffectiveLabelText(
-                        effectiveLabel: tx.effectiveLabel,
-                        isAuto: tx.isAuto,
+                      child: _LiveEffectiveLabelText(
+                        resolve: (s) {
+                          final match = s.transactions
+                              .where((t) => t.txid == widget.tx.txid)
+                              .firstOrNull;
+                          final item = match ?? widget.tx;
+                          return (item.effectiveLabel, item.isAuto);
+                        },
+                        fallbackLabel: widget.tx.effectiveLabel,
+                        fallbackIsAuto: widget.tx.isAuto,
                       ),
                     ),
                     IconButton(
@@ -3263,6 +3285,35 @@ class _EffectiveLabelText extends StatelessWidget {
         const SizedBox(width: 4),
         Expanded(child: Text(effectiveLabel!)),
       ],
+    );
+  }
+}
+
+
+/// Rebuilds [_EffectiveLabelText] whenever [WalletDetailLoaded] state changes,
+/// showing the freshest label for an item resolved from the cubit state.
+class _LiveEffectiveLabelText extends StatelessWidget {
+  const _LiveEffectiveLabelText({
+    required this.resolve,
+    required this.fallbackLabel,
+    required this.fallbackIsAuto,
+  });
+
+  /// Extracts (effectiveLabel, isAuto) from the current loaded state.
+  final (String?, bool) Function(WalletDetailLoaded) resolve;
+  final String? fallbackLabel;
+  final bool fallbackIsAuto;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<WalletDetailCubit, WalletDetailState>(
+      buildWhen: (_, next) => next is WalletDetailLoaded,
+      builder: (context, state) {
+        final (label, isAuto) = state is WalletDetailLoaded
+            ? resolve(state)
+            : (fallbackLabel, fallbackIsAuto);
+        return _EffectiveLabelText(effectiveLabel: label, isAuto: isAuto);
+      },
     );
   }
 }

@@ -239,14 +239,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       Map<int, APIPsbtAnalysis> psbtAnalyses = {};
       try {
         psbts = await handle.listPsbts();
-        for (final psbt in psbts) {
-          try {
-            psbtAnalyses[psbt.id.toInt()] =
-                await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-          } catch (_) {
-            // Skip per-PSBT analysis errors — show PSBT without signer status.
-          }
-        }
+        psbtAnalyses = await _analyzePsbts(handle, psbts);
       } catch (e, st) {
         logError('WalletDetailCubit.load() PSBTs', e, st);
       }
@@ -303,15 +296,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       if (current.psbtsLoaded) {
         try {
           psbts = await handle.listPsbts();
-          psbtAnalyses = {};
-          for (final psbt in psbts) {
-            try {
-              psbtAnalyses[psbt.id.toInt()] =
-                  await handle.analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-            } catch (_) {
-              // Skip per-PSBT analysis errors — show PSBT without signer status.
-            }
-          }
+          psbtAnalyses = await _analyzePsbts(handle, psbts);
         } catch (e, st) {
           logError('WalletDetailCubit.sync() PSBTs', e, st);
         }
@@ -603,6 +588,28 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
+  /// Analyze all [psbts] in parallel, returning a map of id → analysis.
+  /// Per-PSBT errors are swallowed so a single bad PSBT doesn't block the rest.
+  Future<Map<int, APIPsbtAnalysis>> _analyzePsbts(
+    ApiWallet handle,
+    List<APIPsbtInfo> psbts,
+  ) async {
+    final entries = await Future.wait(
+      psbts.map((psbt) async {
+        try {
+          final analysis = await handle.analyzePsbt(
+            psbtBase64: psbt.psbtBase64,
+            mfps: psbt.mfps,
+          );
+          return MapEntry(psbt.id.toInt(), analysis);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+    return Map.fromEntries(entries.whereType<MapEntry<int, APIPsbtAnalysis>>());
+  }
+
   void setWalletKeyLabel(String mfp, String label) {
     final current = state;
     if (current is! WalletDetailLoaded) return;
@@ -742,15 +749,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return;
     try {
       final psbts = await current.walletHandle.listPsbts();
-      final analyses = <int, APIPsbtAnalysis>{};
-      for (final psbt in psbts) {
-        try {
-          analyses[psbt.id.toInt()] = await current.walletHandle
-              .analyzePsbt(psbtBase64: psbt.psbtBase64, mfps: psbt.mfps);
-        } catch (_) {
-          // skip analysis errors — show without status
-        }
-      }
+      final analyses = await _analyzePsbts(current.walletHandle, psbts);
       if (state is! WalletDetailLoaded) return;
       emit((state as WalletDetailLoaded).copyWith(
         psbts: psbts,

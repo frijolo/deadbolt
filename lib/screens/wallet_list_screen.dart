@@ -175,13 +175,20 @@ class WalletListScreen extends StatelessWidget {
 
   Widget _buildWalletCard(BuildContext context, APIWalletInfo wallet) {
     final l10n = context.l10n;
+    final isLocked = wallet.protection.needsPassword;
     final lastSynced = wallet.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(wallet.lastSyncedAt! * 1000)
         : null;
 
-    return Card(
+    final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        leading: isLocked
+            ? Icon(
+                Icons.lock_outline,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+              )
+            : null,
         title: Text(
           wallet.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -190,14 +197,21 @@ class WalletListScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              MfpBadge(
-                label: localizedNetworkDisplayName(context, wallet.network.name),
-                color: AppAccent.color,
-                letterSpacing: 0.0,
-              ),
-              const SizedBox(width: 8),
+              if (!isLocked) ...[
+                MfpBadge(
+                  label: localizedNetworkDisplayName(
+                    context,
+                    wallet.network.name,
+                  ),
+                  color: AppAccent.color,
+                  letterSpacing: 0.0,
+                ),
+                const SizedBox(width: 8),
+              ],
               Text(
-                lastSynced != null
+                isLocked
+                    ? l10n.walletPasswordProtected
+                    : lastSynced != null
                     ? l10n.lastSynced(_formatDate(lastSynced))
                     : l10n.notYetSynced,
                 style: TextStyle(
@@ -247,6 +261,11 @@ class WalletListScreen extends StatelessWidget {
         ),
       ),
     );
+
+    if (isLocked) {
+      return Opacity(opacity: 0.65, child: card);
+    }
+    return card;
   }
 
   String _formatDate(DateTime dt) {

@@ -67,13 +67,7 @@ class AppSettings {
   }
 
   String explorerTxUrl(APINetwork net, String txid) {
-    final base = switch (net) {
-      APINetwork.bitcoin => explorerMainnet,
-      APINetwork.testnet => explorerTestnet,
-      APINetwork.testnet4 => explorerTestnet4,
-      APINetwork.signet => explorerSignet,
-      APINetwork.regtest => explorerRegtest,
-    };
+    final base = explorerBaseForNetwork(net);
     if (base.isEmpty) return '';
     return '$base/tx/$txid';
   }

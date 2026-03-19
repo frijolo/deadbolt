@@ -1,5 +1,23 @@
 use super::*;
 
+/// Delete any PSBTs whose transaction is now known to the wallet
+/// (broadcast externally and seen by Electrum during sync/rescan).
+fn cleanup_broadcast_psbts(core: &mut CoreWallet) {
+    if let Ok(rows) = list_psbt_rows(&core.conn) {
+        for row in rows {
+            if row.txid.is_empty() {
+                continue;
+            }
+            if let Ok(txid) = row.txid.parse::<bdk_wallet::bitcoin::Txid>() {
+                if core.wallet.tx_graph().get_tx(txid).is_some() {
+                    apply_psbt_label_to_tx(&core.conn, &row);
+                    let _ = delete_psbt_row(&core.conn, row.id);
+                }
+            }
+        }
+    }
+}
+
 impl APIWallet {
     /// Store the Electrum URL so it can be used by detail queries (e.g. fetching
     /// unknown input transactions). Call this before sync if you want it available
@@ -43,20 +61,7 @@ impl APIWallet {
 
         // Auto-delete PSBTs whose transaction is now known to the wallet
         // (broadcast externally and seen by Electrum during this sync).
-        // The txid is stored at creation time — no need to re-decode the PSBT.
-        if let Ok(rows) = list_psbt_rows(&core.conn) {
-            for row in rows {
-                if row.txid.is_empty() {
-                    continue;
-                }
-                if let Ok(txid) = row.txid.parse::<bdk_wallet::bitcoin::Txid>() {
-                    if core.wallet.tx_graph().get_tx(txid).is_some() {
-                        apply_psbt_label_to_tx(&core.conn, &row);
-                        let _ = delete_psbt_row(&core.conn, row.id);
-                    }
-                }
-            }
-        }
+        cleanup_broadcast_psbts(&mut core);
 
         drop(core);
         if let Ok(mut u) = self.electrum_url.lock() {
@@ -84,19 +89,7 @@ impl APIWallet {
         touch_last_synced(&core.conn)?;
 
         // Auto-delete PSBTs whose transaction is now known after rescan.
-        if let Ok(rows) = list_psbt_rows(&core.conn) {
-            for row in rows {
-                if row.txid.is_empty() {
-                    continue;
-                }
-                if let Ok(txid) = row.txid.parse::<bdk_wallet::bitcoin::Txid>() {
-                    if core.wallet.tx_graph().get_tx(txid).is_some() {
-                        apply_psbt_label_to_tx(&core.conn, &row);
-                        let _ = delete_psbt_row(&core.conn, row.id);
-                    }
-                }
-            }
-        }
+        cleanup_broadcast_psbts(&mut core);
 
         drop(core);
         if let Ok(mut u) = self.electrum_url.lock() {

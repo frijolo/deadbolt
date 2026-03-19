@@ -702,6 +702,9 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get walletPasswordProtected => 'Protegida con contraseña';
+
+  @override
   String get notYetSynced => 'No sincronizado aún';
 
   @override

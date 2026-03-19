@@ -1388,6 +1388,12 @@ abstract class AppLocalizations {
   /// **'{btc} BTC'**
   String balanceBtc(String btc);
 
+  /// No description provided for @walletPasswordProtected.
+  ///
+  /// In en, this message translates to:
+  /// **'Password protected'**
+  String get walletPasswordProtected;
+
   /// No description provided for @notYetSynced.
   ///
   /// In en, this message translates to:

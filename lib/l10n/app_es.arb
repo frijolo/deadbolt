@@ -310,6 +310,7 @@
       "btc": { "type": "String" }
     }
   },
+  "walletPasswordProtected": "Protegida con contraseña",
   "notYetSynced": "No sincronizado aún",
   "lastSynced": "Última sincronización: {time}",
   "@lastSynced": {

@@ -83,6 +83,7 @@ mod tests {
             t_cost: 3,
             p_cost: 1,
             wrapped_key: generate_data_key(),
+            display_name: Some("Test".to_string()),
         };
         write_meta(&wallet_path, &meta)?;
 

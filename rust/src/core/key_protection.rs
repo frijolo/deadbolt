@@ -157,6 +157,10 @@ pub enum ProtectionMeta {
         t_cost: u32,
         p_cost: u32,
         wrapped_key: String,
+        /// Plaintext wallet name stored so the wallet can be shown in the list
+        /// even when locked (without requiring the password).
+        #[serde(default)]
+        display_name: Option<String>,
     },
 }
 
@@ -276,6 +280,7 @@ mod tests {
             t_cost: 1,
             p_cost: 1,
             wrapped_key: wrapped,
+            display_name: None,
         };
         let resolved = resolve_data_key(&meta, password).unwrap();
         assert_eq!(resolved, data_key);
@@ -295,6 +300,7 @@ mod tests {
             t_cost: 1,
             p_cost: 1,
             wrapped_key: wrapped,
+            display_name: None,
         };
         let result = resolve_data_key(&meta, "wrong-password");
         assert!(result.is_err(), "Should fail with wrong password");
@@ -329,6 +335,7 @@ mod tests {
             t_cost: 3,
             p_cost: 1,
             wrapped_key: "cafebabe".to_string(),
+            display_name: Some("Test Wallet".to_string()),
         };
         let json = serde_json::to_string(&meta).unwrap();
         let back: ProtectionMeta = serde_json::from_str(&json).unwrap();
