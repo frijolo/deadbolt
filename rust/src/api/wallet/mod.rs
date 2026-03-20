@@ -239,6 +239,18 @@ fn row_to_api_psbt(
     }
 }
 
+/// Load addr_labels and valid_outpoints from `conn`/`wallet`, then convert a single `PsbtRow`.
+/// Use this for one-shot conversions; for bulk `list_psbts`, load the context once manually.
+pub(super) fn row_to_api_psbt_loaded(
+    row: PsbtRow,
+    conn: &rusqlite::Connection,
+    wallet: &bdk_wallet::Wallet,
+) -> APIPsbtInfo {
+    let addr_labels = get_all_address_labels_with_flag(conn).unwrap_or_default();
+    let valid_outpoints = build_valid_outpoints(wallet);
+    row_to_api_psbt(row, wallet, &addr_labels, &valid_outpoints)
+}
+
 fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletInfo> {
     let network = APINetwork::try_from(row.network.as_str())?;
     let protection = protection_for_path(&wallet_path);

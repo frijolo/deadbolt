@@ -263,14 +263,7 @@ impl APIWallet {
         };
         update_psbt_label(&core.conn, id, new_label)?;
         let row = get_psbt_row(&core.conn, id)?;
-        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let valid_outpoints = build_valid_outpoints(&core.wallet);
-        Ok(row_to_api_psbt(
-            row,
-            &core.wallet,
-            &addr_labels,
-            &valid_outpoints,
-        ))
+        Ok(row_to_api_psbt_loaded(row, &core.conn, &core.wallet))
     }
 
     /// Merge partial signatures from a signed PSBT into the stored one.
@@ -292,13 +285,10 @@ impl APIWallet {
         let merged_base64 = psbt_to_base64(&existing);
         update_psbt_data(&core.conn, id, &merged_base64)?;
         let updated_row = get_psbt_row(&core.conn, id)?;
-        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let valid_outpoints = build_valid_outpoints(&core.wallet);
-        Ok(row_to_api_psbt(
+        Ok(row_to_api_psbt_loaded(
             updated_row,
+            &core.conn,
             &core.wallet,
-            &addr_labels,
-            &valid_outpoints,
         ))
     }
 
@@ -324,10 +314,8 @@ impl APIWallet {
             let merged_base64 = psbt_to_base64(&existing);
             update_psbt_data(&core.conn, row.id, &merged_base64)?;
             let updated_row = get_psbt_row(&core.conn, row.id)?;
-            let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-            let valid_outpoints = build_valid_outpoints(&core.wallet);
             return Ok(APIImportPsbtResult {
-                psbt: row_to_api_psbt(updated_row, &core.wallet, &addr_labels, &valid_outpoints),
+                psbt: row_to_api_psbt_loaded(updated_row, &core.conn, &core.wallet),
                 was_merged: true,
             });
         }
@@ -676,14 +664,10 @@ impl APIWallet {
         update_psbt_data(&core.conn, psbt_id, &updated_base64)?;
 
         let updated_row = row.with_psbt(updated_base64);
-
-        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let valid_outpoints = build_valid_outpoints(&core.wallet);
-        Ok(row_to_api_psbt(
+        Ok(row_to_api_psbt_loaded(
             updated_row,
+            &core.conn,
             &core.wallet,
-            &addr_labels,
-            &valid_outpoints,
         ))
     }
 }
