@@ -1,12 +1,21 @@
 use super::*;
 
+type LabelMap = std::collections::HashMap<String, (String, bool)>;
+
+/// Load all three label maps in one call. Used by detail query functions that
+/// need tx, address, and coin labels simultaneously.
+fn load_all_label_maps(conn: &rusqlite::Connection) -> (LabelMap, LabelMap, LabelMap) {
+    (
+        get_all_tx_labels_with_flag(conn).unwrap_or_default(),
+        get_all_address_labels_with_flag(conn).unwrap_or_default(),
+        get_all_coin_labels_with_flag(conn).unwrap_or_default(),
+    )
+}
+
 impl APIWallet {
     /// Return the cached balance (no network call).
     pub fn get_balance(&self) -> Result<APIBalance> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let balance = core.wallet.balance();
         Ok(APIBalance {
             confirmed: balance.confirmed.to_sat(),
@@ -18,10 +27,7 @@ impl APIWallet {
 
     /// Return a paginated page of transactions, sorted newest-first (no network call).
     pub fn get_transactions(&self, page: u32, page_size: u32) -> Result<APITransactionPage> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
         let mut txs: Vec<_> = wallet.transactions().collect();
@@ -94,10 +100,7 @@ impl APIWallet {
 
     /// Read wallet metadata from the open connection (no file re-open).
     pub fn get_info(&self) -> Result<APIWalletInfo> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let row = read_wallet_info(&core.conn)?;
         row_to_api_info(self.path.clone(), row)
     }
@@ -107,10 +110,7 @@ impl APIWallet {
     pub fn get_addresses(&self, keychain: APIKeychain) -> Result<Vec<APIAddress>> {
         use bdk_wallet::KeychainKind;
 
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
         let bdk_keychain = match keychain {
@@ -201,10 +201,7 @@ impl APIWallet {
 
     /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
     pub fn get_utxos(&self) -> Result<Vec<APIUtxo>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
         let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
@@ -385,10 +382,7 @@ impl APIWallet {
 
         // Phase 1: identify input txids absent from BDK's data (brief lock scope).
         let (missing_txids, electrum_url) = {
-            let core = self
-                .inner
-                .lock()
-                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let core = self.lock_wallet()?;
             let wallet = &core.wallet;
             let canonical_tx = wallet
                 .transactions()
@@ -435,10 +429,7 @@ impl APIWallet {
         };
 
         // Phase 3: full processing (re-acquire lock).
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
         let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
@@ -622,10 +613,7 @@ impl APIWallet {
 
         // Phase 1: retrieve the tx + attempt fee calculation (brief lock).
         let (tx, fee_opt, electrum_url) = {
-            let core = self
-                .inner
-                .lock()
-                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let core = self.lock_wallet()?;
             let txid: Txid = spending_txid
                 .parse()
                 .map_err(|e| anyhow::anyhow!("invalid txid: {}", e))?;
@@ -651,10 +639,7 @@ impl APIWallet {
             None => {
                 // Collect outpoints whose parent txs are missing from the wallet graph.
                 let missing_txids: Vec<Txid> = {
-                    let core = self
-                        .inner
-                        .lock()
-                        .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+                    let core = self.lock_wallet()?;
                     tx.input
                         .iter()
                         .filter(|i| !i.previous_output.is_null())
@@ -685,10 +670,7 @@ impl APIWallet {
 
                 // Compute fee = sum(inputs) - sum(outputs).
                 let input_sum: u64 = {
-                    let core = self
-                        .inner
-                        .lock()
-                        .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+                    let core = self.lock_wallet()?;
                     let mut sum = 0u64;
                     for inp in &tx.input {
                         if inp.previous_output.is_null() {
@@ -737,15 +719,10 @@ impl APIWallet {
 
     /// Return full detail for a UTXO: the UTXO plus the explicit labels of its cluster peers.
     pub fn get_utxo_details(&self, txid: String, vout: u32) -> Result<APIUtxoDetails> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
-        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
-        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
+        let (tx_labels, address_labels, coin_labels) = load_all_label_maps(&core.conn);
 
         let local_output = wallet
             .list_unspent()
@@ -839,15 +816,10 @@ impl APIWallet {
         use bdk_wallet::KeychainKind;
         use std::collections::HashSet;
 
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let wallet = &core.wallet;
 
-        let address_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let coin_labels = get_all_coin_labels_with_flag(&core.conn).unwrap_or_default();
-        let tx_labels = get_all_tx_labels_with_flag(&core.conn).unwrap_or_default();
+        let (tx_labels, address_labels, coin_labels) = load_all_label_maps(&core.conn);
 
         // Determine keychain + index for this address
         let spk_index = wallet.spk_index();
@@ -1022,10 +994,7 @@ impl APIWallet {
     pub fn reveal_more_addresses(&self, keychain: APIKeychain, count: u32) -> Result<u32> {
         use bdk_wallet::KeychainKind;
 
-        let mut core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self.lock_wallet()?;
         let bdk_keychain = match keychain {
             APIKeychain::External => KeychainKind::External,
             APIKeychain::Internal => KeychainKind::Internal,
@@ -1046,10 +1015,7 @@ impl APIWallet {
 
     /// Return the current best block height from the local chain (0 if not yet synced).
     pub fn get_tip_height(&self) -> Result<u32> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         Ok(core.wallet.latest_checkpoint().block_id().height)
     }
 }

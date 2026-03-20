@@ -14,7 +14,6 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/data/database.dart';
-import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 export 'package:deadbolt/cubit/wallet_detail_cubit.dart' show APIUtxo;
@@ -217,13 +216,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       showErrorToast(context, context.l10n.noUnusedReceiveAddress);
       return;
     }
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: cubit,
-        child: _ReceiveDialog(address: unused),
-      ),
-    );
+    _showWalletDialog(context, _ReceiveDialog(address: unused));
   }
 
   Future<void> _generateProjectFromWallet(
@@ -281,7 +274,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       );
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, formatRustError(e));
+        showErrorToastException(context, e);
       }
     }
   }
@@ -370,7 +363,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         exportPassword: exportPassword,
       );
     } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
+      if (context.mounted) showErrorToastException(context, e);
       return;
     }
 
@@ -393,7 +386,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           );
         }
       } catch (e) {
-        if (context.mounted) showErrorToast(context, formatRustError(e));
+        if (context.mounted) showErrorToastException(context, e);
       }
     } else {
       try {
@@ -409,7 +402,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         }
         if (context.mounted) showSuccessToast(context, 'Backup saved');
       } catch (e) {
-        if (context.mounted) showErrorToast(context, formatRustError(e));
+        if (context.mounted) showErrorToastException(context, e);
       }
     }
   }
@@ -576,7 +569,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         );
       }
     } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
+      if (context.mounted) showErrorToastException(context, e);
     }
   }
 
@@ -1536,12 +1529,17 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
+                        final cubit = context.read<WalletDetailCubit>();
+                        final l10n = context.l10n;
                         _showWalletDialog(
                           context,
-                          _AddressLabelEditDialog(
-                            address: address.address,
-                            keychain: keychain,
+                          _LabelDialog(
+                            title: l10n.addressLabelTitle,
+                            hintText: l10n.addressLabelHint,
                             currentLabel: address.label ?? '',
+                            removeLabel: l10n.addressLabelRemove,
+                            onSave: (label) => cubit.setAddressLabel(address.address, label, keychain),
+                            onRemove: () => cubit.setAddressLabel(address.address, '', keychain),
                           ),
                         );
                       },
@@ -1677,86 +1675,6 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _AddressLabelEditDialog extends StatefulWidget {
-  final String address;
-  final APIKeychain keychain;
-  final String currentLabel;
-
-  const _AddressLabelEditDialog({
-    required this.address,
-    required this.keychain,
-    required this.currentLabel,
-  });
-
-  @override
-  State<_AddressLabelEditDialog> createState() =>
-      _AddressLabelEditDialogState();
-}
-
-class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController.fromValue(TextEditingValue(
-      text: widget.currentLabel,
-      selection: TextSelection.collapsed(offset: widget.currentLabel.length),
-    ));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _save(BuildContext context) {
-    context.read<WalletDetailCubit>().setAddressLabel(
-      widget.address,
-      _controller.text.trim(),
-      widget.keychain,
-    );
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return AlertDialog(
-      titlePadding: kDialogTitlePadding,
-      title: dialogCloseTitle(l10n.addressLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          hintText: l10n.addressLabelHint,
-          border: const OutlineInputBorder(),
-        ),
-        onSubmitted: (_) => _save(context),
-      ),
-      actions: [
-        if (widget.currentLabel.isNotEmpty)
-          TextButton(
-            onPressed: () {
-              context.read<WalletDetailCubit>().setAddressLabel(
-                widget.address,
-                '',
-                widget.keychain,
-              );
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              l10n.addressLabelRemove,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        FilledButton(onPressed: () => _save(context), child: Text(l10n.save)),
-      ],
     );
   }
 }
@@ -2067,9 +1985,18 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
+                        final cubit = context.read<WalletDetailCubit>();
+                        final l10n = context.l10n;
                         _showWalletDialog(
                           context,
-                          _CoinLabelEditDialog(txid: utxo.txid, vout: utxo.vout, currentLabel: utxo.label ?? ''),
+                          _LabelDialog(
+                            title: l10n.coinLabelTitle,
+                            hintText: l10n.coinLabelHint,
+                            currentLabel: utxo.label ?? '',
+                            removeLabel: l10n.coinLabelRemove,
+                            onSave: (label) => cubit.setCoinLabel(utxo.txid, utxo.vout, label),
+                            onRemove: () => cubit.setCoinLabel(utxo.txid, utxo.vout, ''),
+                          ),
                         );
                       },
                     ),
@@ -2140,17 +2067,8 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          final cubit = context.read<WalletDetailCubit>();
                           Navigator.of(context).pop();
-                          showDialog<void>(
-                            context: context,
-                            builder: (ctx) => BlocProvider.value(
-                              value: cubit,
-                              child: _AddressDetailByStringDialog(
-                                address: utxo.address,
-                              ),
-                            ),
-                          );
+                          _showWalletDialog(context, _AddressDetailByStringDialog(address: utxo.address));
                         },
                         borderRadius: BorderRadius.circular(4),
                         child: FutureBuilder<APIUtxoDetails>(
@@ -2296,85 +2214,6 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _CoinLabelEditDialog extends StatefulWidget {
-  final String txid;
-  final int vout;
-  final String currentLabel;
-
-  const _CoinLabelEditDialog({
-    required this.txid,
-    required this.vout,
-    required this.currentLabel,
-  });
-
-  @override
-  State<_CoinLabelEditDialog> createState() => _CoinLabelEditDialogState();
-}
-
-class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController.fromValue(TextEditingValue(
-      text: widget.currentLabel,
-      selection: TextSelection.collapsed(offset: widget.currentLabel.length),
-    ));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _save(BuildContext context) {
-    context.read<WalletDetailCubit>().setCoinLabel(
-      widget.txid,
-      widget.vout,
-      _controller.text.trim(),
-    );
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return AlertDialog(
-      titlePadding: kDialogTitlePadding,
-      title: dialogCloseTitle(l10n.coinLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          hintText: l10n.coinLabelHint,
-          border: const OutlineInputBorder(),
-        ),
-        onSubmitted: (_) => _save(context),
-      ),
-      actions: [
-        if (widget.currentLabel.isNotEmpty)
-          TextButton(
-            onPressed: () {
-              context.read<WalletDetailCubit>().setCoinLabel(
-                widget.txid,
-                widget.vout,
-                '',
-              );
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              l10n.coinLabelRemove,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        FilledButton(onPressed: () => _save(context), child: Text(l10n.save)),
-      ],
     );
   }
 }
@@ -2659,9 +2498,18 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
+                        final cubit = context.read<WalletDetailCubit>();
+                        final l10n = context.l10n;
                         _showWalletDialog(
                           context,
-                          _LabelEditDialog(txid: tx.txid, currentLabel: tx.label ?? ''),
+                          _LabelDialog(
+                            title: l10n.txLabelTitle,
+                            hintText: l10n.txLabelHint,
+                            currentLabel: tx.label ?? '',
+                            removeLabel: l10n.txLabelRemove,
+                            onSave: (label) => cubit.setTxLabel(tx.txid, label),
+                            onRemove: () => cubit.setTxLabel(tx.txid, ''),
+                          ),
                         );
                       },
                     ),
@@ -2848,15 +2696,8 @@ class _RelatedAddressRow extends StatelessWidget {
   const _RelatedAddressRow({required this.address});
 
   void _showDetail(BuildContext context) {
-    final cubit = context.read<WalletDetailCubit>();
     Navigator.of(context).pop();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: cubit,
-        child: _AddressDetailByStringDialog(address: address.address),
-      ),
-    );
+    _showWalletDialog(context, _AddressDetailByStringDialog(address: address.address));
   }
 
   @override
@@ -2929,15 +2770,8 @@ class _RelatedCoinRow extends StatelessWidget {
   const _RelatedCoinRow({required this.utxo});
 
   void _showDetail(BuildContext context) {
-    final cubit = context.read<WalletDetailCubit>();
     Navigator.of(context).pop();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: cubit,
-        child: _CoinDetailByOutpointDialog(txid: utxo.txid, vout: utxo.vout),
-      ),
-    );
+    _showWalletDialog(context, _CoinDetailByOutpointDialog(txid: utxo.txid, vout: utxo.vout));
   }
 
   @override
@@ -3226,19 +3060,15 @@ class _RelatedTxRow extends StatelessWidget {
       );
     }
 
-    final cubit = context.read<WalletDetailCubit>();
     Navigator.of(context).pop();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: cubit,
-        child: _TxDetailDialog(
-          tx: apiTx,
-          network: network,
-          isSelfTransfer: isSelfTransfer,
-          isReceived: isReceived,
-          netSats: netSats,
-        ),
+    _showWalletDialog(
+      context,
+      _TxDetailDialog(
+        tx: apiTx,
+        network: network,
+        isSelfTransfer: isSelfTransfer,
+        isReceived: isReceived,
+        netSats: netSats,
       ),
     );
   }
@@ -3539,17 +3369,33 @@ class _SpendPathStatusRow extends StatelessWidget {
   }
 }
 
-class _LabelEditDialog extends StatefulWidget {
-  final String txid;
+/// Generic label-edit dialog used by address, coin, and tx label editors.
+///
+/// [onSave] is called with the trimmed label text (may be empty to clear).
+/// [onRemove] is called when the Remove button is tapped; button only appears
+/// when [currentLabel] is non-empty.
+class _LabelDialog extends StatefulWidget {
+  final String title;
+  final String hintText;
   final String currentLabel;
+  final String removeLabel;
+  final ValueChanged<String> onSave;
+  final VoidCallback? onRemove;
 
-  const _LabelEditDialog({required this.txid, required this.currentLabel});
+  const _LabelDialog({
+    required this.title,
+    required this.hintText,
+    required this.currentLabel,
+    required this.removeLabel,
+    required this.onSave,
+    this.onRemove,
+  });
 
   @override
-  State<_LabelEditDialog> createState() => _LabelEditDialogState();
+  State<_LabelDialog> createState() => _LabelDialogState();
 }
 
-class _LabelEditDialogState extends State<_LabelEditDialog> {
+class _LabelDialogState extends State<_LabelDialog> {
   late final TextEditingController _controller;
 
   @override
@@ -3568,10 +3414,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   }
 
   void _save(BuildContext context) {
-    context.read<WalletDetailCubit>().setTxLabel(
-      widget.txid,
-      _controller.text.trim(),
-    );
+    widget.onSave(_controller.text.trim());
     Navigator.of(context).pop();
   }
 
@@ -3580,12 +3423,12 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
     final l10n = context.l10n;
     return AlertDialog(
       titlePadding: kDialogTitlePadding,
-      title: dialogCloseTitle(l10n.txLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
+      title: dialogCloseTitle(widget.title, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: TextField(
         controller: _controller,
         autofocus: true,
         decoration: InputDecoration(
-          hintText: l10n.txLabelHint,
+          hintText: widget.hintText,
           border: const OutlineInputBorder(),
         ),
         onSubmitted: (_) => _save(context),
@@ -3594,11 +3437,11 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
         if (widget.currentLabel.isNotEmpty)
           TextButton(
             onPressed: () {
-              context.read<WalletDetailCubit>().setTxLabel(widget.txid, '');
+              widget.onRemove?.call();
               Navigator.of(context).pop();
             },
             child: Text(
-              l10n.txLabelRemove,
+              widget.removeLabel,
               style: const TextStyle(color: Colors.red),
             ),
           ),

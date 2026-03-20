@@ -1,33 +1,55 @@
 use super::*;
 
+type GetLabelFn = fn(&rusqlite::Connection, &str) -> Result<Option<(String, bool)>>;
+type SetLabelFn = fn(&rusqlite::Connection, &str, &str, bool, Option<&str>) -> Result<()>;
+
+/// Shared implementation for set_tx_label / set_address_label / set_coin_label.
+///
+/// Callers pass the resolved `entity_id` string (e.g. the txid, address, or
+/// "txid:vout" outpoint), the appropriate get/set persistence functions, and
+/// the `EntityType` for propagation and cascade-delete.
+fn apply_label(
+    core: &CoreWallet,
+    entity_type: EntityType,
+    entity_id: &str,
+    label: &str,
+    get_fn: GetLabelFn,
+    set_fn: SetLabelFn,
+) -> Result<()> {
+    if label.is_empty() {
+        match get_fn(&core.conn, entity_id)? {
+            Some((_, false)) => {
+                // Explicit label: delete the row and cascade.
+                set_fn(&core.conn, entity_id, "", false, None)?;
+                cascade_delete_label(&core.conn, entity_type, entity_id)?;
+            }
+            Some((_, true)) => {
+                // Inherited auto-label: no-op — only the source can clear it.
+            }
+            None => {} // Nothing to do.
+        }
+    } else {
+        set_fn(&core.conn, entity_id, label, false, None)?;
+        propagate_label(&core.conn, &core.wallet, entity_type, entity_id, label)?;
+    }
+    Ok(())
+}
+
 impl APIWallet {
     /// Persist a label for a transaction. Pass an empty string to remove it.
     /// Automatically propagates to related entities (addresses and UTXOs).
     /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_tx_label(&self, txid: String, label: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
-
-        if label.is_empty() {
-            match get_tx_label_with_flag(&core.conn, &txid)? {
-                Some((_, false)) => {
-                    // Explicit label: delete the row and cascade.
-                    db_set_tx_label(&core.conn, &txid, "", false, None)?;
-                    cascade_delete_label(&core.conn, EntityType::Tx, &txid)?;
-                }
-                Some((_, true)) => {
-                    // Inherited auto-label: no-op — only the source can clear it.
-                }
-                None => {} // Nothing to do.
-            }
-        } else {
-            db_set_tx_label(&core.conn, &txid, &label, false, None)?;
-            propagate_label(&core.conn, &core.wallet, EntityType::Tx, &txid, &label)?;
-        }
-        Ok(())
+        let core = self.lock_wallet()?;
+        apply_label(
+            &core,
+            EntityType::Tx,
+            &txid,
+            &label,
+            get_tx_label_with_flag,
+            db_set_tx_label,
+        )
     }
 
     /// Persist a label for an address. Pass an empty string to remove it.
@@ -35,34 +57,15 @@ impl APIWallet {
     /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_address_label(&self, address: String, label: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
-
-        if label.is_empty() {
-            match get_address_label_with_flag(&core.conn, &address)? {
-                Some((_, false)) => {
-                    // Explicit label: delete the row and cascade.
-                    db_set_address_label(&core.conn, &address, "", false, None)?;
-                    cascade_delete_label(&core.conn, EntityType::Address, &address)?;
-                }
-                Some((_, true)) => {
-                    // Inherited auto-label: no-op — only the source can clear it.
-                }
-                None => {} // Nothing to do.
-            }
-        } else {
-            db_set_address_label(&core.conn, &address, &label, false, None)?;
-            propagate_label(
-                &core.conn,
-                &core.wallet,
-                EntityType::Address,
-                &address,
-                &label,
-            )?;
-        }
-        Ok(())
+        let core = self.lock_wallet()?;
+        apply_label(
+            &core,
+            EntityType::Address,
+            &address,
+            &label,
+            get_address_label_with_flag,
+            db_set_address_label,
+        )
     }
 
     /// Persist a label for a coin (UTXO) by outpoint. Pass an empty string to remove it.
@@ -70,43 +73,21 @@ impl APIWallet {
     /// Clearing an inherited (auto) label is a no-op.
     #[frb(sync)]
     pub fn set_coin_label(&self, txid: String, vout: u32, label: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let outpoint = format!("{}:{}", txid, vout);
-
-        if label.is_empty() {
-            match get_coin_label_with_flag(&core.conn, &outpoint)? {
-                Some((_, false)) => {
-                    // Explicit label: delete the row and cascade.
-                    db_set_coin_label(&core.conn, &outpoint, "", false, None)?;
-                    cascade_delete_label(&core.conn, EntityType::Coin, &outpoint)?;
-                }
-                Some((_, true)) => {
-                    // Inherited auto-label: no-op — only the source can clear it.
-                }
-                None => {} // Nothing to do.
-            }
-        } else {
-            db_set_coin_label(&core.conn, &outpoint, &label, false, None)?;
-            propagate_label(
-                &core.conn,
-                &core.wallet,
-                EntityType::Coin,
-                &outpoint,
-                &label,
-            )?;
-        }
-        Ok(())
+        apply_label(
+            &core,
+            EntityType::Coin,
+            &outpoint,
+            &label,
+            get_coin_label_with_flag,
+            db_set_coin_label,
+        )
     }
 
     /// Return all key labels (mfp → label).
     pub fn get_key_labels(&self) -> Result<Vec<APIKeyLabel>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let map = get_all_key_labels(&core.conn).unwrap_or_default();
         Ok(map
             .into_iter()
@@ -117,19 +98,13 @@ impl APIWallet {
     /// Persist a label for a key by master fingerprint. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_key_label(&self, mfp: String, label: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         db_set_key_label(&core.conn, &mfp, &label)
     }
 
     /// Return all spend-path labels (rust_id → label).
     pub fn get_path_labels(&self) -> Result<Vec<APIPathLabel>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let map = get_all_path_labels(&core.conn).unwrap_or_default();
         Ok(map
             .into_iter()
@@ -140,10 +115,7 @@ impl APIWallet {
     /// Persist a label for a spend path by rust_id. Pass an empty string to remove it.
     #[frb(sync)]
     pub fn set_path_label(&self, rust_id: u32, label: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         db_set_path_label(&core.conn, rust_id, &label)
     }
 
@@ -151,10 +123,7 @@ impl APIWallet {
     /// Useful after imports or migrations. Clears all auto labels first.
     #[frb(sync)]
     pub fn repropagate_all_labels(&self) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
 
         // Clear all auto-labels (identified by a non-NULL source_entity).
         core.conn
@@ -212,10 +181,7 @@ impl APIWallet {
     /// Export all explicit (non-auto) labels to BIP-329 JSONL format.
     #[frb(sync)]
     pub fn export_bip329(&self) -> Result<Vec<String>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let conn = &core.conn;
         let mut lines: Vec<String> = Vec::new();
 
@@ -261,10 +227,7 @@ impl APIWallet {
     pub fn import_bip329(&self, lines: Vec<String>) -> Result<()> {
         // Phase 1: apply under lock
         {
-            let core = self
-                .inner
-                .lock()
-                .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+            let core = self.lock_wallet()?;
             let conn = &core.conn;
 
             // Build xpub→mfp reverse map from descriptor.

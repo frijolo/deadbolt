@@ -122,6 +122,26 @@ pub fn split_multipath_descriptor(desc: &str) -> (String, String) {
     )
 }
 
+/// Derive a root xprv from a stored seed entry's fields.
+///
+/// Handles both seed types in one place so callers don't repeat the
+/// `if seed_type == "mnemonic" { ... } else { ... }` branch.
+pub fn seed_entry_to_root_xprv(
+    seed_type: &str,
+    mnemonic: Option<&str>,
+    passphrase: &str,
+    xprv: Option<&str>,
+    network: Network,
+) -> Result<Xpriv> {
+    if seed_type == "mnemonic" {
+        let words = mnemonic.ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed entry"))?;
+        mnemonic_to_root_xprv(words, passphrase, network)
+    } else {
+        let xprv_str = xprv.ok_or_else(|| anyhow::anyhow!("xprv missing for seed entry"))?;
+        xprv_str_to_root_xprv(xprv_str)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

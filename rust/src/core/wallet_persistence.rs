@@ -81,6 +81,114 @@ fn ensure_column(conn: &Connection, table: &str, column: &str, col_def: &str) ->
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Generic label-table helpers (tx_labels / address_labels / coin_labels share
+// an identical schema; these private helpers avoid repeating the same queries
+// three times).
+// ---------------------------------------------------------------------------
+
+fn set_entity_label(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &str,
+    label: &str,
+    is_auto: bool,
+    source: Option<&str>,
+) -> Result<()> {
+    if label.is_empty() {
+        conn.execute(
+            &format!("DELETE FROM {table} WHERE {key_col} = ?1"),
+            rusqlite::params![key],
+        )?;
+    } else {
+        conn.execute(
+            &format!(
+                "INSERT OR REPLACE INTO {table} ({key_col}, label, is_auto, source_entity) \
+                 VALUES (?1, ?2, ?3, ?4)"
+            ),
+            rusqlite::params![key, label, is_auto as i32, source],
+        )?;
+    }
+    Ok(())
+}
+
+fn get_all_entity_labels(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+) -> Result<std::collections::HashMap<String, String>> {
+    let mut stmt = conn.prepare(&format!("SELECT {key_col}, label FROM {table}"))?;
+    let map = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+fn get_all_entity_labels_with_flag(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+) -> Result<std::collections::HashMap<String, (String, bool)>> {
+    let mut stmt = conn.prepare(&format!("SELECT {key_col}, label, is_auto FROM {table}"))?;
+    let map = stmt
+        .query_map([], |row| {
+            let is_auto: i32 = row.get(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                (row.get::<_, String>(1)?, is_auto != 0),
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(map)
+}
+
+fn get_entity_label(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &str,
+) -> Result<Option<String>> {
+    let mut stmt = conn.prepare(&format!("SELECT label FROM {table} WHERE {key_col} = ?1"))?;
+    let result = stmt.query_row([key], |row| row.get::<_, String>(0)).ok();
+    Ok(result)
+}
+
+fn get_entity_label_with_flag(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &str,
+) -> Result<Option<(String, bool)>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT label, is_auto FROM {table} WHERE {key_col} = ?1"
+    ))?;
+    let result = stmt
+        .query_row([key], |row| {
+            let is_auto: i32 = row.get(1)?;
+            Ok((row.get::<_, String>(0)?, is_auto != 0))
+        })
+        .ok();
+    Ok(result)
+}
+
+fn entity_has_explicit_label(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &str,
+) -> Result<bool> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT 1 FROM {table} WHERE {key_col} = ?1 AND is_auto = 0"
+    ))?;
+    let exists = stmt.query_row([key], |_row| Ok(true)).ok();
+    Ok(exists.unwrap_or(false))
+}
+
 //////////////////////
 // tx_labels table  //
 //////////////////////
@@ -110,74 +218,34 @@ pub fn set_tx_label(
     is_auto: bool,
     source: Option<&str>,
 ) -> Result<()> {
-    if label.is_empty() {
-        conn.execute(
-            "DELETE FROM tx_labels WHERE txid = ?1",
-            rusqlite::params![txid],
-        )?;
-    } else {
-        conn.execute(
-            "INSERT OR REPLACE INTO tx_labels (txid, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
-            rusqlite::params![txid, label, is_auto as i32, source],
-        )?;
-    }
-    Ok(())
+    set_entity_label(conn, "tx_labels", "txid", txid, label, is_auto, source)
 }
 
 /// Return all labels as a HashMap<txid, label>.
 pub fn get_all_tx_labels(conn: &Connection) -> Result<std::collections::HashMap<String, String>> {
-    let mut stmt = conn.prepare("SELECT txid, label FROM tx_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels(conn, "tx_labels", "txid")
 }
 
 /// Return all labels with is_auto flag as a HashMap<txid, (label, is_auto)>.
 pub fn get_all_tx_labels_with_flag(
     conn: &Connection,
 ) -> Result<std::collections::HashMap<String, (String, bool)>> {
-    let mut stmt = conn.prepare("SELECT txid, label, is_auto FROM tx_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            let is_auto: i32 = row.get(2)?;
-            Ok((
-                row.get::<_, String>(0)?,
-                (row.get::<_, String>(1)?, is_auto != 0),
-            ))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels_with_flag(conn, "tx_labels", "txid")
 }
 
 /// Get a specific tx label.
 pub fn get_tx_label(conn: &Connection, txid: &str) -> Result<Option<String>> {
-    let mut stmt = conn.prepare("SELECT label FROM tx_labels WHERE txid = ?1")?;
-    let result = stmt.query_row([txid], |row| row.get::<_, String>(0)).ok();
-    Ok(result)
+    get_entity_label(conn, "tx_labels", "txid", txid)
 }
 
 /// Get a specific tx label with is_auto flag.
 pub fn get_tx_label_with_flag(conn: &Connection, txid: &str) -> Result<Option<(String, bool)>> {
-    let mut stmt = conn.prepare("SELECT label, is_auto FROM tx_labels WHERE txid = ?1")?;
-    let result = stmt
-        .query_row([txid], |row| {
-            let is_auto: i32 = row.get(1)?;
-            Ok((row.get::<_, String>(0)?, is_auto != 0))
-        })
-        .ok();
-    Ok(result)
+    get_entity_label_with_flag(conn, "tx_labels", "txid", txid)
 }
 
 /// Check if a tx has an explicit (non-auto) label.
 pub fn tx_has_explicit_label(conn: &Connection, txid: &str) -> Result<bool> {
-    let mut stmt = conn.prepare("SELECT 1 FROM tx_labels WHERE txid = ?1 AND is_auto = 0")?;
-    let exists = stmt.query_row([txid], |_row| Ok(true)).ok();
-    Ok(exists.unwrap_or(false))
+    entity_has_explicit_label(conn, "tx_labels", "txid", txid)
 }
 
 ////////////////////////////
@@ -214,59 +282,34 @@ pub fn set_address_label(
     is_auto: bool,
     source: Option<&str>,
 ) -> Result<()> {
-    if label.is_empty() {
-        conn.execute(
-            "DELETE FROM address_labels WHERE address = ?1",
-            rusqlite::params![address],
-        )?;
-    } else {
-        conn.execute(
-            "INSERT OR REPLACE INTO address_labels (address, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
-            rusqlite::params![address, label, is_auto as i32, source],
-        )?;
-    }
-    Ok(())
+    set_entity_label(
+        conn,
+        "address_labels",
+        "address",
+        address,
+        label,
+        is_auto,
+        source,
+    )
 }
 
 /// Return all address labels as a HashMap<address, label>.
 pub fn get_all_address_labels(
     conn: &Connection,
 ) -> Result<std::collections::HashMap<String, String>> {
-    let mut stmt = conn.prepare("SELECT address, label FROM address_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels(conn, "address_labels", "address")
 }
 
 /// Return all address labels with is_auto flag as a HashMap<address, (label, is_auto)>.
 pub fn get_all_address_labels_with_flag(
     conn: &Connection,
 ) -> Result<std::collections::HashMap<String, (String, bool)>> {
-    let mut stmt = conn.prepare("SELECT address, label, is_auto FROM address_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            let is_auto: i32 = row.get(2)?;
-            Ok((
-                row.get::<_, String>(0)?,
-                (row.get::<_, String>(1)?, is_auto != 0),
-            ))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels_with_flag(conn, "address_labels", "address")
 }
 
 /// Get a specific address label.
 pub fn get_address_label(conn: &Connection, address: &str) -> Result<Option<String>> {
-    let mut stmt = conn.prepare("SELECT label FROM address_labels WHERE address = ?1")?;
-    let result = stmt
-        .query_row([address], |row| row.get::<_, String>(0))
-        .ok();
-    Ok(result)
+    get_entity_label(conn, "address_labels", "address", address)
 }
 
 /// Get a specific address label with is_auto flag.
@@ -274,22 +317,12 @@ pub fn get_address_label_with_flag(
     conn: &Connection,
     address: &str,
 ) -> Result<Option<(String, bool)>> {
-    let mut stmt = conn.prepare("SELECT label, is_auto FROM address_labels WHERE address = ?1")?;
-    let result = stmt
-        .query_row([address], |row| {
-            let is_auto: i32 = row.get(1)?;
-            Ok((row.get::<_, String>(0)?, is_auto != 0))
-        })
-        .ok();
-    Ok(result)
+    get_entity_label_with_flag(conn, "address_labels", "address", address)
 }
 
 /// Check if an address has an explicit (non-auto) label.
 pub fn address_has_explicit_label(conn: &Connection, address: &str) -> Result<bool> {
-    let mut stmt =
-        conn.prepare("SELECT 1 FROM address_labels WHERE address = ?1 AND is_auto = 0")?;
-    let exists = stmt.query_row([address], |_row| Ok(true)).ok();
-    Ok(exists.unwrap_or(false))
+    entity_has_explicit_label(conn, "address_labels", "address", address)
 }
 
 //////////////////////////////
@@ -407,57 +440,32 @@ pub fn set_coin_label(
     is_auto: bool,
     source: Option<&str>,
 ) -> Result<()> {
-    if label.is_empty() {
-        conn.execute(
-            "DELETE FROM coin_labels WHERE outpoint = ?1",
-            rusqlite::params![outpoint],
-        )?;
-    } else {
-        conn.execute(
-            "INSERT OR REPLACE INTO coin_labels (outpoint, label, is_auto, source_entity) VALUES (?1, ?2, ?3, ?4)",
-            rusqlite::params![outpoint, label, is_auto as i32, source],
-        )?;
-    }
-    Ok(())
+    set_entity_label(
+        conn,
+        "coin_labels",
+        "outpoint",
+        outpoint,
+        label,
+        is_auto,
+        source,
+    )
 }
 
 /// Return all coin labels as a HashMap<outpoint, label>.
 pub fn get_all_coin_labels(conn: &Connection) -> Result<std::collections::HashMap<String, String>> {
-    let mut stmt = conn.prepare("SELECT outpoint, label FROM coin_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels(conn, "coin_labels", "outpoint")
 }
 
 /// Return all coin labels with is_auto flag as a HashMap<outpoint, (label, is_auto)>.
 pub fn get_all_coin_labels_with_flag(
     conn: &Connection,
 ) -> Result<std::collections::HashMap<String, (String, bool)>> {
-    let mut stmt = conn.prepare("SELECT outpoint, label, is_auto FROM coin_labels")?;
-    let map = stmt
-        .query_map([], |row| {
-            let is_auto: i32 = row.get(2)?;
-            Ok((
-                row.get::<_, String>(0)?,
-                (row.get::<_, String>(1)?, is_auto != 0),
-            ))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(map)
+    get_all_entity_labels_with_flag(conn, "coin_labels", "outpoint")
 }
 
 /// Get a specific coin label.
 pub fn get_coin_label(conn: &Connection, outpoint: &str) -> Result<Option<String>> {
-    let mut stmt = conn.prepare("SELECT label FROM coin_labels WHERE outpoint = ?1")?;
-    let result = stmt
-        .query_row([outpoint], |row| row.get::<_, String>(0))
-        .ok();
-    Ok(result)
+    get_entity_label(conn, "coin_labels", "outpoint", outpoint)
 }
 
 /// Get a specific coin label with is_auto flag.
@@ -465,21 +473,12 @@ pub fn get_coin_label_with_flag(
     conn: &Connection,
     outpoint: &str,
 ) -> Result<Option<(String, bool)>> {
-    let mut stmt = conn.prepare("SELECT label, is_auto FROM coin_labels WHERE outpoint = ?1")?;
-    let result = stmt
-        .query_row([outpoint], |row| {
-            let is_auto: i32 = row.get(1)?;
-            Ok((row.get::<_, String>(0)?, is_auto != 0))
-        })
-        .ok();
-    Ok(result)
+    get_entity_label_with_flag(conn, "coin_labels", "outpoint", outpoint)
 }
 
 /// Check if a coin has an explicit (non-auto) label.
 pub fn coin_has_explicit_label(conn: &Connection, outpoint: &str) -> Result<bool> {
-    let mut stmt = conn.prepare("SELECT 1 FROM coin_labels WHERE outpoint = ?1 AND is_auto = 0")?;
-    let exists = stmt.query_row([outpoint], |_row| Ok(true)).ok();
-    Ok(exists.unwrap_or(false))
+    entity_has_explicit_label(conn, "coin_labels", "outpoint", outpoint)
 }
 
 //////////////////////////////

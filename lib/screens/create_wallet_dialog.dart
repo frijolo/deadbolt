@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
-import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
@@ -391,7 +390,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
           network: _selectedNetwork,
         );
       } catch (e) {
-        if (mounted) showErrorToast(context, formatRustError(e));
+        if (mounted) showErrorToastException(context, e);
         return;
       }
     }
@@ -421,7 +420,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
       if (mounted) Navigator.pop(context, walletPath);
     } catch (e) {
       setState(() => _isCreating = false);
-      if (mounted) showErrorToast(context, formatRustError(e));
+      if (mounted) showErrorToastException(context, e);
     }
   }
 

@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
-import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
@@ -321,7 +320,7 @@ class WalletListScreen extends StatelessWidget {
     try {
       backupType = await rust_wallet.inspectWalletBackup(backupBytes: bytes);
     } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
+      if (context.mounted) showErrorToastException(context, e);
       return;
     }
 
@@ -367,7 +366,7 @@ class WalletListScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
+      if (context.mounted) showErrorToastException(context, e);
     }
   }
 

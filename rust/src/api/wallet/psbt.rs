@@ -1,5 +1,19 @@
 use super::*;
 
+/// Return true if every PSBT input is finalized (has final_script_sig or final_script_witness).
+fn is_psbt_finalized(psbt: &bdk_wallet::bitcoin::psbt::Psbt) -> bool {
+    psbt.inputs
+        .iter()
+        .all(|i| i.final_script_sig.is_some() || i.final_script_witness.is_some())
+}
+
+/// Current Unix timestamp in seconds.
+fn current_unix_secs() -> anyhow::Result<i64> {
+    Ok(std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as i64)
+}
+
 /// Collect unique master fingerprints from all inputs of a PSBT.
 /// Covers both non-taproot (bip32_derivation) and taproot (tap_key_origins) inputs.
 fn extract_mfps_from_psbt_inputs(inputs: &[bdk_wallet::bitcoin::psbt::Input]) -> Vec<String> {
@@ -48,10 +62,7 @@ impl APIWallet {
         use std::collections::BTreeMap;
         use std::str::FromStr;
 
-        let mut core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self.lock_wallet()?;
 
         let network = core.wallet.network();
         let address = Address::from_str(&recipient_address)?.require_network(network)?;
@@ -197,9 +208,7 @@ impl APIWallet {
             &mfps,
         )?;
 
-        let created_at = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let created_at = current_unix_secs()?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
         let is_self_transfer = is_psbt_self_transfer(&core.wallet, &recipient);
@@ -226,10 +235,7 @@ impl APIWallet {
 
     /// Return all saved unsigned PSBTs for this wallet, newest-first.
     pub fn list_psbts(&self) -> Result<Vec<APIPsbtInfo>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         ensure_unsigned_txs_table(&core.conn)?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let valid_outpoints = build_valid_outpoints(&core.wallet);
@@ -242,20 +248,14 @@ impl APIWallet {
     /// Delete a saved PSBT by id.
     #[frb(sync)]
     pub fn delete_psbt(&self, id: i64) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         delete_psbt_row(&core.conn, id)
     }
 
     /// Set or clear the label for a saved PSBT. Pass an empty string to clear.
     #[frb(sync)]
     pub fn set_psbt_label(&self, id: i64, label: String) -> Result<APIPsbtInfo> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let new_label = if label.is_empty() {
             None
         } else {
@@ -272,10 +272,7 @@ impl APIWallet {
     /// Returns the updated info.
     #[frb(sync)]
     pub fn merge_psbt(&self, id: i64, signed_psbt_base64: String) -> Result<APIPsbtInfo> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let row = get_psbt_row(&core.conn, id)?;
 
         let mut existing = psbt_from_base64(&row.psbt)?;
@@ -298,10 +295,7 @@ impl APIWallet {
     /// merged and the existing record is updated (`was_merged = true`).
     /// Otherwise a new record is created with metadata extracted from the PSBT.
     pub fn import_psbt(&self, psbt_base64: String) -> Result<APIImportPsbtResult> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         ensure_unsigned_txs_table(&core.conn)?;
 
         let imported = psbt_from_base64(&psbt_base64)?;
@@ -367,9 +361,7 @@ impl APIWallet {
             &mfps,
         )?;
 
-        let created_at = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let created_at = current_unix_secs()?;
         let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &imported);
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
@@ -467,10 +459,7 @@ impl APIWallet {
             })
             .collect();
 
-        let is_finalized = psbt
-            .inputs
-            .iter()
-            .all(|i| i.final_script_sig.is_some() || i.final_script_witness.is_some());
+        let is_finalized = is_psbt_finalized(&psbt);
 
         Ok(APIPsbtAnalysis {
             signers,
@@ -484,10 +473,7 @@ impl APIWallet {
     pub async fn broadcast_psbt(&self, id: i64, electrum_url: String) -> Result<String> {
         use bdk_electrum::{electrum_client, BdkElectrumClient};
 
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let row = get_psbt_row(&core.conn, id)?;
         // Capture label before consuming the row.
         let psbt_label = row.label.clone();
@@ -511,11 +497,7 @@ impl APIWallet {
         }
 
         // If not already finalized by signer, try to finalize via BDK/miniscript.
-        let already_final = psbt
-            .inputs
-            .iter()
-            .all(|i| i.final_script_sig.is_some() || i.final_script_witness.is_some());
-        if !already_final {
+        if !is_psbt_finalized(&psbt) {
             #[allow(deprecated)]
             let ok = core
                 .wallet
@@ -561,17 +543,14 @@ impl APIWallet {
     #[frb(sync)]
     pub fn sign_psbt_with_key(&self, psbt_id: i64, mfp: String) -> Result<APIPsbtInfo> {
         use crate::core::seed::{
-            make_private_descriptor, mnemonic_to_root_xprv, root_xprv_to_mfp,
-            split_multipath_descriptor, strip_descriptor_checksum, xprv_str_to_root_xprv,
+            make_private_descriptor, root_xprv_to_mfp, seed_entry_to_root_xprv,
+            split_multipath_descriptor, strip_descriptor_checksum,
         };
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
         use bdk_wallet::{KeychainKind, Wallet};
         use std::sync::Arc;
 
-        let mut core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self.lock_wallet()?;
 
         // Find the seed entry for this MFP.
         let seeds = list_seed_entries(&core.conn)?;
@@ -586,19 +565,13 @@ impl APIWallet {
         let secp = Secp256k1::new();
 
         // Derive the root xprv from the stored seed.
-        let root_xprv = if seed.seed_type == "mnemonic" {
-            let mnemonic = seed
-                .mnemonic
-                .as_deref()
-                .ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed"))?;
-            mnemonic_to_root_xprv(mnemonic, &seed.passphrase, network)?
-        } else {
-            let xprv_str = seed
-                .xprv
-                .as_deref()
-                .ok_or_else(|| anyhow::anyhow!("xprv missing for seed"))?;
-            xprv_str_to_root_xprv(xprv_str)?
-        };
+        let root_xprv = seed_entry_to_root_xprv(
+            &seed.seed_type,
+            seed.mnemonic.as_deref(),
+            &seed.passphrase,
+            seed.xprv.as_deref(),
+            network,
+        )?;
 
         let derived_mfp = root_xprv_to_mfp(&root_xprv, &secp);
         if derived_mfp != mfp {

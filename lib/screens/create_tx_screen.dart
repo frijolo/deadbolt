@@ -12,7 +12,6 @@ import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
-import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -784,7 +783,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         );
       }
     } catch (e) {
-      if (mounted) showErrorToast(context, formatRustError(e));
+      if (mounted) showErrorToastException(context, e);
     } finally {
       if (mounted) setState(() => _creating = false);
     }

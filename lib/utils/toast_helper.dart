@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 
 /// Show a success toast (green with check icon)
@@ -47,6 +48,12 @@ void showInfoToast(BuildContext context, String message) {
       behavior: SnackBarBehavior.floating,
     ),
   );
+}
+
+/// Show an error toast for a caught exception. Strips the AnyhowException wrapper
+/// automatically via [formatRustError].
+void showErrorToastException(BuildContext context, Object e) {
+  showErrorToast(context, formatRustError(e));
 }
 
 /// Show an error toast (red with copy button)

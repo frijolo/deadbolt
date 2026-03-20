@@ -5,8 +5,8 @@ use bdk_wallet::{KeychainKind, PersistedWallet, Wallet};
 use std::sync::Arc;
 
 use crate::core::seed::{
-    make_private_descriptor, mnemonic_to_root_xprv, root_xprv_to_mfp, split_multipath_descriptor,
-    strip_descriptor_checksum, xprv_str_to_root_xprv,
+    make_private_descriptor, root_xprv_to_mfp, seed_entry_to_root_xprv, split_multipath_descriptor,
+    strip_descriptor_checksum,
 };
 use crate::core::wallet_persistence::{list_seed_entries, load_or_create_wallet};
 
@@ -61,19 +61,13 @@ impl CoreWallet {
         let secp = Secp256k1::new();
 
         for seed in &seeds {
-            let root_xprv = if seed.seed_type == "mnemonic" {
-                let mnemonic = seed
-                    .mnemonic
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed entry"))?;
-                mnemonic_to_root_xprv(mnemonic, &seed.passphrase, network)?
-            } else {
-                let xprv_str = seed
-                    .xprv
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("xprv missing for seed entry"))?;
-                xprv_str_to_root_xprv(xprv_str)?
-            };
+            let root_xprv = seed_entry_to_root_xprv(
+                &seed.seed_type,
+                seed.mnemonic.as_deref(),
+                &seed.passphrase,
+                seed.xprv.as_deref(),
+                network,
+            )?;
 
             let mfp = root_xprv_to_mfp(&root_xprv, &secp);
             if !descriptor.contains(&mfp) {

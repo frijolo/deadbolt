@@ -13,7 +13,6 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
-import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -326,7 +325,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         showSuccessToast(context, context.l10n.savedToDownloads);
       }
     } catch (e) {
-      if (context.mounted) showErrorToast(context, formatRustError(e));
+      if (context.mounted) showErrorToastException(context, e);
     }
   }
 
@@ -350,7 +349,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, formatRustError(e));
+        showErrorToastException(context, e);
       }
     }
   }
@@ -385,7 +384,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, formatRustError(e));
+        showErrorToastException(context, e);
       }
     } finally {
       if (mounted) setState(() => _broadcasting = false);

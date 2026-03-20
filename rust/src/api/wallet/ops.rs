@@ -38,10 +38,7 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self.lock_wallet()?;
         let is_first_sync = read_wallet_info(&core.conn)?.last_synced_at.is_none();
 
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
@@ -80,10 +77,7 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let mut core = self.lock_wallet()?;
 
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
         let request = core.wallet.start_full_scan();

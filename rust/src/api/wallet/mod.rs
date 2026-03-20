@@ -632,7 +632,7 @@ pub struct APIWallet {
 }
 
 impl APIWallet {
-    fn lock_wallet(&self) -> Result<std::sync::MutexGuard<'_, CoreWallet>> {
+    pub(super) fn lock_wallet(&self) -> Result<std::sync::MutexGuard<'_, CoreWallet>> {
         self.inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))
