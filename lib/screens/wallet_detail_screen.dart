@@ -51,6 +51,15 @@ import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
+/// Show a dialog that inherits the current [WalletDetailCubit] from [context].
+void _showWalletDialog(BuildContext context, Widget child) {
+  final cubit = context.read<WalletDetailCubit>();
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => BlocProvider.value(value: cubit, child: child),
+  );
+}
+
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
   final void Function(int)? onNavigate;
@@ -1449,16 +1458,9 @@ class _AddressTile extends StatelessWidget {
   }
 
   void _showDetails(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<WalletDetailCubit>(),
-        child: _AddressDetailDialog(
-          address: address,
-          keychain: keychain,
-          network: network,
-        ),
-      ),
+    _showWalletDialog(
+      context,
+      _AddressDetailDialog(address: address, keychain: keychain, network: network),
     );
   }
 }
@@ -1534,15 +1536,12 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        showDialog<void>(
-                          context: context,
-                          builder: (ctx) => BlocProvider.value(
-                            value: context.read<WalletDetailCubit>(),
-                            child: _AddressLabelEditDialog(
-                              address: address.address,
-                              keychain: keychain,
-                              currentLabel: address.label ?? '',
-                            ),
+                        _showWalletDialog(
+                          context,
+                          _AddressLabelEditDialog(
+                            address: address.address,
+                            keychain: keychain,
+                            currentLabel: address.label ?? '',
                           ),
                         );
                       },
@@ -1991,17 +1990,9 @@ class _CoinTile extends StatelessWidget {
     BuildContext context,
     List<(APISpendPath, SpendPathStatus)> statuses,
   ) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<WalletDetailCubit>(),
-        child: _CoinDetailDialog(
-          utxo: utxo,
-          network: network,
-          spendPathStatuses: statuses,
-          keyLabels: keyLabels,
-        ),
-      ),
+    _showWalletDialog(
+      context,
+      _CoinDetailDialog(utxo: utxo, network: network, spendPathStatuses: statuses, keyLabels: keyLabels),
     );
   }
 }
@@ -2076,16 +2067,9 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        showDialog<void>(
-                          context: context,
-                          builder: (ctx) => BlocProvider.value(
-                            value: context.read<WalletDetailCubit>(),
-                            child: _CoinLabelEditDialog(
-                              txid: utxo.txid,
-                              vout: utxo.vout,
-                              currentLabel: utxo.label ?? '',
-                            ),
-                          ),
+                        _showWalletDialog(
+                          context,
+                          _CoinLabelEditDialog(txid: utxo.txid, vout: utxo.vout, currentLabel: utxo.label ?? ''),
                         );
                       },
                     ),
@@ -2582,18 +2566,9 @@ class _TransactionTile extends StatelessWidget {
     bool isReceived,
     int netSats,
   ) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<WalletDetailCubit>(),
-        child: _TxDetailDialog(
-          tx: tx,
-          network: network,
-          isSelfTransfer: isSelfTransfer,
-          isReceived: isReceived,
-          netSats: netSats,
-        ),
-      ),
+    _showWalletDialog(
+      context,
+      _TxDetailDialog(tx: tx, network: network, isSelfTransfer: isSelfTransfer, isReceived: isReceived, netSats: netSats),
     );
   }
 }
@@ -2684,15 +2659,9 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: l10n.edit,
                       onPressed: () {
-                        showDialog<void>(
-                          context: context,
-                          builder: (ctx) => BlocProvider.value(
-                            value: context.read<WalletDetailCubit>(),
-                            child: _LabelEditDialog(
-                              txid: tx.txid,
-                              currentLabel: tx.label ?? '',
-                            ),
-                          ),
+                        _showWalletDialog(
+                          context,
+                          _LabelEditDialog(txid: tx.txid, currentLabel: tx.label ?? ''),
                         );
                       },
                     ),

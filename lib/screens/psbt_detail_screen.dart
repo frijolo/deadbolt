@@ -371,20 +371,14 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
   Future<void> _broadcast(BuildContext context) async {
     final l10n = context.l10n;
+    final cubit = context.read<WalletDetailCubit>();
     final settings = context.read<SettingsCubit>().state;
-    final electrumUrl = settings.electrumUrlForNetwork(
-      context.read<WalletDetailCubit>().state is WalletDetailLoaded
-          ? (context.read<WalletDetailCubit>().state as WalletDetailLoaded)
-              .walletInfo
-              .network
-          : settings.network,
-    );
+    final network = _loadedState?.walletInfo.network ?? settings.network;
+    final electrumUrl = settings.electrumUrlForNetwork(network);
 
     setState(() => _broadcasting = true);
     try {
-      final txid = await context
-          .read<WalletDetailCubit>()
-          .broadcastPsbt(_psbt.id.toInt(), electrumUrl);
+      final txid = await cubit.broadcastPsbt(_psbt.id.toInt(), electrumUrl);
       if (context.mounted) {
         showSuccessToast(context, l10n.psbtBroadcastSuccess(txid));
         Navigator.of(context).pop();
@@ -403,14 +397,9 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   // ─── Hardware wallet signing ───────────────────────────────────────────────
 
   Future<void> _signWithHw(BuildContext context) async {
-    final walletState = context.read<WalletDetailCubit>().state;
-    final network = walletState is WalletDetailLoaded
-        ? walletState.walletInfo.network
-        : APINetwork.bitcoin;
-
-    final descriptor = walletState is WalletDetailLoaded
-        ? walletState.walletInfo.descriptor
-        : null;
+    final loaded = _loadedState;
+    final network = loaded?.walletInfo.network ?? APINetwork.bitcoin;
+    final descriptor = loaded?.walletInfo.descriptor;
 
     final signedBase64 = await showHwSignSheet(
       context,
