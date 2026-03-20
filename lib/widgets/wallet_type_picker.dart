@@ -32,6 +32,7 @@ class WalletTypePicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SegmentedButton<WalletPolicy>(
+          showSelectedIcon: false,
           segments: [
             ButtonSegment(
               value: WalletPolicy.singleSig,
@@ -49,6 +50,7 @@ class WalletTypePicker extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SegmentedButton<WalletAddressFormat>(
+          showSelectedIcon: false,
           segments: [
             ButtonSegment(
               value: WalletAddressFormat.legacy,

@@ -170,13 +170,11 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                       offset: const Offset(0, 32),
                       onSelected: (value) => setState(() => _selectedNetwork = value),
                       tooltip: l10n.selectNetworkTooltip,
-                      itemBuilder: (context) => [
-                        APINetwork.bitcoin,
-                        APINetwork.testnet,
-                      ].map((network) => PopupMenuItem(
-                            value: network,
-                            child: Text(localizedNetworkName(context, network)),
-                          ))
+                      itemBuilder: (context) => APINetwork.values
+                          .map((network) => PopupMenuItem(
+                                value: network,
+                                child: Text(localizedNetworkName(context, network)),
+                              ))
                           .toList(),
                       child: Container(
                         width: double.infinity,
