@@ -50,6 +50,31 @@ void showInfoToast(BuildContext context, String message) {
   );
 }
 
+/// Show error toast + clear it via [clearError] when [errorMessage] is non-null.
+/// Intended for BlocListeners that follow the `errorMessage / clearError()` pattern.
+void handleTransientError(
+  BuildContext context,
+  String? errorMessage,
+  VoidCallback clearError,
+) {
+  if (errorMessage != null) {
+    showErrorToast(context, errorMessage);
+    clearError();
+  }
+}
+
+/// Show success toast + clear it via [clearSuccess] when [successMessage] is non-null.
+void handleTransientSuccess(
+  BuildContext context,
+  String? successMessage,
+  VoidCallback clearSuccess,
+) {
+  if (successMessage != null) {
+    showSuccessToast(context, successMessage);
+    clearSuccess();
+  }
+}
+
 /// Show an error toast for a caught exception. Strips the AnyhowException wrapper
 /// automatically via [formatRustError].
 void showErrorToastException(BuildContext context, Object e) {

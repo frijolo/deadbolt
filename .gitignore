@@ -52,19 +52,8 @@ app.*.map.json
 
 # Rust
 /rust/target/
-/rust/Cargo.lock
 rust/**/*.rs.bk
 *.pdb
-
-# Claude Code / AI Development Tools
-GETTING_STARTED.md
-CLAUDE.md
-.claude/
-*.jsonl
-
-# Aider
-.aider*
-.aider.tags.cache.v4/
 
 # GPG / Security
 *.key
@@ -116,4 +105,3 @@ lcov.info
 *.sqlite
 *.sqlite3
 
-memory/

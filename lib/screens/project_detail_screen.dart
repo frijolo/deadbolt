@@ -68,17 +68,10 @@ class _ProjectDetailView extends StatelessWidget {
       listener: (context, state) {
         if (state is! ProjectDetailLoaded) return;
 
-        // Show error toast
-        if (state.errorMessage != null) {
-          showErrorToast(context, state.errorMessage!);
-          context.read<ProjectDetailCubit>().clearError();
-        }
-
-        // Show success toast
-        if (state.successMessage != null) {
-          showSuccessToast(context, state.successMessage!);
-          context.read<ProjectDetailCubit>().clearSuccess();
-        }
+        handleTransientError(context, state.errorMessage,
+            context.read<ProjectDetailCubit>().clearError);
+        handleTransientSuccess(context, state.successMessage,
+            context.read<ProjectDetailCubit>().clearSuccess);
       },
       child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
         builder: (context, state) {

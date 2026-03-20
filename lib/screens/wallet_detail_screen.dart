@@ -90,9 +90,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     return BlocListener<WalletDetailCubit, WalletDetailState>(
       listener: (context, state) async {
         _maybeStartAutoSync(context, state);
-        if (state is WalletDetailLoaded && state.errorMessage != null) {
-          showErrorToast(context, state.errorMessage!);
-          context.read<WalletDetailCubit>().clearError();
+        if (state is WalletDetailLoaded) {
+          handleTransientError(context, state.errorMessage,
+              context.read<WalletDetailCubit>().clearError);
         }
         if (state is WalletDetailNeedsPassword) {
           final password = await showPasswordPrompt(

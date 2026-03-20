@@ -76,7 +76,10 @@ impl CoreWallet {
 
             let private_desc = match make_private_descriptor(descriptor, &root_xprv, &secp) {
                 Ok(d) => d,
-                Err(_) => continue,
+                Err(e) => {
+                    eprintln!("[load_signers] make_private_descriptor failed for mfp={mfp}: {e}");
+                    continue;
+                }
             };
             // Strip checksum — xpub→xprv replacement invalidates it.
             let private_desc = strip_descriptor_checksum(&private_desc);
@@ -95,7 +98,10 @@ impl CoreWallet {
                 .create_wallet_no_persist()
             {
                 Ok(w) => w,
-                Err(_) => continue,
+                Err(e) => {
+                    eprintln!("[load_signers] temp wallet creation failed for mfp={mfp}: {e}");
+                    continue;
+                }
             };
 
             // Copy signers into the main wallet (which has the synced address index).
