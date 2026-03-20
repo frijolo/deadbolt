@@ -69,6 +69,17 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     return {};
   }
 
+  List<APIHotKeyInfo> get _hotKeys {
+    final s = context.read<WalletDetailCubit>().state;
+    if (s is WalletDetailLoaded) return s.hotKeys;
+    return [];
+  }
+
+  bool get _hasMatchingHotKey {
+    final psbtMfps = _psbt.mfps.toSet();
+    return _hotKeys.any((k) => psbtMfps.contains(k.mfp));
+  }
+
   int get _signedCount =>
       _analysis?.signers.where((s) => s.hasSigned).length ?? 0;
 
@@ -357,6 +368,17 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   }
 
   // ─── Broadcast ───────────────────────────────────────────────────────────
+
+  Future<void> _signLocally(BuildContext context) async {
+    final updated = await context.read<WalletDetailCubit>().signPsbt(_psbt.id.toInt());
+    if (!context.mounted) return;
+    if (updated != null) {
+      setState(() => _psbt = updated);
+      final analysis = _analysis;
+      final signed = analysis?.signers.where((s) => s.hasSigned).length ?? 0;
+      showSuccessToast(context, '$signed of ${_psbt.threshold} signatures applied');
+    }
+  }
 
   Future<void> _broadcast(BuildContext context) async {
     final l10n = context.l10n;
@@ -670,6 +692,16 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   icon: const Icon(Icons.hardware_outlined, size: 18),
                   label: const Text('Sign with hardware wallet'),
                 ),
+                if (_hasMatchingHotKey) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _isReadyToBroadcast
+                        ? null
+                        : () => _signLocally(context),
+                    icon: const Icon(Icons.key_outlined, size: 18),
+                    label: const Text('Sign locally'),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: (_isReadyToBroadcast && !_broadcasting)

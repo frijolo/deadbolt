@@ -41,6 +41,12 @@ class WalletService {
     return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
+  /// Returns the app support directory path.
+  Future<String> getAppSupportDir() async {
+    final dir = await getApplicationSupportDirectory();
+    return dir.path;
+  }
+
   /// Returns (and creates if needed) the wallets directory path.
   Future<String> getWalletsDir() async {
     final dir = await getApplicationSupportDirectory();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -32,24 +33,32 @@ Color _colorForMfp(BuildContext context, ProjectDetailCubit cubit, String mfp) {
 class ProjectDetailScreen extends StatelessWidget {
   final AppDatabase db;
   final int projectId;
+  final void Function(int)? onNavigate;
 
   const ProjectDetailScreen({
     super.key,
     required this.db,
     required this.projectId,
+    this.onNavigate,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ProjectDetailCubit(db, projectId),
-      child: const _ProjectDetailView(),
+      create: (ctx) => ProjectDetailCubit(
+        db,
+        projectId,
+        walletService: ctx.read<WalletService>(),
+      ),
+      child: _ProjectDetailView(onNavigate: onNavigate),
     );
   }
 }
 
 class _ProjectDetailView extends StatelessWidget {
-  const _ProjectDetailView();
+  final void Function(int)? onNavigate;
+
+  const _ProjectDetailView({this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +407,7 @@ class _ProjectDetailView extends StatelessWidget {
 
   Future<void> _createWalletFromProject(
           BuildContext context, Project project) =>
-      createWalletFromProject(context, project);
+      createWalletFromProject(context, project, onNavigate: onNavigate);
 
   void _showExportProjectSheet(BuildContext context, ProjectDetailCubit cubit) {
     final payload = cubit.buildExportPayload();
@@ -462,6 +471,7 @@ class _KeysSection extends StatelessWidget {
 
   Widget _buildEditableKey(BuildContext context, EditableKey key) {
     final isInUse = state.editedPaths!.any((path) => path.mfps.contains(key.mfp));
+    final isHot = state.hotKeys.any((k) => k.mfp == key.mfp.toLowerCase());
     return KeyCard(
       mfp: key.mfp,
       derivationPath: key.derivationPath,
@@ -475,6 +485,17 @@ class _KeysSection extends StatelessWidget {
           k.customName!.toLowerCase() == name.toLowerCase()),
       onDelete: () => cubit.removeKey(key.mfp),
       canDelete: !isInUse,
+      isHot: isHot,
+      onMakeHot: isHot
+          ? null
+          : () => showAddProjectPrivateKeySheet(
+                context,
+                cubit: cubit,
+                expectedMfp: key.mfp,
+                keyLabel: key.customName,
+              ),
+      onRevealSeed: isHot ? () => cubit.revealProjectSeed(key.mfp) : null,
+      onDeletePrivateInfo: isHot ? () => cubit.deleteProjectHotKey(key.mfp) : null,
     );
   }
 }

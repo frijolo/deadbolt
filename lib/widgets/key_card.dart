@@ -11,6 +11,9 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 /// When [onDelete] is provided the card shows an edit icon and exposes delete
 /// functionality inside the sheet.  Without it, a chevron is shown instead
 /// and the sheet only allows renaming.
+///
+/// When [isHot] is true the card shows an inline "HOT" badge next to the label
+/// and the sheet exposes [onRevealSeed] / [onDeletePrivateInfo] actions.
 class KeyCard extends StatelessWidget {
   final String mfp;
   final String derivationPath;
@@ -21,6 +24,15 @@ class KeyCard extends StatelessWidget {
   final bool Function(String)? isDuplicateName;
   final VoidCallback? onDelete;
   final bool canDelete;
+  final VoidCallback? onMakeHot;
+  final bool isHot;
+  /// Called when the user confirms they want to view the seed phrase.
+  /// Must return the decrypted seed string.
+  final Future<String?> Function()? onRevealSeed;
+  /// Called when the user confirms they want to delete the private key data.
+  final VoidCallback? onDeletePrivateInfo;
+  /// Override for the disclaimer shown before deleting private info.
+  final String? deletePrivateInfoDisclaimer;
 
   const KeyCard({
     super.key,
@@ -33,6 +45,11 @@ class KeyCard extends StatelessWidget {
     this.isDuplicateName,
     this.onDelete,
     this.canDelete = true,
+    this.onMakeHot,
+    this.isHot = false,
+    this.onRevealSeed,
+    this.onDeletePrivateInfo,
+    this.deletePrivateInfoDisclaimer,
   });
 
   @override
@@ -53,18 +70,33 @@ class KeyCard extends StatelessWidget {
         leading: CircleAvatar(
           radius: 18,
           backgroundColor: mfpColor.withAlpha(AppAlpha.subtle),
-          child: Icon(Icons.key, color: mfpColor, size: 18),
-        ),
-        title: Text(
-          label ?? mfp.toUpperCase(),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: hasLabel ? FontWeight.w600 : FontWeight.normal,
-            color: hasLabel
-                ? cs.onSurface
-                : cs.onSurface.withAlpha(AppAlpha.muted),
-            fontStyle: hasLabel ? FontStyle.normal : FontStyle.italic,
+          child: Icon(
+            Icons.key,
+            color: mfpColor,
+            size: 18,
           ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label ?? mfp.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hasLabel ? FontWeight.w600 : FontWeight.normal,
+                  color: hasLabel
+                      ? cs.onSurface
+                      : cs.onSurface.withAlpha(AppAlpha.muted),
+                  fontStyle: hasLabel ? FontStyle.normal : FontStyle.italic,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isHot) ...[
+              const SizedBox(width: 6),
+              _HotBadge(),
+            ],
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,6 +151,36 @@ class KeyCard extends StatelessWidget {
           isDuplicateName: isDuplicateName,
           onDelete: onDelete,
           canDelete: canDelete,
+          onMakeHot: isHot ? null : onMakeHot,
+          isHot: isHot,
+          onRevealSeed: onRevealSeed,
+          onDeletePrivateInfo: onDeletePrivateInfo,
+          deletePrivateInfoDisclaimer: deletePrivateInfoDisclaimer,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small orange "HOT" pill badge shown inline next to the key label.
+class _HotBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: Colors.orange.withAlpha(40),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withAlpha(180), width: 1),
+      ),
+      child: Text(
+        l10n.hotKeyBadge,
+        style: const TextStyle(
+          color: Colors.orange,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
         ),
       ),
     );

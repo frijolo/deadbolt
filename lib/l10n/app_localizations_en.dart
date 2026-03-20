@@ -457,6 +457,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keyInUseTooltip => 'Key in use - cannot delete';
 
   @override
+  String get hotKeyBadge => 'HOT';
+
+  @override
+  String get privateKeySection => 'Private key';
+
+  @override
+  String get viewPrivateKeyButton => 'View seed phrase';
+
+  @override
+  String get deletePrivateKeyButton => 'Remove signing key';
+
+  @override
+  String get viewPrivateKeyDisclaimer =>
+      'Make sure no one can see your screen. Your seed phrase gives full access to your funds.';
+
+  @override
+  String get deletePrivateKeyDisclaimer =>
+      'This removes the signing key from this project. You will no longer be able to sign transactions from the Designer.';
+
+  @override
+  String get deleteWalletPrivateKeyDisclaimer =>
+      'This removes the signing key from this wallet. You will no longer be able to sign transactions with it.';
+
+  @override
+  String get viewPrivateKeyConfirm => 'Show seed';
+
+  @override
+  String get deletePrivateKeyConfirm => 'Remove';
+
+  @override
+  String get seedPhraseDialogTitle => 'Seed phrase';
+
+  @override
+  String get seedPhraseCopied => 'Seed phrase copied';
+
+  @override
   String get spendPathNameDialogTitle => 'Spend path name';
 
   @override
@@ -656,19 +692,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletNameRequired => 'Wallet name is required';
 
   @override
-  String get sourceProjectLabel => 'Source';
+  String get deleteProjectAfterCreate =>
+      'Delete this project after creating the wallet';
 
   @override
-  String get sourceProjectFromProject => 'From project';
-
-  @override
-  String get sourceProjectManual => 'Manual descriptor';
-
-  @override
-  String get selectProjectLabel => 'Select project';
-
-  @override
-  String get newProjectEntry => 'New project…';
+  String get fromProjectAction => 'From project';
 
   @override
   String get createWalletButton => 'Create Wallet';

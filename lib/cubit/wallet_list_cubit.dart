@@ -56,6 +56,9 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
         protectionType: protectionType,
         password: password,
       );
+      if (protectionType == APIProtectionType.userPassword && password != null) {
+        _service.cachePassword(info.walletPath, password);
+      }
       await refresh();
       return info.walletPath;
     } catch (e, stackTrace) {

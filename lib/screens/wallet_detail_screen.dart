@@ -46,24 +46,30 @@ import 'package:deadbolt/widgets/text_import_sheet.dart'
     show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
+import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
+  final void Function(int)? onNavigate;
 
-  const WalletDetailScreen({super.key, required this.walletPath});
+  const WalletDetailScreen({super.key, required this.walletPath, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => WalletDetailCubit()..load(walletPath),
-      child: const _WalletDetailView(),
+      create: (context) =>
+          WalletDetailCubit(service: context.read<WalletService>())
+            ..load(walletPath),
+      child: _WalletDetailView(onNavigate: onNavigate),
     );
   }
 }
 
 class _WalletDetailView extends StatefulWidget {
-  const _WalletDetailView();
+  final void Function(int)? onNavigate;
+
+  const _WalletDetailView({this.onNavigate});
 
   @override
   State<_WalletDetailView> createState() => _WalletDetailViewState();
@@ -176,6 +182,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         _importWithChoice(context, state);
       case _WalletMenuAction.generateProject:
         _generateProjectFromWallet(context, state);
+      case _WalletMenuAction.lock:
+        context.read<WalletDetailCubit>().lockWallet();
+        Navigator.of(context).pop();
     }
   }
 
@@ -221,12 +230,14 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         : null;
 
     if (existingProject != null && context.mounted) {
-      Navigator.push(
+      widget.onNavigate?.call(1);
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ProjectDetailScreen(
             db: db,
             projectId: existingProject.id,
+            onNavigate: widget.onNavigate,
           ),
         ),
       );
@@ -246,12 +257,14 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         pathLabels: state.pathLabels,
       );
       if (!context.mounted) return;
-      Navigator.push(
+      widget.onNavigate?.call(1);
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ProjectDetailScreen(
             db: db,
             projectId: projectId,
+            onNavigate: widget.onNavigate,
           ),
         ),
       );
@@ -332,7 +345,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
   ) async {
     final walletPath = state.walletInfo.walletPath;
     final walletName = state.walletInfo.name;
-    final service = WalletService();
+    final service = context.read<WalletService>();
     final deviceKey = await service.getOrCreateEncryptionKey();
     final openPassword = service.getCachedPassword(walletPath);
 
@@ -658,6 +671,20 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                   ],
                 ),
               ),
+              if (state.walletInfo.protection.protectionType ==
+                  APIProtectionType.userPassword) ...[
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: _WalletMenuAction.lock,
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_outline, size: 20),
+                      SizedBox(width: 12),
+                      Text('Lock wallet'),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -3763,7 +3790,7 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   }
 }
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject }
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock }
 
 
 enum _ExportChoice { labels, descriptor, wallet }
@@ -3829,6 +3856,7 @@ class _DescriptorView extends StatelessWidget {
                 _WalletKeysTab(
                   keys: analysis.keys,
                   keyLabels: state.keyLabels,
+                  hotKeys: state.hotKeys,
                 ),
                 DescriptorTab(descriptor: analysis.descriptor),
               ],
@@ -3848,27 +3876,46 @@ class _DescriptorView extends StatelessWidget {
 class _WalletKeysTab extends StatelessWidget {
   final List<APIPubKey> keys;
   final Map<String, String> keyLabels;
+  final List<APIHotKeyInfo> hotKeys;
 
-  const _WalletKeysTab({required this.keys, required this.keyLabels});
+  const _WalletKeysTab({
+    required this.keys,
+    required this.keyLabels,
+    required this.hotKeys,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (keys.isEmpty) return const SizedBox.shrink();
+    final hotMfps = hotKeys.map((k) => k.mfp).toSet();
+    final cubit = context.read<WalletDetailCubit>();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
         for (var i = 0; i < keys.length; i++)
           KeyCard(
+            key: ValueKey(keys[i].mfp),
             mfp: keys[i].mfp,
             derivationPath: keys[i].derivationPath,
             xpub: keys[i].xpub,
             label: keyLabels[keys[i].mfp],
             mfpColor: _walletColorForMfpIndex(context, i),
-            onNameSave: (name) =>
-                context.read<WalletDetailCubit>().setWalletKeyLabel(
-                  keys[i].mfp,
-                  name ?? '',
-                ),
+            isHot: hotMfps.contains(keys[i].mfp),
+            onNameSave: (name) => cubit.setWalletKeyLabel(keys[i].mfp, name ?? ''),
+            onMakeHot: !hotMfps.contains(keys[i].mfp)
+                ? () => showAddPrivateKeySheet(
+                      context,
+                      cubit: cubit,
+                      expectedMfp: keys[i].mfp,
+                      keyLabel: keyLabels[keys[i].mfp],
+                    )
+                : null,
+            onRevealSeed: hotMfps.contains(keys[i].mfp)
+                ? () => cubit.revealHotKey(keys[i].mfp)
+                : null,
+            onDeletePrivateInfo: hotMfps.contains(keys[i].mfp)
+                ? () => cubit.deleteHotKey(keys[i].mfp)
+                : null,
+            deletePrivateInfoDisclaimer: context.l10n.deleteWalletPrivateKeyDisclaimer,
           ),
       ],
     );

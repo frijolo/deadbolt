@@ -111,7 +111,7 @@ class WalletListScreen extends StatelessWidget {
     final l10n = context.l10n;
     final projectState = context.watch<ProjectListCubit>().state;
     final hasProjects = projectState is ProjectListLoaded &&
-        projectState.projects.isNotEmpty;
+        projectState.projects.any((p) => p.descriptor.isNotEmpty);
 
     if (hasProjects) {
       return Center(
@@ -175,7 +175,9 @@ class WalletListScreen extends StatelessWidget {
 
   Widget _buildWalletCard(BuildContext context, APIWalletInfo wallet) {
     final l10n = context.l10n;
-    final isLocked = wallet.protection.needsPassword;
+    final service = context.read<WalletService>();
+    final isLocked = wallet.protection.needsPassword &&
+        service.getCachedPassword(wallet.walletPath) == null;
     final lastSynced = wallet.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(wallet.lastSyncedAt! * 1000)
         : null;
@@ -197,22 +199,20 @@ class WalletListScreen extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
-              if (!isLocked) ...[
-                MfpBadge(
-                  label: localizedNetworkDisplayName(
-                    context,
-                    wallet.network.name,
-                  ),
-                  color: AppAccent.color,
-                  letterSpacing: 0.0,
+              MfpBadge(
+                label: localizedNetworkDisplayName(
+                  context,
+                  wallet.network.name,
                 ),
-                const SizedBox(width: 8),
-              ],
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+              const SizedBox(width: 8),
               Text(
-                isLocked
-                    ? l10n.walletPasswordProtected
-                    : lastSynced != null
+                lastSynced != null
                     ? l10n.lastSynced(_formatDate(lastSynced))
+                    : isLocked
+                    ? l10n.walletPasswordProtected
                     : l10n.notYetSynced,
                 style: TextStyle(
                   fontSize: 12,
@@ -253,12 +253,21 @@ class WalletListScreen extends StatelessWidget {
             ),
           ],
         ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WalletDetailScreen(walletPath: wallet.walletPath),
-          ),
-        ),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => WalletDetailScreen(
+                walletPath: wallet.walletPath,
+                onNavigate: onNavigate,
+              ),
+            ),
+          );
+          // Refresh to pick up updated lastSyncedAt and lock/unlock state.
+          if (context.mounted) {
+            context.read<WalletListCubit>().refresh();
+          }
+        },
       ),
     );
 
@@ -278,7 +287,10 @@ class WalletListScreen extends StatelessWidget {
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => CreateWalletDialog(cubit: cubit),
+        builder: (_) => CreateWalletDialog(
+          cubit: cubit,
+          onGoToProjects: () => onNavigate?.call(1),
+        ),
       ),
     );
     if (walletPath != null && context.mounted) {
@@ -329,7 +341,7 @@ class WalletListScreen extends StatelessWidget {
 
     // 4. Import
     try {
-      final service = WalletService();
+      final service = context.read<WalletService>();
       final deviceKey = await service.getOrCreateEncryptionKey();
       final walletsDir = await service.getWalletsDir();
 

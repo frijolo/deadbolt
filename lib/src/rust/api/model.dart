@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -175,6 +175,37 @@ class APICoinControl {
           runtimeType == other.runtimeType &&
           txid == other.txid &&
           vout == other.vout;
+}
+
+/// Metadata about a hot signing key stored inside the wallet.
+/// The seed itself is never exposed via FFI — only the MFP and type.
+class APIHotKeyInfo {
+  /// Master fingerprint (8 lowercase hex chars).
+  final String mfp;
+
+  /// "mnemonic" or "xprv".
+  final String seedType;
+
+  /// Unix timestamp (seconds) when this key was added.
+  final PlatformInt64 createdAt;
+
+  const APIHotKeyInfo({
+    required this.mfp,
+    required this.seedType,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode => mfp.hashCode ^ seedType.hashCode ^ createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIHotKeyInfo &&
+          runtimeType == other.runtimeType &&
+          mfp == other.mfp &&
+          seedType == other.seedType &&
+          createdAt == other.createdAt;
 }
 
 /// Result of [`connect_hw_device`] / [`connect_hw_device_android`].

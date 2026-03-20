@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'package:deadbolt/widgets/text_export_sheet.dart';
 ///
 /// [onDelete] is only non-null when deletion is possible.
 /// [canDelete] controls whether the delete button is enabled (key not in use).
+/// [isHot] shows the private key section with view/delete actions.
 void showKeySheet(
   BuildContext context, {
   required String mfp,
@@ -21,6 +23,13 @@ void showKeySheet(
   bool Function(String name)? isDuplicateName,
   VoidCallback? onDelete,
   bool canDelete = false,
+  VoidCallback? onMakeHot,
+  bool isHot = false,
+  Future<String?> Function()? onRevealSeed,
+  VoidCallback? onDeletePrivateInfo,
+  /// Override the disclaimer shown before deleting private info.
+  /// When null, [AppLocalizations.deletePrivateKeyDisclaimer] is used.
+  String? deletePrivateInfoDisclaimer,
 }) {
   showModalBottomSheet(
     context: context,
@@ -36,6 +45,11 @@ void showKeySheet(
       isDuplicateName: isDuplicateName,
       onDelete: onDelete,
       canDelete: canDelete,
+      onMakeHot: onMakeHot,
+      isHot: isHot,
+      onRevealSeed: onRevealSeed,
+      onDeletePrivateInfo: onDeletePrivateInfo,
+      deletePrivateInfoDisclaimer: deletePrivateInfoDisclaimer,
     ),
   );
 }
@@ -50,6 +64,11 @@ class _KeySheetContent extends StatefulWidget {
   final bool Function(String name)? isDuplicateName;
   final VoidCallback? onDelete;
   final bool canDelete;
+  final VoidCallback? onMakeHot;
+  final bool isHot;
+  final Future<String?> Function()? onRevealSeed;
+  final VoidCallback? onDeletePrivateInfo;
+  final String? deletePrivateInfoDisclaimer;
 
   const _KeySheetContent({
     required this.mfp,
@@ -61,6 +80,11 @@ class _KeySheetContent extends StatefulWidget {
     this.isDuplicateName,
     this.onDelete,
     this.canDelete = false,
+    this.onMakeHot,
+    this.isHot = false,
+    this.onRevealSeed,
+    this.onDeletePrivateInfo,
+    this.deletePrivateInfoDisclaimer,
   });
 
   @override
@@ -86,7 +110,9 @@ class _KeySheetContentState extends State<_KeySheetContent> {
       minChildSize: 0.35,
       maxChildSize: 0.85,
       expand: false,
-      builder: (_, scrollController) => Container(
+      builder: (_, scrollController) => SafeArea(
+        top: false,
+        child: Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -114,8 +140,20 @@ class _KeySheetContentState extends State<_KeySheetContent> {
                   const Divider(),
                   const SizedBox(height: 8),
                   _buildInfoSection(context, cs, l10n),
+                  if (widget.isHot) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    _buildPrivateKeySection(context, cs, l10n),
+                  ],
+                  if (widget.onMakeHot != null) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    _buildMakeHotButton(context),
+                  ],
                   if (widget.onDelete != null) ...[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     const Divider(),
                     const SizedBox(height: 8),
                     _buildDeleteButton(context, l10n),
@@ -124,6 +162,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -224,6 +263,64 @@ class _KeySheetContentState extends State<_KeySheetContent> {
     );
   }
 
+  Widget _buildPrivateKeySection(
+      BuildContext context, ColorScheme cs, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.privateKeySection,
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withAlpha(138),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (widget.onRevealSeed != null)
+          OutlinedButton.icon(
+            onPressed: () => _confirmViewSeed(context, l10n),
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: Text(l10n.viewPrivateKeyButton),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.primary,
+              minimumSize: const Size(double.infinity, 40),
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+        if (widget.onDeletePrivateInfo != null) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _confirmDeletePrivateInfo(context, l10n),
+            icon: const Icon(Icons.key_off_outlined, size: 18),
+            label: Text(l10n.deletePrivateKeyButton),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.error,
+              side: BorderSide(color: cs.error.withAlpha(128)),
+              minimumSize: const Size(double.infinity, 40),
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMakeHotButton(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: () {
+        Navigator.of(context).pop();
+        widget.onMakeHot!();
+      },
+      icon: const Icon(Icons.local_fire_department_outlined, size: 18),
+      label: const Text('Add private key'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppAccent.color,
+        side: BorderSide(color: AppAccent.color.withAlpha(128)),
+      ),
+    );
+  }
+
   Widget _buildDeleteButton(BuildContext context, AppLocalizations l10n) {
     final can = widget.canDelete;
     return OutlinedButton.icon(
@@ -247,6 +344,98 @@ class _KeySheetContentState extends State<_KeySheetContent> {
         ),
       ),
     );
+  }
+
+  void _confirmViewSeed(BuildContext context, AppLocalizations l10n) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.viewPrivateKeyButton),
+        content: Text(l10n.viewPrivateKeyDisclaimer),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.viewPrivateKeyConfirm),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      final seed = await widget.onRevealSeed!();
+      if (seed == null || !context.mounted) return;
+      _showSeedDialog(context, seed);
+    });
+  }
+
+  void _showSeedDialog(BuildContext context, String seed) {
+    final l10n = context.l10n;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.seedPhraseDialogTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText(
+              seed,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: seed));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.seedPhraseCopied)),
+              );
+            },
+            icon: const Icon(Icons.copy, size: 16),
+            label: Text(l10n.copyToClipboard),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeletePrivateInfo(BuildContext context, AppLocalizations l10n) {
+    final disclaimer =
+        widget.deletePrivateInfoDisclaimer ?? l10n.deletePrivateKeyDisclaimer;
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deletePrivateKeyButton),
+        content: Text(disclaimer),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(l10n.deletePrivateKeyConfirm),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed != true) return;
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close the sheet
+      widget.onDeletePrivateInfo!();
+    });
   }
 
   void _showNameDialog(BuildContext context) {

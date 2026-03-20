@@ -2,6 +2,7 @@ use anyhow::Result;
 use rand::rngs::OsRng;
 use rand::TryRngCore;
 
+use crate::api::model::APINetwork;
 use crate::core::key_protection::{
     generate_data_key, generate_salt, resolve_data_key, wrap_key, ProtectionMeta, DEFAULT_M_COST,
     DEFAULT_P_COST, DEFAULT_T_COST,
@@ -72,7 +73,13 @@ pub fn create_wallet_db(
     upsert_wallet_info(&conn, name, descriptor, network_str, created_at)?;
 
     // Build and write the protection meta sidecar
-    let meta = build_protection_meta(&data_key, device_key_hex, protection, Some(name))?;
+    let meta = build_protection_meta(
+        &data_key,
+        device_key_hex,
+        protection,
+        Some(name),
+        Some(network_str),
+    )?;
     write_meta(&path_str, &meta)?;
 
     let row = WalletInfoRow {
@@ -92,6 +99,7 @@ fn build_protection_meta(
     device_key_hex: &str,
     protection: WalletProtectionRequest,
     display_name: Option<&str>,
+    network: Option<&str>,
 ) -> Result<ProtectionMeta> {
     match protection {
         WalletProtectionRequest::DeviceKey => {
@@ -120,6 +128,8 @@ fn build_protection_meta(
                 p_cost: DEFAULT_P_COST,
                 wrapped_key,
                 display_name: display_name.map(|s| s.to_string()),
+                network: network.map(|s| s.to_string()),
+                last_synced_at: None,
             })
         }
     }
@@ -182,24 +192,28 @@ pub fn list_wallets_in_dir(
         };
 
         // UserPassword wallets: include them as locked entries so they appear
-        // in the list with a lock indicator. Name comes from the meta sidecar
-        // (written at creation time) or falls back to a generic placeholder.
+        // in the list with a lock indicator. Name and network come from the meta
+        // sidecar (written at creation time and refreshed on open).
         if let ProtectionMeta::UserPassword {
-            ref display_name, ..
+            ref display_name,
+            ref network,
+            last_synced_at,
+            ..
         } = meta
         {
             let name = display_name
                 .as_deref()
                 .unwrap_or("Locked Wallet")
                 .to_string();
+            let network_str = network.as_deref().unwrap_or("bitcoin").to_string();
             results.push((
                 path_str,
                 WalletInfoRow {
                     name,
                     descriptor: String::new(),
-                    network: "bitcoin".to_string(),
+                    network: network_str,
                     created_at: 0,
-                    last_synced_at: None,
+                    last_synced_at,
                 },
             ));
             continue;
@@ -274,6 +288,30 @@ pub fn rename_wallet_in_file(
     Ok(())
 }
 
+/// Refresh the cached `network` and `last_synced_at` fields in a `UserPassword` meta
+/// sidecar after the wallet has been successfully opened or synced.
+///
+/// No-op for DeviceKey wallets. Best-effort: failures are silently ignored.
+pub fn refresh_user_password_meta_cache(
+    wallet_path: &str,
+    network: APINetwork,
+    last_synced_at: Option<i64>,
+) {
+    let Ok(mut meta) = read_meta(wallet_path) else {
+        return;
+    };
+    if let ProtectionMeta::UserPassword {
+        network: ref mut cached_network,
+        last_synced_at: ref mut cached_ts,
+        ..
+    } = meta
+    {
+        *cached_network = Some(network.as_str().to_string());
+        *cached_ts = last_synced_at;
+        let _ = write_meta(wallet_path, &meta);
+    }
+}
+
 /// Check whether a wallet requires a password (i.e. is UserPassword protected).
 pub fn wallet_needs_password(wallet_path: &str) -> bool {
     matches!(
@@ -285,7 +323,8 @@ pub fn wallet_needs_password(wallet_path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::wallet_meta::meta_exists;
+    use crate::core::key_protection::ProtectionMeta;
+    use crate::core::wallet_meta::{meta_exists, read_meta};
     use tempfile::tempdir;
 
     const MAINNET_DESC: &str = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*,[c61af686/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*))#0wct5td0";
@@ -559,17 +598,76 @@ mod tests {
             "Password wallet must appear with its name"
         );
 
-        // The password wallet's row has empty descriptor and no sync date
+        // The password wallet's row has empty descriptor, correct network, and no sync date
         let locked = list.iter().find(|(_, r)| r.name == "Secret Vault").unwrap();
         assert!(
             locked.1.descriptor.is_empty(),
             "Locked wallet descriptor must be empty"
         );
+        assert_eq!(
+            locked.1.network, "bitcoin",
+            "Locked wallet network cached from creation"
+        );
         assert!(
             locked.1.last_synced_at.is_none(),
-            "Locked wallet has no last_synced_at"
+            "Locked wallet has no last_synced_at before any sync"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_refresh_user_password_meta_cache() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let wallets_dir = dir.path().to_string_lossy().to_string();
+
+        let (path, _) = create_wallet_db(
+            &wallets_dir,
+            "Vault",
+            MAINNET_DESC,
+            "bitcoin",
+            DEVICE_KEY,
+            WalletProtectionRequest::UserPassword {
+                password: "pw".to_string(),
+            },
+        )?;
+
+        // Initially last_synced_at should be None in the meta
+        let meta = read_meta(&path)?;
+        if let ProtectionMeta::UserPassword {
+            last_synced_at,
+            network,
+            ..
+        } = &meta
+        {
+            assert!(last_synced_at.is_none());
+            assert_eq!(network.as_deref(), Some("bitcoin"));
+        } else {
+            panic!("Expected UserPassword meta");
+        }
+
+        // Simulate a sync: refresh cache with a timestamp
+        refresh_user_password_meta_cache(&path, APINetwork::Testnet, Some(1_700_000_000));
+
+        let updated = read_meta(&path)?;
+        if let ProtectionMeta::UserPassword {
+            last_synced_at,
+            network,
+            ..
+        } = updated
+        {
+            assert_eq!(last_synced_at, Some(1_700_000_000));
+            assert_eq!(network.as_deref(), Some("testnet"));
+        } else {
+            panic!("Expected UserPassword meta");
+        }
+
+        // list_wallets_in_dir should now show the updated network and last_synced_at
+        let list = list_wallets_in_dir(&wallets_dir, DEVICE_KEY);
+        assert_eq!(list.len(), 1);
+        let row = &list[0].1;
+        assert_eq!(row.network, "testnet");
+        assert_eq!(row.last_synced_at, Some(1_700_000_000));
         Ok(())
     }
 

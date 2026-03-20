@@ -57,13 +57,17 @@ impl APIWallet {
         }
 
         core.persist()?;
-        touch_last_synced(&core.conn)?;
+        let now_ts = touch_last_synced(&core.conn)?;
 
         // Auto-delete PSBTs whose transaction is now known to the wallet
         // (broadcast externally and seen by Electrum during this sync).
         cleanup_broadcast_psbts(&mut core);
 
+        let network = APINetwork::from(core.wallet.network());
         drop(core);
+        if wallet_needs_password(&self.path) {
+            refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
+        }
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;
         }
@@ -86,12 +90,16 @@ impl APIWallet {
         let update = client.full_scan(request, STOP_GAP, BATCH_SIZE, false)?;
         core.wallet.apply_update(update)?;
         core.persist()?;
-        touch_last_synced(&core.conn)?;
+        let now_ts = touch_last_synced(&core.conn)?;
 
         // Auto-delete PSBTs whose transaction is now known after rescan.
         cleanup_broadcast_psbts(&mut core);
 
+        let network = APINetwork::from(core.wallet.network());
         drop(core);
+        if wallet_needs_password(&self.path) {
+            refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
+        }
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;
         }

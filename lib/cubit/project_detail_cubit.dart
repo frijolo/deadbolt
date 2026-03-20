@@ -5,12 +5,14 @@ import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/constants.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 
 // Re-export editable models so existing imports of this file keep working.
 export 'package:deadbolt/models/editable_models.dart';
@@ -36,6 +38,8 @@ class ProjectDetailLoaded extends ProjectDetailState {
   final bool spendPathsExpanded;
   final String? errorMessage;
   final String? successMessage;
+  /// Hot signing keys stored in the encrypted project_seeds.db.
+  final List<APIHotKeyInfo> hotKeys;
 
   ProjectDetailLoaded({
     required this.project,
@@ -49,7 +53,8 @@ class ProjectDetailLoaded extends ProjectDetailState {
     this.spendPathsExpanded = true,
     this.errorMessage,
     this.successMessage,
-  });
+    List<APIHotKeyInfo>? hotKeys,
+  }) : hotKeys = hotKeys ?? [];
 
   bool get isEditing => editedPaths != null && editedKeys != null;
 
@@ -70,6 +75,7 @@ class ProjectDetailLoaded extends ProjectDetailState {
     String? successMessage,
     bool clearError = false,
     bool clearSuccess = false,
+    List<APIHotKeyInfo>? hotKeys,
   }) {
     return ProjectDetailLoaded(
       project: project,
@@ -83,6 +89,7 @@ class ProjectDetailLoaded extends ProjectDetailState {
       spendPathsExpanded: spendPathsExpanded ?? this.spendPathsExpanded,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
+      hotKeys: hotKeys ?? this.hotKeys,
     );
   }
 }
@@ -97,12 +104,18 @@ class ProjectDetailError extends ProjectDetailState {
 class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   final AppDatabase _db;
   final ProjectDescriptorService _service;
+  final WalletService? _walletService;
   final int projectId;
 
   final Map<String, int> _mfpColorMap = {};
 
-  ProjectDetailCubit(this._db, this.projectId, {ProjectDescriptorService? service})
-      : _service = service ?? const ProjectDescriptorService(),
+  ProjectDetailCubit(
+    this._db,
+    this.projectId, {
+    ProjectDescriptorService? service,
+    WalletService? walletService,
+  })  : _service = service ?? const ProjectDescriptorService(),
+        _walletService = walletService,
         super(ProjectDetailLoading()) {
     load();
   }
@@ -132,12 +145,16 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         getMfpColorIndex(key.mfp);
       }
 
+      // Load persisted hot keys from encrypted project_seeds.db
+      final hotKeys = await _loadHotKeys();
+
       emit(ProjectDetailLoaded(
         project: project,
         keys: keys,
         spendPaths: spendPaths,
         keysExpanded: preserveKeysExpanded,
         spendPathsExpanded: preserveSpendPathsExpanded,
+        hotKeys: hotKeys,
       ));
 
       // Always enter edit mode so keys and paths are immediately editable
@@ -440,6 +457,149 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       await (_db.update(_db.projectKeys)
             ..where((k) => k.id.equals(oldKey.originalDbId!)))
           .write(ProjectKeysCompanion(customName: Value(customName)));
+    }
+  }
+
+  Future<void> updateKey(EditableKey updatedKey) async {
+    final s = state;
+    if (s is! ProjectDetailLoaded || s.editedKeys == null) return;
+
+    final idx = s.editedKeys!.indexWhere((k) => k.mfp == updatedKey.mfp);
+    if (idx == -1) return;
+
+    final existing = s.editedKeys![idx];
+    final dataChanged = existing.derivationPath != updatedKey.derivationPath ||
+        existing.xpub != updatedKey.xpub;
+
+    final replacement = EditableKey(
+      originalDbId: existing.originalDbId,
+      mfp: updatedKey.mfp,
+      derivationPath: updatedKey.derivationPath,
+      xpub: updatedKey.xpub,
+      customName: existing.customName,
+    );
+
+    if (dataChanged && existing.originalDbId != null) {
+      await (_db.update(_db.projectKeys)
+            ..where((k) => k.id.equals(existing.originalDbId!)))
+          .write(ProjectKeysCompanion(
+        mfp: Value(replacement.mfp),
+        derivationPath: Value(replacement.derivationPath),
+        xpub: Value(replacement.xpub),
+      ));
+    }
+
+    final keys = List.of(s.editedKeys!)..[idx] = replacement;
+    emit(s.copyWith(editedKeys: keys, isDirty: dataChanged ? true : null));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Project hot-key (seed) management
+  // ---------------------------------------------------------------------------
+
+  Future<({String appDir, String deviceKey})> _getAppDirAndKey() async {
+    final service = _walletService!;
+    final appDir = await service.getAppSupportDir();
+    final deviceKey = await service.getOrCreateEncryptionKey();
+    return (appDir: appDir, deviceKey: deviceKey);
+  }
+
+  Future<List<APIHotKeyInfo>> _loadHotKeys() async {
+    if (_walletService == null) return [];
+    try {
+      final (:appDir, :deviceKey) = await _getAppDirAndKey();
+      return rust_wallet.listProjectHotKeys(
+        appSupportDir: appDir,
+        projectId: projectId,
+        deviceKeyHex: deviceKey,
+      );
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<APIHotKeyInfo?> addProjectMnemonicHotKey(
+    String mnemonic,
+    String? passphrase,
+  ) async {
+    if (_walletService == null) return null;
+    final s = state;
+    if (s is! ProjectDetailLoaded) return null;
+    try {
+      final (:appDir, :deviceKey) = await _getAppDirAndKey();
+      final network = APINetwork.values.byName(s.project.network);
+      final info = rust_wallet.addProjectMnemonicKey(
+        appSupportDir: appDir,
+        projectId: projectId,
+        mnemonic: mnemonic,
+        passphrase: passphrase,
+        network: network,
+        deviceKeyHex: deviceKey,
+      );
+      final updated = [...s.hotKeys.where((k) => k.mfp != info.mfp), info];
+      emit(s.copyWith(hotKeys: updated));
+      return info;
+    } catch (e) {
+      emit(s.copyWith(errorMessage: formatRustError(e)));
+      return null;
+    }
+  }
+
+  Future<APIHotKeyInfo?> addProjectXprvHotKey(String xprv) async {
+    if (_walletService == null) return null;
+    final s = state;
+    if (s is! ProjectDetailLoaded) return null;
+    try {
+      final (:appDir, :deviceKey) = await _getAppDirAndKey();
+      final info = rust_wallet.addProjectXprvKey(
+        appSupportDir: appDir,
+        projectId: projectId,
+        xprv: xprv,
+        deviceKeyHex: deviceKey,
+      );
+      final updated = [...s.hotKeys.where((k) => k.mfp != info.mfp), info];
+      emit(s.copyWith(hotKeys: updated));
+      return info;
+    } catch (e) {
+      emit(s.copyWith(errorMessage: formatRustError(e)));
+      return null;
+    }
+  }
+
+  Future<void> deleteProjectHotKey(String mfp) async {
+    if (_walletService == null) return;
+    final s = state;
+    if (s is! ProjectDetailLoaded) return;
+    try {
+      final (:appDir, :deviceKey) = await _getAppDirAndKey();
+      rust_wallet.deleteProjectHotKey(
+        appSupportDir: appDir,
+        projectId: projectId,
+        mfp: mfp,
+        deviceKeyHex: deviceKey,
+      );
+      emit(s.copyWith(hotKeys: s.hotKeys.where((k) => k.mfp != mfp).toList()));
+    } catch (e) {
+      emit(s.copyWith(errorMessage: formatRustError(e)));
+    }
+  }
+
+  Future<String?> revealProjectSeed(String mfp) async {
+    if (_walletService == null) return null;
+    try {
+      final (:appDir, :deviceKey) = await _getAppDirAndKey();
+      return rust_wallet.revealProjectSeed(
+        appSupportDir: appDir,
+        projectId: projectId,
+        mfp: mfp,
+        deviceKeyHex: deviceKey,
+      );
+    } catch (e) {
+      final s = state;
+      if (s is ProjectDetailLoaded) {
+        emit(s.copyWith(errorMessage: formatRustError(e)));
+      }
+      return null;
     }
   }
 

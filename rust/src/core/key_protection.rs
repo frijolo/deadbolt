@@ -161,6 +161,14 @@ pub enum ProtectionMeta {
         /// even when locked (without requiring the password).
         #[serde(default)]
         display_name: Option<String>,
+        /// Cached network string (e.g. "bitcoin", "testnet") — filled at creation
+        /// and refreshed whenever the wallet is successfully opened.
+        #[serde(default)]
+        network: Option<String>,
+        /// Cached last-synced Unix timestamp — refreshed whenever the wallet is
+        /// successfully opened.
+        #[serde(default)]
+        last_synced_at: Option<i64>,
     },
 }
 
@@ -281,6 +289,8 @@ mod tests {
             p_cost: 1,
             wrapped_key: wrapped,
             display_name: None,
+            network: None,
+            last_synced_at: None,
         };
         let resolved = resolve_data_key(&meta, password).unwrap();
         assert_eq!(resolved, data_key);
@@ -301,6 +311,8 @@ mod tests {
             p_cost: 1,
             wrapped_key: wrapped,
             display_name: None,
+            network: None,
+            last_synced_at: None,
         };
         let result = resolve_data_key(&meta, "wrong-password");
         assert!(result.is_err(), "Should fail with wrong password");
@@ -336,6 +348,8 @@ mod tests {
             p_cost: 1,
             wrapped_key: "cafebabe".to_string(),
             display_name: Some("Test Wallet".to_string()),
+            network: Some("bitcoin".to_string()),
+            last_synced_at: None,
         };
         let json = serde_json::to_string(&meta).unwrap();
         let back: ProtectionMeta = serde_json::from_str(&json).unwrap();

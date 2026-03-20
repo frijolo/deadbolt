@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `aes_gcm_decrypt`, `aes_gcm_encrypt`, `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -90,6 +90,134 @@ Future<bool> walletRequiresPassword({required String walletPath}) => RustLib
     .api
     .crateApiWalletWalletRequiresPassword(walletPath: walletPath);
 
+/// Validate a mnemonic phrase and return its MFP without storing anything.
+Future<APIHotKeyInfo> validateMnemonic({
+  required String mnemonic,
+  String? passphrase,
+  required APINetwork network,
+}) => RustLib.instance.api.crateApiWalletValidateMnemonic(
+  mnemonic: mnemonic,
+  passphrase: passphrase,
+  network: network,
+);
+
+/// Derive a public keyspec `[mfp/path]xpub` from a mnemonic and derivation path.
+///
+/// `derivation_path` may include or omit the leading `m/`.
+/// Returns a string suitable for use in a Bitcoin descriptor.
+Future<String> deriveKeyspec({
+  required String mnemonic,
+  String? passphrase,
+  required String derivationPath,
+  required APINetwork network,
+}) => RustLib.instance.api.crateApiWalletDeriveKeyspec(
+  mnemonic: mnemonic,
+  passphrase: passphrase,
+  derivationPath: derivationPath,
+  network: network,
+);
+
+/// Derive a public keyspec `[mfp/path]xpub` from a master xprv and derivation path.
+///
+/// `xprv_str` must be a depth-0 master key.
+/// `derivation_path` may include or omit the leading `m/`.
+Future<String> deriveKeyspecFromXprv({
+  required String xprvStr,
+  required String derivationPath,
+}) => RustLib.instance.api.crateApiWalletDeriveKeyspecFromXprv(
+  xprvStr: xprvStr,
+  derivationPath: derivationPath,
+);
+
+/// Store a mnemonic as a signing key for a project.
+///
+/// Validates the mnemonic, computes the MFP, and persists it in the
+/// shared `project_seeds.db` (SQLCipher, device-key protected).
+APIHotKeyInfo addProjectMnemonicKey({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String mnemonic,
+  String? passphrase,
+  required APINetwork network,
+  required String deviceKeyHex,
+}) => RustLib.instance.api.crateApiWalletAddProjectMnemonicKey(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  mnemonic: mnemonic,
+  passphrase: passphrase,
+  network: network,
+  deviceKeyHex: deviceKeyHex,
+);
+
+/// Store a master xprv (depth-0 only) as a signing key for a project.
+APIHotKeyInfo addProjectXprvKey({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String xprv,
+  required String deviceKeyHex,
+}) => RustLib.instance.api.crateApiWalletAddProjectXprvKey(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  xprv: xprv,
+  deviceKeyHex: deviceKeyHex,
+);
+
+/// List all project signing keys (never exposes the seed itself).
+List<APIHotKeyInfo> listProjectHotKeys({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String deviceKeyHex,
+}) => RustLib.instance.api.crateApiWalletListProjectHotKeys(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  deviceKeyHex: deviceKeyHex,
+);
+
+/// Remove a project signing key by MFP.
+void deleteProjectHotKey({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String mfp,
+  required String deviceKeyHex,
+}) => RustLib.instance.api.crateApiWalletDeleteProjectHotKey(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  mfp: mfp,
+  deviceKeyHex: deviceKeyHex,
+);
+
+/// Reveal the stored seed phrase or xprv for a project signing key.
+///
+/// Call only after showing an appropriate warning to the user.
+String revealProjectSeed({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String mfp,
+  required String deviceKeyHex,
+}) => RustLib.instance.api.crateApiWalletRevealProjectSeed(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  mfp: mfp,
+  deviceKeyHex: deviceKeyHex,
+);
+
+/// Copy all signing keys from a project's encrypted seeds DB into a wallet.
+///
+/// Returns the number of keys copied.
+int copyProjectKeysToWallet({
+  required String appSupportDir,
+  required PlatformInt64 projectId,
+  required String walletPath,
+  required String deviceKeyHex,
+  String? walletPassword,
+}) => RustLib.instance.api.crateApiWalletCopyProjectKeysToWallet(
+  appSupportDir: appSupportDir,
+  projectId: projectId,
+  walletPath: walletPath,
+  deviceKeyHex: deviceKeyHex,
+  walletPassword: walletPassword,
+);
+
 /// Export a wallet to a self-contained encrypted `.deadbolt` backup.
 ///
 /// The backup is always encrypted with `export_password` via Argon2id, so it is
@@ -142,6 +270,13 @@ Future<String> stripPsbtForHw({required String psbtBase64}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>>
 abstract class ApiWallet implements RustOpaqueInterface {
+  /// Import a mnemonic phrase as a signing key. Validates the words, computes
+  /// the MFP, and stores the seed in the encrypted wallet database.
+  APIHotKeyInfo addMnemonicKey({required String mnemonic, String? passphrase});
+
+  /// Import a master xprv (depth=0 only) as a signing key.
+  APIHotKeyInfo addXprvKey({required String xprv});
+
   /// Analyze partial signatures present in a PSBT.
   ///
   /// Returns signing status per MFP (must sign every input to count as signed)
@@ -182,6 +317,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required List<String> mfps,
     required bool sendMax,
   });
+
+  /// Remove a hot signing key by MFP.
+  void deleteHotKey({required String mfp});
 
   /// Delete a saved PSBT by id.
   void deletePsbt({required PlatformInt64 id});
@@ -246,6 +384,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Otherwise a new record is created with metadata extracted from the PSBT.
   Future<APIImportPsbtResult> importPsbt({required String psbtBase64});
 
+  /// List all hot signing keys stored in this wallet (never exposes the seed).
+  List<APIHotKeyInfo> listHotKeys();
+
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
   Future<List<APIPsbtInfo>> listPsbts();
 
@@ -264,6 +405,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Force a full scan regardless of sync history (re-discovers all addresses).
   Future<void> rescan({required String electrumUrl});
+
+  /// Reveal the stored seed phrase or xprv for a hot signing key.
+  ///
+  /// The SQLCipher layer already protects this data at rest; this function
+  /// exposes it in plaintext for display purposes only. Call only when the
+  /// user explicitly requests it and after showing an appropriate disclaimer.
+  String revealHotKey({required String mfp});
 
   /// Reveal `count` new addresses for the given keychain beyond those already revealed,
   /// then persist the wallet. Returns the new total number of revealed addresses.
@@ -301,6 +449,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Automatically propagates to related entities (addresses and UTXOs).
   /// Clearing an inherited (auto) label is a no-op.
   void setTxLabel({required String txid, required String label});
+
+  /// Sign a stored PSBT using any hot keys available in this wallet.
+  ///
+  /// Iterates over all stored seed entries, builds a temporary in-memory wallet
+  /// with the private descriptor for each matching key, and applies signatures.
+  /// Returns the updated [`APIPsbtInfo`] with the new PSBT data.
+  APIPsbtInfo signPsbt({required PlatformInt64 psbtId});
 
   /// Sync with Electrum, persist, and update last_synced_at.
   ///

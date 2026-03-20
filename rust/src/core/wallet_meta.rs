@@ -84,6 +84,8 @@ mod tests {
             p_cost: 1,
             wrapped_key: generate_data_key(),
             display_name: Some("Test".to_string()),
+            network: Some("bitcoin".to_string()),
+            last_synced_at: None,
         };
         write_meta(&wallet_path, &meta)?;
 

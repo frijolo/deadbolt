@@ -614,4 +614,133 @@ impl APIWallet {
 
         Ok(txid.to_string())
     }
+
+    /// Sign a stored PSBT using any hot keys available in this wallet.
+    ///
+    /// Iterates over all stored seed entries, builds a temporary in-memory wallet
+    /// with the private descriptor for each matching key, and applies signatures.
+    /// Returns the updated [`APIPsbtInfo`] with the new PSBT data.
+    #[frb(sync)]
+    pub fn sign_psbt(&self, psbt_id: i64) -> Result<APIPsbtInfo> {
+        use crate::core::seed::{
+            make_private_descriptor, mnemonic_to_root_xprv, root_xprv_to_mfp, xprv_str_to_root_xprv,
+        };
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::Wallet;
+
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+
+        let seeds = list_seed_entries(&core.conn)?;
+        if seeds.is_empty() {
+            return Err(anyhow::anyhow!("No signing keys stored in this wallet"));
+        }
+
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+        let descriptor = info.descriptor.clone();
+
+        let row = get_psbt_row(&core.conn, psbt_id)?;
+        let mut psbt = psbt_from_base64(&row.psbt)?;
+
+        let secp = Secp256k1::new();
+
+        for seed in &seeds {
+            let root_xprv = if seed.seed_type == "mnemonic" {
+                let mnemonic = seed
+                    .mnemonic
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed entry"))?;
+                mnemonic_to_root_xprv(mnemonic, &seed.passphrase, network)?
+            } else {
+                let xprv_str = seed
+                    .xprv
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("xprv missing for seed entry"))?;
+                xprv_str_to_root_xprv(xprv_str)?
+            };
+
+            let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+            // Only try to sign if this key is referenced in the descriptor.
+            if !descriptor.contains(&mfp) {
+                continue;
+            }
+
+            let private_desc = match make_private_descriptor(&descriptor, &root_xprv, &secp) {
+                Ok(d) => d,
+                Err(e) => {
+                    // Log but don't fail — other seeds may still work.
+                    eprintln!(
+                        "sign_psbt: make_private_descriptor failed for {}: {}",
+                        mfp, e
+                    );
+                    continue;
+                }
+            };
+
+            // Strip the descriptor checksum (e.g., "#a1b2c3d4") before creating the
+            // temp wallet. Replacing xpub→xprv invalidates the checksum; BDK rejects
+            // descriptors with an invalid checksum, so signing silently produces 0 sigs.
+            let private_desc = match private_desc.rfind('#') {
+                Some(idx) => private_desc[..idx].to_string(),
+                None => private_desc,
+            };
+
+            // Create a temporary in-memory wallet with the private descriptor.
+            let temp_wallet_result = Wallet::create_from_two_path_descriptor(private_desc)
+                .network(network)
+                .create_wallet_no_persist();
+            let temp_wallet = match temp_wallet_result {
+                Ok(w) => w,
+                Err(e) => {
+                    eprintln!(
+                        "sign_psbt: create_wallet_no_persist failed for {}: {}",
+                        mfp, e
+                    );
+                    continue;
+                }
+            };
+
+            #[allow(deprecated)]
+            match temp_wallet.sign(&mut psbt, bdk_wallet::SignOptions::default()) {
+                Ok(finalized) => {
+                    eprintln!("sign_psbt: signed with {}, finalized={}", mfp, finalized);
+                }
+                Err(e) => {
+                    eprintln!("sign_psbt: sign() error for {}: {}", mfp, e);
+                }
+            }
+        }
+
+        // Persist the (possibly enriched) PSBT back to the database.
+        let updated_base64 = psbt_to_base64(&psbt);
+        update_psbt_data(&core.conn, psbt_id, &updated_base64)?;
+
+        // Return updated APIPsbtInfo.
+        let updated_row = PsbtRow {
+            id: row.id,
+            psbt: updated_base64,
+            txid: row.txid,
+            label: row.label,
+            created_at: row.created_at,
+            recipient: row.recipient,
+            amount_sat: row.amount_sat,
+            fee_sat: row.fee_sat,
+            spend_path_id: row.spend_path_id,
+            threshold: row.threshold,
+            mfps: row.mfps,
+        };
+
+        let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
+        let valid_outpoints = build_valid_outpoints(&core.wallet);
+        Ok(row_to_api_psbt(
+            updated_row,
+            &core.wallet,
+            &addr_labels,
+            &valid_outpoints,
+        ))
+    }
 }

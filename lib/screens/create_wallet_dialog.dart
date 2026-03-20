@@ -7,13 +7,13 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
-import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
@@ -21,42 +21,50 @@ import 'package:deadbolt/utils/toast_helper.dart';
 /// [WalletDetailScreen] on success.  Shows an error toast if [project] has no
 /// descriptor.
 Future<void> createWalletFromProject(
-    BuildContext context, Project project) async {
+    BuildContext context, Project project,
+    {void Function(int)? onNavigate}) async {
   if (project.descriptor.isEmpty) {
     showErrorToast(context, context.l10n.projectHasNoDescriptor);
     return;
   }
-  final cubit = WalletListCubit();
+  final cubit = context.read<WalletListCubit>();
   final walletPath = await Navigator.push<String>(
     context,
     MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: CreateWalletDialog(cubit: cubit, preselectedProject: project),
-      ),
+      builder: (_) => CreateWalletDialog(cubit: cubit, preselectedProject: project),
     ),
   );
   if (walletPath != null && context.mounted) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WalletDetailScreen(walletPath: walletPath),
-      ),
-    );
+    // Switch to wallet tab and refresh list before navigating to wallet detail.
+    onNavigate?.call(0);
+    if (context.mounted) {
+      context.read<WalletListCubit>().refresh();
+    }
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => WalletDetailScreen(
+            walletPath: walletPath,
+            onNavigate: onNavigate,
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    }
   }
 }
-
-enum _SourceMode { fromProject, manual }
 
 class CreateWalletDialog extends StatefulWidget {
   final WalletListCubit cubit;
   final Project? preselectedProject;
+  final VoidCallback? onGoToProjects;
 
   const CreateWalletDialog({
     super.key,
     required this.cubit,
     this.preselectedProject,
+    this.onGoToProjects,
   });
 
   @override
@@ -68,10 +76,9 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   final _descriptorController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  _SourceMode _sourceMode = _SourceMode.fromProject;
-  Project? _selectedProject;
   APINetwork _selectedNetwork = APINetwork.testnet;
   bool _isCreating = false;
+  bool _deleteProject = false;
 
   // Protection
   APIProtectionType _protectionType = APIProtectionType.deviceKey;
@@ -80,24 +87,11 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   bool _obscurePassword = true;
   bool _obscurePasswordConfirm = true;
 
-  // Sentinel used to detect "New project" selection in the dropdown.
-  static final _newProjectSentinel = Project(
-    id: -1,
-    name: '',
-    descriptor: '',
-    network: 'bitcoin',
-    walletType: 'p2wpkh',
-    createdAt: DateTime.fromMillisecondsSinceEpoch(0),
-    updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
-  );
-
   @override
   void initState() {
     super.initState();
     if (widget.preselectedProject != null) {
       final p = widget.preselectedProject!;
-      _sourceMode = _SourceMode.fromProject;
-      _selectedProject = p;
       _nameController.text = p.name;
       _selectedNetwork = APINetwork.values.byName(p.network);
     }
@@ -112,9 +106,8 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     super.dispose();
   }
 
-  String get _activeDescriptor => _sourceMode == _SourceMode.fromProject
-      ? (_selectedProject?.descriptor ?? '')
-      : _descriptorController.text.trim();
+  String get _activeDescriptor =>
+      widget.preselectedProject?.descriptor ?? _descriptorController.text.trim();
 
   @override
   Widget build(BuildContext context) {
@@ -141,30 +134,8 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Source mode
-              Text(l10n.sourceProjectLabel,
-                  style: Theme.of(context).textTheme.titleSmall),
-              RadioGroup<_SourceMode>(
-                groupValue: _sourceMode,
-                onChanged: (v) => setState(() => _sourceMode = v!),
-                child: Row(
-                  children: [
-                    Radio<_SourceMode>(value: _SourceMode.fromProject),
-                    Text(l10n.sourceProjectFromProject),
-                    const SizedBox(width: 24),
-                    Radio<_SourceMode>(value: _SourceMode.manual),
-                    Text(l10n.sourceProjectManual),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Project selector (fromProject mode only)
-              if (_sourceMode == _SourceMode.fromProject)
-                _buildProjectSelector(context),
-
-              // Descriptor input (manual mode only)
-              if (_sourceMode == _SourceMode.manual) ...[
+              // Descriptor: editable (manual) or read-only card (from project)
+              if (widget.preselectedProject == null) ...[
                 Row(
                   children: [
                     Text(l10n.descriptorLabel,
@@ -201,6 +172,9 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                       : null,
                 ),
                 const SizedBox(height: 16),
+              ] else ...[
+                _buildDescriptorCard(context),
+                const SizedBox(height: 16),
               ],
 
               // Network — always shown so the user can pick the exact
@@ -210,15 +184,39 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               const SizedBox(height: 16),
               _buildProtectionSection(context),
 
+              // Delete project checkbox (only when from project)
+              if (widget.preselectedProject != null) ...[
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: _deleteProject,
+                  onChanged: (v) => setState(() => _deleteProject = v ?? false),
+                  title: Text(l10n.deleteProjectAfterCreate),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               if (_isCreating)
                 const Center(child: CircularProgressIndicator())
-              else
+              else ...[
                 FilledButton(
                   onPressed: _onCreate,
                   child: Text(l10n.createWalletButton),
                 ),
+                if (widget.preselectedProject == null) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onGoToProjects?.call();
+                    },
+                    icon: const Icon(Icons.design_services_outlined),
+                    label: Text(l10n.fromProjectAction),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
@@ -226,98 +224,25 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     );
   }
 
-  Widget _buildProjectSelector(BuildContext context) {
+  Widget _buildDescriptorCard(BuildContext context) {
     final l10n = context.l10n;
-    final projectState = context.watch<ProjectListCubit>().state;
-
-    if (projectState is! ProjectListLoaded) {
-      return const SizedBox.shrink();
-    }
-
-    final projects = projectState.projects
-        .where((p) => p.descriptor.isNotEmpty)
-        .toList();
-
-    final primary = Theme.of(context).colorScheme.primary;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<Project>(
-        key: ValueKey(_selectedProject),
-        initialValue: _selectedProject,
-        decoration: InputDecoration(
-          labelText: l10n.selectProjectLabel,
-          border: const OutlineInputBorder(),
-        ),
-        items: [
-          DropdownMenuItem(
-            value: _newProjectSentinel,
-            child: Row(
-              children: [
-                Icon(Icons.add_circle_outline, size: 16, color: primary),
-                const SizedBox(width: 8),
-                Text(l10n.newProjectEntry,
-                    style: TextStyle(color: primary)),
-              ],
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.descriptorLabel, style: theme.textTheme.labelMedium),
+            const SizedBox(height: 6),
+            SelectableText(
+              widget.preselectedProject!.descriptor,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
-          ),
-          ...projects.map((p) => DropdownMenuItem(
-                value: p,
-                child: Text(
-                    '${p.name} (${localizedNetworkDisplayName(context, p.network)})'),
-              )),
-        ],
-        onChanged: (p) {
-          if (identical(p, _newProjectSentinel)) {
-            _openCreateProjectDialog(context);
-            return;
-          }
-          setState(() {
-            _selectedProject = p;
-            if (p != null && _nameController.text.isEmpty) {
-              _nameController.text = p.name;
-            }
-            // Pre-fill network from the project; user can still override below
-            if (p != null) {
-              _selectedNetwork = APINetwork.values.byName(p.network);
-            }
-          });
-        },
-        validator: (v) =>
-            (v == null || identical(v, _newProjectSentinel))
-                ? l10n.selectProjectLabel
-                : null,
+          ],
+        ),
       ),
     );
-  }
-
-  Future<void> _openCreateProjectDialog(BuildContext context) async {
-    final projectCubit = context.read<ProjectListCubit>();
-    final projectId = await Navigator.push<int>(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => CreateProjectDialog(cubit: projectCubit),
-      ),
-    );
-    if (projectId == null || !mounted) return;
-
-    final state = projectCubit.state;
-    if (state is! ProjectListLoaded) return;
-
-    final newProject =
-        state.projects.where((p) => p.id == projectId).firstOrNull;
-    if (newProject == null) return;
-
-    setState(() {
-      _selectedProject = newProject;
-      if (_nameController.text.isEmpty) {
-        _nameController.text = newProject.name;
-      }
-      if (newProject.descriptor.isNotEmpty) {
-        _selectedNetwork = APINetwork.values.byName(newProject.network);
-      }
-    });
   }
 
   Widget _buildProtectionSection(BuildContext context) {
@@ -451,8 +376,12 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final desc = _activeDescriptor;
-    // Capture db before any async gap so context is safe to use
+    // Capture context-dependent values before any async gap
     final db = context.read<AppDatabase>();
+    final service = context.read<WalletService>();
+    final projectCubit = widget.preselectedProject != null
+        ? context.read<ProjectListCubit>()
+        : null;
 
     // Validate descriptor ↔ network compatibility via Rust before any async work
     if (desc.isNotEmpty) {
@@ -480,8 +409,13 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         password: password,
       );
 
-      if (_sourceMode == _SourceMode.fromProject && _selectedProject != null) {
-        await _copyProjectLabels(_selectedProject!, walletPath, db);
+      if (widget.preselectedProject != null) {
+        await _copyProjectLabels(widget.preselectedProject!, walletPath, db, service);
+        await _copyProjectKeys(widget.preselectedProject!.id, walletPath, service, password);
+      }
+
+      if (_deleteProject && projectCubit != null && widget.preselectedProject != null) {
+        projectCubit.deleteProject(widget.preselectedProject!.id);
       }
 
       if (mounted) Navigator.pop(context, walletPath);
@@ -491,8 +425,25 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     }
   }
 
+  Future<void> _copyProjectKeys(
+      int projectId, String walletPath, WalletService service, String? password) async {
+    try {
+      final appSupportDir = await service.getAppSupportDir();
+      final deviceKeyHex = await service.getOrCreateEncryptionKey();
+      copyProjectKeysToWallet(
+        appSupportDir: appSupportDir,
+        projectId: projectId,
+        walletPath: walletPath,
+        deviceKeyHex: deviceKeyHex,
+        walletPassword: password,
+      );
+    } catch (e, st) {
+      debugPrint('Failed to copy project keys to wallet: $e\n$st');
+    }
+  }
+
   Future<void> _copyProjectLabels(
-      Project project, String walletPath, AppDatabase db) async {
+      Project project, String walletPath, AppDatabase db, WalletService service) async {
     try {
       final (keys, paths) = await (
         db.getKeysForProject(project.id),
@@ -506,7 +457,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
       if (labeledKeys.isEmpty && labeledPaths.isEmpty) return;
 
-      final handle = await WalletService().openWallet(walletPath);
+      final handle = await service.openWallet(walletPath);
       for (final key in labeledKeys) {
         handle.setKeyLabel(mfp: key.mfp, label: key.customName!);
       }

@@ -14,7 +14,7 @@ export 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
 export 'package:deadbolt/src/rust/api/model.dart'
     show APIUtxo, APIPsbtInfo, APIPsbtAnalysis, APIPsbtSignerStatus, APICoinControl,
         APIPolicyPath, APITxDetails, APIUtxoDetails, APIAddressDetails, APIRelatedUtxo,
-        APIRelatedTx, APIRelatedAddress, APIRbfInfo, APIImportPsbtResult;
+        APIRelatedTx, APIRelatedAddress, APIRbfInfo, APIImportPsbtResult, APIHotKeyInfo;
 
 // --- States ---
 
@@ -60,6 +60,9 @@ class WalletDetailLoaded extends WalletDetailState {
   final Map<int, APIPsbtAnalysis> psbtAnalyses; // psbt.id -> analysis
   final bool psbtsLoaded;
 
+  // Hot signing keys stored in this wallet
+  final List<APIHotKeyInfo> hotKeys;
+
   // Transient error to show as toast (cleared after display)
   final String? errorMessage;
 
@@ -88,6 +91,7 @@ class WalletDetailLoaded extends WalletDetailState {
     this.psbts = const [],
     this.psbtAnalyses = const {},
     this.psbtsLoaded = false,
+    this.hotKeys = const [],
     this.errorMessage,
   });
 
@@ -116,6 +120,7 @@ class WalletDetailLoaded extends WalletDetailState {
     List<APIPsbtInfo>? psbts,
     Map<int, APIPsbtAnalysis>? psbtAnalyses,
     bool? psbtsLoaded,
+    List<APIHotKeyInfo>? hotKeys,
     Object? errorMessage = _keep,
   }) {
     return WalletDetailLoaded(
@@ -146,6 +151,7 @@ class WalletDetailLoaded extends WalletDetailState {
       psbts: psbts ?? this.psbts,
       psbtAnalyses: psbtAnalyses ?? this.psbtAnalyses,
       psbtsLoaded: psbtsLoaded ?? this.psbtsLoaded,
+      hotKeys: hotKeys ?? this.hotKeys,
       errorMessage: errorMessage == _keep ? this.errorMessage : errorMessage as String?,
     );
   }
@@ -215,6 +221,21 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
+  void _emitError(String tag, Object e, StackTrace st) {
+    logError(tag, e, st);
+    if (state is WalletDetailLoaded) {
+      emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
+    }
+  }
+
+  /// Evict the cached password so the wallet will require re-authentication
+  /// on next open. The caller is responsible for navigating away.
+  void lockWallet() {
+    final current = state;
+    if (current is! WalletDetailLoaded) return;
+    _service.evictPassword(current.walletInfo.walletPath);
+  }
+
   Future<void> load(String walletPath, {String? password}) async {
     emit(WalletDetailLoading());
     try {
@@ -244,6 +265,14 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         logError('WalletDetailCubit.load() PSBTs', e, st);
       }
 
+      // Load hot keys
+      List<APIHotKeyInfo> hotKeys = [];
+      try {
+        hotKeys = handle.listHotKeys();
+      } catch (e, st) {
+        logError('WalletDetailCubit.load() hotKeys', e, st);
+      }
+
       emit(WalletDetailLoaded(
         walletHandle: handle,
         walletInfo: walletInfo,
@@ -256,6 +285,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbts: psbts,
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: true,
+        hotKeys: hotKeys,
       ));
       // Eagerly load descriptor analysis so PSBT navigation works from the
       // Transactions tab without needing to visit the Descriptor tab first.
@@ -332,6 +362,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbts: psbts,
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: current.psbtsLoaded,
+        hotKeys: atEmit.hotKeys,
       ));
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.sync()', e, stackTrace);
@@ -381,6 +412,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         receiveAddressesLoaded: false,
         changeAddressesLoaded: false,
         utxosLoaded: false,
+        hotKeys: atEmit.hotKeys,
       ));
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.rescan()', e, stackTrace);
@@ -457,12 +489,26 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   }
 
   /// Ensures at least the receive (external) addresses are loaded.
+  /// If no addresses have been revealed yet (fresh wallet), reveals some first
+  /// and triggers a background sync to confirm they are unused on-chain.
   /// Used by the overview tab Receive button.
   Future<void> ensureReceiveAddressLoaded() async {
     final current = state;
     if (current is! WalletDetailLoaded) return;
-    if (current.receiveAddressesLoaded) return;
-    await _loadAddresses(APIKeychain.external_);
+    if (!current.receiveAddressesLoaded) {
+      await _loadAddresses(APIKeychain.external_);
+    }
+    final afterLoad = state;
+    if (afterLoad is! WalletDetailLoaded) return;
+    if (afterLoad.receiveAddresses.isEmpty) {
+      // Fresh wallet — no addresses revealed yet. Reveal a first batch and
+      // kick off a background sync so we can confirm they are unused on-chain.
+      await revealMoreAddresses(APIKeychain.external_);
+      if (_electrumUrl != null) {
+        // Fire-and-forget: don't block the receive dialog on network I/O.
+        unawaited(sync(_electrumUrl!));
+      }
+    }
   }
 
   Future<void> _loadAddresses(APIKeychain keychain) async {
@@ -930,5 +976,96 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     final url = _electrumUrl ?? electrumUrl;
     sync(url);
     return txid;
+  }
+
+  // ─── Hot key management ────────────────────────────────────────────────────
+
+  /// Import a mnemonic as a signing key. Returns the new [APIHotKeyInfo] or null on error.
+  Future<APIHotKeyInfo?> addMnemonicKey(String mnemonic, String? passphrase) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final info = current.walletHandle.addMnemonicKey(
+        mnemonic: mnemonic,
+        passphrase: passphrase,
+      );
+      final updated = [...current.hotKeys.where((k) => k.mfp != info.mfp), info];
+      emit(current.copyWith(hotKeys: updated));
+      return info;
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.addMnemonicKey()', e, st);
+      return null;
+    }
+  }
+
+  /// Import a master xprv as a signing key. Returns the new [APIHotKeyInfo] or null on error.
+  Future<APIHotKeyInfo?> addXprvKey(String xprv) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final info = current.walletHandle.addXprvKey(xprv: xprv);
+      final updated = [...current.hotKeys.where((k) => k.mfp != info.mfp), info];
+      emit(current.copyWith(hotKeys: updated));
+      return info;
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.addXprvKey()', e, st);
+      return null;
+    }
+  }
+
+  /// Remove a hot signing key by MFP.
+  Future<void> deleteHotKey(String mfp) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return;
+    try {
+      current.walletHandle.deleteHotKey(mfp: mfp);
+      final updated = current.hotKeys.where((k) => k.mfp != mfp).toList();
+      emit(current.copyWith(hotKeys: updated));
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.deleteHotKey()', e, st);
+    }
+  }
+
+  /// Reveal the stored seed phrase or xprv for a hot signing key.
+  Future<String?> revealHotKey(String mfp) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      return current.walletHandle.revealHotKey(mfp: mfp);
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.revealHotKey()', e, st);
+      return null;
+    }
+  }
+
+  /// Sign a PSBT with any stored hot keys. Returns the updated [APIPsbtInfo] or null on error.
+  Future<APIPsbtInfo?> signPsbt(int psbtId) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final updated = current.walletHandle.signPsbt(psbtId: psbtId);
+      // Re-analyze signatures
+      APIPsbtAnalysis? analysis;
+      try {
+        analysis = await current.walletHandle
+            .analyzePsbt(psbtBase64: updated.psbtBase64, mfps: updated.mfps);
+      } catch (e, st) {
+        logError('WalletDetailCubit.signPsbt() analyze', e, st);
+      }
+
+      // Re-read state to avoid overwriting concurrent updates (e.g. a sync
+      // that completed while analyzePsbt was awaiting).
+      final latest = state is WalletDetailLoaded ? state as WalletDetailLoaded : current;
+      final updatedPsbts = latest.psbts
+          .map((p) => p.id.toInt() == psbtId ? updated : p)
+          .toList();
+      final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(latest.psbtAnalyses);
+      if (analysis != null) updatedAnalyses[psbtId] = analysis;
+      emit(latest.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
+      return updated;
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.signPsbt()', e, st);
+      return null;
+    }
   }
 }

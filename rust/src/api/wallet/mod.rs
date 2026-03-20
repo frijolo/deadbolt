@@ -4,26 +4,31 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIImportPsbtResult, APIKeychain,
-    APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
+    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIHotKeyInfo, APIImportPsbtResult,
+    APIKeychain, APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
     APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
     APITransaction, APITransactionPage, APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
     APIWalletProtection,
 };
 use crate::core::key_protection::{decrypt_bytes, encrypt_bytes, ProtectionMeta};
+use crate::core::project_seeds::{
+    delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
+    open_project_seeds_db, reveal_project_seed_value,
+};
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
     create_wallet_db, generate_uuid_v4, get_wallet_info_from_file, list_wallets_in_dir,
-    rename_wallet_in_file, resolve_wallet_key, wallet_needs_password, WalletProtectionRequest,
+    refresh_user_password_meta_cache, rename_wallet_in_file, resolve_wallet_key,
+    wallet_needs_password, WalletProtectionRequest,
 };
 use crate::core::wallet_meta::{delete_meta, read_meta};
 use crate::core::wallet_persistence::{
-    address_has_explicit_label, coin_has_explicit_label, delete_psbt_row,
+    address_has_explicit_label, coin_has_explicit_label, delete_psbt_row, delete_seed_entry,
     ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
     get_all_coin_labels_with_flag, get_all_key_labels, get_all_path_labels,
     get_all_tx_labels_with_flag, get_coin_label_with_flag, get_psbt_row, get_psbt_row_by_txid,
-    get_tx_label_with_flag, insert_psbt, list_psbt_rows, open_encrypted_connection,
-    read_wallet_info, set_address_label as db_set_address_label,
+    get_tx_label_with_flag, insert_psbt, insert_seed_entry, list_psbt_rows, list_seed_entries,
+    open_encrypted_connection, read_wallet_info, set_address_label as db_set_address_label,
     set_coin_label as db_set_coin_label, set_key_label as db_set_key_label,
     set_path_label as db_set_path_label, set_tx_label as db_set_tx_label, touch_last_synced,
     tx_has_explicit_label, update_psbt_data, update_psbt_label, PsbtRow, WalletInfoRow,
@@ -590,13 +595,18 @@ pub fn open_wallet(
     password: Option<String>,
 ) -> Result<APIWallet> {
     let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, password.as_deref())?;
-    let (descriptor, network) = {
+    let (descriptor, network, api_network, last_synced_at) = {
         let conn = open_encrypted_connection(&wallet_path, &data_key)?;
         let row = read_wallet_info(&conn)?;
-        let network: bdk_wallet::bitcoin::Network =
-            APINetwork::try_from(row.network.as_str())?.into();
-        (row.descriptor, network)
+        let api_network = APINetwork::try_from(row.network.as_str())?;
+        let bdk_network: bdk_wallet::bitcoin::Network = api_network.into();
+        (row.descriptor, bdk_network, api_network, row.last_synced_at)
     };
+    // Refresh cached metadata in the .meta sidecar for UserPassword wallets so
+    // the wallet list shows the correct network and last-synced date while locked.
+    if wallet_needs_password(&wallet_path) {
+        refresh_user_password_meta_cache(&wallet_path, api_network, last_synced_at);
+    }
     let core = CoreWallet::open(&wallet_path, &descriptor, network, &data_key)?;
     Ok(APIWallet {
         inner: Mutex::new(core),
@@ -620,7 +630,388 @@ pub struct APIWallet {
     electrum_url: Mutex<String>,
 }
 
-impl APIWallet {}
+impl APIWallet {
+    // -----------------------------------------------------------------------
+    // Hot key (seed) management
+    // -----------------------------------------------------------------------
+
+    /// Import a mnemonic phrase as a signing key. Validates the words, computes
+    /// the MFP, and stores the seed in the encrypted wallet database.
+    #[frb(sync)]
+    pub fn add_mnemonic_key(
+        &self,
+        mnemonic: String,
+        passphrase: Option<String>,
+    ) -> Result<APIHotKeyInfo> {
+        use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+
+        let passphrase = passphrase.unwrap_or_default();
+        let network: bdk_wallet::bitcoin::Network = {
+            let info = read_wallet_info(&core.conn)?;
+            APINetwork::try_from(info.network.as_str())?.into()
+        };
+
+        let secp = Secp256k1::new();
+        let root_xprv = mnemonic_to_root_xprv(&mnemonic, &passphrase, network)?;
+        let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+
+        insert_seed_entry(
+            &core.conn,
+            &mfp,
+            "mnemonic",
+            Some(&mnemonic),
+            &passphrase,
+            None,
+        )?;
+
+        // Retrieve created_at timestamp we just inserted
+        let created_at: i64 = core.conn.query_row(
+            "SELECT created_at FROM seed_entries WHERE mfp = ?1",
+            rusqlite::params![mfp],
+            |row| row.get(0),
+        )?;
+
+        Ok(APIHotKeyInfo {
+            mfp,
+            seed_type: "mnemonic".to_string(),
+            created_at,
+        })
+    }
+
+    /// Import a master xprv (depth=0 only) as a signing key.
+    #[frb(sync)]
+    pub fn add_xprv_key(&self, xprv: String) -> Result<APIHotKeyInfo> {
+        use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+
+        let secp = Secp256k1::new();
+        let root_xprv = xprv_str_to_root_xprv(&xprv)?;
+        let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+
+        insert_seed_entry(&core.conn, &mfp, "xprv", None, "", Some(&xprv))?;
+
+        let created_at: i64 = core.conn.query_row(
+            "SELECT created_at FROM seed_entries WHERE mfp = ?1",
+            rusqlite::params![mfp],
+            |row| row.get(0),
+        )?;
+
+        Ok(APIHotKeyInfo {
+            mfp,
+            seed_type: "xprv".to_string(),
+            created_at,
+        })
+    }
+
+    /// List all hot signing keys stored in this wallet (never exposes the seed).
+    #[frb(sync)]
+    pub fn list_hot_keys(&self) -> Result<Vec<APIHotKeyInfo>> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+
+        let entries = list_seed_entries(&core.conn)?;
+        Ok(entries
+            .into_iter()
+            .map(|e| APIHotKeyInfo {
+                mfp: e.mfp,
+                seed_type: e.seed_type,
+                created_at: e.created_at,
+            })
+            .collect())
+    }
+
+    /// Remove a hot signing key by MFP.
+    #[frb(sync)]
+    pub fn delete_hot_key(&self, mfp: String) -> Result<()> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        delete_seed_entry(&core.conn, &mfp)
+    }
+
+    /// Reveal the stored seed phrase or xprv for a hot signing key.
+    ///
+    /// The SQLCipher layer already protects this data at rest; this function
+    /// exposes it in plaintext for display purposes only. Call only when the
+    /// user explicitly requests it and after showing an appropriate disclaimer.
+    #[frb(sync)]
+    pub fn reveal_hot_key(&self, mfp: String) -> Result<String> {
+        let core = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let result: rusqlite::Result<(Option<String>, Option<String>)> = core.conn.query_row(
+            "SELECT mnemonic, xprv FROM seed_entries WHERE mfp = ?1",
+            rusqlite::params![mfp],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        );
+        let (mnemonic, xprv) =
+            result.map_err(|_| anyhow::anyhow!("No signing key with MFP {} found", mfp))?;
+        mnemonic
+            .or(xprv)
+            .ok_or_else(|| anyhow::anyhow!("Signing key entry for MFP {} has no seed data", mfp))
+    }
+}
+
+/// Validate a mnemonic phrase and return its MFP without storing anything.
+pub fn validate_mnemonic(
+    mnemonic: String,
+    passphrase: Option<String>,
+    network: APINetwork,
+) -> Result<APIHotKeyInfo> {
+    use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+    let passphrase = passphrase.unwrap_or_default();
+    let net: bdk_wallet::bitcoin::Network = network.into();
+    let secp = Secp256k1::new();
+    let root_xprv = mnemonic_to_root_xprv(&mnemonic, &passphrase, net)?;
+    let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+    Ok(APIHotKeyInfo {
+        mfp,
+        seed_type: "mnemonic".to_string(),
+        created_at: 0,
+    })
+}
+
+/// Derive a public keyspec `[mfp/path]xpub` from a mnemonic and derivation path.
+///
+/// `derivation_path` may include or omit the leading `m/`.
+/// Returns a string suitable for use in a Bitcoin descriptor.
+pub fn derive_keyspec(
+    mnemonic: String,
+    passphrase: Option<String>,
+    derivation_path: String,
+    network: APINetwork,
+) -> Result<String> {
+    use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
+    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+    use std::str::FromStr;
+
+    let passphrase = passphrase.unwrap_or_default();
+    let net: bdk_wallet::bitcoin::Network = network.into();
+    let secp = Secp256k1::new();
+    let root = mnemonic_to_root_xprv(&mnemonic, &passphrase, net)?;
+    let mfp = root_xprv_to_mfp(&root, &secp);
+
+    let path_str = if derivation_path.starts_with("m/") {
+        derivation_path.clone()
+    } else {
+        format!("m/{}", derivation_path)
+    };
+    let path = DerivationPath::from_str(&path_str)
+        .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", path_str, e))?;
+    let child_xprv = root
+        .derive_priv(&secp, &path)
+        .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
+    let child_xpub = Xpub::from_priv(&secp, &child_xprv);
+
+    let path_display = path_str.trim_start_matches("m/");
+    Ok(format!("[{}/{}]{}", mfp, path_display, child_xpub))
+}
+
+/// Derive a public keyspec `[mfp/path]xpub` from a master xprv and derivation path.
+///
+/// `xprv_str` must be a depth-0 master key.
+/// `derivation_path` may include or omit the leading `m/`.
+pub fn derive_keyspec_from_xprv(xprv_str: String, derivation_path: String) -> Result<String> {
+    use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
+    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+    use std::str::FromStr;
+
+    let secp = Secp256k1::new();
+    let root = xprv_str_to_root_xprv(&xprv_str)?;
+    let mfp = root_xprv_to_mfp(&root, &secp);
+
+    let path_str = if derivation_path.starts_with("m/") {
+        derivation_path.clone()
+    } else {
+        format!("m/{}", derivation_path)
+    };
+    let path = DerivationPath::from_str(&path_str)
+        .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", path_str, e))?;
+    let child_xprv = root
+        .derive_priv(&secp, &path)
+        .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
+    let child_xpub = Xpub::from_priv(&secp, &child_xprv);
+
+    let path_display = path_str.trim_start_matches("m/");
+    Ok(format!("[{}/{}]{}", mfp, path_display, child_xpub))
+}
+
+// ---------------------------------------------------------------------------
+// Project hot-key (seed) functions
+// ---------------------------------------------------------------------------
+
+/// Store a mnemonic as a signing key for a project.
+///
+/// Validates the mnemonic, computes the MFP, and persists it in the
+/// shared `project_seeds.db` (SQLCipher, device-key protected).
+#[frb(sync)]
+pub fn add_project_mnemonic_key(
+    app_support_dir: String,
+    project_id: i64,
+    mnemonic: String,
+    passphrase: Option<String>,
+    network: APINetwork,
+    device_key_hex: String,
+) -> Result<APIHotKeyInfo> {
+    use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+    let passphrase = passphrase.unwrap_or_default();
+    let net: bdk_wallet::bitcoin::Network = network.into();
+    let secp = Secp256k1::new();
+    let root_xprv = mnemonic_to_root_xprv(&mnemonic, &passphrase, net)?;
+    let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+
+    let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    insert_project_seed_entry(
+        &conn,
+        project_id,
+        &mfp,
+        "mnemonic",
+        Some(&mnemonic),
+        &passphrase,
+        None,
+    )?;
+
+    let created_at: i64 = conn.query_row(
+        "SELECT created_at FROM project_seed_entries WHERE project_id = ?1 AND mfp = ?2",
+        rusqlite::params![project_id, mfp],
+        |row| row.get(0),
+    )?;
+
+    Ok(APIHotKeyInfo {
+        mfp,
+        seed_type: "mnemonic".to_string(),
+        created_at,
+    })
+}
+
+/// Store a master xprv (depth-0 only) as a signing key for a project.
+#[frb(sync)]
+pub fn add_project_xprv_key(
+    app_support_dir: String,
+    project_id: i64,
+    xprv: String,
+    device_key_hex: String,
+) -> Result<APIHotKeyInfo> {
+    use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+    let secp = Secp256k1::new();
+    let root_xprv = xprv_str_to_root_xprv(&xprv)?;
+    let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+
+    let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    insert_project_seed_entry(&conn, project_id, &mfp, "xprv", None, "", Some(&xprv))?;
+
+    let created_at: i64 = conn.query_row(
+        "SELECT created_at FROM project_seed_entries WHERE project_id = ?1 AND mfp = ?2",
+        rusqlite::params![project_id, mfp],
+        |row| row.get(0),
+    )?;
+
+    Ok(APIHotKeyInfo {
+        mfp,
+        seed_type: "xprv".to_string(),
+        created_at,
+    })
+}
+
+/// List all project signing keys (never exposes the seed itself).
+#[frb(sync)]
+pub fn list_project_hot_keys(
+    app_support_dir: String,
+    project_id: i64,
+    device_key_hex: String,
+) -> Result<Vec<APIHotKeyInfo>> {
+    let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    let entries = list_project_seed_entries(&conn, project_id)?;
+    Ok(entries
+        .into_iter()
+        .map(|e| APIHotKeyInfo {
+            mfp: e.mfp,
+            seed_type: e.seed_type,
+            created_at: e.created_at,
+        })
+        .collect())
+}
+
+/// Remove a project signing key by MFP.
+#[frb(sync)]
+pub fn delete_project_hot_key(
+    app_support_dir: String,
+    project_id: i64,
+    mfp: String,
+    device_key_hex: String,
+) -> Result<()> {
+    let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    delete_project_seed_entry(&conn, project_id, &mfp)
+}
+
+/// Reveal the stored seed phrase or xprv for a project signing key.
+///
+/// Call only after showing an appropriate warning to the user.
+#[frb(sync)]
+pub fn reveal_project_seed(
+    app_support_dir: String,
+    project_id: i64,
+    mfp: String,
+    device_key_hex: String,
+) -> Result<String> {
+    let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    reveal_project_seed_value(&conn, project_id, &mfp)
+}
+
+/// Copy all signing keys from a project's encrypted seeds DB into a wallet.
+///
+/// Returns the number of keys copied.
+#[frb(sync)]
+pub fn copy_project_keys_to_wallet(
+    app_support_dir: String,
+    project_id: i64,
+    wallet_path: String,
+    device_key_hex: String,
+    wallet_password: Option<String>,
+) -> Result<u32> {
+    let proj_conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
+    let entries = list_project_seed_entries(&proj_conn, project_id)?;
+
+    let wallet_key = resolve_wallet_key(&wallet_path, &device_key_hex, wallet_password.as_deref())?;
+    let wallet_conn = open_encrypted_connection(&wallet_path, &wallet_key)?;
+
+    let mut copied = 0u32;
+    for entry in &entries {
+        insert_seed_entry(
+            &wallet_conn,
+            &entry.mfp,
+            &entry.seed_type,
+            entry.mnemonic.as_deref(),
+            &entry.passphrase,
+            entry.xprv.as_deref(),
+        )?;
+        copied += 1;
+    }
+    Ok(copied)
+}
 
 // ---------------------------------------------------------------------------
 // Backup functions (.deadbolt format)

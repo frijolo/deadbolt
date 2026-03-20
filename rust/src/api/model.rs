@@ -720,6 +720,22 @@ pub struct APIPubKey {
     pub xpub: String,
 }
 
+////////////////////
+// APIHotKeyInfo  //
+////////////////////
+
+/// Metadata about a hot signing key stored inside the wallet.
+/// The seed itself is never exposed via FFI — only the MFP and type.
+#[derive(Clone)]
+pub struct APIHotKeyInfo {
+    /// Master fingerprint (8 lowercase hex chars).
+    pub mfp: String,
+    /// "mnemonic" or "xprv".
+    pub seed_type: String,
+    /// Unix timestamp (seconds) when this key was added.
+    pub created_at: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

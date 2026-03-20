@@ -938,6 +938,72 @@ abstract class AppLocalizations {
   /// **'Key in use - cannot delete'**
   String get keyInUseTooltip;
 
+  /// No description provided for @hotKeyBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'HOT'**
+  String get hotKeyBadge;
+
+  /// No description provided for @privateKeySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Private key'**
+  String get privateKeySection;
+
+  /// No description provided for @viewPrivateKeyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'View seed phrase'**
+  String get viewPrivateKeyButton;
+
+  /// No description provided for @deletePrivateKeyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove signing key'**
+  String get deletePrivateKeyButton;
+
+  /// No description provided for @viewPrivateKeyDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Make sure no one can see your screen. Your seed phrase gives full access to your funds.'**
+  String get viewPrivateKeyDisclaimer;
+
+  /// No description provided for @deletePrivateKeyDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the signing key from this project. You will no longer be able to sign transactions from the Designer.'**
+  String get deletePrivateKeyDisclaimer;
+
+  /// No description provided for @deleteWalletPrivateKeyDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the signing key from this wallet. You will no longer be able to sign transactions with it.'**
+  String get deleteWalletPrivateKeyDisclaimer;
+
+  /// No description provided for @viewPrivateKeyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Show seed'**
+  String get viewPrivateKeyConfirm;
+
+  /// No description provided for @deletePrivateKeyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get deletePrivateKeyConfirm;
+
+  /// No description provided for @seedPhraseDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed phrase'**
+  String get seedPhraseDialogTitle;
+
+  /// No description provided for @seedPhraseCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed phrase copied'**
+  String get seedPhraseCopied;
+
   /// No description provided for @spendPathNameDialogTitle.
   ///
   /// In en, this message translates to:
@@ -1316,35 +1382,17 @@ abstract class AppLocalizations {
   /// **'Wallet name is required'**
   String get walletNameRequired;
 
-  /// No description provided for @sourceProjectLabel.
+  /// No description provided for @deleteProjectAfterCreate.
   ///
   /// In en, this message translates to:
-  /// **'Source'**
-  String get sourceProjectLabel;
+  /// **'Delete this project after creating the wallet'**
+  String get deleteProjectAfterCreate;
 
-  /// No description provided for @sourceProjectFromProject.
+  /// No description provided for @fromProjectAction.
   ///
   /// In en, this message translates to:
   /// **'From project'**
-  String get sourceProjectFromProject;
-
-  /// No description provided for @sourceProjectManual.
-  ///
-  /// In en, this message translates to:
-  /// **'Manual descriptor'**
-  String get sourceProjectManual;
-
-  /// No description provided for @selectProjectLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Select project'**
-  String get selectProjectLabel;
-
-  /// No description provided for @newProjectEntry.
-  ///
-  /// In en, this message translates to:
-  /// **'New project…'**
-  String get newProjectEntry;
+  String get fromProjectAction;
 
   /// No description provided for @createWalletButton.
   ///

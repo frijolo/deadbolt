@@ -457,6 +457,42 @@ class AppLocalizationsEs extends AppLocalizations {
   String get keyInUseTooltip => 'Clave en uso - no se puede eliminar';
 
   @override
+  String get hotKeyBadge => 'HOT';
+
+  @override
+  String get privateKeySection => 'Clave privada';
+
+  @override
+  String get viewPrivateKeyButton => 'Ver semilla';
+
+  @override
+  String get deletePrivateKeyButton => 'Eliminar clave firmante';
+
+  @override
+  String get viewPrivateKeyDisclaimer =>
+      'Asegúrate de que nadie vea tu pantalla. Tu frase semilla da acceso total a tus fondos.';
+
+  @override
+  String get deletePrivateKeyDisclaimer =>
+      'Esto elimina la clave firmante de este proyecto. Ya no podrás firmar transacciones desde el Diseñador.';
+
+  @override
+  String get deleteWalletPrivateKeyDisclaimer =>
+      'Esto elimina la clave firmante de esta cartera. Ya no podrás firmar transacciones con ella.';
+
+  @override
+  String get viewPrivateKeyConfirm => 'Mostrar semilla';
+
+  @override
+  String get deletePrivateKeyConfirm => 'Eliminar';
+
+  @override
+  String get seedPhraseDialogTitle => 'Frase semilla';
+
+  @override
+  String get seedPhraseCopied => 'Frase semilla copiada';
+
+  @override
   String get spendPathNameDialogTitle => 'Nombre de ruta de gasto';
 
   @override
@@ -657,19 +693,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletNameRequired => 'El nombre es obligatorio';
 
   @override
-  String get sourceProjectLabel => 'Origen';
+  String get deleteProjectAfterCreate =>
+      'Eliminar este proyecto al crear la billetera';
 
   @override
-  String get sourceProjectFromProject => 'Desde proyecto';
-
-  @override
-  String get sourceProjectManual => 'Descriptor manual';
-
-  @override
-  String get selectProjectLabel => 'Seleccionar proyecto';
-
-  @override
-  String get newProjectEntry => 'Nuevo proyecto…';
+  String get fromProjectAction => 'Desde proyecto';
 
   @override
   String get createWalletButton => 'Crear Billetera';

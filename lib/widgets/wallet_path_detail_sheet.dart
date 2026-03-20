@@ -98,7 +98,9 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
       minChildSize: 0.35,
       maxChildSize: 0.85,
       expand: false,
-      builder: (_, scrollController) => Container(
+      builder: (_, scrollController) => SafeArea(
+        top: false,
+        child: Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -208,6 +210,7 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

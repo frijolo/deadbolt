@@ -170,6 +170,7 @@ class ProjectListScreen extends StatelessWidget {
                       builder: (_) => ProjectDetailScreen(
                         db: db,
                         projectId: project.id,
+                        onNavigate: onNavigate,
                       ),
                     ),
                   );
@@ -239,6 +240,7 @@ class ProjectListScreen extends StatelessWidget {
             builder: (_) => ProjectDetailScreen(
               db: context.read<AppDatabase>(),
               projectId: project.id,
+              onNavigate: onNavigate,
             ),
           ),
         ),
@@ -267,6 +269,7 @@ class ProjectListScreen extends StatelessWidget {
           builder: (_) => ProjectDetailScreen(
             db: context.read<AppDatabase>(),
             projectId: projectId,
+            onNavigate: onNavigate,
           ),
         ),
       );
@@ -275,7 +278,7 @@ class ProjectListScreen extends StatelessWidget {
 
   Future<void> _createWalletFromProject(
           BuildContext context, Project project) =>
-      createWalletFromProject(context, project);
+      createWalletFromProject(context, project, onNavigate: onNavigate);
 
   void _confirmDelete(BuildContext context, Project project) {
     final l10n = context.l10n;
@@ -391,6 +394,7 @@ class ProjectListScreen extends StatelessWidget {
             builder: (_) => ProjectDetailScreen(
               db: db,
               projectId: projectId,
+              onNavigate: onNavigate,
             ),
           ),
         );
@@ -420,6 +424,7 @@ class ProjectListScreen extends StatelessWidget {
             builder: (_) => ProjectDetailScreen(
               db: db,
               projectId: projectId,
+              onNavigate: onNavigate,
             ),
           ),
         );

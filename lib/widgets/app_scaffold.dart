@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/about_screen.dart';
 import 'package:deadbolt/screens/project_list_screen.dart';
@@ -36,11 +34,8 @@ class _AppScaffoldState extends State<AppScaffold> {
       final body = IndexedStack(
         index: _selectedIndex,
         children: [
-          BlocProvider(
-            create: (context) => WalletListCubit(),
-            child: WalletListScreen(onNavigate: _navigate),
-          ),
-          const ProjectListScreen(),
+          WalletListScreen(onNavigate: _navigate),
+          ProjectListScreen(onNavigate: _navigate),
           const SettingsScreen(),
           const AboutScreen(),
         ],
@@ -70,10 +65,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     return IndexedStack(
       index: _selectedIndex,
       children: [
-        BlocProvider(
-          create: (context) => WalletListCubit(),
-          child: WalletListScreen(navIndex: 0, onNavigate: _navigate),
-        ),
+        WalletListScreen(navIndex: 0, onNavigate: _navigate),
         ProjectListScreen(navIndex: 1, onNavigate: _navigate),
         SettingsScreen(navIndex: 2, onNavigate: _navigate),
         AboutScreen(navIndex: 3, onNavigate: _navigate),
