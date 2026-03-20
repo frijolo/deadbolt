@@ -652,29 +652,21 @@ impl APIWallet {
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
 
         let passphrase = passphrase.unwrap_or_default();
-        let network: bdk_wallet::bitcoin::Network = {
-            let info = read_wallet_info(&core.conn)?;
-            APINetwork::try_from(info.network.as_str())?.into()
-        };
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
 
         let secp = Secp256k1::new();
         let root_xprv = mnemonic_to_root_xprv(&mnemonic, &passphrase, network)?;
         let mfp = root_xprv_to_mfp(&root_xprv, &secp);
 
-        insert_seed_entry(
+        let created_at = insert_seed_entry(
             &core.conn,
             &mfp,
             "mnemonic",
             Some(&mnemonic),
             &passphrase,
             None,
-        )?;
-
-        // Retrieve created_at timestamp we just inserted
-        let created_at: i64 = core.conn.query_row(
-            "SELECT created_at FROM seed_entries WHERE mfp = ?1",
-            rusqlite::params![mfp],
-            |row| row.get(0),
         )?;
 
         Ok(APIHotKeyInfo {
@@ -699,13 +691,7 @@ impl APIWallet {
         let root_xprv = xprv_str_to_root_xprv(&xprv)?;
         let mfp = root_xprv_to_mfp(&root_xprv, &secp);
 
-        insert_seed_entry(&core.conn, &mfp, "xprv", None, "", Some(&xprv))?;
-
-        let created_at: i64 = core.conn.query_row(
-            "SELECT created_at FROM seed_entries WHERE mfp = ?1",
-            rusqlite::params![mfp],
-            |row| row.get(0),
-        )?;
+        let created_at = insert_seed_entry(&core.conn, &mfp, "xprv", None, "", Some(&xprv))?;
 
         Ok(APIHotKeyInfo {
             mfp,
@@ -882,7 +868,7 @@ pub fn add_project_mnemonic_key(
     let mfp = root_xprv_to_mfp(&root_xprv, &secp);
 
     let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
-    insert_project_seed_entry(
+    let created_at = insert_project_seed_entry(
         &conn,
         project_id,
         &mfp,
@@ -890,12 +876,6 @@ pub fn add_project_mnemonic_key(
         Some(&mnemonic),
         &passphrase,
         None,
-    )?;
-
-    let created_at: i64 = conn.query_row(
-        "SELECT created_at FROM project_seed_entries WHERE project_id = ?1 AND mfp = ?2",
-        rusqlite::params![project_id, mfp],
-        |row| row.get(0),
     )?;
 
     Ok(APIHotKeyInfo {
@@ -921,13 +901,8 @@ pub fn add_project_xprv_key(
     let mfp = root_xprv_to_mfp(&root_xprv, &secp);
 
     let conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
-    insert_project_seed_entry(&conn, project_id, &mfp, "xprv", None, "", Some(&xprv))?;
-
-    let created_at: i64 = conn.query_row(
-        "SELECT created_at FROM project_seed_entries WHERE project_id = ?1 AND mfp = ?2",
-        rusqlite::params![project_id, mfp],
-        |row| row.get(0),
-    )?;
+    let created_at =
+        insert_project_seed_entry(&conn, project_id, &mfp, "xprv", None, "", Some(&xprv))?;
 
     Ok(APIHotKeyInfo {
         mfp,

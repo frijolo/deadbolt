@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1680964288;
+  int get rustContentHash => -1635134353;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -274,9 +274,10 @@ abstract class RustLibApi extends BaseApi {
     required String label,
   });
 
-  APIPsbtInfo crateApiWalletApiWalletSignPsbt({
+  APIPsbtInfo crateApiWalletApiWalletSignPsbtWithKey({
     required ApiWallet that,
     required PlatformInt64 psbtId,
+    required String mfp,
   });
 
   Future<void> crateApiWalletApiWalletSync({
@@ -1950,9 +1951,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  APIPsbtInfo crateApiWalletApiWalletSignPsbt({
+  APIPsbtInfo crateApiWalletApiWalletSignPsbtWithKey({
     required ApiWallet that,
     required PlatformInt64 psbtId,
+    required String mfp,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -1963,23 +1965,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_i_64(psbtId, serializer);
+          sse_encode_String(mfp, serializer);
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_psbt_info,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletApiWalletSignPsbtConstMeta,
-        argValues: [that, psbtId],
+        constMeta: kCrateApiWalletApiWalletSignPsbtWithKeyConstMeta,
+        argValues: [that, psbtId, mfp],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWalletApiWalletSignPsbtConstMeta =>
+  TaskConstMeta get kCrateApiWalletApiWalletSignPsbtWithKeyConstMeta =>
       const TaskConstMeta(
-        debugName: "ApiWallet_sign_psbt",
-        argNames: ["that", "psbtId"],
+        debugName: "ApiWallet_sign_psbt_with_key",
+        argNames: ["that", "psbtId", "mfp"],
       );
 
   @override
@@ -7268,13 +7271,24 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
       .api
       .crateApiWalletApiWalletSetTxLabel(that: this, txid: txid, label: label);
 
-  /// Sign a stored PSBT using any hot keys available in this wallet.
+  /// Sign a stored PSBT using the hot key identified by `mfp`.
   ///
-  /// Iterates over all stored seed entries, builds a temporary in-memory wallet
-  /// with the private descriptor for each matching key, and applies signatures.
-  /// Returns the updated [`APIPsbtInfo`] with the new PSBT data.
-  APIPsbtInfo signPsbt({required PlatformInt64 psbtId}) => RustLib.instance.api
-      .crateApiWalletApiWalletSignPsbt(that: this, psbtId: psbtId);
+  /// Only the signer for the given master fingerprint is loaded, so BDK can
+  /// never accidentally sign with a key the user did not intend. The PSBT is
+  /// **never auto-finalized** (`try_finalize: false`) — the user explicitly
+  /// controls finalization, which prevents premature finalization in multisig
+  /// or complex Taproot setups where BDK might otherwise finalize on the first
+  /// satisfied threshold.
+  ///
+  /// Returns the updated [`APIPsbtInfo`] with the partial signatures added.
+  APIPsbtInfo signPsbtWithKey({
+    required PlatformInt64 psbtId,
+    required String mfp,
+  }) => RustLib.instance.api.crateApiWalletApiWalletSignPsbtWithKey(
+    that: this,
+    psbtId: psbtId,
+    mfp: mfp,
+  );
 
   /// Sync with Electrum, persist, and update last_synced_at.
   ///

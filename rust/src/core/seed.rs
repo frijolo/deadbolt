@@ -94,6 +94,34 @@ pub fn make_private_descriptor(
     Ok(result)
 }
 
+/// Remove the BDK checksum suffix (`#xxxxxxxx`) from a descriptor string.
+///
+/// Used before feeding a private descriptor into `Wallet::create` because
+/// replacing xpub→xprv invalidates the existing checksum and BDK rejects
+/// descriptors with an incorrect one.
+pub fn strip_descriptor_checksum(desc: &str) -> String {
+    match desc.rfind('#') {
+        Some(idx) => desc[..idx].to_string(),
+        None => desc.to_string(),
+    }
+}
+
+/// Split a multi-path descriptor into its external and internal variants.
+///
+/// BDK cannot create a wallet from a descriptor that contains both an xprv
+/// and a `<n;m>` multi-path suffix. This function replaces every `/<n;m>/`
+/// occurrence with `/<n>/` (external) and `/<m>/` (internal) respectively,
+/// producing two single-path descriptors suitable for `Wallet::create`.
+pub fn split_multipath_descriptor(desc: &str) -> (String, String) {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new(r"/<(\d+);(\d+)>/").expect("static regex"));
+    (
+        re.replace_all(desc, "/$1/").to_string(),
+        re.replace_all(desc, "/$2/").to_string(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

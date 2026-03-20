@@ -726,7 +726,7 @@ pub fn insert_seed_entry(
     mnemonic: Option<&str>,
     passphrase: &str,
     xprv: Option<&str>,
-) -> Result<()> {
+) -> Result<i64> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs() as i64;
@@ -735,7 +735,7 @@ pub fn insert_seed_entry(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         rusqlite::params![mfp, seed_type, mnemonic, passphrase, xprv, now],
     )?;
-    Ok(())
+    Ok(now)
 }
 
 pub fn list_seed_entries(conn: &Connection) -> Result<Vec<SeedEntry>> {

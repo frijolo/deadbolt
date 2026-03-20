@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1680964288;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1635134353;
 
 // Section: executor
 
@@ -2081,14 +2081,14 @@ fn wire__crate__api__wallet__ApiWallet_set_tx_label_impl(
         },
     )
 }
-fn wire__crate__api__wallet__ApiWallet_sign_psbt_impl(
+fn wire__crate__api__wallet__ApiWallet_sign_psbt_with_key_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ApiWallet_sign_psbt",
+            debug_name: "ApiWallet_sign_psbt_with_key",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -2106,6 +2106,7 @@ fn wire__crate__api__wallet__ApiWallet_sign_psbt_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>,
             >>::sse_decode(&mut deserializer);
             let api_psbt_id = <i64>::sse_decode(&mut deserializer);
+            let api_mfp = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
@@ -2123,8 +2124,11 @@ fn wire__crate__api__wallet__ApiWallet_sign_psbt_impl(
                         }
                     }
                     let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::wallet::APIWallet::sign_psbt(&*api_that_guard, api_psbt_id)?;
+                    let output_ok = crate::api::wallet::APIWallet::sign_psbt_with_key(
+                        &*api_that_guard,
+                        api_psbt_id,
+                        api_mfp,
+                    )?;
                     Ok(output_ok)
                 })(),
             )
@@ -5777,7 +5781,9 @@ fn pde_ffi_dispatcher_sync_impl(
         36 => wire__crate__api__wallet__ApiWallet_set_path_label_impl(ptr, rust_vec_len, data_len),
         37 => wire__crate__api__wallet__ApiWallet_set_psbt_label_impl(ptr, rust_vec_len, data_len),
         38 => wire__crate__api__wallet__ApiWallet_set_tx_label_impl(ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__wallet__ApiWallet_sign_psbt_impl(ptr, rust_vec_len, data_len),
+        39 => {
+            wire__crate__api__wallet__ApiWallet_sign_psbt_with_key_impl(ptr, rust_vec_len, data_len)
+        }
         41 => wire__crate__api__wallet__add_project_mnemonic_key_impl(ptr, rust_vec_len, data_len),
         42 => wire__crate__api__wallet__add_project_xprv_key_impl(ptr, rust_vec_len, data_len),
         61 => {

@@ -615,111 +615,121 @@ impl APIWallet {
         Ok(txid.to_string())
     }
 
-    /// Sign a stored PSBT using any hot keys available in this wallet.
+    /// Sign a stored PSBT using the hot key identified by `mfp`.
     ///
-    /// Iterates over all stored seed entries, builds a temporary in-memory wallet
-    /// with the private descriptor for each matching key, and applies signatures.
-    /// Returns the updated [`APIPsbtInfo`] with the new PSBT data.
+    /// Only the signer for the given master fingerprint is loaded, so BDK can
+    /// never accidentally sign with a key the user did not intend. The PSBT is
+    /// **never auto-finalized** (`try_finalize: false`) — the user explicitly
+    /// controls finalization, which prevents premature finalization in multisig
+    /// or complex Taproot setups where BDK might otherwise finalize on the first
+    /// satisfied threshold.
+    ///
+    /// Returns the updated [`APIPsbtInfo`] with the partial signatures added.
     #[frb(sync)]
-    pub fn sign_psbt(&self, psbt_id: i64) -> Result<APIPsbtInfo> {
+    pub fn sign_psbt_with_key(&self, psbt_id: i64, mfp: String) -> Result<APIPsbtInfo> {
         use crate::core::seed::{
-            make_private_descriptor, mnemonic_to_root_xprv, root_xprv_to_mfp, xprv_str_to_root_xprv,
+            make_private_descriptor, mnemonic_to_root_xprv, root_xprv_to_mfp,
+            split_multipath_descriptor, strip_descriptor_checksum, xprv_str_to_root_xprv,
         };
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
-        use bdk_wallet::Wallet;
+        use bdk_wallet::{KeychainKind, Wallet};
+        use std::sync::Arc;
 
-        let core = self
+        let mut core = self
             .inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
 
+        // Find the seed entry for this MFP.
         let seeds = list_seed_entries(&core.conn)?;
-        if seeds.is_empty() {
-            return Err(anyhow::anyhow!("No signing keys stored in this wallet"));
-        }
+        let seed = seeds
+            .iter()
+            .find(|s| s.mfp == mfp)
+            .ok_or_else(|| anyhow::anyhow!("No signing key with MFP {} found", mfp))?;
 
         let info = read_wallet_info(&core.conn)?;
         let network: bdk_wallet::bitcoin::Network =
             APINetwork::try_from(info.network.as_str())?.into();
-        let descriptor = info.descriptor.clone();
-
-        let row = get_psbt_row(&core.conn, psbt_id)?;
-        let mut psbt = psbt_from_base64(&row.psbt)?;
-
         let secp = Secp256k1::new();
 
-        for seed in &seeds {
-            let root_xprv = if seed.seed_type == "mnemonic" {
-                let mnemonic = seed
-                    .mnemonic
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed entry"))?;
-                mnemonic_to_root_xprv(mnemonic, &seed.passphrase, network)?
-            } else {
-                let xprv_str = seed
-                    .xprv
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("xprv missing for seed entry"))?;
-                xprv_str_to_root_xprv(xprv_str)?
-            };
+        // Derive the root xprv from the stored seed.
+        let root_xprv = if seed.seed_type == "mnemonic" {
+            let mnemonic = seed
+                .mnemonic
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("Mnemonic missing for seed"))?;
+            mnemonic_to_root_xprv(mnemonic, &seed.passphrase, network)?
+        } else {
+            let xprv_str = seed
+                .xprv
+                .as_deref()
+                .ok_or_else(|| anyhow::anyhow!("xprv missing for seed"))?;
+            xprv_str_to_root_xprv(xprv_str)?
+        };
 
-            let mfp = root_xprv_to_mfp(&root_xprv, &secp);
-            // Only try to sign if this key is referenced in the descriptor.
-            if !descriptor.contains(&mfp) {
-                continue;
-            }
+        let derived_mfp = root_xprv_to_mfp(&root_xprv, &secp);
+        if derived_mfp != mfp {
+            return Err(anyhow::anyhow!(
+                "Key MFP mismatch: expected {} got {}",
+                mfp,
+                derived_mfp
+            ));
+        }
 
-            let private_desc = match make_private_descriptor(&descriptor, &root_xprv, &secp) {
-                Ok(d) => d,
-                Err(e) => {
-                    // Log but don't fail — other seeds may still work.
-                    eprintln!(
-                        "sign_psbt: make_private_descriptor failed for {}: {}",
-                        mfp, e
-                    );
-                    continue;
-                }
-            };
+        // Build a private descriptor for this key and extract properly-
+        // contextualized signers via a temporary in-memory wallet.
+        let private_desc = make_private_descriptor(&info.descriptor, &root_xprv, &secp)
+            .map_err(|e| anyhow::anyhow!("make_private_descriptor failed for {}: {}", mfp, e))?;
+        let private_desc = strip_descriptor_checksum(&private_desc);
 
-            // Strip the descriptor checksum (e.g., "#a1b2c3d4") before creating the
-            // temp wallet. Replacing xpub→xprv invalidates the checksum; BDK rejects
-            // descriptors with an invalid checksum, so signing silently produces 0 sigs.
-            let private_desc = match private_desc.rfind('#') {
-                Some(idx) => private_desc[..idx].to_string(),
-                None => private_desc,
-            };
+        // Split multi-path descriptor (<n;m> → /n/ for external, /m/ for internal).
+        let (ext_desc, int_desc) = split_multipath_descriptor(&private_desc);
 
-            // Create a temporary in-memory wallet with the private descriptor.
-            let temp_wallet_result = Wallet::create_from_two_path_descriptor(private_desc)
-                .network(network)
-                .create_wallet_no_persist();
-            let temp_wallet = match temp_wallet_result {
-                Ok(w) => w,
-                Err(e) => {
-                    eprintln!(
-                        "sign_psbt: create_wallet_no_persist failed for {}: {}",
-                        mfp, e
-                    );
-                    continue;
-                }
-            };
+        let temp = Wallet::create(ext_desc, int_desc)
+            .network(network)
+            .create_wallet_no_persist()
+            .map_err(|e| anyhow::anyhow!("Failed to build signer for {}: {}", mfp, e))?;
 
+        // Add only the signer for this MFP.
+        for keychain in [KeychainKind::External, KeychainKind::Internal] {
             #[allow(deprecated)]
-            match temp_wallet.sign(&mut psbt, bdk_wallet::SignOptions::default()) {
-                Ok(finalized) => {
-                    eprintln!("sign_psbt: signed with {}, finalized={}", mfp, finalized);
-                }
-                Err(e) => {
-                    eprintln!("sign_psbt: sign() error for {}: {}", mfp, e);
-                }
+            for signer in temp.get_signers(keychain).signers() {
+                #[allow(deprecated)]
+                core.wallet.add_signer(
+                    keychain,
+                    bdk_wallet::signer::SignerOrdering(200),
+                    Arc::clone(signer),
+                );
             }
         }
 
-        // Persist the (possibly enriched) PSBT back to the database.
+        // Sign — never auto-finalize so the user controls when to finalize.
+        let row = get_psbt_row(&core.conn, psbt_id)?;
+        let mut psbt = psbt_from_base64(&row.psbt)?;
+
+        #[allow(deprecated)]
+        match core.wallet.sign(
+            &mut psbt,
+            bdk_wallet::SignOptions {
+                trust_witness_utxo: true,
+                try_finalize: false,
+                ..Default::default()
+            },
+        ) {
+            Ok(_) => eprintln!("sign_psbt_with_key: added partial sigs for {}", mfp),
+            Err(e) => return Err(anyhow::anyhow!("Signing failed for {}: {}", mfp, e)),
+        }
+
+        // Clear signers — keep the wallet watch-only between signing calls.
+        core.wallet
+            .set_keymap(KeychainKind::External, Default::default());
+        core.wallet
+            .set_keymap(KeychainKind::Internal, Default::default());
+
+        // Persist the updated PSBT.
         let updated_base64 = psbt_to_base64(&psbt);
         update_psbt_data(&core.conn, psbt_id, &updated_base64)?;
 
-        // Return updated APIPsbtInfo.
         let updated_row = PsbtRow {
             id: row.id,
             psbt: updated_base64,

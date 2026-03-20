@@ -450,12 +450,20 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Clearing an inherited (auto) label is a no-op.
   void setTxLabel({required String txid, required String label});
 
-  /// Sign a stored PSBT using any hot keys available in this wallet.
+  /// Sign a stored PSBT using the hot key identified by `mfp`.
   ///
-  /// Iterates over all stored seed entries, builds a temporary in-memory wallet
-  /// with the private descriptor for each matching key, and applies signatures.
-  /// Returns the updated [`APIPsbtInfo`] with the new PSBT data.
-  APIPsbtInfo signPsbt({required PlatformInt64 psbtId});
+  /// Only the signer for the given master fingerprint is loaded, so BDK can
+  /// never accidentally sign with a key the user did not intend. The PSBT is
+  /// **never auto-finalized** (`try_finalize: false`) — the user explicitly
+  /// controls finalization, which prevents premature finalization in multisig
+  /// or complex Taproot setups where BDK might otherwise finalize on the first
+  /// satisfied threshold.
+  ///
+  /// Returns the updated [`APIPsbtInfo`] with the partial signatures added.
+  APIPsbtInfo signPsbtWithKey({
+    required PlatformInt64 psbtId,
+    required String mfp,
+  });
 
   /// Sync with Electrum, persist, and update last_synced_at.
   ///

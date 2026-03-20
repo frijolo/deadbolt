@@ -99,6 +99,14 @@ class ProjectDetailError extends ProjectDetailState {
   ProjectDetailError(this.message);
 }
 
+// --- Helpers ---
+
+List<APIHotKeyInfo> _upsertHotKey(List<APIHotKeyInfo> keys, APIHotKeyInfo info) =>
+    [...keys.where((k) => k.mfp != info.mfp), info];
+
+List<APIHotKeyInfo> _removeHotKey(List<APIHotKeyInfo> keys, String mfp) =>
+    keys.where((k) => k.mfp != mfp).toList();
+
 // --- Cubit ---
 
 class ProjectDetailCubit extends Cubit<ProjectDetailState> {
@@ -536,8 +544,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         network: network,
         deviceKeyHex: deviceKey,
       );
-      final updated = [...s.hotKeys.where((k) => k.mfp != info.mfp), info];
-      emit(s.copyWith(hotKeys: updated));
+      emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
       return info;
     } catch (e) {
       emit(s.copyWith(errorMessage: formatRustError(e)));
@@ -557,8 +564,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         xprv: xprv,
         deviceKeyHex: deviceKey,
       );
-      final updated = [...s.hotKeys.where((k) => k.mfp != info.mfp), info];
-      emit(s.copyWith(hotKeys: updated));
+      emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
       return info;
     } catch (e) {
       emit(s.copyWith(errorMessage: formatRustError(e)));
@@ -578,7 +584,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         mfp: mfp,
         deviceKeyHex: deviceKey,
       );
-      emit(s.copyWith(hotKeys: s.hotKeys.where((k) => k.mfp != mfp).toList()));
+      emit(s.copyWith(hotKeys: _removeHotKey(s.hotKeys, mfp)));
     } catch (e) {
       emit(s.copyWith(errorMessage: formatRustError(e)));
     }

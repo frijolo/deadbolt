@@ -28,11 +28,26 @@ pub struct SpendPathDef {
     pub priority: usize,
 }
 
+/// Parse a descriptor string and return it with the canonical BDK checksum appended.
+///
+/// This is the single place where every generated descriptor is validated and
+/// normalised. Calling `.to_string()` on the parsed `Descriptor` object makes
+/// BDK append the `#xxxxxxxx` checksum, regardless of whether the raw string
+/// already contained one.
+fn append_checksum(desc_str: &str) -> Result<String> {
+    let descriptor: bdk_wallet::miniscript::Descriptor<DescriptorPublicKey> = desc_str
+        .parse()
+        .map_err(|e| WalletError::BuilderError(format!("Invalid descriptor: {}", e)))?;
+    Ok(descriptor.to_string())
+}
+
 /// Build a descriptor string from wallet type, keys, and spend path definitions.
 ///
 /// Each spend path branch uses a distinct derivation pair (<0;1>/*, <2;3>/*, ...)
 /// so the same xpub in different branches counts as a different key for the
 /// policy compiler, avoiding "duplicate keys" errors.
+///
+/// All returned descriptors include the canonical BDK checksum (`#xxxxxxxx`).
 pub fn build_descriptor(
     wallet_type: WalletType,
     keys: &[PubKey],
@@ -45,7 +60,7 @@ pub fn build_descriptor(
         return Err(WalletError::BuilderError("No spend paths provided".into()).into());
     }
 
-    match wallet_type {
+    let raw = match wallet_type {
         WalletType::P2PKH => build_single_key("pkh", keys, spend_paths),
         WalletType::P2WPKH => build_single_key("wpkh", keys, spend_paths),
         WalletType::P2SH_WPKH => build_sh_wpkh(keys, spend_paths),
@@ -53,8 +68,14 @@ pub fn build_descriptor(
         WalletType::P2SH_WSH => build_sh_wsh(keys, spend_paths),
         WalletType::P2TR => build_tr(keys, spend_paths),
         WalletType::P2SH => build_sh(keys, spend_paths),
-        WalletType::Unknown => Err(WalletError::BuilderError("Unknown wallet type".into()).into()),
-    }
+        WalletType::Unknown => {
+            return Err(WalletError::BuilderError("Unknown wallet type".into()).into())
+        }
+    }?;
+
+    // Ensure every descriptor leaves this function with a valid checksum,
+    // regardless of whether the specific builder already added one.
+    append_checksum(&raw)
 }
 
 // --- Key helpers (shared across submodules) ---
@@ -234,6 +255,11 @@ mod tests {
 
         let descriptor = build_descriptor(WalletType::P2WPKH, &keys, &spend_paths)?;
         assert!(descriptor.starts_with("wpkh("));
+        assert!(
+            descriptor.contains('#'),
+            "descriptor must include checksum: {}",
+            descriptor
+        );
 
         let analyzer = DescriptorAnalyzer::analyze(&descriptor)?;
         assert_eq!(analyzer.wallet_type(), WalletType::P2WPKH);

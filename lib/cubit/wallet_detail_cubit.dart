@@ -171,6 +171,14 @@ class WalletDetailError extends WalletDetailState {
   WalletDetailError(this.message);
 }
 
+// --- Helpers ---
+
+List<APIHotKeyInfo> _upsertHotKey(List<APIHotKeyInfo> keys, APIHotKeyInfo info) =>
+    [...keys.where((k) => k.mfp != info.mfp), info];
+
+List<APIHotKeyInfo> _removeHotKey(List<APIHotKeyInfo> keys, String mfp) =>
+    keys.where((k) => k.mfp != mfp).toList();
+
 // --- Cubit ---
 
 class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
@@ -180,6 +188,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   static const _autoSyncInterval = Duration(minutes: 5);
 
   Timer? _syncTimer;
+  Timer? _retryTimer;
   String? _electrumUrl;
 
   WalletDetailCubit({WalletService? service})
@@ -212,6 +221,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   @override
   Future<void> close() {
     _syncTimer?.cancel();
+    _retryTimer?.cancel();
     return super.close();
   }
 
@@ -365,6 +375,19 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         hotKeys: atEmit.hotKeys,
       ));
     } catch (e, stackTrace) {
+      if (e.toString().contains('No such mempool or blockchain transaction')) {
+        // Race condition: tx was just broadcast but the Electrum server hasn't
+        // seen it yet. Silently schedule a retry in 15 seconds.
+        if (state is WalletDetailLoaded) {
+          emit((state as WalletDetailLoaded).copyWith(isSyncing: false));
+        }
+        _retryTimer?.cancel();
+        _retryTimer = Timer(
+          const Duration(seconds: 15),
+          () => sync(electrumUrl),
+        );
+        return;
+      }
       logError('WalletDetailCubit.sync()', e, stackTrace);
       if (state is WalletDetailLoaded) {
         emit((state as WalletDetailLoaded).copyWith(
@@ -989,8 +1012,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         mnemonic: mnemonic,
         passphrase: passphrase,
       );
-      final updated = [...current.hotKeys.where((k) => k.mfp != info.mfp), info];
-      emit(current.copyWith(hotKeys: updated));
+      emit(current.copyWith(hotKeys: _upsertHotKey(current.hotKeys, info)));
       return info;
     } catch (e, st) {
       _emitError('WalletDetailCubit.addMnemonicKey()', e, st);
@@ -1004,8 +1026,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return null;
     try {
       final info = current.walletHandle.addXprvKey(xprv: xprv);
-      final updated = [...current.hotKeys.where((k) => k.mfp != info.mfp), info];
-      emit(current.copyWith(hotKeys: updated));
+      emit(current.copyWith(hotKeys: _upsertHotKey(current.hotKeys, info)));
       return info;
     } catch (e, st) {
       _emitError('WalletDetailCubit.addXprvKey()', e, st);
@@ -1019,8 +1040,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return;
     try {
       current.walletHandle.deleteHotKey(mfp: mfp);
-      final updated = current.hotKeys.where((k) => k.mfp != mfp).toList();
-      emit(current.copyWith(hotKeys: updated));
+      emit(current.copyWith(hotKeys: _removeHotKey(current.hotKeys, mfp)));
     } catch (e, st) {
       _emitError('WalletDetailCubit.deleteHotKey()', e, st);
     }
@@ -1038,19 +1058,19 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  /// Sign a PSBT with any stored hot keys. Returns the updated [APIPsbtInfo] or null on error.
-  Future<APIPsbtInfo?> signPsbt(int psbtId) async {
+  /// Sign a PSBT with the hot key identified by [mfp]. Returns the updated [APIPsbtInfo] or null on error.
+  Future<APIPsbtInfo?> signPsbtWithKey(int psbtId, String mfp) async {
     final current = state;
     if (current is! WalletDetailLoaded) return null;
     try {
-      final updated = current.walletHandle.signPsbt(psbtId: psbtId);
+      final updated = current.walletHandle.signPsbtWithKey(psbtId: psbtId, mfp: mfp);
       // Re-analyze signatures
       APIPsbtAnalysis? analysis;
       try {
         analysis = await current.walletHandle
             .analyzePsbt(psbtBase64: updated.psbtBase64, mfps: updated.mfps);
       } catch (e, st) {
-        logError('WalletDetailCubit.signPsbt() analyze', e, st);
+        logError('WalletDetailCubit.signPsbtWithKey() analyze', e, st);
       }
 
       // Re-read state to avoid overwriting concurrent updates (e.g. a sync
@@ -1064,7 +1084,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       emit(latest.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
       return updated;
     } catch (e, st) {
-      _emitError('WalletDetailCubit.signPsbt()', e, st);
+      _emitError('WalletDetailCubit.signPsbtWithKey()', e, st);
       return null;
     }
   }
