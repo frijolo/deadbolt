@@ -2,7 +2,7 @@
 
 ## Overview
 
-Deadbolt is a Bitcoin descriptor analyzer - security software that helps users understand and analyze Bitcoin wallet configurations. We take security seriously and implement industry best practices to protect users.
+Deadbolt is a Bitcoin descriptor analyzer and wallet manager — security software that helps users understand, analyze, and manage Bitcoin wallet configurations. We take security seriously and implement industry best practices to protect users.
 
 ## Supported Versions
 
@@ -33,9 +33,9 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
-wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/SHA256SUMS
-wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/SHA256SUMS.asc
-wget https://github.com/frijolo/deadbolt/releases/download/v1.0.0/deadbolt-<platform>.<ext>
+wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/SHA256SUMS
+wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/SHA256SUMS.asc
+wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/deadbolt-<platform>.<ext>
 
 # 3. Verify GPG signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -148,15 +148,16 @@ We will credit you in the security advisory unless you prefer to remain anonymou
    - Older versions may have known vulnerabilities
 
 2. **Understand what Deadbolt does**
-   - Analyzes Bitcoin descriptors and manages on-device wallets
-   - Does NOT handle private keys
+   - Analyzes Bitcoin descriptors and manages on-device Bitcoin wallets
+   - Supports hot signing keys (encrypted private keys stored locally) and BitBox02 hardware wallet signing
+   - If you use hot signing keys, protect your device — the encrypted key material is stored in app-private storage. See [docs/WALLET_SECURITY.md](docs/WALLET_SECURITY.md) for the full security architecture
    - Wallet sync connects only to the Electrum server you configure — no data sent to third parties
    - Does NOT collect telemetry or analytics
 
-3. **Protect your descriptors**
-   - Descriptors contain public keys (not private keys)
-   - However, they reveal your wallet structure
-   - Avoid sharing descriptors with untrusted parties
+3. **Protect your descriptors and signing keys**
+   - Descriptors contain public keys and reveal your wallet structure — avoid sharing them with untrusted parties
+   - If using hot signing keys, use a strong wallet password and keep your device secure
+   - Use the `.deadbolt` encrypted backup format to safely move wallets between devices
 
 4. **Use on trusted devices**
    - Run Deadbolt on malware-free systems
@@ -172,10 +173,10 @@ git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Verify latest signed tag
-git tag -v v1.0.0
+git tag -v v1.4.0
 
 # Checkout verified tag
-git checkout v1.0.0
+git checkout v1.4.0
 
 # Build
 flutter pub get
@@ -194,6 +195,9 @@ flutter build <platform> --release
 - ✅ **No telemetry** - No analytics, tracking, or data sent to external servers
 - ✅ **Memory safety** - Core logic in Rust (memory-safe language)
 - ✅ **CI/CD verification** - Automated testing on all platforms
+- ✅ **Wallet encryption** - SQLCipher (AES-256-CBC) per-wallet database; data key wrapped with AES-256-GCM
+- ✅ **Password-derived keys** - Argon2id KDF for password-protected wallets (Type 1)
+- ✅ **Encrypted backups** - `.deadbolt` backup format uses Argon2id + AES-256-GCM; self-contained and portable
 
 ### Planned Improvements
 
@@ -248,5 +252,5 @@ Published security advisories will be available at:
 
 ---
 
-**Last updated**: 2026-02-18
+**Last updated**: 2026-03-20
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`

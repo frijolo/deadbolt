@@ -39,8 +39,6 @@ curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.
 gpg --import deadbolt-gpg-key.asc
 ```
 
-Replace `frijolo` with the actual GitHub username.
-
 #### Option B: Import from Keyserver
 
 ```bash
@@ -172,7 +170,7 @@ For convenience, save this script as `verify-deadbolt.sh`:
 #!/bin/bash
 set -e
 
-VERSION="${1:-v1.0.0}"
+VERSION="${1:-v1.4.0}"
 PLATFORM="${2:-linux-x64}"
 REPO="https://github.com/frijolo/deadbolt/releases/download"
 

@@ -127,7 +127,7 @@ class PathCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(120)),
+                Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(AppAlpha.inactive)),
                 const SizedBox(width: 4),
               ],
             ),
@@ -225,7 +225,7 @@ class PathCard extends StatelessWidget {
       child: Text(
         '|',
         style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(77)),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.hint)),
       ),
     );
   }
@@ -259,9 +259,9 @@ class PathTimelockBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: AppAccent.color.withAlpha(24),
+          color: AppAccent.color.withAlpha(AppAlpha.faint),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppAccent.color.withAlpha(80)),
+          border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.pale)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -298,9 +298,9 @@ class PathKeyPathBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.blue.withAlpha(32),
+          color: Colors.blue.withAlpha(AppAlpha.subtle),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.blue.withAlpha(100)),
+          border: Border.all(color: Colors.blue.withAlpha(AppAlpha.border)),
         ),
         child: Text(
           context.l10n.keyPathBadge,

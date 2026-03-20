@@ -113,7 +113,7 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withAlpha(40),
+                  color: cs.onSurface.withAlpha(AppAlpha.dim),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -225,7 +225,7 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
         Text(
           l10n.spendPathNameDialogTitle,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: cs.onSurface.withAlpha(138),
+            color: cs.onSurface.withAlpha(AppAlpha.secondary),
           ),
         ),
         const SizedBox(height: 4),
@@ -237,14 +237,14 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
                 child: Text(
                   _currentLabel ?? _autoLabel(),
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: hasLabel ? FontWeight.w600 : FontWeight.normal,
-                    color: hasLabel ? cs.onSurface : cs.onSurface.withAlpha(97),
+                    color: hasLabel ? cs.onSurface : cs.onSurface.withAlpha(AppAlpha.muted),
                     fontStyle: hasLabel ? FontStyle.normal : FontStyle.italic,
                   ),
                 ),
               ),
-              Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(120)),
+              Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(AppAlpha.inactive)),
             ],
           ),
         ),
@@ -283,7 +283,7 @@ class _PathInfoRow extends StatelessWidget {
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color:
-                    Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                    Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
               ),
             ),
           if (label.isNotEmpty) const SizedBox(height: 2),

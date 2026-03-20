@@ -16,10 +16,17 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Spend Path Analysis**: Identifies all possible spending conditions in complex descriptors
 - **Fee Estimation**: Calculates transaction weight for each spend path
 - **Wallet Management**: Create on-device wallets, sync balances via Electrum, view UTXOs and transactions
-- **PSBT Building**: Build unsigned transactions with optional coin control and RBF support
+- **PSBT Workflow**: Build PSBTs with optional coin control and RBF support; import and merge partial signatures; broadcast finalized transactions
+- **Local Signing**: Store encrypted private keys on-device (hot signing keys) and sign PSBTs without any external device
 - **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
+- **Password-Protected Wallets**: Lock individual wallets with a password; the key never leaves the device unencrypted
+- **Encrypted Backup & Restore**: Export a wallet as an encrypted `.deadbolt` backup file and restore it on any device
 - **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
-- **QR Support**: Import/export descriptors and PSBTs via QR codes
+- **Liana Format Export**: Export any descriptor in the format expected by the Liana wallet
+- **QR Support**: Import/export descriptors and PSBTs via QR codes (including animated BC-UR)
+- **Project Import/Export**: Save and load descriptor projects as JSON files
+- **Theme Support**: Light, Dark, and System default themes
+- **Internationalization**: UI available in English and Spanish
 - **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server
 - **Cross-Platform**: Available for Android, Linux, and Windows
 - **Signed Releases**: SHA256 checksums are GPG-signed for release verification
@@ -94,11 +101,19 @@ wsh(sortedmulti(2,[aabbccdd/48h/0h/0h/2h]xpub6E2..., [11223344/48h/0h/0h/2h]xpub
 tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 ```
 
+### Signing Options
+
+Deadbolt supports two signing workflows:
+
+- **Hot signing keys** - Store an encrypted private key on-device and sign PSBTs locally without any external hardware
+- **BitBox02 hardware wallet** - Connect a BitBox02 via USB to keep private keys off the device entirely
+
+Both workflows produce a signed PSBT that can be broadcast directly from the app.
+
 ### What Deadbolt Does NOT Do
 
-- **Does NOT handle private keys** - Only works with descriptors (public information)
-- **Does NOT sign transactions** - Creates PSBTs (unsigned transactions) for signing with an external hardware wallet or signer
-- **Does NOT store sensitive data** - Stores only descriptors, wallet data, and user-provided labels locally
+- **Does NOT send data to third parties** - Wallet sync connects only to the Electrum server you configure
+- **Does NOT collect telemetry** - No analytics, tracking, or usage data of any kind
 
 ## Building from Source
 

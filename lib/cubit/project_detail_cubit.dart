@@ -8,6 +8,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/constants.dart';
+import 'package:deadbolt/utils/hot_key_helpers.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -100,14 +101,6 @@ class ProjectDetailError extends ProjectDetailState {
   ProjectDetailError(this.message);
 }
 
-// --- Helpers ---
-
-List<APIHotKeyInfo> _upsertHotKey(List<APIHotKeyInfo> keys, APIHotKeyInfo info) =>
-    [...keys.where((k) => k.mfp != info.mfp), info];
-
-List<APIHotKeyInfo> _removeHotKey(List<APIHotKeyInfo> keys, String mfp) =>
-    keys.where((k) => k.mfp != mfp).toList();
-
 // --- Cubit ---
 
 class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger {
@@ -187,6 +180,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   }
 
   Future<void> updateProjectName(String name) async {
+    final s = state;
+    if (s is ProjectDetailLoaded && s.project.name == name) return;
     await (_db.update(_db.projects)
           ..where((t) => t.id.equals(projectId)))
         .write(ProjectsCompanion(
@@ -546,7 +541,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
         network: network,
         deviceKeyHex: deviceKey,
       );
-      emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
+      emit(s.copyWith(hotKeys: upsertHotKey(s.hotKeys, info)));
       return info;
     } catch (e, st) {
       logError('ProjectDetailCubit.addProjectMnemonicHotKey()', e, st);
@@ -567,7 +562,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
         xprv: xprv,
         deviceKeyHex: deviceKey,
       );
-      emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
+      emit(s.copyWith(hotKeys: upsertHotKey(s.hotKeys, info)));
       return info;
     } catch (e, st) {
       logError('ProjectDetailCubit.addProjectXprvHotKey()', e, st);
@@ -588,7 +583,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
         mfp: mfp,
         deviceKeyHex: deviceKey,
       );
-      emit(s.copyWith(hotKeys: _removeHotKey(s.hotKeys, mfp)));
+      emit(s.copyWith(hotKeys: removeHotKey(s.hotKeys, mfp)));
     } catch (e, st) {
       logError('ProjectDetailCubit.deleteProjectHotKey()', e, st);
       emit(s.copyWith(errorMessage: formatRustError(e)));

@@ -275,6 +275,13 @@
   "walletTypeP2shWsh": "Segwit Anidado (P2SH-WSH)",
   "walletTypeUnknown": "Desconocido",
 
+  "walletPolicySingleSig": "SingleSig",
+  "walletPolicyMiniscript": "Miniscript",
+  "walletAddressLegacy": "Legacy",
+  "walletAddressSegwit": "SegWit",
+  "walletAddressNested": "Anidado",
+  "walletAddressTaproot": "Taproot",
+
   "navDesigner": "Diseñador",
   "navWallet": "Billetera",
 

@@ -257,9 +257,9 @@ class _ProjectDetailView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: AppAccent.color.withAlpha(32),
+          color: AppAccent.color.withAlpha(AppAlpha.subtle),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppAccent.color.withAlpha(64)),
+          border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.mediumLow)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -268,7 +268,7 @@ class _ProjectDetailView extends StatelessWidget {
               localizedWalletTypeName(context, currentType),
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
               ),
             ),
             const SizedBox(width: 4),
@@ -287,15 +287,15 @@ class _ProjectDetailView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppAccent.color.withAlpha(32),
+        color: AppAccent.color.withAlpha(AppAlpha.subtle),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppAccent.color.withAlpha(64)),
+        border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.mediumLow)),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
         ),
       ),
     );
@@ -315,6 +315,15 @@ class _ProjectDetailView extends StatelessWidget {
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(hintText: l10n.projectNameDialogTitle),
+          onSubmitted: (_) {
+            final name = controller.text.trim();
+            if (name.isNotEmpty) cubit.updateProjectName(name);
+            Navigator.pop(ctx);
+          },
+          onTapOutside: (_) {
+            final name = controller.text.trim();
+            if (name.isNotEmpty) cubit.updateProjectName(name);
+          },
         ),
         actions: [
           FilledButton(
@@ -415,7 +424,7 @@ class _KeysSection extends StatelessWidget {
               label: Text(l10n.addKeyButton),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppAccent.color,
-                side: BorderSide(color: AppAccent.color.withAlpha(100)),
+                side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.border)),
               ),
             ),
           ),
@@ -507,7 +516,7 @@ class _SpendPathsSection extends StatelessWidget {
               label: Text(l10n.addSpendPath),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppAccent.color,
-                side: BorderSide(color: AppAccent.color.withAlpha(100)),
+                side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.border)),
               ),
             ),
           ),

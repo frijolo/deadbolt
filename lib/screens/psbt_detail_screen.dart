@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -117,7 +118,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
             child: Text(
               l10n.psbtTimelockLabel,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(150),
+                color: theme.colorScheme.onSurface.withAlpha(AppAlpha.medium),
               ),
             ),
           ),
@@ -145,11 +146,11 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 
       if (confHeight == null) {
         statusText = l10n.psbtTimelockSyncRequired;
-        statusColor = theme.colorScheme.onSurface.withAlpha(120);
+        statusColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive);
         statusIcon = Icons.sync_disabled_outlined;
       } else if (tipHeight == 0) {
         statusText = l10n.psbtTimelockSyncRequired;
-        statusColor = theme.colorScheme.onSurface.withAlpha(120);
+        statusColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive);
         statusIcon = Icons.sync_disabled_outlined;
       } else {
         final unlockBlock = confHeight + relBlocks;
@@ -198,7 +199,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
       if (absType == AbsoluteTimelockType.blocks) {
         if (tipHeight == 0) {
           statusText = l10n.psbtTimelockSyncRequired;
-          statusColor = theme.colorScheme.onSurface.withAlpha(120);
+          statusColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive);
           statusIcon = Icons.sync_disabled_outlined;
         } else {
           final remaining = absValue - tipHeight;
@@ -472,7 +473,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                     value: _PsbtMenuAction.delete,
                     icon: Icons.delete_outline,
                     label: l10n.psbtDeleteTitle,
-                    color: Colors.red.withAlpha(180),
+                    color: Colors.red.withAlpha(AppAlpha.deleteAction),
                   ),
                 ],
               ),
@@ -487,8 +488,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(30),
-                      border: Border.all(color: Colors.red.withAlpha(120)),
+                      color: Colors.red.withAlpha(AppAlpha.faint),
+                      border: Border.all(color: Colors.red.withAlpha(AppAlpha.inactive)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -586,7 +587,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
                       '—',
-                      style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(120)),
+                      style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive)),
                     ),
                   )
                 else
@@ -795,7 +796,7 @@ class _SignerRow extends StatelessWidget {
       statusText = l10n.psbtSignerUnknown;
       icon = Icons.help_outline;
     } else if (isOptional) {
-      color = theme.colorScheme.onSurface.withAlpha(80);
+      color = theme.colorScheme.onSurface.withAlpha(AppAlpha.pale);
       statusText = l10n.psbtSignerOptional;
       icon = Icons.radio_button_unchecked;
     } else {
@@ -815,7 +816,7 @@ class _SignerRow extends StatelessWidget {
           MfpBadge(
             label: mfp.substring(0, 8).toUpperCase(),
             color: dimmed
-                ? theme.colorScheme.onSurface.withAlpha(80)
+                ? theme.colorScheme.onSurface.withAlpha(AppAlpha.pale)
                 : theme.colorScheme.outline,
           ),
           const SizedBox(width: 8),
@@ -825,7 +826,7 @@ class _SignerRow extends StatelessWidget {
                 label!,
                 overflow: TextOverflow.ellipsis,
                 style: dimmed
-                    ? TextStyle(color: theme.colorScheme.onSurface.withAlpha(80))
+                    ? TextStyle(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.pale))
                     : null,
               ),
             ),
@@ -869,7 +870,7 @@ class _DetailRow extends StatelessWidget {
           child: Text(
             label,
             style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(150)),
+                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.medium)),
           ),
         ),
         Expanded(

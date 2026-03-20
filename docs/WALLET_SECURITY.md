@@ -34,11 +34,13 @@ Within that directory:
 
 ```
 <app_support>/
-├── .wallet_key          ← device key (64 hex chars = 32 bytes)
+├── .wallet_key              ← device key (64 hex chars = 32 bytes)
+├── project_seeds.db         ← SQLCipher-encrypted project-level hot signing keys
+├── project_seeds.db.meta    ← JSON sidecar: wrapped data key for project_seeds.db
 └── wallets/
-    ├── <uuid>.db        ← SQLCipher-encrypted BDK wallet database
-    ├── <uuid>.db.meta   ← JSON sidecar: protection type + wrapped data key
-    ├── <uuid>.db        ← (another wallet)
+    ├── <uuid>.db            ← SQLCipher-encrypted BDK wallet database
+    ├── <uuid>.db.meta       ← JSON sidecar: protection type + wrapped data key
+    ├── <uuid>.db            ← (another wallet)
     └── <uuid>.db.meta
 ```
 
@@ -156,7 +158,7 @@ This bypasses SQLCipher's own PBKDF2 derivation — the 32-byte data key is used
 
 ### Internal Tables
 
-The database contains [BDK (Bitcoin Development Kit)](https://github.com/bitcoindevkit/bdk) internal tables plus one Deadbolt-specific table:
+The database contains [BDK (Bitcoin Development Kit)](https://github.com/bitcoindevkit/bdk) internal tables plus two Deadbolt-specific tables:
 
 ```sql
 CREATE TABLE wallet_info (
@@ -167,7 +169,19 @@ CREATE TABLE wallet_info (
     created_at  INTEGER NOT NULL,   -- Unix seconds
     last_synced_at INTEGER          -- Unix seconds, NULL if never synced
 );
+
+CREATE TABLE seed_entries (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    mfp        TEXT NOT NULL UNIQUE,  -- Master fingerprint of the key
+    seed_type  TEXT NOT NULL,         -- "mnemonic" or "xprv"
+    mnemonic   TEXT,                  -- BIP39 phrase (if seed_type = "mnemonic")
+    passphrase TEXT NOT NULL DEFAULT '',
+    xprv       TEXT,                  -- Master private key (if seed_type = "xprv")
+    created_at INTEGER NOT NULL
+);
 ```
+
+`wallet_info` stores public metadata only. `seed_entries` holds wallet-level hot signing keys; it is present in all wallets but remains empty unless the user explicitly adds a signing key.
 
 BDK tables store addresses, UTXOs, transactions, and descriptor data following the BDK SQLite persistence schema.
 
@@ -353,9 +367,11 @@ These follow the [BDK SQLite schema](https://github.com/bitcoindevkit/bdk/tree/m
 ## Security Considerations
 
 **What is protected**:
-- All private key material lives in hardware signing devices (Deadbolt is a watch-only wallet). The `.db` file contains **no private keys**.
-- The database contains your wallet descriptor (xpubs), transaction history, UTXOs, and labels.
+- Each wallet `.db` contains a `seed_entries` table for wallet-level hot signing keys (mnemonic or xprv + passphrase). This table is encrypted as part of the SQLCipher database, protected by the same per-wallet data key described above.
+- The `wallet_info` table and all BDK tables contain **no private key material** — only the public descriptor (xpubs), transaction history, UTXOs, and labels.
 - The descriptor contains extended public keys (xpubs) from which addresses can be derived, but not private keys.
+
+**Note on project seeds**: The designer (project) mode has a separate `project_seeds.db` file where hot keys can be stored at the project level. Keys can be copied from there into a specific wallet's `seed_entries` table. These are two independent encrypted stores.
 
 **What is not protected**:
 - The `.meta` file is unencrypted and reveals the protection type and, for Type 1 wallets, the Argon2id salt. An attacker with the `.meta` file can launch an offline password-guessing attack against Type 1 wallets if they also have the `.db` file.

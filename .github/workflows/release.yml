@@ -183,11 +183,27 @@ jobs:
       - name: Create release notes
         id: release_notes
         run: |
-          cat << 'EOF' > release-notes.md
-          Binary releases for Android, Linux, and Windows.
+          VERSION="${{ steps.version.outputs.version }}"
+          # GitHub markdown anchor: lowercase, strip brackets and dots
+          ANCHOR=$(echo "$VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '.[]')
+          CHANGELOG_URL="https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md#${ANCHOR}"
 
-          Includes `SHA256SUMS` and `SHA256SUMS.asc` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/master/SECURITY.md) for verification instructions.
-          EOF
+          # Extract the section for this version from CHANGELOG.md
+          SECTION=$(awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md | sed '/^[[:space:]]*$/d' | sed '$ d')
+
+          {
+            echo "**[Full changelog →](${CHANGELOG_URL})**"
+            echo ""
+            if [ -n "$SECTION" ]; then
+              echo "$SECTION"
+              echo ""
+              echo "---"
+              echo ""
+            fi
+            echo "Binary releases for Android, Linux, and Windows."
+            echo ""
+            echo "Includes \`SHA256SUMS\` and \`SHA256SUMS.asc\` for cryptographic verification. See [SECURITY.md](https://github.com/${{ github.repository }}/blob/master/SECURITY.md) for verification instructions."
+          } > release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

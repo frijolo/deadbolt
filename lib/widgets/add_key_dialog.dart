@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/errors.dart';
@@ -725,8 +726,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                                   ? 'Add private key'
                                   : 'Add signing key')
                               : 'Edit key',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
                         if (widget.walletMode && widget.expectedMfp != null)
                           Text(
@@ -755,8 +755,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                     )
                   : Text(
                       l10n.addKeyDialogTitle,
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
             ),
             IconButton(
@@ -1189,10 +1188,10 @@ class _AddKeySheetState extends State<_AddKeySheet> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: (mfpMatches ? Colors.green : Colors.red).withAlpha(20),
+            color: (mfpMatches ? Colors.green : Colors.red).withAlpha(AppAlpha.faint),
             border: Border.all(
                 color:
-                    (mfpMatches ? Colors.green : Colors.red).withAlpha(80)),
+                    (mfpMatches ? Colors.green : Colors.red).withAlpha(AppAlpha.pale)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -1285,12 +1284,12 @@ class _MethodTile extends StatelessWidget {
                   Text(subtitle,
                       style: TextStyle(
                           fontSize: 12,
-                          color: cs.onSurface.withAlpha(138))),
+                          color: cs.onSurface.withAlpha(AppAlpha.secondary))),
                 ],
               ),
             ),
             Icon(trailingIcon,
-                size: 16, color: cs.onSurface.withAlpha(100)),
+                size: 16, color: cs.onSurface.withAlpha(AppAlpha.border)),
           ],
         ),
       ),

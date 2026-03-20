@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -396,7 +397,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         return (
           icon: Icons.sync_disabled_outlined,
           text: l10n.psbtTimelockSyncRequired,
-          color: theme.colorScheme.onSurface.withAlpha(120),
+          color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
         );
       }
       final remaining = (utxoMaxConfHeight + relBlocks) - tipHeight;
@@ -425,7 +426,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           return (
             icon: Icons.sync_disabled_outlined,
             text: l10n.psbtTimelockSyncRequired,
-            color: theme.colorScheme.onSurface.withAlpha(120),
+            color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
           );
         }
         final remaining = absValue - tipHeight;
@@ -497,14 +498,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         summary.feeSats <= minFeeSat;
 
     final bool feeTooLow = rateTooLow || absFeeTooLow;
-    final warningColor = feeTooLow ? colorScheme.error : Colors.orange;
+    final warningColor = feeTooLow ? colorScheme.error : AppAccent.color;
 
     return Card(
       margin: EdgeInsets.zero,
-      color: warningColor.withAlpha(20),
+      color: warningColor.withAlpha(AppAlpha.faint),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: warningColor.withAlpha(80)),
+        side: BorderSide(color: warningColor.withAlpha(AppAlpha.pale)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -534,7 +535,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 final info = resolvedInfos.reduce(
                   (a, b) => b.origFeeSat > a.origFeeSat ? b : a,
                 );
-                final dimColor = theme.colorScheme.onSurface.withAlpha(140);
+                final dimColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -576,7 +577,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           child: Text(
             label,
             style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(140)),
+                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
           ),
         ),
         Expanded(
@@ -607,7 +608,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
             Text(
               '${path.threshold}-of-${path.mfps.length}',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(150),
+                color: theme.colorScheme.onSurface.withAlpha(AppAlpha.medium),
               ),
             ),
             const SizedBox(height: 8),
@@ -796,7 +797,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final summary = _txSummary;
-    final dimColor = theme.colorScheme.onSurface.withAlpha(140);
+    final dimColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary);
 
     // Fee field inline validation.
     final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
@@ -872,7 +873,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                               ? Text(
                                   l10n.coinSelectorNoCoinsSelected,
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withAlpha(140),
+                                    color: theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary),
                                     fontStyle: FontStyle.italic,
                                   ),
                                 )
@@ -958,7 +959,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                     child: OutlinedButton(
                       onPressed: _fillSelfPaymentAddress,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
+                        foregroundColor: theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
                         side: BorderSide(color: theme.colorScheme.outline),
                       ),
                       child: Text(l10n.createTxSelfPayButton),
@@ -1011,7 +1012,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                               side: BorderSide(color: theme.colorScheme.primary),
                             )
                           : OutlinedButton.styleFrom(
-                              foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
+                              foregroundColor: theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
                               side: BorderSide(color: theme.colorScheme.outline),
                             ),
                       child: Text(l10n.createTxMaxButton),

@@ -1280,6 +1280,42 @@ abstract class AppLocalizations {
   /// **'Unknown'**
   String get walletTypeUnknown;
 
+  /// No description provided for @walletPolicySingleSig.
+  ///
+  /// In en, this message translates to:
+  /// **'SingleSig'**
+  String get walletPolicySingleSig;
+
+  /// No description provided for @walletPolicyMiniscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Miniscript'**
+  String get walletPolicyMiniscript;
+
+  /// No description provided for @walletAddressLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy'**
+  String get walletAddressLegacy;
+
+  /// No description provided for @walletAddressSegwit.
+  ///
+  /// In en, this message translates to:
+  /// **'SegWit'**
+  String get walletAddressSegwit;
+
+  /// No description provided for @walletAddressNested.
+  ///
+  /// In en, this message translates to:
+  /// **'Nested'**
+  String get walletAddressNested;
+
+  /// No description provided for @walletAddressTaproot.
+  ///
+  /// In en, this message translates to:
+  /// **'Taproot'**
+  String get walletAddressTaproot;
+
   /// No description provided for @navDesigner.
   ///
   /// In en, this message translates to:

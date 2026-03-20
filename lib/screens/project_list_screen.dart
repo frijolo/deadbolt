@@ -81,7 +81,7 @@ class ProjectListScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       message ?? context.l10n.loadingProjects,
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(178)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh)),
                     ),
                   ],
                 ),
@@ -96,7 +96,7 @@ class ProjectListScreen extends StatelessWidget {
                         Text(
                           l10n.noProjects,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
                         ),
                         const SizedBox(height: 24),
                         FilledButton.icon(
@@ -157,7 +157,7 @@ class ProjectListScreen extends StatelessWidget {
           children: [
             Text(
               _formatDate(project.updatedAt),
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(97)),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.muted)),
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
@@ -221,12 +221,12 @@ class ProjectListScreen extends StatelessWidget {
                       Icon(
                         Icons.delete_outline,
                         size: 20,
-                        color: Colors.red.withAlpha(180),
+                        color: Colors.red.withAlpha(AppAlpha.deleteAction),
                       ),
                       const SizedBox(width: 12),
                       Text(
                         l10n.delete,
-                        style: TextStyle(color: Colors.red.withAlpha(180)),
+                        style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
                       ),
                     ],
                   ),

@@ -31,7 +31,7 @@ class DescriptorTab extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.medium),
                   ),
                 ),
               ),
@@ -53,7 +53,7 @@ class DescriptorTab extends StatelessWidget {
               label: Text(l10n.copyDescriptorTooltip),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppAccent.color,
-                side: BorderSide(color: AppAccent.color.withAlpha(100)),
+                side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.border)),
               ),
             ),
           ),
@@ -73,7 +73,7 @@ class _StaleBanner extends StatelessWidget {
     const color = Colors.amber;
     return Container(
       width: double.infinity,
-      color: color.withAlpha(20),
+      color: color.withAlpha(AppAlpha.faint),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [

@@ -8,7 +8,9 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/wallet_type_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum CreateMode { importDescriptor, fromScratch }
@@ -27,7 +29,8 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   final _nameController = TextEditingController();
   CreateMode _mode = CreateMode.fromScratch;
   late APINetwork _selectedNetwork;
-  late APIWalletType _selectedWalletType;
+  WalletPolicy _policy = WalletPolicy.singleSig;
+  WalletAddressFormat _addressFormat = WalletAddressFormat.segwit;
   bool _loading = false;
   String? _error;
   String? _loadingMessage;
@@ -39,7 +42,8 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     if (!_initialized) {
       final settings = context.read<SettingsCubit>().state;
       _selectedNetwork = settings.network;
-      _selectedWalletType = settings.walletType;
+      _policy = walletPolicyFrom(settings.walletType);
+      _addressFormat = walletAddressFormatFrom(settings.walletType);
       _initialized = true;
     }
   }
@@ -91,7 +95,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
               // Project name
               Text(
                 l10n.projectNameLabel,
-                style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+                style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
               ),
               const SizedBox(height: 4),
               TextField(
@@ -112,7 +116,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         children: [
                           Text(
                             l10n.descriptorLabel,
-                            style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+                            style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
                           ),
                           const Spacer(),
                           if (!kIsWeb)
@@ -159,7 +163,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   children: [
                     Text(
                       l10n.networkLabel,
-                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
                     ),
                     const SizedBox(height: 4),
                     PopupMenuButton<APINetwork>(
@@ -178,7 +182,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: cs.onSurface.withAlpha(61)),
+                          border: Border.all(color: cs.onSurface.withAlpha(AppAlpha.disabled)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -196,44 +200,14 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     const SizedBox(height: 16),
                     Text(
                       l10n.walletTypeLabel,
-                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
                     ),
                     const SizedBox(height: 4),
-                    PopupMenuButton<APIWalletType>(
-                      offset: const Offset(0, 32),
-                      onSelected: (value) => setState(() => _selectedWalletType = value),
-                      tooltip: l10n.selectWalletTypeTooltip,
-                      itemBuilder: (context) => [
-                        APIWalletType.p2Tr,
-                        APIWalletType.p2Wsh,
-                        APIWalletType.p2ShWsh,
-                        APIWalletType.p2Sh,
-                        APIWalletType.p2Wpkh,
-                        APIWalletType.p2ShWpkh,
-                        APIWalletType.p2Pkh,
-                      ].map((type) => PopupMenuItem(
-                            value: type,
-                            child: Text(localizedWalletTypeName(context, type)),
-                          ))
-                          .toList(),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cs.onSurface.withAlpha(61)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              localizedWalletTypeName(context, _selectedWalletType),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            const Icon(Icons.arrow_drop_down, size: 24),
-                          ],
-                        ),
-                      ),
+                    WalletTypePicker(
+                      policy: _policy,
+                      addressFormat: _addressFormat,
+                      onPolicyChanged: (p) => setState(() => _policy = p),
+                      onFormatChanged: (f) => setState(() => _addressFormat = f),
                     ),
                   ],
                 ),
@@ -250,7 +224,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     _loadingMessage!,
-                    style: TextStyle(color: cs.onSurface.withAlpha(178)),
+                    style: TextStyle(color: cs.onSurface.withAlpha(AppAlpha.mediumHigh)),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -346,7 +320,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         final projectId = await widget.cubit.createEmptyProject(
           name: name,
           network: _selectedNetwork,
-          walletType: _selectedWalletType,
+          walletType: walletTypeFromAxes(_policy, _addressFormat),
         );
         if (mounted) {
           Navigator.pop(context, projectId);
@@ -363,3 +337,4 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     }
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
@@ -155,7 +156,7 @@ class _CoinSelectorScreenState extends State<CoinSelectorScreen> {
               child: Text(
                 l10n.noCoins,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
                 ),
               ),
             )
@@ -219,7 +220,7 @@ class _CoinSelectorTile extends StatelessWidget {
 
     // Selection color takes priority; spending coins are faded when not selected.
     final cardColor = isSelected
-        ? theme.colorScheme.primaryContainer.withAlpha(80)
+        ? theme.colorScheme.primaryContainer.withAlpha(AppAlpha.pale)
         : null;
     final opacity = isSelected
         ? 1.0
@@ -289,7 +290,7 @@ class _SelectorBadge extends StatelessWidget {
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withAlpha(40),
+        color: color.withAlpha(AppAlpha.dim),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -345,9 +346,9 @@ class _TimelockBadge extends StatelessWidget {
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withAlpha(40),
+        color: color.withAlpha(AppAlpha.dim),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withAlpha(80)),
+        border: Border.all(color: color.withAlpha(AppAlpha.pale)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

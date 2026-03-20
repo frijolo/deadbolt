@@ -38,6 +38,10 @@ void showEditNameDialog(
             onSave(name.isEmpty ? null : name);
             Navigator.pop(ctx);
           },
+          onTapOutside: (_) {
+            final name = controller.text.trim();
+            onSave(name.isEmpty ? null : name);
+          },
         ),
         actions: [
           TextButton(
@@ -93,6 +97,7 @@ void showEditNameDialog(
                 }
               },
               onSubmitted: (_) => saveName(),
+              onTapOutside: (_) => saveName(),
             ),
             actions: [
               TextButton(

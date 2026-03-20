@@ -88,7 +88,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withAlpha(40),
+                          .withAlpha(AppAlpha.dim),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -149,9 +149,9 @@ class _SpendPathEditSheetContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.red.withAlpha(32),
+        color: Colors.red.withAlpha(AppAlpha.subtle),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.red.withAlpha(100)),
+        border: Border.all(color: Colors.red.withAlpha(AppAlpha.border)),
       ),
       child: Row(
         children: [
@@ -218,13 +218,13 @@ class _SpendPathEditSheetContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: hasTimelock
-              ? AppAccent.color.withAlpha(32)
-              : cs.onSurface.withAlpha(26),
+              ? AppAccent.color.withAlpha(AppAlpha.subtle)
+              : cs.onSurface.withAlpha(AppAlpha.subtle),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: hasTimelock
-                ? AppAccent.color.withAlpha(64)
-                : cs.onSurface.withAlpha(61),
+                ? AppAccent.color.withAlpha(AppAlpha.mediumLow)
+                : cs.onSurface.withAlpha(AppAlpha.disabled),
           ),
         ),
         child: Row(
@@ -234,20 +234,20 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                 size: 14,
                 color: hasTimelock
                     ? AppAccent.color
-                    : cs.onSurface.withAlpha(138)),
+                    : cs.onSurface.withAlpha(AppAlpha.secondary)),
             const SizedBox(width: 4),
             Text(text,
                 style: TextStyle(
                     fontSize: 11,
                     color: hasTimelock
                         ? cs.onSurface
-                        : cs.onSurface.withAlpha(138))),
+                        : cs.onSurface.withAlpha(AppAlpha.secondary))),
             const SizedBox(width: 4),
             Icon(Icons.edit,
                 size: 12,
                 color: hasTimelock
-                    ? AppAccent.color.withAlpha(180)
-                    : cs.onSurface.withAlpha(97)),
+                    ? AppAccent.color.withAlpha(AppAlpha.deleteAction)
+                    : cs.onSurface.withAlpha(AppAlpha.muted)),
           ],
         ),
       ),
@@ -273,13 +273,13 @@ class _SpendPathEditSheetContent extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: active
-                ? AppAccent.color.withAlpha(32)
-                : cs.onSurface.withAlpha(26),
+                ? AppAccent.color.withAlpha(AppAlpha.subtle)
+                : cs.onSurface.withAlpha(AppAlpha.subtle),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: active
-                  ? AppAccent.color.withAlpha(64)
-                  : cs.onSurface.withAlpha(61),
+                  ? AppAccent.color.withAlpha(AppAlpha.mediumLow)
+                  : cs.onSurface.withAlpha(AppAlpha.disabled),
             ),
           ),
           child: Row(
@@ -289,12 +289,12 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12,
                       color: active
-                          ? cs.onSurface.withAlpha(178)
-                          : cs.onSurface.withAlpha(97))),
+                          ? cs.onSurface.withAlpha(AppAlpha.mediumHigh)
+                          : cs.onSurface.withAlpha(AppAlpha.muted))),
               const SizedBox(width: 4),
               Icon(Icons.edit,
                   size: 12,
-                  color: active ? AppAccent.color : cs.onSurface.withAlpha(97)),
+                  color: active ? AppAccent.color : cs.onSurface.withAlpha(AppAlpha.muted)),
             ],
           ),
         );
@@ -313,12 +313,12 @@ class _SpendPathEditSheetContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color:
-              path.isKeyPath ? Colors.blue.withAlpha(32) : Colors.transparent,
+              path.isKeyPath ? Colors.blue.withAlpha(AppAlpha.subtle) : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: path.isKeyPath
-                ? Colors.blue.withAlpha(100)
-                : cs.onSurface.withAlpha(61),
+                ? Colors.blue.withAlpha(AppAlpha.border)
+                : cs.onSurface.withAlpha(AppAlpha.disabled),
           ),
         ),
         child: Row(
@@ -327,7 +327,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
             Icon(Icons.key,
                 size: 12,
                 color:
-                    path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97)),
+                    path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(AppAlpha.muted)),
             const SizedBox(width: 3),
             Text(
               path.isKeyPath ? l10n.keyPathBadge : l10n.setAsKeyPath,
@@ -335,7 +335,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color:
-                    path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(97),
+                    path.isKeyPath ? Colors.blue : cs.onSurface.withAlpha(AppAlpha.muted),
                 letterSpacing: 0.5,
               ),
             ),
@@ -359,7 +359,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
       children: [
         Text(l10n.keysLabel,
             style:
-                TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138))),
+                TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary))),
         const SizedBox(height: 4),
         Wrap(
           spacing: 6,
@@ -384,16 +384,16 @@ class _SpendPathEditSheetContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2, right: 2),
       decoration: BoxDecoration(
-        color: color.withAlpha(32),
+        color: color.withAlpha(AppAlpha.subtle),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(64), width: 2),
+        border: Border.all(color: color.withAlpha(AppAlpha.mediumLow), width: 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label,
               style: TextStyle(
-                color: cs.onSurface.withAlpha(210),
+                color: cs.onSurface.withAlpha(AppAlpha.high),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
@@ -405,7 +405,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(2),
               child:
-                  Icon(Icons.close, size: 14, color: color.withAlpha(180)),
+                  Icon(Icons.close, size: 14, color: color.withAlpha(AppAlpha.deleteAction)),
             ),
           ),
         ],
@@ -454,7 +454,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withAlpha(138))),
+                              .withAlpha(AppAlpha.secondary))),
                 ],
               ]),
             )),
@@ -473,7 +473,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppAccent.color.withAlpha(100)),
+          border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.border)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -502,7 +502,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
       children: [
         Text(l10n.thresholdLabel,
             style:
-                TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138))),
+                TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary))),
         const SizedBox(width: 12),
         PopupMenuButton<int>(
           offset: const Offset(0, 32),
@@ -513,16 +513,16 @@ class _SpendPathEditSheetContent extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppAccent.color.withAlpha(32),
+              color: AppAccent.color.withAlpha(AppAlpha.subtle),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppAccent.color.withAlpha(64)),
+              border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.mediumLow)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('$currentThreshold',
                     style: TextStyle(
-                        fontSize: 12, color: cs.onSurface.withAlpha(178))),
+                        fontSize: 12, color: cs.onSurface.withAlpha(AppAlpha.mediumHigh))),
                 const SizedBox(width: 4),
                 const Icon(Icons.edit, size: 12, color: AppAccent.color),
               ],
@@ -532,7 +532,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
         const SizedBox(width: 8),
         Text(l10n.ofCount(path.mfps.length),
             style: TextStyle(
-                fontSize: 12, color: cs.onSurface.withAlpha(178))),
+                fontSize: 12, color: cs.onSurface.withAlpha(AppAlpha.mediumHigh))),
       ],
     );
   }
@@ -543,7 +543,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     final labelStyle =
-        TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138));
+        TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary));
     final valueStyle = TextStyle(
         fontSize: 13,
         color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
@@ -603,7 +603,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
         Text(
           l10n.spendPathNameDialogTitle,
           style:
-              TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(138)),
+              TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
         ),
         const SizedBox(height: 4),
         GestureDetector(
@@ -614,16 +614,16 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                 child: Text(
                   displayName,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: hasCustomName ? FontWeight.w600 : FontWeight.normal,
                     color: hasCustomName
                         ? cs.onSurface
-                        : cs.onSurface.withAlpha(97),
+                        : cs.onSurface.withAlpha(AppAlpha.muted),
                     fontStyle: hasCustomName ? FontStyle.normal : FontStyle.italic,
                   ),
                 ),
               ),
-              Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(120)),
+              Icon(Icons.edit, size: 14, color: cs.onSurface.withAlpha(AppAlpha.inactive)),
             ],
           ),
         ),
@@ -652,7 +652,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
       label: Text(l10n.removePathTooltip,
           style: const TextStyle(color: Colors.red)),
       style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.red.withAlpha(100))),
+          side: BorderSide(color: Colors.red.withAlpha(AppAlpha.border))),
     );
   }
 

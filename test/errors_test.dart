@@ -4,12 +4,9 @@ import 'package:deadbolt/errors.dart';
 void main() {
   group('formatRustError', () {
     test('strips AnyhowException wrapper', () {
-      // Note: the closing ')' remains since replaceFirst only removes the prefix.
-      // In real usage, AnyhowException wraps multi-line errors where the trailing )
-      // is on a separate line after the backtrace which gets stripped too.
       final result =
           formatRustError('AnyhowException(Invalid descriptor format)');
-      expect(result, 'Invalid descriptor format)');
+      expect(result, 'Invalid descriptor format');
     });
 
     test('strips stack backtrace', () {

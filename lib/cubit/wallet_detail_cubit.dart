@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/utils/hot_key_helpers.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor, APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
@@ -170,14 +171,6 @@ class WalletDetailError extends WalletDetailState {
   final String message;
   WalletDetailError(this.message);
 }
-
-// --- Helpers ---
-
-List<APIHotKeyInfo> _upsertHotKey(List<APIHotKeyInfo> keys, APIHotKeyInfo info) =>
-    [...keys.where((k) => k.mfp != info.mfp), info];
-
-List<APIHotKeyInfo> _removeHotKey(List<APIHotKeyInfo> keys, String mfp) =>
-    keys.where((k) => k.mfp != mfp).toList();
 
 // --- Cubit ---
 
@@ -1012,7 +1005,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         mnemonic: mnemonic,
         passphrase: passphrase,
       );
-      emit(current.copyWith(hotKeys: _upsertHotKey(current.hotKeys, info)));
+      emit(current.copyWith(hotKeys: upsertHotKey(current.hotKeys, info)));
       return info;
     } catch (e, st) {
       _emitError('WalletDetailCubit.addMnemonicKey()', e, st);
@@ -1026,7 +1019,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return null;
     try {
       final info = current.walletHandle.addXprvKey(xprv: xprv);
-      emit(current.copyWith(hotKeys: _upsertHotKey(current.hotKeys, info)));
+      emit(current.copyWith(hotKeys: upsertHotKey(current.hotKeys, info)));
       return info;
     } catch (e, st) {
       _emitError('WalletDetailCubit.addXprvKey()', e, st);
@@ -1040,7 +1033,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return;
     try {
       current.walletHandle.deleteHotKey(mfp: mfp);
-      emit(current.copyWith(hotKeys: _removeHotKey(current.hotKeys, mfp)));
+      emit(current.copyWith(hotKeys: removeHotKey(current.hotKeys, mfp)));
     } catch (e, st) {
       _emitError('WalletDetailCubit.deleteHotKey()', e, st);
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart' show showErrorToast;
@@ -280,7 +281,7 @@ class _ConnectedHeader extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.error,
             side: BorderSide(
-                color: Theme.of(context).colorScheme.error.withAlpha(80)),
+                color: Theme.of(context).colorScheme.error.withAlpha(AppAlpha.pale)),
           ),
         ),
       ],
@@ -310,7 +311,7 @@ class _StatusRow extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : Icon(icon,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
         const SizedBox(width: 12),
         Text(label),
       ],
@@ -327,7 +328,7 @@ class _NoDevicesRow extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.usb_off,
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(138)),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
         const SizedBox(width: 12),
         const Expanded(child: Text('No device connected')),
         TextButton.icon(

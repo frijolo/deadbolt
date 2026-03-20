@@ -113,7 +113,8 @@ fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, S
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\](xpub[A-Za-z0-9]+)").unwrap()
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\](xpub[A-Za-z0-9]+)")
+            .expect("hard-coded xpub regex is valid")
     });
     let mut map = std::collections::HashMap::new();
     for cap in re.captures_iter(descriptor) {

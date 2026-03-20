@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/theme/app_theme.dart';
 
 /// Renders a Bitcoin address (or txid) with groups of 4 characters alternating
 /// between the theme's primary color and a dim foreground, for easy visual
@@ -49,8 +50,8 @@ class ColoredAddressText extends StatelessWidget {
   Widget _buildFull(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final dim = theme.colorScheme.onSurface.withAlpha(180);
-    final faint = theme.colorScheme.onSurface.withAlpha(120);
+    final dim = theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh);
+    final faint = theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive);
     final groups = _groups();
 
     return RichText(
@@ -72,8 +73,8 @@ class ColoredAddressText extends StatelessWidget {
   Widget _buildMiddleTruncated(BuildContext context, double maxWidth) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final dim = theme.colorScheme.onSurface.withAlpha(180);
-    final faint = theme.colorScheme.onSurface.withAlpha(120);
+    final dim = theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh);
+    final faint = theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive);
     final style = _baseStyle(context);
     final groups = _groups();
 

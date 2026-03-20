@@ -4,6 +4,82 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [v1.4.0]
+
+### New Features
+- **Hot signing keys** — Store encrypted private keys inside the app and sign PSBTs locally without any external device.
+- **Password-protected wallets** — Wallets can be locked with a password; the key never leaves the device unencrypted.
+- **Encrypted backup and import** — Export a wallet as an encrypted backup file and restore it on another device.
+- **Locked-wallet indicator** — Locked wallets are shown in the wallet list with a lock icon so you can see their status at a glance without opening them.
+
+### Improvements
+- Redesigned project and wallet detail screens with a tab layout and sheet-based editing for a cleaner, more focused workflow.
+- Guided empty state in the wallet screen when no project/wallet link exists yet, with a one-tap shortcut to navigate across.
+- Cross-navigation between projects and wallets — tap the wallet badge on a project (or the project link on a wallet) to jump directly between them.
+- PSBT signing and analysis now run in parallel, reducing wait time on multi-path descriptors.
+
+---
+
+## [v1.3.0]
+
+### New Features
+- **Hardware wallet support (BitBox02)** — Connect a BitBox02 via USB on Android, Linux, and Windows to register descriptors, fetch xpubs, and sign PSBTs directly from the device.
+
+### Improvements
+- Descriptor share button moved inside the expanded content card for a less cluttered header.
+
+---
+
+## [v1.2.0]
+
+### New Features
+- **Liana format export** — Export any descriptor in the format expected by the Liana wallet.
+- **PSBT label inheritance** — Labels from matching spend paths and keys are pre-filled when constructing a PSBT, reducing manual annotation.
+
+### Improvements
+- Spent PSBT inputs are flagged visually; the delete menu item is styled in red to reduce accidental taps.
+- Transaction list polish: confirmation badges, cleaner layout, and consistent icon sizing.
+
+---
+
+## [v1.1.3]
+
+### New Features
+- **BIP-329 label import/export** — Export and import wallet labels in the standard BIP-329 JSON format for interoperability with other wallets.
+- **Receive dialog** — Generate and display a receive address directly from the wallet overview, with a QR code and copy button.
+- **PSBT import and merge** — Import an existing PSBT and merge partial signatures into it, enabling multi-device signing workflows.
+- **RBF validation** — The app detects Replace-By-Fee conflicts and warns before broadcasting a transaction that would be rejected.
+- **Mempool ghost UTXOs** — Unconfirmed outputs from the mempool are shown in the coin list with a pending indicator.
+
+### Improvements
+- Wallet overview tab consolidates balance, recent transactions, and descriptor export in one place.
+- Address status uses color-coded badges (unused / used / reused / with balance) for faster scanning.
+- Spending badges appear on UTXOs currently being spent by a pending transaction.
+- Settings are auto-saved on change without requiring an explicit save action.
+- Outpoint strings use dynamic middle-truncation so the txid prefix and output index are always visible.
+- Transaction and address detail dialogs use a two-column layout on wider screens.
+
+---
+
+## [v1.1.2]
+
+### New Features
+- **Label inheritance** — Labels assigned to keys and spend paths in a project are automatically suggested when the same key appears in a wallet, saving repetitive annotation work.
+- **Entity detail dialogs** — Tap any transaction, address, or UTXO to open a full detail dialog with all available metadata.
+
+### Fixes
+- Errors during wallet operations (sync, broadcast, etc.) now appear as toasts instead of blocking the screen.
+- Tapping the edit icon on a name field reliably opens the editor on the first tap.
+- Address list scrolls correctly to the selected address after a sync.
+- Timelock badge states are rendered accurately for all relative and absolute timelock combinations.
+- Tab selection and lazily-loaded data are preserved when a sync completes while another tab is visible.
+
+### Improvements
+- Mobile navigation replaced hamburger drawer; Wallet tab opens by default for faster access to on-device wallets.
+- Address transaction count is now accurate after rescanning.
+
+---
+
 ## [v1.1.1]
 
 ### Improvements
@@ -84,6 +160,11 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
+[v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
+[v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0
+[v1.1.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.3
+[v1.1.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.2
 [v1.1.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.1
 [v1.1.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.0
 [v1.0.4]: https://github.com/frijolo/deadbolt/releases/tag/v1.0.4

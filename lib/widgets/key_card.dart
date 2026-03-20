@@ -170,9 +170,9 @@ class _HotBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: Colors.orange.withAlpha(40),
+        color: AppAccent.color.withAlpha(AppAlpha.dim),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange.withAlpha(180), width: 1),
+        border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.deleteAction), width: 1),
       ),
       child: Text(
         l10n.hotKeyBadge,

@@ -281,6 +281,13 @@
   "walletTypeP2shWsh": "Nested Segwit (P2SH-WSH)",
   "walletTypeUnknown": "Unknown",
 
+  "walletPolicySingleSig": "SingleSig",
+  "walletPolicyMiniscript": "Miniscript",
+  "walletAddressLegacy": "Legacy",
+  "walletAddressSegwit": "SegWit",
+  "walletAddressNested": "Nested",
+  "walletAddressTaproot": "Taproot",
+
   "navDesigner": "Designer",
   "navWallet": "Wallet",
 

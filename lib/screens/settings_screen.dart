@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/widgets/wallet_type_picker.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -57,21 +58,9 @@ class SettingsScreen extends StatelessWidget {
                   ],
                   onChanged: cubit.setNetwork,
                 ),
-                _SettingsDropdown<APIWalletType>(
+                _WalletTypeSettingTile(
                   label: l10n.preferredWalletTypeLabel,
-                  value: settings.walletType,
-                  items: [
-                    for (final t in [
-                      APIWalletType.p2Tr,
-                      APIWalletType.p2Wsh,
-                      APIWalletType.p2Wpkh,
-                      APIWalletType.p2Sh,
-                      APIWalletType.p2ShWpkh,
-                      APIWalletType.p2ShWsh,
-                      APIWalletType.p2Pkh,
-                    ])
-                      (t, localizedWalletTypeName(context, t)),
-                  ],
+                  current: settings.walletType,
                   onChanged: cubit.setWalletType,
                 ),
                 const Divider(height: 1),
@@ -424,6 +413,65 @@ class _ElectrumFieldState extends State<_ElectrumField> {
         ),
         onTap: () => setState(() => _editing = true),
         onSubmitted: (_) => _save(),
+      ),
+    );
+  }
+}
+
+class _WalletTypeSettingTile extends StatefulWidget {
+  final String label;
+  final APIWalletType current;
+  final ValueChanged<APIWalletType> onChanged;
+
+  const _WalletTypeSettingTile({
+    required this.label,
+    required this.current,
+    required this.onChanged,
+  });
+
+  @override
+  State<_WalletTypeSettingTile> createState() => _WalletTypeSettingTileState();
+}
+
+class _WalletTypeSettingTileState extends State<_WalletTypeSettingTile> {
+  late WalletPolicy _policy;
+  late WalletAddressFormat _addressFormat;
+
+  @override
+  void initState() {
+    super.initState();
+    _policy = walletPolicyFrom(widget.current);
+    _addressFormat = walletAddressFormatFrom(widget.current);
+  }
+
+  @override
+  void didUpdateWidget(_WalletTypeSettingTile old) {
+    super.didUpdateWidget(old);
+    if (old.current != widget.current) {
+      _policy = walletPolicyFrom(widget.current);
+      _addressFormat = walletAddressFormatFrom(widget.current);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      title: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(widget.label),
+      ),
+      subtitle: WalletTypePicker(
+        policy: _policy,
+        addressFormat: _addressFormat,
+        onPolicyChanged: (p) {
+          setState(() => _policy = p);
+          widget.onChanged(walletTypeFromAxes(p, _addressFormat));
+        },
+        onFormatChanged: (f) {
+          setState(() => _addressFormat = f);
+          widget.onChanged(walletTypeFromAxes(_policy, f));
+        },
       ),
     );
   }

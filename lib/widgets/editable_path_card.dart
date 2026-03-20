@@ -52,7 +52,7 @@ class EditablePathCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: _hasValidationError ? Colors.red.withAlpha(20) : null,
+      color: _hasValidationError ? Colors.red.withAlpha(AppAlpha.faint) : null,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: _buildLeading(context),
@@ -238,7 +238,7 @@ class EditablePathCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text('|',
           style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(77))),
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.hint))),
     );
   }
 }

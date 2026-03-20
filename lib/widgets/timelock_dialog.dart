@@ -239,7 +239,7 @@ class _TimelockDialogState extends State<TimelockDialog> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: validationError != null ? Colors.red : cs.onSurface.withAlpha(61)),
+                      border: Border.all(color: validationError != null ? Colors.red : cs.onSurface.withAlpha(AppAlpha.disabled)),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -252,7 +252,7 @@ class _TimelockDialogState extends State<TimelockDialog> {
                                 ? _formatDateTime(_absValue)
                                 : l10n.selectDateAndTime,
                             style: TextStyle(
-                              color: _absValue > 0 ? cs.onSurface : cs.onSurface.withAlpha(138),
+                              color: _absValue > 0 ? cs.onSurface : cs.onSurface.withAlpha(AppAlpha.secondary),
                             ),
                           ),
                         ),
@@ -343,9 +343,9 @@ class _TimelockDialogState extends State<TimelockDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppAccent.color.withAlpha(32),
+                  color: AppAccent.color.withAlpha(AppAlpha.subtle),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppAccent.color.withAlpha(64)),
+                  border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.mediumLow)),
                 ),
                 child: Row(
                   children: [

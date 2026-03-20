@@ -637,6 +637,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletTypeUnknown => 'Unknown';
 
   @override
+  String get walletPolicySingleSig => 'SingleSig';
+
+  @override
+  String get walletPolicyMiniscript => 'Miniscript';
+
+  @override
+  String get walletAddressLegacy => 'Legacy';
+
+  @override
+  String get walletAddressSegwit => 'SegWit';
+
+  @override
+  String get walletAddressNested => 'Nested';
+
+  @override
+  String get walletAddressTaproot => 'Taproot';
+
+  @override
   String get navDesigner => 'Designer';
 
   @override

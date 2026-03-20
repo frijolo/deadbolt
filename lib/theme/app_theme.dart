@@ -3,31 +3,55 @@ import 'package:flutter/material.dart';
 enum AppTheme { system, light, dark }
 
 /// Alpha transparency constants for consistent opacity usage across the app.
-/// Values are in the 0–255 range used by [Color.withAlpha].
+/// Values are in the 0–255 range used by [Color.withAlpha], ordered ascending.
 abstract class AppAlpha {
+  /// Extra-light background or tint (e.g., badge fill variant). ~8% opacity.
+  static const int faint = 20;
+
   /// Very subtle background tint (e.g., badge fill). ~12.5% opacity.
   static const int subtle = 32;
 
-  /// Low-medium border or tint (e.g., badge border). ~25% opacity.
-  static const int mediumLow = 64;
+  /// Dimmed fill (e.g., badge bg slightly more visible than subtle). ~16% opacity.
+  static const int dim = 40;
 
   /// Disabled icon or de-emphasized element. ~24% opacity.
   static const int disabled = 61;
 
+  /// Low-medium border or tint (e.g., badge border). ~25% opacity.
+  static const int mediumLow = 64;
+
+  /// Hint text or very dim icon. ~30% opacity.
+  static const int hint = 77;
+
+  /// Pale overlay or status background. ~31% opacity.
+  static const int pale = 80;
+
   /// Muted text or secondary icon. ~38% opacity.
   static const int muted = 97;
+
+  /// Border or outline alpha. ~39% opacity.
+  static const int border = 100;
+
+  /// Inactive text or icon. ~47% opacity.
+  static const int inactive = 120;
+
+  /// Strong border (50% opacity).
+  static const int half = 128;
 
   /// Slightly visible secondary text. ~54% opacity.
   static const int secondary = 138;
 
+  /// Medium emphasis, between secondary and mediumHigh. ~59% opacity.
+  static const int medium = 150;
+
   /// Medium-emphasis text or icon. ~70% opacity.
   static const int mediumHigh = 178;
 
+  /// Alias for [mediumHigh], used for destructive-action styling.
+  static const int deleteAction = mediumHigh;
+
   /// High-emphasis badge or strong text. ~82% opacity.
   static const int high = 210;
-
-  /// Delete/destructive action icon. ~70% opacity (red).
-  static const int deleteAction = 180;
 }
 
 /// Centralized accent color constant. Use this instead of `Colors.orange`

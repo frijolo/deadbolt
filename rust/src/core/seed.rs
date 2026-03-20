@@ -49,7 +49,8 @@ pub fn make_private_descriptor(
     let re = RE.get_or_init(|| {
         // Matches [8hexchars/path]xpub_or_xprv...
         // Stops at '/' (multipath), '<', ')', or '#' to not grab the separator
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)").unwrap()
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)")
+            .expect("hard-coded key expression regex is valid")
     });
 
     let my_mfp = root_xprv_to_mfp(root_xprv, secp);
@@ -81,7 +82,7 @@ pub fn make_private_descriptor(
             .derive_priv(secp, &path)
             .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
 
-        let full_match = cap.get(0).unwrap();
+        let full_match = cap.get(0).expect("regex match always has group 0");
         let replacement = format!("[{}/{}]{}", &cap[1], &cap[2], child_xprv);
         replacements.push((full_match.start(), full_match.end(), replacement));
     }

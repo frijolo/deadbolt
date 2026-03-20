@@ -82,7 +82,7 @@ class WalletListScreen extends StatelessWidget {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withAlpha(178),
+                              .withAlpha(AppAlpha.mediumHigh),
                         ),
                       ),
                     ],
@@ -122,7 +122,7 @@ class WalletListScreen extends StatelessWidget {
               l10n.noWallets,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
               ),
             ),
             const SizedBox(height: 24),
@@ -152,7 +152,7 @@ class WalletListScreen extends StatelessWidget {
               l10n.noWalletsGuidedBody,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(138),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
               ),
             ),
             const SizedBox(height: 24),
@@ -188,7 +188,7 @@ class WalletListScreen extends StatelessWidget {
         leading: isLocked
             ? Icon(
                 Icons.lock_outline,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.inactive),
               )
             : null,
         title: Text(
@@ -219,7 +219,7 @@ class WalletListScreen extends StatelessWidget {
                   color: Theme.of(context)
                       .colorScheme
                       .onSurface
-                      .withAlpha(138),
+                      .withAlpha(AppAlpha.secondary),
                 ),
               ),
             ],
@@ -241,12 +241,12 @@ class WalletListScreen extends StatelessWidget {
                   Icon(
                     Icons.delete_outline,
                     size: 20,
-                    color: Colors.red.withAlpha(180),
+                    color: Colors.red.withAlpha(AppAlpha.deleteAction),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     l10n.delete,
-                    style: TextStyle(color: Colors.red.withAlpha(180)),
+                    style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
                   ),
                 ],
               ),
