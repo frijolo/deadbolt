@@ -4,6 +4,13 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [v1.4.1]
+
+### New Features
+- **All networks in project picker** — When creating a project from scratch, the network selector now shows all five networks (Mainnet, Testnet, Testnet4, Signet, Regtest). The selected network is then pre-filled when creating a wallet from that project.
+
+---
+
 ## [v1.4.0]
 
 ### New Features
@@ -160,6 +167,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
 [v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0
