@@ -358,9 +358,11 @@ packages:
   flutter_lite_camera:
     dependency: "direct main"
     description:
-      path: "packages/flutter_lite_camera"
-      relative: true
-    source: path
+      path: "."
+      ref: cf71213fcd4bb68dfb05c67a59a1ca5fa8103f35
+      resolved-ref: cf71213fcd4bb68dfb05c67a59a1ca5fa8103f35
+      url: "https://github.com/frijolo/flutter_lite_camera.git"
+    source: git
     version: "0.0.2"
   flutter_localizations:
     dependency: "direct main"

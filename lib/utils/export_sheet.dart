@@ -137,9 +137,11 @@ void showProjectExportSheet(
                   final tempDir = await getTemporaryDirectory();
                   final file = File('${tempDir.path}/$fileName');
                   await file.writeAsString(jsonString);
-                  final result = await Share.shareXFiles(
-                    [XFile(file.path)],
-                    subject: 'Export: $projectName',
+                  final result = await SharePlus.instance.share(
+                    ShareParams(
+                      files: [XFile(file.path)],
+                      subject: 'Export: $projectName',
+                    ),
                   );
                   if (result.status == ShareResultStatus.success) {
                     if (context.mounted) {

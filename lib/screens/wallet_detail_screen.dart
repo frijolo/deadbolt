@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart' show Share, XFile;
+import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus, XFile;
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
@@ -367,9 +367,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         final file = File(p.join(tempDir.path, fileName));
         await file.writeAsBytes(backupBytes);
         if (context.mounted) {
-          await Share.shareXFiles(
-            [XFile(file.path, mimeType: 'application/octet-stream')],
-            subject: fileName,
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [XFile(file.path, mimeType: 'application/octet-stream')],
+              subject: fileName,
+            ),
           );
         }
       } catch (e) {

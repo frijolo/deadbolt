@@ -105,7 +105,7 @@ void showTextExportSheet(
               title: Text(l10n.shareText),
               onTap: () {
                 Navigator.pop(ctx);
-                Share.share(text);
+                SharePlus.instance.share(ShareParams(text: text));
               },
             ),
           ListTile(
