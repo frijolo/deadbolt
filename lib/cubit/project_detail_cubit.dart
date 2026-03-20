@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/project_export.dart';
@@ -109,7 +110,7 @@ List<APIHotKeyInfo> _removeHotKey(List<APIHotKeyInfo> keys, String mfp) =>
 
 // --- Cubit ---
 
-class ProjectDetailCubit extends Cubit<ProjectDetailState> {
+class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger {
   final AppDatabase _db;
   final ProjectDescriptorService _service;
   final WalletService? _walletService;
@@ -167,7 +168,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
       // Always enter edit mode so keys and paths are immediately editable
       enterEditMode();
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.load()', e, st);
       emit(ProjectDetailError(formatRustError(e)));
     }
   }
@@ -546,7 +548,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       );
       emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
       return info;
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.addProjectMnemonicHotKey()', e, st);
       emit(s.copyWith(errorMessage: formatRustError(e)));
       return null;
     }
@@ -566,7 +569,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
       );
       emit(s.copyWith(hotKeys: _upsertHotKey(s.hotKeys, info)));
       return info;
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.addProjectXprvHotKey()', e, st);
       emit(s.copyWith(errorMessage: formatRustError(e)));
       return null;
     }
@@ -585,7 +589,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         deviceKeyHex: deviceKey,
       );
       emit(s.copyWith(hotKeys: _removeHotKey(s.hotKeys, mfp)));
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.deleteProjectHotKey()', e, st);
       emit(s.copyWith(errorMessage: formatRustError(e)));
     }
   }
@@ -600,7 +605,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         mfp: mfp,
         deviceKeyHex: deviceKey,
       );
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.revealProjectSeed()', e, st);
       final s = state;
       if (s is ProjectDetailLoaded) {
         emit(s.copyWith(errorMessage: formatRustError(e)));
@@ -782,7 +788,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
         unusedKeys: unusedKeys,
         loadingMessage: analyzeMessage,
       );
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.regenerateDescriptor()', e, st);
       // Show error as toast by restoring previous state with error message
       emit(previousState.copyWith(errorMessage: formatRustError(e)));
     }
@@ -905,7 +912,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
       _mfpColorMap.clear();
       await load();
-    } catch (e) {
+    } catch (e, st) {
+      logError('ProjectDetailCubit.updateDescriptorAndReanalyze()', e, st);
       // Show error as toast by restoring previous state
       if (previousState is ProjectDetailLoaded) {
         emit(previousState.copyWith(errorMessage: formatRustError(e)));
@@ -936,25 +944,13 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     final s = state;
     if (s is! ProjectDetailLoaded) return null;
 
-    final keyLabels = <String, String>{};
-    for (final key in s.keys) {
-      if (key.customName != null) keyLabels[key.mfp] = key.customName!;
-    }
-
-    final pathLabels = <String, String>{};
-    for (final path in s.spendPaths) {
-      if (path.customName != null) {
-        pathLabels[path.rustId.toString()] = path.customName!;
-      }
-    }
-
     final exportData = ProjectExport(
       version: 1,
       exportedAt: DateTime.now(),
       name: s.project.name,
       descriptor: s.project.descriptor,
-      keyLabels: keyLabels,
-      pathLabels: pathLabels,
+      keyLabels: buildKeyLabels(s.keys),
+      pathLabels: buildPathLabels(s.spendPaths),
     );
 
     final fileName =

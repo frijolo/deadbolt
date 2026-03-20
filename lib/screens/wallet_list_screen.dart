@@ -17,6 +17,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -375,18 +376,8 @@ class WalletListScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.deleteWalletTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.deleteWalletTitle, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: Text(l10n.deleteWalletConfirm(wallet.name)),
         actions: [
           FilledButton(

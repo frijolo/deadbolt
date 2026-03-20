@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 /// Show a dialog to edit a custom name.
 ///
@@ -25,18 +26,8 @@ void showEditNameDialog(
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(title)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(title, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -86,18 +77,8 @@ void showEditNameDialog(
           }
 
           return AlertDialog(
-            titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-            title: Row(
-              children: [
-                Expanded(child: Text(title)),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: l10n.cancel,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-              ],
-            ),
+            titlePadding: kDialogTitlePadding,
+            title: dialogCloseTitle(title, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
             content: TextField(
               controller: controller,
               autofocus: true,

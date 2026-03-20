@@ -61,6 +61,26 @@ pub fn read_wallet_info(conn: &Connection) -> Result<WalletInfoRow> {
     .map_err(|e| anyhow::anyhow!("Failed to read wallet_info: {}", e))
 }
 
+/// Add a column to `table` if it doesn't already exist.
+/// `col_def` is the full SQL type + constraint, e.g. `"INTEGER NOT NULL DEFAULT 0"`.
+/// This is a migration guard for DBs created before the column was introduced.
+fn ensure_column(conn: &Connection, table: &str, column: &str, col_def: &str) -> Result<()> {
+    let exists: i32 = conn
+        .query_row(
+            &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'"),
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if exists == 0 {
+        conn.execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {col_def}"),
+            [],
+        )?;
+    }
+    Ok(())
+}
+
 //////////////////////
 // tx_labels table  //
 //////////////////////
@@ -75,29 +95,8 @@ pub fn ensure_tx_labels_table(conn: &Connection) -> Result<()> {
             source_entity TEXT
         );",
     )?;
-    let has_is_auto: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('tx_labels') WHERE name = 'is_auto'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_is_auto == 0 {
-        conn.execute(
-            "ALTER TABLE tx_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
-            [],
-        )?;
-    }
-    let has_source: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('tx_labels') WHERE name = 'source_entity'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_source == 0 {
-        conn.execute("ALTER TABLE tx_labels ADD COLUMN source_entity TEXT", [])?;
-    }
+    ensure_column(conn, "tx_labels", "is_auto", "INTEGER NOT NULL DEFAULT 0")?;
+    ensure_column(conn, "tx_labels", "source_entity", "TEXT")?;
     Ok(())
 }
 
@@ -195,32 +194,13 @@ pub fn ensure_address_labels_table(conn: &Connection) -> Result<()> {
             source_entity TEXT
         );",
     )?;
-    let has_is_auto: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('address_labels') WHERE name = 'is_auto'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_is_auto == 0 {
-        conn.execute(
-            "ALTER TABLE address_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
-            [],
-        )?;
-    }
-    let has_source: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('address_labels') WHERE name = 'source_entity'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_source == 0 {
-        conn.execute(
-            "ALTER TABLE address_labels ADD COLUMN source_entity TEXT",
-            [],
-        )?;
-    }
+    ensure_column(
+        conn,
+        "address_labels",
+        "is_auto",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(conn, "address_labels", "source_entity", "TEXT")?;
     Ok(())
 }
 
@@ -412,30 +392,8 @@ pub fn ensure_coin_labels_table(conn: &Connection) -> Result<()> {
             source_entity TEXT
         );",
     )?;
-    // Guard is_auto (for DBs created before is_auto was added)
-    let has_is_auto: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('coin_labels') WHERE name = 'is_auto'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_is_auto == 0 {
-        conn.execute(
-            "ALTER TABLE coin_labels ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0",
-            [],
-        )?;
-    }
-    let has_source: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM pragma_table_info('coin_labels') WHERE name = 'source_entity'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-    if has_source == 0 {
-        conn.execute("ALTER TABLE coin_labels ADD COLUMN source_entity TEXT", [])?;
-    }
+    ensure_column(conn, "coin_labels", "is_auto", "INTEGER NOT NULL DEFAULT 0")?;
+    ensure_column(conn, "coin_labels", "source_entity", "TEXT")?;
     Ok(())
 }
 
@@ -540,6 +498,14 @@ pub struct PsbtRow {
     pub spend_path_id: u32,
     pub threshold: u32,
     pub mfps: Vec<String>,
+}
+
+impl PsbtRow {
+    /// Return a copy of `self` with `psbt` replaced. Used after signing to avoid
+    /// manually reconstructing every field.
+    pub fn with_psbt(self, psbt: String) -> Self {
+        Self { psbt, ..self }
+    }
 }
 
 pub fn ensure_unsigned_txs_table(conn: &Connection) -> Result<()> {

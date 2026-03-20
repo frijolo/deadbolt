@@ -1,5 +1,21 @@
 use super::*;
 
+/// Collect unique master fingerprints from all inputs of a PSBT.
+/// Covers both non-taproot (bip32_derivation) and taproot (tap_key_origins) inputs.
+fn extract_mfps_from_psbt_inputs(inputs: &[bdk_wallet::bitcoin::psbt::Input]) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut mfp_set: HashSet<String> = HashSet::new();
+    for input in inputs {
+        for (fp, _) in input.bip32_derivation.values() {
+            mfp_set.insert(fp.to_string());
+        }
+        for (_, (fp, _)) in input.tap_key_origins.values() {
+            mfp_set.insert(fp.to_string());
+        }
+    }
+    mfp_set.into_iter().collect()
+}
+
 impl APIWallet {
     // -----------------------------------------------------------------------
     // PSBT / coin-control
@@ -123,31 +139,22 @@ impl APIWallet {
         if send_max {
             // Drain all selected (or all wallet) funds to recipient, no change output.
             builder.drain_to(address.script_pubkey());
-            if !resolved.is_empty() {
-                for r in &resolved {
-                    if let Some((psbt_input, weight)) = &r.foreign {
-                        builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
-                    } else {
-                        builder.add_utxo(r.outpoint)?;
-                    }
-                }
-                builder.manually_selected_only();
-            } else {
+            if resolved.is_empty() {
                 builder.drain_wallet();
             }
         } else {
             let amount = Amount::from_sat(amount_sat);
             builder.add_recipient(address.script_pubkey(), amount);
-            if !resolved.is_empty() {
-                for r in &resolved {
-                    if let Some((psbt_input, weight)) = &r.foreign {
-                        builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
-                    } else {
-                        builder.add_utxo(r.outpoint)?;
-                    }
+        }
+        if !resolved.is_empty() {
+            for r in &resolved {
+                if let Some((psbt_input, weight)) = &r.foreign {
+                    builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
+                } else {
+                    builder.add_utxo(r.outpoint)?;
                 }
-                builder.manually_selected_only();
             }
+            builder.manually_selected_only();
         }
 
         if !policy_map.is_empty() {
@@ -284,34 +291,15 @@ impl APIWallet {
 
         let merged_base64 = psbt_to_base64(&existing);
         update_psbt_data(&core.conn, id, &merged_base64)?;
-
-        let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
+        let updated_row = get_psbt_row(&core.conn, id)?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let (effective_label, is_auto) =
-            psbt_effective_label(&row.label, &row.recipient, &addr_labels);
-        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
         let valid_outpoints = build_valid_outpoints(&core.wallet);
-        let has_spent_inputs = existing.unsigned_tx.input.iter().any(|txin| {
-            !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
-        });
-        Ok(APIPsbtInfo {
-            id,
-            psbt_base64: merged_base64,
-            txid: row.txid,
-            label: row.label,
-            effective_label,
-            is_auto,
-            is_self_transfer,
-            created_at: row.created_at,
-            recipient: row.recipient,
-            amount_sat: row.amount_sat,
-            fee_sat: row.fee_sat,
-            spend_path_id: row.spend_path_id,
-            threshold: row.threshold,
-            mfps: row.mfps,
-            utxo_max_conf_height,
-            has_spent_inputs,
-        })
+        Ok(row_to_api_psbt(
+            updated_row,
+            &core.wallet,
+            &addr_labels,
+            &valid_outpoints,
+        ))
     }
 
     /// Import a PSBT (base64) from an external source.
@@ -320,8 +308,6 @@ impl APIWallet {
     /// merged and the existing record is updated (`was_merged = true`).
     /// Otherwise a new record is created with metadata extracted from the PSBT.
     pub fn import_psbt(&self, psbt_base64: String) -> Result<APIImportPsbtResult> {
-        use std::collections::HashSet;
-
         let core = self
             .inner
             .lock()
@@ -337,79 +323,38 @@ impl APIWallet {
             existing.combine(imported)?;
             let merged_base64 = psbt_to_base64(&existing);
             update_psbt_data(&core.conn, row.id, &merged_base64)?;
-            let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &existing);
+            let updated_row = get_psbt_row(&core.conn, row.id)?;
             let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-            let (effective_label, is_auto) =
-                psbt_effective_label(&row.label, &row.recipient, &addr_labels);
-            let is_self_transfer = is_psbt_self_transfer(&core.wallet, &row.recipient);
             let valid_outpoints = build_valid_outpoints(&core.wallet);
-            let has_spent_inputs = existing.unsigned_tx.input.iter().any(|txin| {
-                !txin.previous_output.is_null() && !valid_outpoints.contains(&txin.previous_output)
-            });
             return Ok(APIImportPsbtResult {
-                psbt: APIPsbtInfo {
-                    id: row.id,
-                    psbt_base64: merged_base64,
-                    txid: row.txid,
-                    label: row.label,
-                    effective_label,
-                    is_auto,
-                    is_self_transfer,
-                    created_at: row.created_at,
-                    recipient: row.recipient,
-                    amount_sat: row.amount_sat,
-                    fee_sat: row.fee_sat,
-                    spend_path_id: row.spend_path_id,
-                    threshold: row.threshold,
-                    mfps: row.mfps,
-                    utxo_max_conf_height,
-                    has_spent_inputs,
-                },
+                psbt: row_to_api_psbt(updated_row, &core.wallet, &addr_labels, &valid_outpoints),
                 was_merged: true,
             });
         }
 
         // New PSBT — extract metadata from the PSBT fields.
         let tx = &imported.unsigned_tx;
-
-        // Collect unique MFPs from all inputs.
-        let mut mfp_set: HashSet<String> = HashSet::new();
-        for input in &imported.inputs {
-            for (fp, _) in input.bip32_derivation.values() {
-                mfp_set.insert(fp.to_string());
-            }
-            for (_, (fp, _)) in input.tap_key_origins.values() {
-                mfp_set.insert(fp.to_string());
-            }
-        }
-        let mfps: Vec<String> = mfp_set.into_iter().collect();
+        let mfps = extract_mfps_from_psbt_inputs(&imported.inputs);
 
         // Identify external (non-wallet) outputs as the recipient.
-        let external_outputs: Vec<_> = tx
+        // For self-transfers with no external outputs, fall back to all outputs.
+        let external_outputs: Vec<&bdk_wallet::bitcoin::TxOut> = tx
             .output
             .iter()
             .filter(|o| !core.wallet.is_mine(o.script_pubkey.clone()))
             .collect();
-        let (recipient, amount_sat) = if external_outputs.is_empty() {
-            // Self-transfer or indeterminate — use first output.
-            let addr = bdk_wallet::bitcoin::Address::from_script(
-                &tx.output[0].script_pubkey,
-                core.wallet.network(),
-            )
-            .map(|a| a.to_string())
-            .unwrap_or_default();
-            let amt: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
-            (addr, amt)
+        let recipient_outputs: Vec<&bdk_wallet::bitcoin::TxOut> = if external_outputs.is_empty() {
+            tx.output.iter().collect()
         } else {
-            let addr = bdk_wallet::bitcoin::Address::from_script(
-                &external_outputs[0].script_pubkey,
-                core.wallet.network(),
-            )
-            .map(|a| a.to_string())
-            .unwrap_or_default();
-            let amt: u64 = external_outputs.iter().map(|o| o.value.to_sat()).sum();
-            (addr, amt)
+            external_outputs
         };
+        let recipient = bdk_wallet::bitcoin::Address::from_script(
+            &recipient_outputs[0].script_pubkey,
+            core.wallet.network(),
+        )
+        .map(|a| a.to_string())
+        .unwrap_or_default();
+        let amount_sat: u64 = recipient_outputs.iter().map(|o| o.value.to_sat()).sum();
 
         // Fee = witness_utxo input sum − output sum (best-effort).
         let input_sum: u64 = imported
@@ -730,19 +675,7 @@ impl APIWallet {
         let updated_base64 = psbt_to_base64(&psbt);
         update_psbt_data(&core.conn, psbt_id, &updated_base64)?;
 
-        let updated_row = PsbtRow {
-            id: row.id,
-            psbt: updated_base64,
-            txid: row.txid,
-            label: row.label,
-            created_at: row.created_at,
-            recipient: row.recipient,
-            amount_sat: row.amount_sat,
-            fee_sat: row.fee_sat,
-            spend_path_id: row.spend_path_id,
-            threshold: row.threshold,
-            mfps: row.mfps,
-        };
+        let updated_row = row.with_psbt(updated_base64);
 
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
         let valid_outpoints = build_valid_outpoints(&core.wallet);

@@ -240,9 +240,9 @@ mod tests {
         assert_eq!(&keystr, &reskey);
 
         let compatible_with_mainnet = pk.is_compatible_with_network(Network::Bitcoin)?;
-        assert_eq!(compatible_with_mainnet, false);
+        assert!(!compatible_with_mainnet);
         let compatible_with_signet = pk.is_compatible_with_network(Network::Signet)?;
-        assert_eq!(compatible_with_signet, true);
+        assert!(compatible_with_signet);
 
         Ok(())
     }

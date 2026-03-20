@@ -1,5 +1,19 @@
 import 'dart:convert';
 
+import 'package:deadbolt/data/database.dart';
+
+/// Build a {mfp → customName} map from a list of project keys.
+Map<String, String> buildKeyLabels(List<ProjectKey> keys) => {
+      for (final k in keys)
+        if (k.customName != null) k.mfp: k.customName!,
+    };
+
+/// Build a {rustId → customName} map from a list of spend paths.
+Map<String, String> buildPathLabels(List<ProjectSpendPath> paths) => {
+      for (final p in paths)
+        if (p.customName != null) p.rustId.toString(): p.customName!,
+    };
+
 /// Model for project export/import
 class ProjectExport {
   final int version;

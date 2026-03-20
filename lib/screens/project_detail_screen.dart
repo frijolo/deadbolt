@@ -15,6 +15,8 @@ import 'package:deadbolt/widgets/editable_path_card.dart';
 import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart';
 import 'package:deadbolt/widgets/spend_path_edit_sheet.dart';
+import 'package:deadbolt/widgets/popup_menu_helpers.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve a color for an MFP using the cubit index + theme palette.
@@ -152,36 +154,9 @@ class _ProjectDetailView extends StatelessWidget {
             },
             itemBuilder: (context) => [
               if (state.isDirty)
-                PopupMenuItem(
-                  value: 'discard',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.undo, size: 20),
-                      const SizedBox(width: 12),
-                      Text(l10n.discardChangesTooltip),
-                    ],
-                  ),
-                ),
-              PopupMenuItem(
-                value: 'export',
-                child: Row(
-                  children: [
-                    const Icon(Icons.file_upload_outlined, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.export),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'createWallet',
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet_outlined, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.createWalletFromProject),
-                  ],
-                ),
-              ),
+                iconMenuItem(value: 'discard', icon: Icons.undo, label: l10n.discardChangesTooltip),
+              iconMenuItem(value: 'export', icon: Icons.file_upload_outlined, label: l10n.export),
+              iconMenuItem(value: 'createWallet', icon: Icons.account_balance_wallet_outlined, label: l10n.createWalletFromProject),
             ],
           ),
         ],
@@ -334,18 +309,8 @@ class _ProjectDetailView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.projectNameDialogTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.projectNameDialogTitle, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -378,18 +343,8 @@ class _ProjectDetailView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.discardChangesDialogTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.discardChangesDialogTitle, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: Text(l10n.discardChangesContent),
         actions: [
           FilledButton(

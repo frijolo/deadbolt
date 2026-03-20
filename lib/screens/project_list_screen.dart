@@ -17,6 +17,7 @@ import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 class ProjectListScreen extends StatelessWidget {
   final int navIndex;
@@ -285,18 +286,8 @@ class ProjectListScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.deleteProjectTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.deleteProjectTitle, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: Text(l10n.deleteProjectConfirm(project.name)),
         actions: [
           FilledButton(

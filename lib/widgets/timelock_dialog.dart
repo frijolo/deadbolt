@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
@@ -116,18 +117,8 @@ class _TimelockDialogState extends State<TimelockDialog> {
     final validationError = _getValidationError(context);
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.timelockDialogTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.timelockDialogTitle, onClose: () => Navigator.pop(context), tooltip: l10n.cancel),
       content: SizedBox(
         width: 400,
         child: Column(

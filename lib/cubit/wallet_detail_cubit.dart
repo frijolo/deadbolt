@@ -299,7 +299,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       ));
       // Eagerly load descriptor analysis so PSBT navigation works from the
       // Transactions tab without needing to visit the Descriptor tab first.
-      _loadDescriptorAnalysis();
+      unawaited(_loadDescriptorAnalysis());
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.load()', e, stackTrace);
       emit(WalletDetailError(formatRustError(e)));
@@ -485,21 +485,21 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     // Tab 0 = Overview, 1 = Transactions, 2 = Addresses, 3 = Coins, 4 = Descriptor
     if (tab == 2) {
       if (!current.receiveAddressesLoaded) {
-        _loadAddresses(APIKeychain.external_);
+        unawaited(_loadAddresses(APIKeychain.external_));
       }
       if (!current.changeAddressesLoaded) {
-        _loadAddresses(APIKeychain.internal);
+        unawaited(_loadAddresses(APIKeychain.internal));
       }
     } else if (tab == 3) {
       if (!current.utxosLoaded) {
-        _loadUtxos();
+        unawaited(_loadUtxos());
       }
       if (!current.descriptorLoaded) {
-        _loadDescriptorAnalysis();
+        unawaited(_loadDescriptorAnalysis());
       }
     } else if (tab == 4) {
       if (!current.descriptorLoaded) {
-        _loadDescriptorAnalysis();
+        unawaited(_loadDescriptorAnalysis());
       }
     }
   }
@@ -614,9 +614,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return;
 
     // Start address and UTXO reloads fire-and-forget (only if already loaded).
-    if (current.receiveAddressesLoaded) _loadAddresses(APIKeychain.external_);
-    if (current.changeAddressesLoaded) _loadAddresses(APIKeychain.internal);
-    if (current.utxosLoaded) _loadUtxos();
+    if (current.receiveAddressesLoaded) unawaited(_loadAddresses(APIKeychain.external_));
+    if (current.changeAddressesLoaded) unawaited(_loadAddresses(APIKeychain.internal));
+    if (current.utxosLoaded) unawaited(_loadUtxos());
 
     // Reload transactions (page-aware, awaited so the tx tab is in sync).
     final page = await current.walletHandle.getTransactions(
@@ -997,7 +997,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     // Sync immediately after broadcast — sync reloads UTXOs when utxosLoaded
     // is true, so coins will reflect the mempool spending status correctly.
     final url = _electrumUrl ?? electrumUrl;
-    sync(url);
+    unawaited(sync(url));
     return txid;
   }
 

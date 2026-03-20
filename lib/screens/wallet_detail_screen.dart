@@ -42,6 +42,8 @@ import 'package:deadbolt/widgets/wallet_path_detail_sheet.dart'
     show showWalletPathSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart'
     show showTextExportSheet;
+import 'package:deadbolt/widgets/popup_menu_helpers.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/text_import_sheet.dart'
     show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
@@ -309,18 +311,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.rescanConfirmTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.rescanConfirmTitle, onClose: () => Navigator.of(ctx).pop(false), tooltip: l10n.cancel),
         content: Text(l10n.rescanConfirmBody),
         actions: [
           FilledButton(
@@ -597,93 +589,20 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             tooltip: l10n.moreOptionsTooltip,
             onSelected: (action) => _onMenuAction(context, action, state),
             itemBuilder: (_) => [
-              PopupMenuItem(
-                value: _WalletMenuAction.send,
-                child: Row(
-                  children: [
-                    const Icon(Icons.arrow_upward, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.walletSendButton),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: _WalletMenuAction.receive,
-                child: Row(
-                  children: [
-                    const Icon(Icons.arrow_downward, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.walletReceiveButton),
-                  ],
-                ),
-              ),
+              iconMenuItem(value: _WalletMenuAction.send, icon: Icons.arrow_upward, label: l10n.walletSendButton),
+              iconMenuItem(value: _WalletMenuAction.receive, icon: Icons.arrow_downward, label: l10n.walletReceiveButton),
               const PopupMenuDivider(),
-              PopupMenuItem(
-                value: _WalletMenuAction.sync,
-                enabled: !state.isSyncing,
-                child: Row(
-                  children: [
-                    const Icon(Icons.sync, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.syncButton),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: _WalletMenuAction.rescan,
-                child: Row(
-                  children: [
-                    const Icon(Icons.manage_search, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.rescanButton),
-                  ],
-                ),
-              ),
+              iconMenuItem(value: _WalletMenuAction.sync, icon: Icons.sync, label: l10n.syncButton, enabled: !state.isSyncing),
+              iconMenuItem(value: _WalletMenuAction.rescan, icon: Icons.manage_search, label: l10n.rescanButton),
               const PopupMenuDivider(),
-              PopupMenuItem(
-                value: _WalletMenuAction.exportLabels,
-                child: Row(
-                  children: [
-                    const Icon(Icons.upload_outlined, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.exportBip329Button),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: _WalletMenuAction.importLabels,
-                child: Row(
-                  children: [
-                    const Icon(Icons.download_outlined, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.importBip329Button),
-                  ],
-                ),
-              ),
+              iconMenuItem(value: _WalletMenuAction.exportLabels, icon: Icons.upload_outlined, label: l10n.exportBip329Button),
+              iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
               const PopupMenuDivider(),
-              PopupMenuItem(
-                value: _WalletMenuAction.generateProject,
-                child: Row(
-                  children: [
-                    const Icon(Icons.design_services_outlined, size: 20),
-                    const SizedBox(width: 12),
-                    Text(l10n.generateProjectFromWallet),
-                  ],
-                ),
-              ),
+              iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
               if (state.walletInfo.protection.protectionType ==
                   APIProtectionType.userPassword) ...[
                 const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: _WalletMenuAction.lock,
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock_outline, size: 20),
-                      SizedBox(width: 12),
-                      Text('Lock wallet'),
-                    ],
-                  ),
-                ),
+                iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: 'Lock wallet'),
               ],
             ],
           ),
@@ -1092,18 +1011,8 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
     final scheme = Theme.of(context).colorScheme;
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.walletReceiveButton)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.walletReceiveButton, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1595,18 +1504,8 @@ class _AddressDetailDialogState extends State<_AddressDetailDialog> {
         : '';
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.addressDetailsTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.close,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.addressDetailsTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.close),
       content: SingleChildScrollView(
         child: SizedBox(
           width: double.maxFinite,
@@ -1830,18 +1729,8 @@ class _AddressLabelEditDialogState extends State<_AddressLabelEditDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.addressLabelTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.addressLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -2158,18 +2047,8 @@ class _CoinDetailDialogState extends State<_CoinDetailDialog> {
     final outpoint = '${utxo.txid}:${utxo.vout}';
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.coinDetailsTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.coinDetailsTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: SingleChildScrollView(
         child: SizedBox(
           width: double.maxFinite,
@@ -2483,18 +2362,8 @@ class _CoinLabelEditDialogState extends State<_CoinLabelEditDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.coinLabelTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.coinLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -2786,18 +2655,8 @@ class _TxDetailDialogState extends State<_TxDetailDialog> {
         : Colors.orange;
 
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.txDetailsTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.close,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.txDetailsTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.close),
       content: SingleChildScrollView(
         child: SizedBox(
           width: double.maxFinite,
@@ -3751,18 +3610,8 @@ class _LabelEditDialogState extends State<_LabelEditDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-      title: Row(
-        children: [
-          Expanded(child: Text(l10n.txLabelTitle)),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: l10n.cancel,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
+      titlePadding: kDialogTitlePadding,
+      title: dialogCloseTitle(l10n.txLabelTitle, onClose: () => Navigator.of(context).pop(), tooltip: l10n.cancel),
       content: TextField(
         controller: _controller,
         autofocus: true,

@@ -77,19 +77,12 @@ impl CoreWallet {
 
             let mfp = root_xprv_to_mfp(&root_xprv, &secp);
             if !descriptor.contains(&mfp) {
-                eprintln!("load_signers: {} not in descriptor, skipping", mfp);
                 continue;
             }
 
             let private_desc = match make_private_descriptor(descriptor, &root_xprv, &secp) {
                 Ok(d) => d,
-                Err(e) => {
-                    eprintln!(
-                        "load_signers: make_private_descriptor failed for {}: {}",
-                        mfp, e
-                    );
-                    continue;
-                }
+                Err(_) => continue,
             };
             // Strip checksum — xpub→xprv replacement invalidates it.
             let private_desc = strip_descriptor_checksum(&private_desc);
@@ -108,13 +101,7 @@ impl CoreWallet {
                 .create_wallet_no_persist()
             {
                 Ok(w) => w,
-                Err(e) => {
-                    eprintln!(
-                        "load_signers: temp wallet creation failed for {}: {}",
-                        mfp, e
-                    );
-                    continue;
-                }
+                Err(_) => continue,
             };
 
             // Copy signers into the main wallet (which has the synced address index).
@@ -126,8 +113,6 @@ impl CoreWallet {
                         .add_signer(keychain, SignerOrdering(200), Arc::clone(signer));
                 }
             }
-
-            eprintln!("load_signers: loaded signers for {}", mfp);
         }
 
         Ok(())
@@ -193,7 +178,7 @@ mod tests {
         // Use a non-null previous_output so BDK doesn't treat this as a coinbase tx.
         let fake_prev = OutPoint {
             txid: bdk_wallet::bitcoin::Txid::from_raw_hash(
-                bdk_wallet::bitcoin::hashes::sha256d::Hash::from_bytes_ref(&[1u8; 32]).clone(),
+                *bdk_wallet::bitcoin::hashes::sha256d::Hash::from_bytes_ref(&[1u8; 32]),
             ),
             vout: 0,
         };

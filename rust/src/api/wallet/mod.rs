@@ -287,6 +287,56 @@ fn source_entity_id(source_type: EntityType, source_id: &str) -> String {
     }
 }
 
+/// Set a coin auto-label only if the coin has no explicit label.
+fn set_coin_if_none(
+    conn: &rusqlite::Connection,
+    outpoint: &str,
+    label: &str,
+    source: &str,
+) -> Result<()> {
+    if !coin_has_explicit_label(conn, outpoint)? {
+        db_set_coin_label(conn, outpoint, label, true, Some(source))?;
+    }
+    Ok(())
+}
+
+/// Set an address auto-label only if the address has no explicit label.
+fn set_address_if_none(
+    conn: &rusqlite::Connection,
+    address: &str,
+    label: &str,
+    source: &str,
+) -> Result<()> {
+    if !address_has_explicit_label(conn, address)? {
+        db_set_address_label(conn, address, label, true, Some(source))?;
+    }
+    Ok(())
+}
+
+/// Set a tx auto-label only if the tx has no explicit label.
+fn set_tx_if_none(
+    conn: &rusqlite::Connection,
+    txid: &str,
+    label: &str,
+    source: &str,
+) -> Result<()> {
+    if !tx_has_explicit_label(conn, txid)? {
+        db_set_tx_label(conn, txid, label, true, Some(source))?;
+    }
+    Ok(())
+}
+
+/// Delete all auto-labels that were propagated from `source` across all three label tables.
+fn clear_source_labels(conn: &rusqlite::Connection, source: &str) -> Result<()> {
+    for table in ["tx_labels", "address_labels", "coin_labels"] {
+        conn.execute(
+            &format!("DELETE FROM {table} WHERE source_entity = ?1"),
+            rusqlite::params![source],
+        )?;
+    }
+    Ok(())
+}
+
 /// Propagate a label to related entities as auto-generated labels.
 /// Clears any stale auto-labels previously propagated by this source first,
 /// then writes new ones — skipping targets that already have an explicit label.
@@ -300,18 +350,7 @@ fn propagate_label(
     let source = source_entity_id(source_type, source_id);
 
     // Remove stale auto-labels from this source before re-propagating.
-    conn.execute(
-        "DELETE FROM tx_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
-    conn.execute(
-        "DELETE FROM address_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
-    conn.execute(
-        "DELETE FROM coin_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
+    clear_source_labels(conn, &source)?;
 
     match source_type {
         EntityType::Tx => {
@@ -335,12 +374,8 @@ fn propagate_label(
                         .address
                         .to_string();
                     let outpoint_str = format!("{}:{}", txid, vout_idx);
-                    if !coin_has_explicit_label(conn, &outpoint_str)? {
-                        db_set_coin_label(conn, &outpoint_str, label, true, Some(&source))?;
-                    }
-                    if !address_has_explicit_label(conn, &address)? {
-                        db_set_address_label(conn, &address, label, true, Some(&source))?;
-                    }
+                    set_coin_if_none(conn, &outpoint_str, label, &source)?;
+                    set_address_if_none(conn, &address, label, &source)?;
                 }
                 // Inputs from our wallet (spent coins).
                 for input in tx_ref.input.iter() {
@@ -358,12 +393,8 @@ fn propagate_label(
                         .address
                         .to_string();
                     let outpoint_str = format!("{}:{}", prev_out.txid, prev_out.vout);
-                    if !coin_has_explicit_label(conn, &outpoint_str)? {
-                        db_set_coin_label(conn, &outpoint_str, label, true, Some(&source))?;
-                    }
-                    if !address_has_explicit_label(conn, &address)? {
-                        db_set_address_label(conn, &address, label, true, Some(&source))?;
-                    }
+                    set_coin_if_none(conn, &outpoint_str, label, &source)?;
+                    set_address_if_none(conn, &address, label, &source)?;
                 }
             }
         }
@@ -392,19 +423,9 @@ fn propagate_label(
                                 our_outpoints.insert((txid.clone(), vout_idx as u32));
                                 // Label the coin.
                                 let outpoint_str = format!("{}:{}", txid, vout_idx);
-                                if !coin_has_explicit_label(conn, &outpoint_str)? {
-                                    db_set_coin_label(
-                                        conn,
-                                        &outpoint_str,
-                                        label,
-                                        true,
-                                        Some(&source),
-                                    )?;
-                                }
+                                set_coin_if_none(conn, &outpoint_str, label, &source)?;
                                 // Label the creating tx.
-                                if !tx_has_explicit_label(conn, &txid)? {
-                                    db_set_tx_label(conn, &txid, label, true, Some(&source))?;
-                                }
+                                set_tx_if_none(conn, &txid, label, &source)?;
                             }
                         }
                     }
@@ -418,9 +439,7 @@ fn propagate_label(
                         );
                         if our_outpoints.contains(&prev) {
                             let spending_txid = canonical_tx.tx_node.txid.to_string();
-                            if !tx_has_explicit_label(conn, &spending_txid)? {
-                                db_set_tx_label(conn, &spending_txid, label, true, Some(&source))?;
-                            }
+                            set_tx_if_none(conn, &spending_txid, label, &source)?;
                         }
                     }
                 }
@@ -432,9 +451,7 @@ fn propagate_label(
             if parts.len() == 2 {
                 let txid = parts[0];
                 // Label the creating tx.
-                if !tx_has_explicit_label(conn, txid)? {
-                    db_set_tx_label(conn, txid, label, true, Some(&source))?;
-                }
+                set_tx_if_none(conn, txid, label, &source)?;
                 if let Ok(vout) = parts[1].parse::<u32>() {
                     let spk_index = wallet.spk_index();
                     // Find the address via tx_graph (works for both spent and unspent).
@@ -450,15 +467,7 @@ fn propagate_label(
                                     .peek_address(*keychain, *derivation_index)
                                     .address
                                     .to_string();
-                                if !address_has_explicit_label(conn, &address)? {
-                                    db_set_address_label(
-                                        conn,
-                                        &address,
-                                        label,
-                                        true,
-                                        Some(&source),
-                                    )?;
-                                }
+                                set_address_if_none(conn, &address, label, &source)?;
                             }
                         }
                         // Label any tx that spends this coin.
@@ -471,15 +480,7 @@ fn propagate_label(
                                 .any(|i| i.previous_output == target_outpoint)
                             {
                                 let spending_txid = canonical_tx.tx_node.txid.to_string();
-                                if !tx_has_explicit_label(conn, &spending_txid)? {
-                                    db_set_tx_label(
-                                        conn,
-                                        &spending_txid,
-                                        label,
-                                        true,
-                                        Some(&source),
-                                    )?;
-                                }
+                                set_tx_if_none(conn, &spending_txid, label, &source)?;
                             }
                         }
                     }
@@ -498,19 +499,7 @@ fn cascade_delete_label(
     source_id: &str,
 ) -> Result<()> {
     let source = source_entity_id(source_type, source_id);
-    conn.execute(
-        "DELETE FROM tx_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
-    conn.execute(
-        "DELETE FROM address_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
-    conn.execute(
-        "DELETE FROM coin_labels WHERE source_entity = ?1",
-        rusqlite::params![source],
-    )?;
-    Ok(())
+    clear_source_labels(conn, &source)
 }
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
@@ -631,6 +620,12 @@ pub struct APIWallet {
 }
 
 impl APIWallet {
+    fn lock_wallet(&self) -> Result<std::sync::MutexGuard<'_, CoreWallet>> {
+        self.inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))
+    }
+
     // -----------------------------------------------------------------------
     // Hot key (seed) management
     // -----------------------------------------------------------------------
@@ -646,10 +641,7 @@ impl APIWallet {
         use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
 
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
 
         let passphrase = passphrase.unwrap_or_default();
         let info = read_wallet_info(&core.conn)?;
@@ -682,10 +674,7 @@ impl APIWallet {
         use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
 
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
 
         let secp = Secp256k1::new();
         let root_xprv = xprv_str_to_root_xprv(&xprv)?;
@@ -703,10 +692,7 @@ impl APIWallet {
     /// List all hot signing keys stored in this wallet (never exposes the seed).
     #[frb(sync)]
     pub fn list_hot_keys(&self) -> Result<Vec<APIHotKeyInfo>> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
 
         let entries = list_seed_entries(&core.conn)?;
         Ok(entries
@@ -722,10 +708,7 @@ impl APIWallet {
     /// Remove a hot signing key by MFP.
     #[frb(sync)]
     pub fn delete_hot_key(&self, mfp: String) -> Result<()> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         delete_seed_entry(&core.conn, &mfp)
     }
 
@@ -736,10 +719,7 @@ impl APIWallet {
     /// user explicitly requests it and after showing an appropriate disclaimer.
     #[frb(sync)]
     pub fn reveal_hot_key(&self, mfp: String) -> Result<String> {
-        let core = self
-            .inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))?;
+        let core = self.lock_wallet()?;
         let result: rusqlite::Result<(Option<String>, Option<String>)> = core.conn.query_row(
             "SELECT mnemonic, xprv FROM seed_entries WHERE mfp = ?1",
             rusqlite::params![mfp],
@@ -776,6 +756,35 @@ pub fn validate_mnemonic(
 
 /// Derive a public keyspec `[mfp/path]xpub` from a mnemonic and derivation path.
 ///
+/// Shared implementation: derive a child xpub from `root` and `derivation_path`,
+/// returning a descriptor keyspec string `[mfp/path]xpub`.
+///
+/// `derivation_path` may include or omit the leading `m/`.
+fn derive_and_format_keyspec(
+    root: &bdk_wallet::bitcoin::bip32::Xpriv,
+    mfp: &str,
+    derivation_path: &str,
+) -> Result<String> {
+    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+    use std::str::FromStr;
+
+    let secp = Secp256k1::new();
+    let path_str = if derivation_path.starts_with("m/") {
+        derivation_path.to_string()
+    } else {
+        format!("m/{}", derivation_path)
+    };
+    let path = DerivationPath::from_str(&path_str)
+        .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", path_str, e))?;
+    let child_xprv = root
+        .derive_priv(&secp, &path)
+        .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
+    let child_xpub = Xpub::from_priv(&secp, &child_xprv);
+    let path_display = path_str.trim_start_matches("m/");
+    Ok(format!("[{}/{}]{}", mfp, path_display, child_xpub))
+}
+
 /// `derivation_path` may include or omit the leading `m/`.
 /// Returns a string suitable for use in a Bitcoin descriptor.
 pub fn derive_keyspec(
@@ -785,30 +794,14 @@ pub fn derive_keyspec(
     network: APINetwork,
 ) -> Result<String> {
     use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
-    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
     use bdk_wallet::bitcoin::secp256k1::Secp256k1;
-    use std::str::FromStr;
 
     let passphrase = passphrase.unwrap_or_default();
     let net: bdk_wallet::bitcoin::Network = network.into();
     let secp = Secp256k1::new();
     let root = mnemonic_to_root_xprv(&mnemonic, &passphrase, net)?;
     let mfp = root_xprv_to_mfp(&root, &secp);
-
-    let path_str = if derivation_path.starts_with("m/") {
-        derivation_path.clone()
-    } else {
-        format!("m/{}", derivation_path)
-    };
-    let path = DerivationPath::from_str(&path_str)
-        .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", path_str, e))?;
-    let child_xprv = root
-        .derive_priv(&secp, &path)
-        .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
-    let child_xpub = Xpub::from_priv(&secp, &child_xprv);
-
-    let path_display = path_str.trim_start_matches("m/");
-    Ok(format!("[{}/{}]{}", mfp, path_display, child_xpub))
+    derive_and_format_keyspec(&root, &mfp, &derivation_path)
 }
 
 /// Derive a public keyspec `[mfp/path]xpub` from a master xprv and derivation path.
@@ -817,28 +810,12 @@ pub fn derive_keyspec(
 /// `derivation_path` may include or omit the leading `m/`.
 pub fn derive_keyspec_from_xprv(xprv_str: String, derivation_path: String) -> Result<String> {
     use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
-    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
     use bdk_wallet::bitcoin::secp256k1::Secp256k1;
-    use std::str::FromStr;
 
     let secp = Secp256k1::new();
     let root = xprv_str_to_root_xprv(&xprv_str)?;
     let mfp = root_xprv_to_mfp(&root, &secp);
-
-    let path_str = if derivation_path.starts_with("m/") {
-        derivation_path.clone()
-    } else {
-        format!("m/{}", derivation_path)
-    };
-    let path = DerivationPath::from_str(&path_str)
-        .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", path_str, e))?;
-    let child_xprv = root
-        .derive_priv(&secp, &path)
-        .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
-    let child_xpub = Xpub::from_priv(&secp, &child_xprv);
-
-    let path_display = path_str.trim_start_matches("m/");
-    Ok(format!("[{}/{}]{}", mfp, path_display, child_xpub))
+    derive_and_format_keyspec(&root, &mfp, &derivation_path)
 }
 
 // ---------------------------------------------------------------------------

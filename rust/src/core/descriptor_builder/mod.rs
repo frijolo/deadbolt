@@ -1162,8 +1162,8 @@ mod tests {
             .expect("1-of-2 multisig path not found");
         assert_eq!(multisig.threshold, 1);
         assert_eq!(multisig.abs_timelock, 0);
-        assert!(multisig.key_changes.get("c449c5c5").is_some());
-        assert!(multisig.key_changes.get("c61af686").is_some());
+        assert!(multisig.key_changes.contains_key("c449c5c5"));
+        assert!(multisig.key_changes.contains_key("c61af686"));
 
         let and_older = paths
             .iter()
@@ -1173,7 +1173,7 @@ mod tests {
         assert_eq!(and_older.mfps.len(), 1);
         assert_eq!(and_older.mfps[0], "c449c5c5");
         assert_eq!(and_older.abs_timelock, 0);
-        assert!(and_older.key_changes.get("c449c5c5").is_some());
+        assert!(and_older.key_changes.contains_key("c449c5c5"));
 
         Ok(())
     }

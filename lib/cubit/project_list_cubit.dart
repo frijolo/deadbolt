@@ -105,25 +105,13 @@ class ProjectListCubit extends Cubit<ProjectListState> with CubitErrorLogger {
       final keys = await _db.getKeysForProject(id);
       final paths = await _db.getSpendPathsForProject(id);
 
-      final keyLabels = <String, String>{};
-      for (final key in keys) {
-        if (key.customName != null) keyLabels[key.mfp] = key.customName!;
-      }
-
-      final pathLabels = <String, String>{};
-      for (final path in paths) {
-        if (path.customName != null) {
-          pathLabels[path.rustId.toString()] = path.customName!;
-        }
-      }
-
       final exportData = ProjectExport(
         version: 1,
         exportedAt: DateTime.now(),
         name: project.name,
         descriptor: project.descriptor,
-        keyLabels: keyLabels,
-        pathLabels: pathLabels,
+        keyLabels: buildKeyLabels(keys),
+        pathLabels: buildPathLabels(paths),
       );
 
       final fileName =

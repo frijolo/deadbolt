@@ -20,6 +20,8 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwSignSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
 import 'package:deadbolt/widgets/text_import_sheet.dart' show showPsbtImportSheet;
+import 'package:deadbolt/widgets/popup_menu_helpers.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 class PsbtDetailScreen extends StatefulWidget {
   final APIPsbtInfo psbt;
@@ -57,23 +59,14 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     super.dispose();
   }
 
-  APIPsbtAnalysis? get _analysis {
+  WalletDetailLoaded? get _loadedState {
     final s = context.read<WalletDetailCubit>().state;
-    if (s is WalletDetailLoaded) return s.psbtAnalyses[_psbt.id.toInt()];
-    return null;
+    return s is WalletDetailLoaded ? s : null;
   }
 
-  Map<String, String> get _keyLabels {
-    final s = context.read<WalletDetailCubit>().state;
-    if (s is WalletDetailLoaded) return s.keyLabels;
-    return {};
-  }
-
-  List<APIHotKeyInfo> get _hotKeys {
-    final s = context.read<WalletDetailCubit>().state;
-    if (s is WalletDetailLoaded) return s.hotKeys;
-    return [];
-  }
+  APIPsbtAnalysis? get _analysis => _loadedState?.psbtAnalyses[_psbt.id.toInt()];
+  Map<String, String> get _keyLabels => _loadedState?.keyLabels ?? {};
+  List<APIHotKeyInfo> get _hotKeys => _loadedState?.hotKeys ?? [];
 
   int get _signedCount =>
       _analysis?.signers.where((s) => s.hasSigned).length ?? 0;
@@ -435,18 +428,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        title: Row(
-          children: [
-            Expanded(child: Text(l10n.psbtDeleteTitle)),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: l10n.cancel,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        titlePadding: kDialogTitlePadding,
+        title: dialogCloseTitle(l10n.psbtDeleteTitle, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),
         content: Text(l10n.psbtDeleteConfirm),
         actions: [
           FilledButton(
@@ -497,15 +480,11 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   if (action == _PsbtMenuAction.delete) _delete(context);
                 },
                 itemBuilder: (_) => [
-                  PopupMenuItem(
+                  iconMenuItem(
                     value: _PsbtMenuAction.delete,
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 20, color: Colors.red.withAlpha(180)),
-                        const SizedBox(width: 12),
-                        Text(l10n.psbtDeleteTitle, style: TextStyle(color: Colors.red.withAlpha(180))),
-                      ],
-                    ),
+                    icon: Icons.delete_outline,
+                    label: l10n.psbtDeleteTitle,
+                    color: Colors.red.withAlpha(180),
                   ),
                 ],
               ),
