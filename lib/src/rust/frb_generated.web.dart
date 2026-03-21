@@ -195,6 +195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType dco_decode_api_wallet_type(dynamic raw);
 
   @protected
+  APIXpubSlot dco_decode_api_xpub_slot(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -289,6 +292,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIWalletInfo> dco_decode_list_api_wallet_info(dynamic raw);
+
+  @protected
+  List<APIXpubSlot> dco_decode_list_api_xpub_slot(dynamic raw);
 
   @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
@@ -524,6 +530,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType sse_decode_api_wallet_type(SseDeserializer deserializer);
 
   @protected
+  APIXpubSlot sse_decode_api_xpub_slot(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -648,6 +657,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIWalletInfo> sse_decode_list_api_wallet_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<APIXpubSlot> sse_decode_list_api_xpub_slot(SseDeserializer deserializer);
 
   @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
@@ -932,6 +944,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_wallet_type(APIWalletType self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_xpub_slot(APIXpubSlot self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1088,6 +1103,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_wallet_info(
     List<APIWalletInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_xpub_slot(
+    List<APIXpubSlot> self,
     SseSerializer serializer,
   );
 

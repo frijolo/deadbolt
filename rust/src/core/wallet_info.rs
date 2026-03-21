@@ -4,8 +4,8 @@ use rand::TryRngCore;
 
 use crate::api::model::APINetwork;
 use crate::core::key_protection::{
-    generate_data_key, generate_salt, resolve_data_key, wrap_key, ProtectionMeta, DEFAULT_M_COST,
-    DEFAULT_P_COST, DEFAULT_T_COST,
+    generate_data_key, generate_salt, resolve_data_key, wrap_key, wrap_with_xpub, ProtectionMeta,
+    DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
 };
 use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
@@ -35,6 +35,9 @@ pub enum WalletProtectionRequest {
     DeviceKey,
     /// Derive wrapping key from password via Argon2id (Type 1).
     UserPassword { password: String },
+    /// Wrap with each xpub in the descriptor; any one can unlock (Type 2).
+    /// `xpub_slots`: list of `(mfp, xpub)` pairs extracted from the descriptor.
+    XpubKey { xpub_slots: Vec<(String, String)> },
 }
 
 /// Create a new wallet .db file with a UUID filename, initialize BDK tables,
@@ -94,7 +97,7 @@ pub fn create_wallet_db(
 }
 
 /// Build the `ProtectionMeta` for the given protection request.
-fn build_protection_meta(
+pub fn build_protection_meta(
     data_key: &str,
     device_key_hex: &str,
     protection: WalletProtectionRequest,
@@ -132,12 +135,31 @@ fn build_protection_meta(
                 last_synced_at: None,
             })
         }
+        WalletProtectionRequest::XpubKey { xpub_slots } => {
+            if xpub_slots.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "XpubKey protection requires at least one xpub"
+                ));
+            }
+            let slots = xpub_slots
+                .iter()
+                .map(|(mfp, xpub)| wrap_with_xpub(mfp, xpub, data_key))
+                .collect::<Result<Vec<_>>>()?;
+            Ok(ProtectionMeta::XpubKey {
+                version: 1,
+                slots,
+                display_name: display_name.map(|s| s.to_string()),
+                network: network.map(|s| s.to_string()),
+                last_synced_at: None,
+            })
+        }
     }
 }
 
 /// Open a wallet and return its data key by resolving the protection meta.
 /// - For DeviceKey wallets: pass `password = None`.
 /// - For UserPassword wallets: pass `password = Some("user-password")`.
+/// - For XpubKey wallets: pass `password = Some("xpub...")`.
 pub fn resolve_wallet_key(
     wallet_path: &str,
     device_key_hex: &str,
@@ -152,6 +174,11 @@ pub fn resolve_wallet_key(
             let pwd =
                 password.ok_or_else(|| anyhow::anyhow!("Password required to open this wallet"))?;
             resolve_data_key(&meta, pwd)
+        }
+        ProtectionMeta::XpubKey { .. } => {
+            let xpub =
+                password.ok_or_else(|| anyhow::anyhow!("xpub required to open this wallet"))?;
+            resolve_data_key(&meta, xpub)
         }
     }
 }
@@ -191,16 +218,25 @@ pub fn list_wallets_in_dir(
             }
         };
 
-        // UserPassword wallets: include them as locked entries so they appear
-        // in the list with a lock indicator. Name and network come from the meta
-        // sidecar (written at creation time and refreshed on open).
-        if let ProtectionMeta::UserPassword {
-            ref display_name,
-            ref network,
-            last_synced_at,
-            ..
-        } = meta
-        {
+        // UserPassword and XpubKey wallets: include them as locked entries so they
+        // appear in the list with a lock indicator. Name and network come from the
+        // meta sidecar (written at creation time and refreshed on open).
+        let locked_row = match &meta {
+            ProtectionMeta::UserPassword {
+                display_name,
+                network,
+                last_synced_at,
+                ..
+            } => Some((display_name.clone(), network.clone(), *last_synced_at)),
+            ProtectionMeta::XpubKey {
+                display_name,
+                network,
+                last_synced_at,
+                ..
+            } => Some((display_name.clone(), network.clone(), *last_synced_at)),
+            _ => None,
+        };
+        if let Some((display_name, network, last_synced_at)) = locked_row {
             let name = display_name
                 .as_deref()
                 .unwrap_or("Locked Wallet")
@@ -288,8 +324,8 @@ pub fn rename_wallet_in_file(
     Ok(())
 }
 
-/// Refresh the cached `network` and `last_synced_at` fields in a `UserPassword` meta
-/// sidecar after the wallet has been successfully opened or synced.
+/// Refresh the cached `network` and `last_synced_at` fields in a `UserPassword` or
+/// `XpubKey` meta sidecar after the wallet has been successfully opened or synced.
 ///
 /// No-op for DeviceKey wallets. Best-effort: failures are silently ignored.
 pub fn refresh_user_password_meta_cache(
@@ -300,24 +336,94 @@ pub fn refresh_user_password_meta_cache(
     let Ok(mut meta) = read_meta(wallet_path) else {
         return;
     };
-    if let ProtectionMeta::UserPassword {
-        network: ref mut cached_network,
-        last_synced_at: ref mut cached_ts,
-        ..
-    } = meta
-    {
-        *cached_network = Some(network.as_str().to_string());
-        *cached_ts = last_synced_at;
-        let _ = write_meta(wallet_path, &meta);
+    let network_str = Some(network.as_str().to_string());
+    match &mut meta {
+        ProtectionMeta::UserPassword {
+            network: cached_network,
+            last_synced_at: cached_ts,
+            ..
+        } => {
+            *cached_network = network_str;
+            *cached_ts = last_synced_at;
+        }
+        ProtectionMeta::XpubKey {
+            network: cached_network,
+            last_synced_at: cached_ts,
+            ..
+        } => {
+            *cached_network = network_str;
+            *cached_ts = last_synced_at;
+        }
+        _ => return,
     }
+    let _ = write_meta(wallet_path, &meta);
 }
 
-/// Check whether a wallet requires a password (i.e. is UserPassword protected).
+/// Check whether a wallet requires a credential (password or xpub) to open.
+/// Returns `false` only for DeviceKey wallets.
 pub fn wallet_needs_password(wallet_path: &str) -> bool {
     matches!(
         read_meta(wallet_path),
-        Ok(ProtectionMeta::UserPassword { .. })
+        Ok(ProtectionMeta::UserPassword { .. }) | Ok(ProtectionMeta::XpubKey { .. })
     )
+}
+
+/// Check whether a wallet is XpubKey protected.
+pub fn wallet_needs_xpub(wallet_path: &str) -> bool {
+    matches!(read_meta(wallet_path), Ok(ProtectionMeta::XpubKey { .. }))
+}
+
+/// Add a new xpub slot to a XpubKey-protected wallet.
+/// `data_key` must be the already-resolved data key (obtained after opening).
+/// Returns an error if the MFP is already registered or the wallet is not XpubKey protected.
+pub fn add_xpub_slot_to_wallet(
+    wallet_path: &str,
+    mfp: &str,
+    xpub: &str,
+    data_key: &str,
+) -> Result<()> {
+    let mut meta = read_meta(wallet_path)?;
+    if let ProtectionMeta::XpubKey { ref mut slots, .. } = meta {
+        if slots.iter().any(|s| s.mfp == mfp) {
+            return Err(anyhow::anyhow!("MFP {} is already registered", mfp));
+        }
+        let slot = wrap_with_xpub(mfp, xpub, data_key)?;
+        slots.push(slot);
+        write_meta(wallet_path, &meta)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Wallet is not XpubKey protected"))
+    }
+}
+
+/// Remove a slot by MFP from a XpubKey-protected wallet.
+/// Fails if it would leave the wallet with zero slots.
+pub fn remove_xpub_slot_from_wallet(wallet_path: &str, mfp: &str) -> Result<()> {
+    let mut meta = read_meta(wallet_path)?;
+    if let ProtectionMeta::XpubKey { ref mut slots, .. } = meta {
+        if slots.len() <= 1 {
+            return Err(anyhow::anyhow!("Cannot remove the last xpub slot"));
+        }
+        let before = slots.len();
+        slots.retain(|s| s.mfp != mfp);
+        if slots.len() == before {
+            return Err(anyhow::anyhow!("MFP {} not found", mfp));
+        }
+        write_meta(wallet_path, &meta)?;
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Wallet is not XpubKey protected"))
+    }
+}
+
+/// List the registered MFPs for a XpubKey-protected wallet.
+pub fn list_xpub_mfps(wallet_path: &str) -> Result<Vec<String>> {
+    let meta = read_meta(wallet_path)?;
+    if let ProtectionMeta::XpubKey { slots, .. } = meta {
+        Ok(slots.into_iter().map(|s| s.mfp).collect())
+    } else {
+        Err(anyhow::anyhow!("Wallet is not XpubKey protected"))
+    }
 }
 
 #[cfg(test)]

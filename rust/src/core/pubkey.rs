@@ -301,7 +301,7 @@ mod tests {
         assert_eq!(nums_xpub.child_number, ChildNumber::from_normal_idx(0)?);
 
         // Create a PubKey from the NUMS xpub and verify it's detected as unspendable
-        let nums_key_str = format!("[00000000]{}", nums_xpub.to_string());
+        let nums_key_str = format!("[00000000]{}", nums_xpub);
         let nums_key = PubKey::try_from(nums_key_str.as_str())?;
         assert!(
             nums_key.is_unspendable(),

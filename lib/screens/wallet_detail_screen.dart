@@ -21,6 +21,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
+import 'package:deadbolt/screens/change_protection_dialog.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart';
@@ -95,17 +96,22 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               context.read<WalletDetailCubit>().clearError);
         }
         if (state is WalletDetailNeedsPassword) {
-          final password = await showPasswordPrompt(
-            context,
-            title: 'Enter wallet password',
-            subtitle: 'This wallet is protected with a password.',
-          );
-          if (password != null && context.mounted) {
+          if (!context.mounted) return;
+          final String? credential;
+          if (state.isXpubKey) {
+            credential = await showXpubUnlockDialog(context);
+          } else {
+            credential = await showPasswordPrompt(
+              context,
+              title: 'Enter wallet password',
+              subtitle: 'This wallet is protected with a password.',
+            );
+          }
+          if (credential != null && context.mounted) {
             context
                 .read<WalletDetailCubit>()
-                .load(state.walletPath, password: password);
+                .load(state.walletPath, password: credential);
           } else if (context.mounted) {
-            // User cancelled — pop back to wallet list
             Navigator.of(context).maybePop();
           }
         }
@@ -182,6 +188,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       case _WalletMenuAction.lock:
         context.read<WalletDetailCubit>().lockWallet();
         Navigator.of(context).pop();
+      case _WalletMenuAction.changeProtection:
+        showChangeProtectionDialog(
+          context,
+          currentProtection: state.walletInfo.protection.protectionType,
+        );
     }
   }
 
@@ -590,9 +601,12 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
               const PopupMenuDivider(),
               iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
+              const PopupMenuDivider(),
+              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: 'Change protection'),
               if (state.walletInfo.protection.protectionType ==
-                  APIProtectionType.userPassword) ...[
-                const PopupMenuDivider(),
+                      APIProtectionType.userPassword ||
+                  state.walletInfo.protection.protectionType ==
+                      APIProtectionType.xpubKey) ...[
                 iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: 'Lock wallet'),
               ],
             ],
@@ -614,6 +628,10 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               walletName: state.walletInfo.name,
               descriptor: state.walletInfo.descriptor,
               network: state.walletInfo.network,
+            ),
+            onChangeProtectionTap: () => showChangeProtectionDialog(
+              context,
+              currentProtection: state.walletInfo.protection.protectionType,
             ),
           ),
           1 => TransactionsView(state: state),
@@ -671,6 +689,7 @@ class _OverviewView extends StatelessWidget {
   final VoidCallback onExportLabelsTap;
   final VoidCallback onImportLabelsTap;
   final VoidCallback onHwTap;
+  final VoidCallback onChangeProtectionTap;
 
   const _OverviewView({
     required this.state,
@@ -681,6 +700,7 @@ class _OverviewView extends StatelessWidget {
     required this.onExportLabelsTap,
     required this.onImportLabelsTap,
     required this.onHwTap,
+    required this.onChangeProtectionTap,
   });
 
   @override
@@ -771,76 +791,48 @@ class _OverviewView extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Primary actions ─────────────────────────────────────────────────
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.arrow_upward,
-                label: l10n.walletSendButton,
-                filled: true,
-                onTap: onSendTap,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.arrow_downward,
-                label: l10n.walletReceiveButton,
-                filled: true,
-                onTap: onReceiveTap,
-              ),
-            ),
-          ],
+        _twoButtons(
+          icon1: Icons.arrow_upward, label1: l10n.walletSendButton, onTap1: onSendTap, filled1: true,
+          icon2: Icons.arrow_downward, label2: l10n.walletReceiveButton, onTap2: onReceiveTap, filled2: true,
         ),
         const SizedBox(height: 12),
 
         // ── Secondary actions ───────────────────────────────────────────────
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.sync,
-                label: l10n.syncButton,
-                enabled: !state.isSyncing,
-                onTap: onSyncTap,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.manage_search,
-                label: l10n.rescanButton,
-                onTap: onRescanTap,
-              ),
-            ),
-          ],
+        _twoButtons(
+          icon1: Icons.sync, label1: l10n.syncButton, onTap1: onSyncTap, enabled1: !state.isSyncing,
+          icon2: Icons.manage_search, label2: l10n.rescanButton, onTap2: onRescanTap,
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.upload_outlined,
-                label: l10n.exportBip329Button,
-                onTap: onExportLabelsTap,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.download_outlined,
-                label: l10n.importBip329Button,
-                onTap: onImportLabelsTap,
-              ),
-            ),
-          ],
+        _twoButtons(
+          icon1: Icons.upload_outlined, label1: l10n.exportBip329Button, onTap1: onExportLabelsTap,
+          icon2: Icons.download_outlined, label2: l10n.importBip329Button, onTap2: onImportLabelsTap,
         ),
         const SizedBox(height: 12),
-        _ActionButton(
-          icon: Icons.memory,
-          label: 'Hardware wallet',
-          onTap: onHwTap,
+        _twoButtons(
+          icon1: Icons.memory, label1: 'Hardware wallet', onTap1: onHwTap,
+          icon2: Icons.shield_outlined, label2: 'Encryption', onTap2: onChangeProtectionTap,
         ),
+      ],
+    );
+  }
+
+  static Widget _twoButtons({
+    required IconData icon1,
+    required String label1,
+    required VoidCallback onTap1,
+    bool filled1 = false,
+    bool enabled1 = true,
+    required IconData icon2,
+    required String label2,
+    required VoidCallback onTap2,
+    bool filled2 = false,
+    bool enabled2 = true,
+  }) {
+    return Row(
+      children: [
+        Expanded(child: _ActionButton(icon: icon1, label: label1, filled: filled1, enabled: enabled1, onTap: onTap1)),
+        const SizedBox(width: 12),
+        Expanded(child: _ActionButton(icon: icon2, label: label2, filled: filled2, enabled: enabled2, onTap: onTap2)),
       ],
     );
   }
@@ -953,8 +945,7 @@ class _BalanceChip extends StatelessWidget {
   }
 }
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock }
-
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
 
 enum _ExportChoice { labels, descriptor, wallet }
 

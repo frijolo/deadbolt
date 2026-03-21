@@ -151,8 +151,43 @@ class WalletService {
     );
   }
 
-  /// True if the wallet's .meta marks it as UserPassword protected.
+  /// True if the wallet requires a credential (password or xpub) to open.
   Future<bool> walletRequiresPassword(String walletPath) async {
     return rust_wallet.walletRequiresPassword(walletPath: walletPath);
+  }
+
+  /// True if the wallet uses XpubKey protection.
+  Future<bool> walletRequiresXpub(String walletPath) async {
+    return rust_wallet.walletRequiresXpub(walletPath: walletPath);
+  }
+
+  /// Add a new xpub slot to a XpubKey-protected wallet.
+  Future<void> addXpubSlot({
+    required String walletPath,
+    required String mfp,
+    required String xpub,
+    required String currentXpub,
+  }) async {
+    final keyHex = await getOrCreateEncryptionKey();
+    await rust_wallet.addXpubSlot(
+      walletPath: walletPath,
+      newMfp: mfp,
+      newXpub: xpub,
+      deviceKeyHex: keyHex,
+      currentXpub: currentXpub,
+    );
+  }
+
+  /// Remove an xpub slot by MFP from a XpubKey-protected wallet.
+  Future<void> removeXpubSlot({
+    required String walletPath,
+    required String mfp,
+  }) async {
+    await rust_wallet.removeXpubSlot(walletPath: walletPath, mfp: mfp);
+  }
+
+  /// List registered xpub slots for a XpubKey-protected wallet.
+  Future<List<APIXpubSlot>> listXpubSlots(String walletPath) async {
+    return rust_wallet.listXpubSlots(walletPath: walletPath);
   }
 }

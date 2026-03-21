@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `derive_and_format_keyspec`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -84,11 +84,48 @@ Future<ApiWallet> openWallet({
   password: password,
 );
 
-/// Check whether a wallet requires a password to open.
+/// Check whether a wallet requires a credential (password or xpub) to open.
 Future<bool> walletRequiresPassword({required String walletPath}) => RustLib
     .instance
     .api
     .crateApiWalletWalletRequiresPassword(walletPath: walletPath);
+
+/// Check whether a wallet is XpubKey protected.
+Future<bool> walletRequiresXpub({required String walletPath}) => RustLib
+    .instance
+    .api
+    .crateApiWalletWalletRequiresXpub(walletPath: walletPath);
+
+/// Add a new xpub slot to a XpubKey-protected wallet.
+/// `current_xpub` is any already-registered xpub (used to derive the data key).
+/// `new_mfp` and `new_xpub` identify the slot to add.
+Future<void> addXpubSlot({
+  required String walletPath,
+  required String newMfp,
+  required String newXpub,
+  required String deviceKeyHex,
+  required String currentXpub,
+}) => RustLib.instance.api.crateApiWalletAddXpubSlot(
+  walletPath: walletPath,
+  newMfp: newMfp,
+  newXpub: newXpub,
+  deviceKeyHex: deviceKeyHex,
+  currentXpub: currentXpub,
+);
+
+/// Remove an xpub slot by MFP from a XpubKey-protected wallet.
+/// Fails if it would leave the wallet with zero slots.
+Future<void> removeXpubSlot({
+  required String walletPath,
+  required String mfp,
+}) => RustLib.instance.api.crateApiWalletRemoveXpubSlot(
+  walletPath: walletPath,
+  mfp: mfp,
+);
+
+/// List the MFPs of all registered xpub slots for a XpubKey-protected wallet.
+Future<List<APIXpubSlot>> listXpubSlots({required String walletPath}) =>
+    RustLib.instance.api.crateApiWalletListXpubSlots(walletPath: walletPath);
 
 /// Validate a mnemonic phrase and return its MFP without storing anything.
 Future<APIHotKeyInfo> validateMnemonic({
@@ -101,8 +138,6 @@ Future<APIHotKeyInfo> validateMnemonic({
   network: network,
 );
 
-/// Derive a public keyspec `[mfp/path]xpub` from a mnemonic and derivation path.
-///
 /// `derivation_path` may include or omit the leading `m/`.
 /// Returns a string suitable for use in a Bitcoin descriptor.
 Future<String> deriveKeyspec({
@@ -296,6 +331,23 @@ abstract class ApiWallet implements RustOpaqueInterface {
   Future<String> broadcastPsbt({
     required PlatformInt64 id,
     required String electrumUrl,
+  });
+
+  /// Change the wallet's encryption protection scheme.
+  ///
+  /// Generates a fresh SQLCipher data key and re-encrypts the database
+  /// in-place via `PRAGMA rekey` — the existing connection stays open and
+  /// operational throughout. The `.meta` sidecar is then rewritten with the
+  /// new scheme. No export/import required.
+  ///
+  /// After this call the Dart layer must update its credential cache:
+  /// - `DeviceKey` → evict any cached password (automatic unlock).
+  /// - `UserPassword` → cache `new_password`.
+  /// - `XpubKey` → evict any cached password (user enters xpub on next open).
+  Future<void> changeProtection({
+    required String deviceKeyHex,
+    required APIProtectionType newProtectionType,
+    String? newPassword,
   });
 
   /// Build an unsigned PSBT with optional coin control and spend-path selection.

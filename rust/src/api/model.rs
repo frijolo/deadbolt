@@ -89,13 +89,22 @@ pub enum APIProtectionType {
     DeviceKey,
     /// Wrapped with a key derived from a user password (Argon2id).
     UserPassword,
+    /// Each xpub in the descriptor has its own slot; any one can unlock.
+    XpubKey,
+}
+
+/// One registered xpub slot in a XpubKey-protected wallet.
+#[derive(Debug, Clone)]
+pub struct APIXpubSlot {
+    /// Master fingerprint (8-char lowercase hex).
+    pub mfp: String,
 }
 
 /// Protection information returned as part of `APIWalletInfo`.
 #[derive(Debug, Clone)]
 pub struct APIWalletProtection {
     pub protection_type: APIProtectionType,
-    /// True when this wallet requires a password to open.
+    /// True when this wallet requires a credential (password or xpub) to open.
     pub needs_password: bool,
 }
 

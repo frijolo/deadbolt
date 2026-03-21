@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -374,6 +374,9 @@ enum APIProtectionType {
 
   /// Wrapped with a key derived from a user password (Argon2id).
   userPassword,
+
+  /// Each xpub in the descriptor has its own slot; any one can unlock.
+  xpubKey,
 }
 
 class APIPsbtAnalysis {
@@ -1142,7 +1145,7 @@ class APIWalletInfo {
 class APIWalletProtection {
   final APIProtectionType protectionType;
 
-  /// True when this wallet requires a password to open.
+  /// True when this wallet requires a credential (password or xpub) to open.
   final bool needsPassword;
 
   const APIWalletProtection({
@@ -1171,4 +1174,22 @@ enum APIWalletType {
   p2ShWpkh,
   p2ShWsh,
   unknown,
+}
+
+/// One registered xpub slot in a XpubKey-protected wallet.
+class APIXpubSlot {
+  /// Master fingerprint (8-char lowercase hex).
+  final String mfp;
+
+  const APIXpubSlot({required this.mfp});
+
+  @override
+  int get hashCode => mfp.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIXpubSlot &&
+          runtimeType == other.runtimeType &&
+          mfp == other.mfp;
 }

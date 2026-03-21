@@ -275,9 +275,45 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                   ),
                 ],
               ),
+              Row(
+                children: [
+                  Radio<APIProtectionType>(
+                      value: APIProtectionType.xpubKey),
+                  const Expanded(
+                    child: Text('xpub key (any descriptor key unlocks)'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
+        if (_protectionType == APIProtectionType.xpubKey) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Any xpub from the descriptor can unlock this wallet. '
+                    'Do not share those xpubs with third parties.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (_protectionType == APIProtectionType.userPassword) ...[
           const SizedBox(height: 8),
           TextFormField(

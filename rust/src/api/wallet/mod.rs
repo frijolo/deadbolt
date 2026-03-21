@@ -8,20 +8,23 @@ use crate::api::model::{
     APIKeychain, APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
     APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
     APITransaction, APITransactionPage, APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
-    APIWalletProtection,
+    APIWalletProtection, APIXpubSlot,
 };
-use crate::core::key_protection::{decrypt_bytes, encrypt_bytes, ProtectionMeta};
+use crate::core::key_protection::{
+    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
+};
 use crate::core::project_seeds::{
     delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
     open_project_seeds_db, reveal_project_seed_value,
 };
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
-    create_wallet_db, generate_uuid_v4, get_wallet_info_from_file, list_wallets_in_dir,
-    refresh_user_password_meta_cache, rename_wallet_in_file, resolve_wallet_key,
-    wallet_needs_password, WalletProtectionRequest,
+    add_xpub_slot_to_wallet, build_protection_meta, create_wallet_db, generate_uuid_v4,
+    get_wallet_info_from_file, list_wallets_in_dir, list_xpub_mfps,
+    refresh_user_password_meta_cache, remove_xpub_slot_from_wallet, rename_wallet_in_file,
+    resolve_wallet_key, wallet_needs_password, wallet_needs_xpub, WalletProtectionRequest,
 };
-use crate::core::wallet_meta::{delete_meta, read_meta};
+use crate::core::wallet_meta::{delete_meta, read_meta, write_meta};
 use crate::core::wallet_persistence::{
     address_has_explicit_label, coin_has_explicit_label, delete_psbt_row, delete_seed_entry,
     ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
@@ -113,7 +116,7 @@ fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, S
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\](xpub[A-Za-z0-9]+)")
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\]([A-Za-z]{1,4}pub[A-Za-z0-9]+)")
             .expect("hard-coded xpub regex is valid")
     });
     let mut map = std::collections::HashMap::new();
@@ -270,6 +273,10 @@ fn protection_for_path(wallet_path: &str) -> APIWalletProtection {
     match read_meta(wallet_path) {
         Ok(ProtectionMeta::UserPassword { .. }) => APIWalletProtection {
             protection_type: APIProtectionType::UserPassword,
+            needs_password: true,
+        },
+        Ok(ProtectionMeta::XpubKey { .. }) => APIWalletProtection {
+            protection_type: APIProtectionType::XpubKey,
             needs_password: true,
         },
         _ => APIWalletProtection {
@@ -540,6 +547,17 @@ pub fn create_wallet(
                 .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
             WalletProtectionRequest::UserPassword { password: pwd }
         }
+        APIProtectionType::XpubKey => {
+            // Extract all (mfp, xpub) pairs from the descriptor automatically.
+            let map = extract_xpub_mfp_map(&descriptor);
+            if map.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "No xpubs found in descriptor for XpubKey protection"
+                ));
+            }
+            let xpub_slots: Vec<(String, String)> = map.into_iter().collect();
+            WalletProtectionRequest::XpubKey { xpub_slots }
+        }
     };
     let (path, row) = create_wallet_db(
         &wallets_dir,
@@ -617,9 +635,40 @@ pub fn open_wallet(
     })
 }
 
-/// Check whether a wallet requires a password to open.
+/// Check whether a wallet requires a credential (password or xpub) to open.
 pub fn wallet_requires_password(wallet_path: String) -> bool {
     wallet_needs_password(&wallet_path)
+}
+
+/// Check whether a wallet is XpubKey protected.
+pub fn wallet_requires_xpub(wallet_path: String) -> bool {
+    wallet_needs_xpub(&wallet_path)
+}
+
+/// Add a new xpub slot to a XpubKey-protected wallet.
+/// `current_xpub` is any already-registered xpub (used to derive the data key).
+/// `new_mfp` and `new_xpub` identify the slot to add.
+pub fn add_xpub_slot(
+    wallet_path: String,
+    new_mfp: String,
+    new_xpub: String,
+    device_key_hex: String,
+    current_xpub: String,
+) -> Result<()> {
+    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, Some(&current_xpub))?;
+    add_xpub_slot_to_wallet(&wallet_path, &new_mfp, &new_xpub, &data_key)
+}
+
+/// Remove an xpub slot by MFP from a XpubKey-protected wallet.
+/// Fails if it would leave the wallet with zero slots.
+pub fn remove_xpub_slot(wallet_path: String, mfp: String) -> Result<()> {
+    remove_xpub_slot_from_wallet(&wallet_path, &mfp)
+}
+
+/// List the MFPs of all registered xpub slots for a XpubKey-protected wallet.
+pub fn list_xpub_slots(wallet_path: String) -> Result<Vec<APIXpubSlot>> {
+    let mfps = list_xpub_mfps(&wallet_path)?;
+    Ok(mfps.into_iter().map(|mfp| APIXpubSlot { mfp }).collect())
 }
 
 /// Live wallet handle. Open once with [open_wallet], then call methods directly.
@@ -637,6 +686,70 @@ impl APIWallet {
         self.inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Protection management
+    // -----------------------------------------------------------------------
+
+    /// Change the wallet's encryption protection scheme.
+    ///
+    /// Generates a fresh SQLCipher data key and re-encrypts the database
+    /// in-place via `PRAGMA rekey` — the existing connection stays open and
+    /// operational throughout. The `.meta` sidecar is then rewritten with the
+    /// new scheme. No export/import required.
+    ///
+    /// After this call the Dart layer must update its credential cache:
+    /// - `DeviceKey` → evict any cached password (automatic unlock).
+    /// - `UserPassword` → cache `new_password`.
+    /// - `XpubKey` → evict any cached password (user enters xpub on next open).
+    pub fn change_protection(
+        &self,
+        device_key_hex: String,
+        new_protection_type: APIProtectionType,
+        new_password: Option<String>,
+    ) -> Result<()> {
+        let mut core = self.lock_wallet()?;
+
+        // 1. Generate a fresh data key for forward secrecy.
+        let new_data_key = generate_data_key();
+
+        // 2. Re-encrypt the database on the EXISTING connection — no close needed.
+        core.rekey(&new_data_key)?;
+
+        // 3. Build the protection request (XpubKey: auto-extract from descriptor).
+        let row = read_wallet_info(&core.conn)?;
+        let protection = match new_protection_type {
+            APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
+            APIProtectionType::UserPassword => {
+                let pwd = new_password
+                    .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword"))?;
+                WalletProtectionRequest::UserPassword { password: pwd }
+            }
+            APIProtectionType::XpubKey => {
+                let map = extract_xpub_mfp_map(&row.descriptor);
+                if map.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "No xpubs found in descriptor for XpubKey protection"
+                    ));
+                }
+                WalletProtectionRequest::XpubKey {
+                    xpub_slots: map.into_iter().collect(),
+                }
+            }
+        };
+
+        // 4. Build and write the new .meta sidecar.
+        let meta = build_protection_meta(
+            &new_data_key,
+            &device_key_hex,
+            protection,
+            Some(&row.name),
+            Some(&row.network),
+        )?;
+        write_meta(&self.path, &meta)?;
+
+        Ok(())
     }
 
     // -----------------------------------------------------------------------

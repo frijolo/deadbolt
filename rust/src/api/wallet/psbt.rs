@@ -622,7 +622,7 @@ impl APIWallet {
                 ..Default::default()
             },
         ) {
-            Ok(_) => eprintln!("sign_psbt_with_key: added partial sigs for {}", mfp),
+            Ok(_) => {}
             Err(e) => return Err(anyhow::anyhow!("Signing failed for {}: {}", mfp, e)),
         }
 

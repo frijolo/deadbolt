@@ -1151,6 +1151,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createTxSelfPayButton => 'AUTO';
 
   @override
+  String get createTxMyWalletsButton => 'MIS WALLETS';
+
+  @override
+  String get createTxSelectDestWallet => 'Seleccionar wallet destino';
+
+  @override
+  String get createTxThisWallet => 'Esta wallet (Auto)';
+
+  @override
   String get createTxNoUnusedAddress =>
       'No hay dirección de recepción sin usar';
 

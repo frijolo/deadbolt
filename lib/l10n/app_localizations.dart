@@ -2138,6 +2138,24 @@ abstract class AppLocalizations {
   /// **'SELF'**
   String get createTxSelfPayButton;
 
+  /// No description provided for @createTxMyWalletsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'MY WALLETS'**
+  String get createTxMyWalletsButton;
+
+  /// No description provided for @createTxSelectDestWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Select destination wallet'**
+  String get createTxSelectDestWallet;
+
+  /// No description provided for @createTxThisWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet (Self)'**
+  String get createTxThisWallet;
+
   /// No description provided for @createTxNoUnusedAddress.
   ///
   /// In en, this message translates to:

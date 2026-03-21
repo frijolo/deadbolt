@@ -164,7 +164,9 @@ const Object _keep = Object();
 
 class WalletDetailNeedsPassword extends WalletDetailState {
   final String walletPath;
-  WalletDetailNeedsPassword(this.walletPath);
+  /// True when the wallet uses XpubKey protection (prompts for xpub, not password).
+  final bool isXpubKey;
+  WalletDetailNeedsPassword(this.walletPath, {this.isXpubKey = false});
 }
 
 class WalletDetailError extends WalletDetailState {
@@ -249,7 +251,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
           password ?? _service.getCachedPassword(walletPath);
       if (effectivePassword == null &&
           await _service.walletRequiresPassword(walletPath)) {
-        emit(WalletDetailNeedsPassword(walletPath));
+        final isXpubKey = await _service.walletRequiresXpub(walletPath);
+        emit(WalletDetailNeedsPassword(walletPath, isXpubKey: isXpubKey));
         return;
       }
       final handle = await _service.openWallet(walletPath, password: password);
@@ -295,6 +298,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       unawaited(_loadDescriptorAnalysis());
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.load()', e, stackTrace);
+      // Evict any cached credential so the prompt re-appears on next open
+      // instead of failing silently with a cached bad credential.
+      _service.evictPassword(walletPath);
       emit(WalletDetailError(formatRustError(e)));
     }
   }
@@ -778,30 +784,46 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return null;
     try {
       final psbtRecipients = current.psbts.map((p) => p.recipient).toSet();
-
-      String? findIn(List<APIAddress> addrs) {
-        for (final addr in addrs) {
-          if (!addr.isUsed && !psbtRecipients.contains(addr.address)) {
-            return addr.address;
-          }
-        }
-        return null;
-      }
-
-      var addrs = await current.walletHandle.getAddresses(keychain: APIKeychain.external_);
-      final found = findIn(addrs);
-      if (found != null) return found;
-
-      // All revealed addresses are used — reveal more and retry once.
-      current.walletHandle.revealMoreAddresses(
-        keychain: APIKeychain.external_,
-        count: _revealCount,
-      );
-      addrs = await current.walletHandle.getAddresses(keychain: APIKeychain.external_);
-      return findIn(addrs);
+      return await _nextUnusedAddress(current.walletHandle, exclude: psbtRecipients);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Returns the next unused external address for any wallet by path.
+  /// Used when the user picks a different wallet as the send destination.
+  /// Unlike [getNextSelfPaymentAddress], does not filter by pending PSBTs —
+  /// that wallet's PSBTs are managed separately.
+  Future<String?> getNextReceiveAddressFor(String walletPath) async {
+    try {
+      final handle = await _service.openWallet(walletPath);
+      return await _nextUnusedAddress(handle);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Finds the first unused external address on [handle], skipping any in
+  /// [exclude]. Reveals more addresses and retries once if all are used.
+  Future<String?> _nextUnusedAddress(
+    ApiWallet handle, {
+    Set<String> exclude = const {},
+  }) async {
+    String? firstAvailable(List<APIAddress> addrs) {
+      for (final addr in addrs) {
+        if (!addr.isUsed && !exclude.contains(addr.address)) return addr.address;
+      }
+      return null;
+    }
+
+    var addrs = await handle.getAddresses(keychain: APIKeychain.external_);
+    final found = firstAvailable(addrs);
+    if (found != null) return found;
+
+    // All revealed addresses are used — reveal more and retry once.
+    handle.revealMoreAddresses(keychain: APIKeychain.external_, count: _revealCount);
+    addrs = await handle.getAddresses(keychain: APIKeychain.external_);
+    return firstAvailable(addrs);
   }
 
   // ─── PSBTs ────────────────────────────────────────────────────────────────
@@ -1079,6 +1101,50 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     } catch (e, st) {
       _emitError('WalletDetailCubit.signPsbtWithKey()', e, st);
       return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Protection management
+  // ---------------------------------------------------------------------------
+
+  /// Change the wallet's encryption scheme without export/import.
+  ///
+  /// Re-encrypts the SQLCipher database with a fresh key for forward secrecy.
+  /// Returns `true` on success; on failure emits an error toast and returns `false`.
+  Future<bool> changeProtection({
+    required APIProtectionType newProtectionType,
+    String? newPassword,
+  }) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return false;
+
+    try {
+      final keyHex = await _service.getOrCreateEncryptionKey();
+      await current.walletHandle.changeProtection(
+        deviceKeyHex: keyHex,
+        newProtectionType: newProtectionType,
+        newPassword: newPassword,
+      );
+
+      // Update credential cache.
+      final walletPath = current.walletInfo.walletPath;
+      switch (newProtectionType) {
+        case APIProtectionType.deviceKey:
+          _service.evictPassword(walletPath);
+        case APIProtectionType.userPassword:
+          if (newPassword != null) _service.cachePassword(walletPath, newPassword);
+        case APIProtectionType.xpubKey:
+          _service.evictPassword(walletPath);
+      }
+
+      // Refresh walletInfo so the UI shows the new protection type.
+      final updatedInfo = await _service.getWalletInfo(walletPath);
+      emit(current.copyWith(walletInfo: updatedInfo));
+      return true;
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.changeProtection()', e, st);
+      return false;
     }
   }
 }

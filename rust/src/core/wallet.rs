@@ -42,6 +42,16 @@ impl CoreWallet {
         Ok(self.wallet.persist(&mut self.conn)?)
     }
 
+    /// Re-key the SQLCipher database to a new encryption key.
+    /// Runs `PRAGMA rekey` on the already-open connection — no need to close
+    /// the wallet. After this call the on-disk file is re-encrypted with the
+    /// new key; the current connection remains fully operational.
+    pub fn rekey(&mut self, new_key_hex: &str) -> Result<()> {
+        self.conn
+            .execute_batch(&format!("PRAGMA rekey = \"x'{}'\"", new_key_hex))?;
+        Ok(())
+    }
+
     /// Load private-key signers from stored seed entries into the wallet's signer set.
     ///
     /// Clears any previously loaded signers first, then re-adds one signer per matching
@@ -229,7 +239,7 @@ mod tests {
         eprintln!("finalized={}", finalized);
 
         // Verify at least one signature was produced
-        let has_sig = psbt.inputs[0].partial_sigs.len() > 0
+        let has_sig = !psbt.inputs[0].partial_sigs.is_empty()
             || psbt.inputs[0].final_script_witness.is_some()
             || psbt.inputs[0].final_script_sig.is_some();
         assert!(

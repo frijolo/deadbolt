@@ -616,7 +616,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2TR,
             &keys,
-            &vec![
+            &[
                 SpendPathDef {
                     threshold: 1,
                     mfps: vec!["c449c5c5".into()],
@@ -642,7 +642,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2TR,
             &keys,
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
@@ -658,7 +658,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2TR,
             &keys,
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(144),
@@ -713,7 +713,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2WSH,
             &[],
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
@@ -732,7 +732,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2WPKH,
             &keys,
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 2,
                 mfps: vec!["c449c5c5".into(), "c61af686".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
@@ -747,7 +747,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::Unknown,
             &keys,
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 1,
                 mfps: vec!["c449c5c5".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(0),
@@ -762,7 +762,7 @@ mod tests {
         let result = build_descriptor(
             WalletType::P2WSH,
             &keys,
-            &vec![SpendPathDef {
+            &[SpendPathDef {
                 threshold: 1,
                 mfps: vec!["deadbeef".into()],
                 rel_timelock: APIRelativeTimelock::from_consensus(0),

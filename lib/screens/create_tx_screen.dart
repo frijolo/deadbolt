@@ -8,7 +8,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
+import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
@@ -334,9 +336,99 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     });
   }
 
-  Future<void> _fillSelfPaymentAddress() async {
+  Future<void> _showWalletPickerSheet() async {
     final l10n = context.l10n;
-    final address = await context.read<WalletDetailCubit>().getNextSelfPaymentAddress();
+    final cubit = context.read<WalletDetailCubit>();
+    final walletState = cubit.state;
+    if (walletState is! WalletDetailLoaded) return;
+
+    final currentPath = walletState.walletInfo.walletPath;
+    final currentNetwork = walletState.walletInfo.network;
+
+    final listState = context.read<WalletListCubit>().state;
+    final allWallets = listState is WalletListLoaded ? listState.wallets : <APIWalletInfo>[];
+    final service = context.read<WalletService>();
+
+    // Filter to same-network wallets, current wallet first.
+    final sameNetwork = allWallets
+        .where((w) => w.network == currentNetwork)
+        .toList()
+      ..sort((a, b) {
+        if (a.walletPath == currentPath) return -1;
+        if (b.walletPath == currentPath) return 1;
+        return 0;
+      });
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) {
+        final theme = Theme.of(sheetCtx);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  l10n.createTxSelectDestWallet,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              const Divider(height: 1),
+              ...sameNetwork.map((wallet) {
+                final isCurrent = wallet.walletPath == currentPath;
+                final isLocked = wallet.protection.needsPassword &&
+                    service.getCachedPassword(wallet.walletPath) == null;
+                final name = isCurrent
+                    ? l10n.createTxThisWallet
+                    : wallet.name;
+                return ListTile(
+                  leading: isLocked
+                      ? Icon(
+                          Icons.lock_outline,
+                          color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
+                        )
+                      : isCurrent
+                          ? Icon(Icons.account_balance_wallet_outlined,
+                              color: theme.colorScheme.primary)
+                          : const Icon(Icons.account_balance_wallet_outlined),
+                  title: Text(
+                    name,
+                    style: isLocked
+                        ? TextStyle(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive))
+                        : null,
+                  ),
+                  enabled: !isLocked,
+                  onTap: isLocked
+                      ? null
+                      : () {
+                          Navigator.of(sheetCtx).pop();
+                          _fillAddressFromWallet(wallet.walletPath);
+                        },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _fillAddressFromWallet(String walletPath) async {
+    final l10n = context.l10n;
+    final cubit = context.read<WalletDetailCubit>();
+    final walletState = cubit.state;
+    final String? address;
+    if (walletState is WalletDetailLoaded &&
+        walletPath == walletState.walletInfo.walletPath) {
+      address = await cubit.getNextSelfPaymentAddress();
+    } else {
+      address = await cubit.getNextReceiveAddressFor(walletPath);
+    }
     if (!mounted) return;
     if (address == null) {
       showErrorToast(context, l10n.createTxNoUnusedAddress);
@@ -957,12 +1049,12 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: OutlinedButton(
-                      onPressed: _fillSelfPaymentAddress,
+                      onPressed: _showWalletPickerSheet,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
                         side: BorderSide(color: theme.colorScheme.outline),
                       ),
-                      child: Text(l10n.createTxSelfPayButton),
+                      child: Text(l10n.createTxMyWalletsButton),
                     ),
                   ),
                 ],
