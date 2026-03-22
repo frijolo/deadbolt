@@ -22,6 +22,8 @@ void main() {
       when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
       when(() => mockService.walletRequiresPassword(walletPath))
           .thenAnswer((_) async => true);
+      when(() => mockService.walletRequiresXpub(walletPath))
+          .thenAnswer((_) async => false);
 
       final cubit = WalletDetailCubit(service: mockService);
       await cubit.load(walletPath);
@@ -38,6 +40,8 @@ void main() {
     test('emits WalletDetailError when openWallet throws', () async {
       when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
       when(() => mockService.walletRequiresPassword(walletPath))
+          .thenAnswer((_) async => false);
+      when(() => mockService.walletRequiresXpub(walletPath))
           .thenAnswer((_) async => false);
       when(() => mockService.openWallet(walletPath, password: any(named: 'password')))
           .thenThrow(Exception('wallet not found'));
@@ -60,6 +64,8 @@ void main() {
         when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
         when(() => mockService.walletRequiresPassword(walletPath))
             .thenAnswer((_) async => true);
+        when(() => mockService.walletRequiresXpub(walletPath))
+            .thenAnswer((_) async => false);
         return WalletDetailCubit(service: mockService);
       },
       act: (cubit) => cubit.load(walletPath),
@@ -74,6 +80,8 @@ void main() {
       build: () {
         when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
         when(() => mockService.walletRequiresPassword(walletPath))
+            .thenAnswer((_) async => false);
+        when(() => mockService.walletRequiresXpub(walletPath))
             .thenAnswer((_) async => false);
         when(() => mockService.openWallet(walletPath,
                 password: any(named: 'password')))
