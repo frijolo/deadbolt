@@ -165,9 +165,9 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
                     ),
                   // ── Key path badge ─────────────────────────────────────
                   if (widget.isTaproot && isKeyPath)
-                    _PathInfoRow(
+                    const _PathInfoRow(
                       label: '',
-                      child: const PathKeyPathBadge(),
+                      child: PathKeyPathBadge(),
                     ),
                   // ── Stats ──────────────────────────────────────────────
                   Row(

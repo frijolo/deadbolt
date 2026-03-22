@@ -15,6 +15,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/loading_indicator.dart';
 
 /// Opens [CreateWalletDialog] pre-filled with [project], then navigates to
 /// [WalletDetailScreen] on success.  Shows an error toast if [project] has no
@@ -198,7 +199,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               const SizedBox(height: 24),
 
               if (_isCreating)
-                const Center(child: CircularProgressIndicator())
+                LoadingIndicator(message: l10n.creatingWallet)
               else ...[
                 FilledButton(
                   onPressed: _onCreate,
@@ -254,14 +255,14 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         RadioGroup<APIProtectionType>(
           groupValue: _protectionType,
           onChanged: (v) => setState(() => _protectionType = v!),
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Radio<APIProtectionType>(
                       value: APIProtectionType.deviceKey),
-                  const Expanded(
+                  Expanded(
                     child: Text('Device key (automatic)'),
                   ),
                 ],
@@ -270,7 +271,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                 children: [
                   Radio<APIProtectionType>(
                       value: APIProtectionType.userPassword),
-                  const Expanded(
+                  Expanded(
                     child: Text('Password protection'),
                   ),
                 ],
@@ -279,7 +280,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                 children: [
                   Radio<APIProtectionType>(
                       value: APIProtectionType.xpubKey),
-                  const Expanded(
+                  Expanded(
                     child: Text('xpub key (any descriptor key unlocks)'),
                   ),
                 ],

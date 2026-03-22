@@ -1685,7 +1685,7 @@ class _PendingPsbtRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Icon(Icons.lock_clock_outlined, size: 16, color: AppAccent.color),
+            const Icon(Icons.lock_clock_outlined, size: 16, color: AppAccent.color),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

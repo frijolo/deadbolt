@@ -58,6 +58,10 @@ impl CoreWallet {
     /// seed entry. Call this after opening the wallet and after any seed entry change.
     pub fn load_signers(&mut self, descriptor: &str, network: Network) -> Result<()> {
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        // `bdk_wallet::wallet::signer` was deprecated in BDK 2.2.0 ("PSBT signing moved to
+        // bitcoin::psbt"), but `add_signer` / `get_signers` / `SignerOrdering` have no
+        // drop-in replacement for runtime signer injection in BDK 2.3.0.  Remove once BDK
+        // exposes a stable API for injecting custom signers into a persisted wallet.
         #[allow(deprecated)]
         use bdk_wallet::signer::SignerOrdering;
 
@@ -87,6 +91,8 @@ impl CoreWallet {
             let private_desc = match make_private_descriptor(descriptor, &root_xprv, &secp) {
                 Ok(d) => d,
                 Err(e) => {
+                    // Soft failure: skip this seed rather than aborting the whole load.
+                    // Output to stderr (logcat on Android) until a proper log crate is wired up.
                     eprintln!("[load_signers] make_private_descriptor failed for mfp={mfp}: {e}");
                     continue;
                 }
@@ -109,12 +115,16 @@ impl CoreWallet {
             {
                 Ok(w) => w,
                 Err(e) => {
+                    // Soft failure: skip this seed rather than aborting the whole load.
+                    // Output to stderr (logcat on Android) until a proper log crate is wired up.
                     eprintln!("[load_signers] temp wallet creation failed for mfp={mfp}: {e}");
                     continue;
                 }
             };
 
             // Copy signers into the main wallet (which has the synced address index).
+            // `get_signers` / `add_signer` are deprecated alongside the signer module —
+            // see comment above.
             for keychain in [KeychainKind::External, KeychainKind::Internal] {
                 #[allow(deprecated)]
                 for signer in temp.get_signers(keychain).signers() {
@@ -228,6 +238,7 @@ mod tests {
         eprintln!("PSBT inputs: {}", psbt.inputs.len());
 
         // 5. Sign using the main wallet's loaded signers
+        // `sign` is deprecated alongside the signer module (BDK 2.2.0).
         #[allow(deprecated)]
         let finalized = core.wallet.sign(
             &mut psbt,

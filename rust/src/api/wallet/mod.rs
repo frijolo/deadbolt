@@ -4,14 +4,14 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIHotKeyInfo, APIImportPsbtResult,
-    APIKeychain, APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
-    APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
-    APITransaction, APITransactionPage, APITxDetails, APIUtxo, APIUtxoDetails, APIWalletInfo,
-    APIWalletProtection, APIXpubSlot,
+    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIFiatPrice, APIHotKeyInfo,
+    APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
+    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx,
+    APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage, APITxDetails,
+    APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
 use crate::core::key_protection::{
-    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
+    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta, DEFAULT_M_COST, DEFAULT_T_COST,
 };
 use crate::core::project_seeds::{
     delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
@@ -20,21 +20,23 @@ use crate::core::project_seeds::{
 use crate::core::wallet::CoreWallet;
 use crate::core::wallet_info::{
     add_xpub_slot_to_wallet, build_protection_meta, create_wallet_db, generate_uuid_v4,
-    get_wallet_info_from_file, list_wallets_in_dir, list_xpub_mfps,
-    refresh_user_password_meta_cache, remove_xpub_slot_from_wallet, rename_wallet_in_file,
-    resolve_wallet_key, wallet_needs_password, wallet_needs_xpub, WalletProtectionRequest,
+    get_wallet_info_from_file, list_wallets_in_dir, refresh_user_password_meta_cache,
+    remove_xpub_slot_from_wallet, rename_wallet_in_file, resolve_wallet_key, wallet_needs_password,
+    wallet_needs_xpub, wallet_network_hint, WalletProtectionRequest,
 };
 use crate::core::wallet_meta::{delete_meta, read_meta, write_meta};
 use crate::core::wallet_persistence::{
-    address_has_explicit_label, coin_has_explicit_label, delete_psbt_row, delete_seed_entry,
-    ensure_unsigned_txs_table, get_address_label_with_flag, get_all_address_labels_with_flag,
-    get_all_coin_labels_with_flag, get_all_key_labels, get_all_path_labels,
-    get_all_tx_labels_with_flag, get_coin_label_with_flag, get_psbt_row, get_psbt_row_by_txid,
+    address_has_explicit_label, clear_fiat_prices as clear_fiat_prices_db, coin_has_explicit_label,
+    delete_psbt_row, delete_seed_entry, ensure_unsigned_txs_table, get_address_label_with_flag,
+    get_all_address_labels_with_flag, get_all_coin_labels_with_flag, get_all_key_labels,
+    get_all_path_labels, get_all_tx_labels_with_flag, get_coin_label_with_flag,
+    get_fiat_prices as get_fiat_prices_db, get_psbt_row, get_psbt_row_by_txid,
     get_tx_label_with_flag, insert_psbt, insert_seed_entry, list_psbt_rows, list_seed_entries,
     open_encrypted_connection, read_wallet_info, set_address_label as db_set_address_label,
     set_coin_label as db_set_coin_label, set_key_label as db_set_key_label,
-    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label, touch_last_synced,
-    tx_has_explicit_label, update_psbt_data, update_psbt_label, PsbtRow, WalletInfoRow,
+    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label,
+    store_fiat_price as store_fiat_price_db, touch_last_synced, tx_has_explicit_label,
+    update_psbt_data, update_psbt_label, PsbtRow, WalletInfoRow,
 };
 
 mod labels;
@@ -124,6 +126,42 @@ fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, S
         map.insert(cap[1].to_lowercase(), cap[2].to_string());
     }
     map
+}
+
+/// Extract a mfp→derivation map from a descriptor string.
+/// Matches `[deadbeef/48h/0h/0h/2h]xpub...` and returns the path suffix after the MFP.
+fn extract_xpub_derivation_map(descriptor: &str) -> std::collections::HashMap<String, String> {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]")
+            .expect("hard-coded derivation regex is valid")
+    });
+    let mut map = std::collections::HashMap::new();
+    for cap in re.captures_iter(descriptor) {
+        map.entry(cap[1].to_lowercase())
+            .or_insert_with(|| cap[2].to_string());
+    }
+    map
+}
+
+/// Extract `(mfp, xpub, derivation_hint)` triples from a descriptor for XpubKey protection.
+/// Returns an error if the descriptor contains no xpubs.
+fn xpub_slots_from_descriptor(descriptor: &str) -> Result<Vec<(String, String, String)>> {
+    let xpub_map = extract_xpub_mfp_map(descriptor);
+    let deriv_map = extract_xpub_derivation_map(descriptor);
+    if xpub_map.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No xpubs found in descriptor for XpubKey protection"
+        ));
+    }
+    Ok(xpub_map
+        .into_iter()
+        .map(|(mfp, xpub)| {
+            let derivation = deriv_map.get(&mfp).cloned().unwrap_or_default();
+            (mfp, xpub, derivation)
+        })
+        .collect())
 }
 
 /// Compute the maximum confirmation height of the UTXOs spent by `psbt`.
@@ -271,17 +309,23 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
 
 fn protection_for_path(wallet_path: &str) -> APIWalletProtection {
     match read_meta(wallet_path) {
-        Ok(ProtectionMeta::UserPassword { .. }) => APIWalletProtection {
+        Ok(ProtectionMeta::UserPassword { m_cost, .. }) => APIWalletProtection {
             protection_type: APIProtectionType::UserPassword,
             needs_password: true,
+            security_level: APISecurityLevel::from_m_cost(m_cost),
         },
-        Ok(ProtectionMeta::XpubKey { .. }) => APIWalletProtection {
-            protection_type: APIProtectionType::XpubKey,
-            needs_password: true,
-        },
+        Ok(ProtectionMeta::XpubKey { ref slots, .. }) => {
+            let m_cost = slots.first().map(|s| s.m_cost).unwrap_or(DEFAULT_M_COST);
+            APIWalletProtection {
+                protection_type: APIProtectionType::XpubKey,
+                needs_password: true,
+                security_level: APISecurityLevel::from_m_cost(m_cost),
+            }
+        }
         _ => APIWalletProtection {
             protection_type: APIProtectionType::DeviceKey,
             needs_password: false,
+            security_level: APISecurityLevel::Standard,
         },
     }
 }
@@ -545,19 +589,17 @@ pub fn create_wallet(
         APIProtectionType::UserPassword => {
             let pwd = password
                 .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
-            WalletProtectionRequest::UserPassword { password: pwd }
-        }
-        APIProtectionType::XpubKey => {
-            // Extract all (mfp, xpub) pairs from the descriptor automatically.
-            let map = extract_xpub_mfp_map(&descriptor);
-            if map.is_empty() {
-                return Err(anyhow::anyhow!(
-                    "No xpubs found in descriptor for XpubKey protection"
-                ));
+            WalletProtectionRequest::UserPassword {
+                password: pwd,
+                m_cost: DEFAULT_M_COST,
+                t_cost: DEFAULT_T_COST,
             }
-            let xpub_slots: Vec<(String, String)> = map.into_iter().collect();
-            WalletProtectionRequest::XpubKey { xpub_slots }
         }
+        APIProtectionType::XpubKey => WalletProtectionRequest::XpubKey {
+            xpub_slots: xpub_slots_from_descriptor(&descriptor)?,
+            m_cost: DEFAULT_M_COST,
+            t_cost: DEFAULT_T_COST,
+        },
     };
     let (path, row) = create_wallet_db(
         &wallets_dir,
@@ -645,9 +687,16 @@ pub fn wallet_requires_xpub(wallet_path: String) -> bool {
     wallet_needs_xpub(&wallet_path)
 }
 
+/// Return the network stored in the wallet meta sidecar without opening the DB.
+/// Returns None for DeviceKey wallets or when the meta cannot be read.
+pub fn get_wallet_network_hint(wallet_path: String) -> Option<String> {
+    wallet_network_hint(&wallet_path)
+}
+
 /// Add a new xpub slot to a XpubKey-protected wallet.
 /// `current_xpub` is any already-registered xpub (used to derive the data key).
 /// `new_mfp` and `new_xpub` identify the slot to add.
+/// Derivation is looked up from the wallet descriptor automatically.
 pub fn add_xpub_slot(
     wallet_path: String,
     new_mfp: String,
@@ -656,7 +705,16 @@ pub fn add_xpub_slot(
     current_xpub: String,
 ) -> Result<()> {
     let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, Some(&current_xpub))?;
-    add_xpub_slot_to_wallet(&wallet_path, &new_mfp, &new_xpub, &data_key)
+    // Read the descriptor to find the derivation path for new_mfp.
+    let conn = open_encrypted_connection(&wallet_path, &data_key)?;
+    let row = read_wallet_info(&conn)?;
+    drop(conn);
+    let deriv_map = extract_xpub_derivation_map(&row.descriptor);
+    let derivation = deriv_map
+        .get(&new_mfp.to_lowercase())
+        .cloned()
+        .unwrap_or_default();
+    add_xpub_slot_to_wallet(&wallet_path, &new_mfp, &new_xpub, &data_key, &derivation)
 }
 
 /// Remove an xpub slot by MFP from a XpubKey-protected wallet.
@@ -665,10 +723,19 @@ pub fn remove_xpub_slot(wallet_path: String, mfp: String) -> Result<()> {
     remove_xpub_slot_from_wallet(&wallet_path, &mfp)
 }
 
-/// List the MFPs of all registered xpub slots for a XpubKey-protected wallet.
+/// List all registered xpub slots for a XpubKey-protected wallet, including derivation hints.
 pub fn list_xpub_slots(wallet_path: String) -> Result<Vec<APIXpubSlot>> {
-    let mfps = list_xpub_mfps(&wallet_path)?;
-    Ok(mfps.into_iter().map(|mfp| APIXpubSlot { mfp }).collect())
+    use crate::core::wallet_meta::read_meta;
+    match read_meta(&wallet_path)? {
+        ProtectionMeta::XpubKey { slots, .. } => Ok(slots
+            .into_iter()
+            .map(|s| APIXpubSlot {
+                mfp: s.mfp,
+                derivation_hint: s.derivation,
+            })
+            .collect()),
+        _ => Ok(vec![]),
+    }
 }
 
 /// Live wallet handle. Open once with [open_wallet], then call methods directly.
@@ -708,6 +775,7 @@ impl APIWallet {
         device_key_hex: String,
         new_protection_type: APIProtectionType,
         new_password: Option<String>,
+        security_level: APISecurityLevel,
     ) -> Result<()> {
         let mut core = self.lock_wallet()?;
 
@@ -719,24 +787,24 @@ impl APIWallet {
 
         // 3. Build the protection request (XpubKey: auto-extract from descriptor).
         let row = read_wallet_info(&core.conn)?;
+        let m_cost = security_level.m_cost();
+        let t_cost = security_level.t_cost();
         let protection = match new_protection_type {
             APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
             APIProtectionType::UserPassword => {
                 let pwd = new_password
                     .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword"))?;
-                WalletProtectionRequest::UserPassword { password: pwd }
-            }
-            APIProtectionType::XpubKey => {
-                let map = extract_xpub_mfp_map(&row.descriptor);
-                if map.is_empty() {
-                    return Err(anyhow::anyhow!(
-                        "No xpubs found in descriptor for XpubKey protection"
-                    ));
-                }
-                WalletProtectionRequest::XpubKey {
-                    xpub_slots: map.into_iter().collect(),
+                WalletProtectionRequest::UserPassword {
+                    password: pwd,
+                    m_cost,
+                    t_cost,
                 }
             }
+            APIProtectionType::XpubKey => WalletProtectionRequest::XpubKey {
+                xpub_slots: xpub_slots_from_descriptor(&row.descriptor)?,
+                m_cost,
+                t_cost,
+            },
         };
 
         // 4. Build and write the new .meta sidecar.
@@ -1109,64 +1177,97 @@ pub fn copy_project_keys_to_wallet(
 // The backup password always protects both the raw DB file and the data_key.
 // On import: derive export_key → unwrap data_key → decrypt DB → re-key to new data_key.
 
-/// Export a wallet to a self-contained encrypted `.deadbolt` backup.
+/// Export a wallet to a self-contained encrypted `.deadbolt` backup (v2 format).
 ///
-/// The backup is always encrypted with `export_password` via Argon2id, so it is
-/// portable regardless of the original protection type.
+/// `export_protection` must be `UserPassword` or `XpubKey`.
+/// - `UserPassword`: provide `export_password`; the credential is protected with Argon2id.
+/// - `XpubKey`: xpubs are auto-extracted from the descriptor; each gets its own slot.
 ///
+/// `security_level` controls the Argon2id parameters for the export credential slots.
 /// The returned bytes should be saved as a `.deadbolt` file.
 pub fn export_wallet_backup(
     wallet_path: String,
     device_key_hex: String,
     open_password: Option<String>,
-    export_password: String,
+    export_protection: APIProtectionType,
+    export_password: Option<String>,
+    security_level: APISecurityLevel,
 ) -> Result<Vec<u8>> {
     use crate::core::key_protection::{
-        derive_key_from_password, generate_salt, DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
+        derive_key_from_password, generate_salt, wrap_with_xpub, DEFAULT_P_COST,
     };
     use base64::{engine::general_purpose, Engine as _};
 
-    // Resolve the data key to verify access
-    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
+    if matches!(export_protection, APIProtectionType::DeviceKey) {
+        return Err(anyhow::anyhow!(
+            "DeviceKey protection cannot be used for backup export"
+        ));
+    }
 
-    // Read wallet info for metadata
-    let conn = open_encrypted_connection(&wallet_path, &data_key)?;
+    let wallet_data_key =
+        resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
+    let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
     let row = read_wallet_info(&conn)?;
     drop(conn);
 
-    // Read raw DB bytes (SQLCipher-encrypted with data_key)
     let db_bytes = std::fs::read(&wallet_path)?;
+    let export_data_key = generate_data_key();
+    let m_cost = security_level.m_cost();
+    let t_cost = security_level.t_cost();
 
-    // Derive export key from export_password
-    let salt = generate_salt();
-    let export_key = derive_key_from_password(
-        &export_password,
-        &salt,
-        DEFAULT_M_COST,
-        DEFAULT_T_COST,
-        DEFAULT_P_COST,
-    )?;
+    let (ptype, slots): (u64, Vec<serde_json::Value>) = match export_protection {
+        APIProtectionType::UserPassword => {
+            let password = export_password
+                .ok_or_else(|| anyhow::anyhow!("Export password required for UserPassword"))?;
+            let salt = generate_salt();
+            let wrapping_key =
+                derive_key_from_password(&password, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
+            let wrapped_key =
+                crate::core::key_protection::wrap_key(&export_data_key, &wrapping_key)?;
+            let slot = serde_json::json!({
+                "mfp": "",
+                "salt": salt,
+                "m_cost": m_cost,
+                "t_cost": t_cost,
+                "p_cost": DEFAULT_P_COST,
+                "wrapped_key": wrapped_key
+            });
+            (1, vec![slot])
+        }
+        APIProtectionType::XpubKey => {
+            let map = extract_xpub_mfp_map(&row.descriptor);
+            if map.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "No xpubs found in descriptor for XpubKey export"
+                ));
+            }
+            let slots = map
+                .iter()
+                .map(|(mfp, xpub)| {
+                    let slot = wrap_with_xpub(mfp, xpub, &export_data_key, m_cost, t_cost, "")?;
+                    serde_json::to_value(&slot).map_err(|e| anyhow::anyhow!(e))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            (2, slots)
+        }
+        APIProtectionType::DeviceKey => unreachable!(),
+    };
 
-    // Encrypt raw DB bytes with export_key
-    let encrypted_db = encrypt_bytes(&export_key, &db_bytes)?;
+    let encrypted_db = encrypt_bytes(&export_data_key, &db_bytes)?;
     let data_b64 = general_purpose::STANDARD.encode(&encrypted_db);
 
-    // Wrap data_key with export_key so the importer can re-key the DB
-    let data_key_bytes = hex::decode(&data_key)?;
-    let encrypted_data_key = encrypt_bytes(&export_key, &data_key_bytes)?;
-    let data_key_wrapped = hex::encode(&encrypted_data_key);
+    let wallet_data_key_bytes = hex::decode(&wallet_data_key)?;
+    let encrypted_wallet_key = encrypt_bytes(&export_data_key, &wallet_data_key_bytes)?;
+    let data_key_wrapped = hex::encode(&encrypted_wallet_key);
 
     let backup = serde_json::json!({
-        "version": 1,
+        "version": 2,
         "wallet_name": row.name,
         "network": row.network,
         "created_at": row.created_at,
         "protection": {
-            "type": 1,
-            "salt": salt,
-            "m_cost": DEFAULT_M_COST,
-            "t_cost": DEFAULT_T_COST,
-            "p_cost": DEFAULT_P_COST
+            "type": ptype,
+            "slots": slots
         },
         "data_key_wrapped": data_key_wrapped,
         "data": data_b64
@@ -1175,17 +1276,19 @@ pub fn export_wallet_backup(
     Ok(serde_json::to_vec(&backup)?)
 }
 
-/// Import a `.deadbolt` backup and add it as a new wallet in `wallets_dir`.
+/// Import a `.deadbolt` backup (v1 or v2) and add it as a new wallet in `wallets_dir`.
 ///
+/// `import_credential`: password for UserPassword backups, xpub or keyspec for XpubKey backups.
 /// Returns the `APIWalletInfo` of the restored wallet.
 pub fn import_wallet_backup(
     backup_bytes: Vec<u8>,
-    import_password: String,
+    import_credential: String,
     device_key_hex: String,
     wallets_dir: String,
 ) -> Result<APIWalletInfo> {
     use crate::core::key_protection::{
-        derive_key_from_password, generate_data_key, wrap_key, ProtectionMeta,
+        derive_key_from_password, generate_data_key, resolve_xpub_data_key, wrap_key,
+        ProtectionMeta, XpubSlot,
     };
     use crate::core::wallet_meta::write_meta;
     use base64::{engine::general_purpose, Engine as _};
@@ -1196,17 +1299,6 @@ pub fn import_wallet_backup(
     let version = backup["version"]
         .as_u64()
         .ok_or_else(|| anyhow::anyhow!("Missing version in backup"))?;
-    if version != 1 {
-        return Err(anyhow::anyhow!("Unsupported backup version: {}", version));
-    }
-
-    let protection = &backup["protection"];
-    let salt = protection["salt"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing salt in backup"))?;
-    let m_cost = protection["m_cost"].as_u64().unwrap_or(65536) as u32;
-    let t_cost = protection["t_cost"].as_u64().unwrap_or(3) as u32;
-    let p_cost = protection["p_cost"].as_u64().unwrap_or(1) as u32;
 
     let data_b64 = backup["data"]
         .as_str()
@@ -1215,34 +1307,78 @@ pub fn import_wallet_backup(
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("Missing data_key_wrapped in backup"))?;
 
-    // Derive import key
-    let import_key = derive_key_from_password(&import_password, salt, m_cost, t_cost, p_cost)?;
+    // Resolve export_data_key from whichever version/protection format is present.
+    let export_data_key = if version == 1 {
+        // v1: protection has salt/m_cost/t_cost/p_cost directly; import_credential is a password.
+        let protection = &backup["protection"];
+        let salt = protection["salt"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing salt in v1 backup"))?;
+        let m_cost = protection["m_cost"].as_u64().unwrap_or(65536) as u32;
+        let t_cost = protection["t_cost"].as_u64().unwrap_or(3) as u32;
+        let p_cost = protection["p_cost"].as_u64().unwrap_or(1) as u32;
+        // In v1, export_key = Argon2id(password, salt) and data_key_wrapped was encrypted
+        // with export_key directly (there is no intermediate export_data_key).
+        // Re-use the same path: derive the key and treat it as export_data_key.
+        derive_key_from_password(&import_credential, salt, m_cost, t_cost, p_cost)?
+    } else if version == 2 {
+        // v2: protection has type + slots array.
+        let protection = &backup["protection"];
+        let ptype = protection["type"].as_u64().unwrap_or(0);
+        let slots = protection["slots"]
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("Missing slots in v2 backup"))?;
 
-    // Unwrap the original data_key
-    let data_key_encrypted = hex::decode(data_key_wrapped_hex)?;
-    let data_key_bytes = decrypt_bytes(&import_key, &data_key_encrypted)?;
-    let data_key = hex::encode(&data_key_bytes);
+        // Deserialize all slots (same XpubSlot format for both ptype=1 and ptype=2).
+        let xpub_slots: Vec<XpubSlot> = slots
+            .iter()
+            .map(|s| serde_json::from_value(s.clone()))
+            .collect::<Result<_, _>>()
+            .map_err(|e| anyhow::anyhow!("Invalid slot in v2 backup: {}", e))?;
 
-    // Decrypt raw DB bytes
+        if ptype == 1 {
+            // UserPassword: single slot, credential is the password.
+            let slot = xpub_slots
+                .first()
+                .ok_or_else(|| anyhow::anyhow!("No slots in v2 UserPassword backup"))?;
+            let wrapping_key = derive_key_from_password(
+                &import_credential,
+                &slot.salt,
+                slot.m_cost,
+                slot.t_cost,
+                slot.p_cost,
+            )?;
+            crate::core::key_protection::unwrap_key(&slot.wrapped_key, &wrapping_key)?
+        } else if ptype == 2 {
+            // XpubKey: try each slot with the provided xpub/keyspec credential.
+            resolve_xpub_data_key(&import_credential, &xpub_slots)
+                .map_err(|_| anyhow::anyhow!("xpub does not match any slot in backup"))?
+        } else {
+            return Err(anyhow::anyhow!("Unknown backup protection type: {}", ptype));
+        }
+    } else {
+        return Err(anyhow::anyhow!("Unsupported backup version: {}", version));
+    };
+
+    let wallet_key_encrypted = hex::decode(data_key_wrapped_hex)?;
+    let wallet_data_key_bytes = decrypt_bytes(&export_data_key, &wallet_key_encrypted)?;
+    let wallet_data_key = hex::encode(&wallet_data_key_bytes);
+
     let encrypted_db = general_purpose::STANDARD
         .decode(data_b64)
         .map_err(|e| anyhow::anyhow!("base64 decode: {}", e))?;
-    let db_bytes = decrypt_bytes(&import_key, &encrypted_db)?;
+    let db_bytes = decrypt_bytes(&export_data_key, &encrypted_db)?;
 
-    // Write restored DB to wallets_dir with a new UUID filename
     std::fs::create_dir_all(&wallets_dir)?;
     let uuid = generate_uuid_v4();
     let path = std::path::Path::new(&wallets_dir)
         .join(format!("{}.db", uuid))
         .to_string_lossy()
         .to_string();
-
-    // Write raw DB bytes (SQLCipher-encrypted with original data_key)
     std::fs::write(&path, &db_bytes)?;
 
-    // Re-key to a fresh data_key and create DeviceKey meta
     let new_data_key = generate_data_key();
-    crate::core::wallet_persistence::rekey_database(&path, &data_key, &new_data_key)?;
+    crate::core::wallet_persistence::rekey_database(&path, &wallet_data_key, &new_data_key)?;
 
     let wrapped_key = wrap_key(&new_data_key, &device_key_hex)?;
     let meta = ProtectionMeta::DeviceKey {
@@ -1251,7 +1387,6 @@ pub fn import_wallet_backup(
     };
     write_meta(&path, &meta)?;
 
-    // Read info from the restored wallet
     let conn = crate::core::wallet_persistence::open_encrypted_connection(&path, &new_data_key)?;
     let row = crate::core::wallet_persistence::read_wallet_info(&conn)?;
     drop(conn);
@@ -1264,10 +1399,10 @@ pub fn inspect_wallet_backup(backup_bytes: Vec<u8>) -> Result<APIProtectionType>
     let backup: serde_json::Value = serde_json::from_slice(&backup_bytes)
         .map_err(|e| anyhow::anyhow!("Invalid backup format: {}", e))?;
     let ptype = backup["protection"]["type"].as_u64().unwrap_or(0);
-    Ok(if ptype == 1 {
-        APIProtectionType::UserPassword
-    } else {
-        APIProtectionType::DeviceKey
+    Ok(match ptype {
+        1 => APIProtectionType::UserPassword,
+        2 => APIProtectionType::XpubKey,
+        _ => APIProtectionType::DeviceKey,
     })
 }
 

@@ -17,6 +17,9 @@ use bdk_wallet::keys::DescriptorPublicKey;
 use bdk_wallet::miniscript::descriptor::{Pkh, Sh, ShInner, Tr, Wpkh, Wsh, WshInner};
 use bdk_wallet::miniscript::{Descriptor, ScriptContext, Terminal};
 use bdk_wallet::rusqlite::Connection;
+// `SignOptions` lives in the deprecated `signer` module (BDK 2.2.0). It is still the only
+// way to drive `finalize_psbt` for fee-weight estimation; revisit when BDK stabilises its
+// replacement API.
 #[expect(deprecated)]
 use bdk_wallet::SignOptions;
 use bdk_wallet::{KeychainKind, PersistedWallet, Update, Wallet};
@@ -860,6 +863,7 @@ impl WeightCalc {
         Self::dummy_sig(&mut psbt, spb)?;
 
         // Calculate resulted WU
+        // `SignOptions` / `finalize_psbt` — see import comment above.
         #[expect(deprecated)]
         let sign_options = SignOptions::default();
         let finalized = wallet.finalize_psbt(&mut psbt, sign_options)?;

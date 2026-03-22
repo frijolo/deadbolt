@@ -1018,4 +1018,62 @@ impl APIWallet {
         let core = self.lock_wallet()?;
         Ok(core.wallet.latest_checkpoint().block_id().height)
     }
+
+    // -----------------------------------------------------------------------
+    // Fiat price methods
+    // -----------------------------------------------------------------------
+
+    /// Store (or replace) the BTC price in `currency` at the time of a transaction.
+    pub fn store_fiat_price(&self, txid: String, currency: String, btc_price: f64) -> Result<()> {
+        let core = self.lock_wallet()?;
+        store_fiat_price_db(&core.conn, &txid, &currency, btc_price)
+    }
+
+    /// Return all stored BTC prices for `currency` as a list of (txid, price) pairs.
+    pub fn get_fiat_prices(&self, currency: String) -> Result<Vec<APIFiatPrice>> {
+        let core = self.lock_wallet()?;
+        Ok(get_fiat_prices_db(&core.conn, &currency)?
+            .into_iter()
+            .map(|(txid, btc_price)| APIFiatPrice { txid, btc_price })
+            .collect())
+    }
+
+    /// Return transactions that have no stored fiat price for `currency`.
+    pub fn get_txids_missing_fiat(&self, currency: String) -> Result<Vec<APITxMissingFiat>> {
+        let core = self.lock_wallet()?;
+        let existing: std::collections::HashSet<String> =
+            get_fiat_prices_db(&core.conn, &currency)?
+                .into_iter()
+                .map(|(txid, _)| txid)
+                .collect();
+        let missing = core
+            .wallet
+            .transactions()
+            .filter_map(|canonical_tx| {
+                let txid = canonical_tx.tx_node.txid.to_string();
+                if existing.contains(&txid) {
+                    return None;
+                }
+                let confirmation_time =
+                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                        &canonical_tx.chain_position
+                    {
+                        Some(anchor.confirmation_time as i64)
+                    } else {
+                        None
+                    };
+                Some(APITxMissingFiat {
+                    txid,
+                    confirmation_time,
+                })
+            })
+            .collect();
+        Ok(missing)
+    }
+
+    /// Delete all stored fiat prices (called when the user changes fiat currency).
+    pub fn clear_fiat_prices(&self) -> Result<()> {
+        let core = self.lock_wallet()?;
+        clear_fiat_prices_db(&core.conn)
+    }
 }

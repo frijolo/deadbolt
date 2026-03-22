@@ -73,7 +73,12 @@ class TransactionsView extends StatelessWidget {
                 if (cmp != 0) return cmp;
                 return a.txid.compareTo(b.txid);
               }))
-              .map((tx) => _TransactionTile(tx: tx, network: network)),
+              .map((tx) => _TransactionTile(
+                    tx: tx,
+                    network: network,
+                    fiatPrice: state.fiatPrices[tx.txid],
+                    fiatCurrency: state.fiatCurrency,
+                  )),
           if (state.hasMore)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -96,8 +101,15 @@ class TransactionsView extends StatelessWidget {
 class _TransactionTile extends StatelessWidget {
   final APITransaction tx;
   final APINetwork network;
+  final double? fiatPrice;
+  final String? fiatCurrency;
 
-  const _TransactionTile({required this.tx, required this.network});
+  const _TransactionTile({
+    required this.tx,
+    required this.network,
+    this.fiatPrice,
+    this.fiatCurrency,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +130,11 @@ class _TransactionTile extends StatelessWidget {
         : l10n.txSent;
     final label = tx.effectiveLabel;
     final isInherited = tx.isAuto;
+    final txColor = isSelfTransfer
+        ? Colors.blue
+        : isReceived
+        ? Colors.green
+        : Colors.orange;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -128,11 +145,7 @@ class _TransactionTile extends StatelessWidget {
               : isReceived
               ? Icons.arrow_downward
               : Icons.arrow_upward,
-          color: isSelfTransfer
-              ? Colors.blue
-              : isReceived
-              ? Colors.green
-              : Colors.orange,
+          color: txColor,
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,42 +191,56 @@ class _TransactionTile extends StatelessWidget {
           isSelfTransfer
               ? '-${BitcoinFormatter.formatNum(netSats)} sats'
               : '${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(netSats)} sats',
-          style: TextStyle(
-            color: isSelfTransfer
-                ? Colors.blue
-                : isReceived
-                ? Colors.green
-                : Colors.orange,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: txColor, fontWeight: FontWeight.w600),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (tx.confirmationTime != null)
-              Text(
-                _formatTimestamp(tx.confirmationTime!),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withAlpha(AppAlpha.secondary),
-                ),
-              )
-            else
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withAlpha(AppAlpha.dim),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  l10n.txUnconfirmed,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (tx.confirmationTime != null)
+                  Text(
+                    _formatTimestamp(tx.confirmationTime!),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(AppAlpha.secondary),
+                    ),
+                  )
+                else
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withAlpha(AppAlpha.dim),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      l10n.txUnconfirmed,
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ),
+                if (fiatPrice != null && fiatCurrency != null)
+                  Text(
+                    BitcoinFormatter.formatSatsFiat(
+                      isReceived && !isSelfTransfer ? netSats : -netSats,
+                      fiatPrice!,
+                      fiatCurrency!,
+                    ),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(AppAlpha.secondary),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 18),
           ],
@@ -317,7 +344,7 @@ class _PsbtTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(Icons.lock_clock_outlined, color: AppAccent.color),
+        leading: const Icon(Icons.lock_clock_outlined, color: AppAccent.color),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -355,7 +382,7 @@ class _PsbtTile extends StatelessWidget {
         ),
         subtitle: Text(
           '-${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
-          style: TextStyle(
+          style: const TextStyle(
             color: AppAccent.color,
             fontWeight: FontWeight.w600,
           ),

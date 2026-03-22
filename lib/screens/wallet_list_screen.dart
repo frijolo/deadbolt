@@ -185,12 +185,6 @@ class WalletListScreen extends StatelessWidget {
     final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: isLocked
-            ? Icon(
-                Icons.lock_outline,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.inactive),
-              )
-            : null,
         title: Text(
           wallet.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -225,31 +219,53 @@ class WalletListScreen extends StatelessWidget {
             ],
           ),
         ),
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, size: 20),
-          tooltip: l10n.moreOptionsTooltip,
-          onSelected: (value) {
-            if (value == 'delete') {
-              _confirmDelete(context, wallet);
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.delete_outline,
-                    size: 20,
-                    color: Colors.red.withAlpha(AppAlpha.deleteAction),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    l10n.delete,
-                    style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
-                  ),
-                ],
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (wallet.protection.needsPassword)
+              IconButton(
+                icon: Icon(
+                  isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
+                  size: 20,
+                  color: isLocked
+                      ? Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.inactive)
+                      : null,
+                ),
+                tooltip: isLocked ? null : l10n.lockWallet,
+                onPressed: isLocked
+                    ? null
+                    : () {
+                        service.evictPassword(wallet.walletPath);
+                        context.read<WalletListCubit>().refresh();
+                      },
               ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              tooltip: l10n.moreOptionsTooltip,
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _confirmDelete(context, wallet);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Colors.red.withAlpha(AppAlpha.deleteAction),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        l10n.delete,
+                        style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -326,16 +342,18 @@ class WalletListScreen extends StatelessWidget {
 
     if (!context.mounted) return;
 
-    // 3. Prompt for import password
-    final importSubtitle = backupType == APIProtectionType.userPassword
-        ? 'This backup is password-protected.'
-        : 'Enter the password that was used when exporting this backup.';
-    final importPassword = await showPasswordPrompt(
-      context,
-      title: 'Enter backup password',
-      subtitle: importSubtitle,
-    );
-    if (importPassword == null) return;
+    // 3. Prompt for import credential
+    String? importCredential;
+    if (backupType == APIProtectionType.xpubKey) {
+      importCredential = await showXpubUnlockDialog(context, walletPath: '');
+    } else {
+      importCredential = await showPasswordPrompt(
+        context,
+        title: 'Enter backup password',
+        subtitle: 'This backup is password-protected.',
+      );
+    }
+    if (importCredential == null) return;
 
     if (!context.mounted) return;
 
@@ -347,7 +365,7 @@ class WalletListScreen extends StatelessWidget {
 
       final info = await rust_wallet.importWalletBackup(
         backupBytes: bytes,
-        importPassword: importPassword,
+        importCredential: importCredential,
         deviceKeyHex: deviceKey,
         walletsDir: walletsDir,
       );

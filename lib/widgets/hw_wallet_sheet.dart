@@ -6,6 +6,9 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 
+// re-export for callers that need the APIXpubSlot type
+export 'package:deadbolt/src/rust/api/model.dart' show APIXpubSlot;
+
 // re-export so callers can pattern-match on HwAddressDisplayedResult
 export 'package:deadbolt/cubit/hw_wallet_cubit.dart' show HwAddressDisplayedResult;
 
@@ -83,6 +86,24 @@ Future<String?> showHwXpubSheet(
   );
 }
 
+/// Shows the hardware wallet bottom sheet in **xpub unlock** mode.
+///
+/// Once the device is connected its root fingerprint is matched against [slots].
+/// The matching slot's derivation path is used to derive the xpub automatically.
+/// Returns a descriptor key string `[mfp/path]xpub...` or `null`.
+Future<String?> showHwXpubUnlockSheet(
+  BuildContext context, {
+  required List<APIXpubSlot> slots,
+  required APINetwork network,
+}) {
+  return _showHwWalletSheet<String>(
+    context,
+    mode: _HwMode.xpubUnlock,
+    slots: slots,
+    network: network,
+  );
+}
+
 /// Shows the hardware wallet bottom sheet in **verify address** mode.
 ///
 /// The device will display the address at [keychain]/[index] derived from
@@ -124,6 +145,7 @@ Future<T?> _showHwWalletSheet<T>(
   APIKeychain? keychain,
   int? index,
   String? address,
+  List<APIXpubSlot>? slots,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -142,6 +164,7 @@ Future<T?> _showHwWalletSheet<T>(
         keychain: keychain,
         index: index,
         address: address,
+        slots: slots,
       ),
     ),
   );
@@ -149,7 +172,7 @@ Future<T?> _showHwWalletSheet<T>(
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
-enum _HwMode { sign, xpub, register, checkRegistration, verifyAddress }
+enum _HwMode { sign, xpub, xpubUnlock, register, checkRegistration, verifyAddress }
 
 class _HwWalletSheet<T> extends StatelessWidget {
   final _HwMode mode;
@@ -162,6 +185,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
   final APIKeychain? keychain;
   final int? index;
   final String? address;
+  final List<APIXpubSlot>? slots;
 
   const _HwWalletSheet({
     super.key,
@@ -175,6 +199,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
     this.keychain,
     this.index,
     this.address,
+    this.slots,
   });
 
   @override
@@ -243,6 +268,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
   String _sheetTitle() => switch (mode) {
         _HwMode.sign => 'Sign with hardware wallet',
         _HwMode.xpub => 'Export xpub from hardware wallet',
+        _HwMode.xpubUnlock => 'Unlock with hardware wallet',
         _HwMode.register => 'Register wallet on hardware device',
         _HwMode.checkRegistration => 'Check registration on device',
         _HwMode.verifyAddress => 'Verify address on device',
@@ -341,6 +367,24 @@ class _HwWalletSheet<T> extends StatelessWidget {
             rootFingerprint: rootFingerprint,
             derivationPath: derivationPath!,
             network: network,
+          );
+        }
+      case _HwMode.xpubUnlock:
+        final match = slots?.where((s) =>
+            s.mfp.toLowerCase() == rootFingerprint.toLowerCase() &&
+            s.derivationHint.isNotEmpty);
+        if (match != null && match.isNotEmpty) {
+          cubit.getXpub(
+            sessionId: sessionId,
+            productString: productString,
+            rootFingerprint: rootFingerprint,
+            derivationPath: match.first.derivationHint,
+            network: network,
+          );
+        } else {
+          showErrorToast(
+            context,
+            'This device (${rootFingerprint.toUpperCase()}) is not registered for this wallet.',
           );
         }
       case _HwMode.register:
@@ -513,6 +557,7 @@ class _ReadyPanel extends StatelessWidget {
       _HwMode.register => 'Register wallet',
       _HwMode.checkRegistration => 'Check registration',
       _HwMode.verifyAddress => 'Show address on device',
+      _HwMode.xpubUnlock => 'Unlock wallet',
     };
 
     return Column(

@@ -301,6 +301,11 @@
   "generateProjectFromWallet": "Analyze in Designer",
   "projectHasNoDescriptor": "This project has no descriptor yet. Build one first.",
   "loadingWallets": "Loading wallets...",
+  "openingWallet": "Opening wallet…",
+  "loadingWalletData": "Loading wallet data…",
+  "loadingAddresses": "Loading addresses…",
+  "loadingCoins": "Loading coins…",
+  "initializingCamera": "Initializing camera…",
   "deleteWalletTitle": "Delete wallet",
   "deleteWalletConfirm": "Delete \"{name}\"?",
   "@deleteWalletConfirm": {
@@ -332,6 +337,7 @@
     }
   },
   "walletPasswordProtected": "Password protected",
+  "lockWallet": "Lock wallet",
   "notYetSynced": "Not yet synced",
   "lastSynced": "Last synced: {time}",
   "@lastSynced": {
@@ -340,6 +346,7 @@
     }
   },
   "syncButton": "Sync",
+  "syncTooltip": "Sync wallet",
   "syncing": "Syncing...",
   "syncFailed": "Sync failed: {error}",
   "rescanButton": "Full rescan",
@@ -383,6 +390,13 @@
   "electrumNetworkRegtest": "Regtest Electrum",
 
   "settingsMinFeeRate": "Minimum fee rate (sat/vB)",
+
+  "fiatSectionTitle": "Fiat Values",
+  "fiatEnabledLabel": "Show fiat values",
+  "fiatCurrencyLabel": "Currency",
+  "fiatProviderLabel": "Price provider",
+  "fiatProviderCoinGecko": "CoinGecko",
+  "fiatProviderMempoolSpace": "Mempool.space",
 
   "explorerSectionTitle": "Block Explorer",
   "explorerUrlHint": "https://mempool.space",

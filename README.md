@@ -20,6 +20,8 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Local Signing**: Store encrypted private keys on-device (hot signing keys) and sign PSBTs without any external device
 - **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
 - **Password-Protected Wallets**: Lock individual wallets with a password; the key never leaves the device unencrypted
+- **XPub Key Protection**: Protect wallets with any xpub from the descriptor — any registered key can unlock, including via hardware wallet (no password to remember or lose)
+- **Change Protection In-Place**: Switch between DeviceKey, Password, and XPub protection at any time from the wallet overview, without export or import
 - **Encrypted Backup & Restore**: Export a wallet as an encrypted `.deadbolt` backup file and restore it on any device
 - **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
 - **Liana Format Export**: Export any descriptor in the format expected by the Liana wallet

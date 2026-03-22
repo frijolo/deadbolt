@@ -82,10 +82,32 @@ fn ensure_column(conn: &Connection, table: &str, column: &str, col_def: &str) ->
 }
 
 // ---------------------------------------------------------------------------
-// Generic label-table helpers (tx_labels / address_labels / coin_labels share
-// an identical schema; these private helpers avoid repeating the same queries
-// three times).
+// Generic label-table helpers.
+//
+// `set_entity_label`   — full schema (is_auto + source_entity): tx/address/coin labels
+// `set_simple_label`   — key-only schema (no metadata columns):  key/path labels
 // ---------------------------------------------------------------------------
+
+/// Upsert/delete a label in a simple two-column table `(key_col, label)`.
+/// Used by key_labels (TEXT key) and path_labels (INTEGER key), which have no
+/// `is_auto`/`source_entity` columns unlike the other label tables.
+fn set_simple_label(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &dyn rusqlite::types::ToSql,
+    label: &str,
+) -> Result<()> {
+    if label.is_empty() {
+        conn.execute(&format!("DELETE FROM {table} WHERE {key_col} = ?1"), [key])?;
+    } else {
+        conn.execute(
+            &format!("INSERT OR REPLACE INTO {table} ({key_col}, label) VALUES (?1, ?2)"),
+            [key, &label as &dyn rusqlite::types::ToSql],
+        )?;
+    }
+    Ok(())
+}
 
 fn set_entity_label(
     conn: &Connection,
@@ -342,18 +364,7 @@ pub fn ensure_key_labels_table(conn: &Connection) -> Result<()> {
 
 /// Upsert a label for a master fingerprint. Deletes the row if label is empty.
 pub fn set_key_label(conn: &Connection, mfp: &str, label: &str) -> Result<()> {
-    if label.is_empty() {
-        conn.execute(
-            "DELETE FROM key_labels WHERE mfp = ?1",
-            rusqlite::params![mfp],
-        )?;
-    } else {
-        conn.execute(
-            "INSERT OR REPLACE INTO key_labels (mfp, label) VALUES (?1, ?2)",
-            rusqlite::params![mfp, label],
-        )?;
-    }
-    Ok(())
+    set_simple_label(conn, "key_labels", "mfp", &mfp, label)
 }
 
 /// Return all key labels as a HashMap<mfp, label>.
@@ -385,18 +396,7 @@ pub fn ensure_path_labels_table(conn: &Connection) -> Result<()> {
 
 /// Upsert a label for a spend path (keyed by rust_id). Deletes the row if label is empty.
 pub fn set_path_label(conn: &Connection, rust_id: u32, label: &str) -> Result<()> {
-    if label.is_empty() {
-        conn.execute(
-            "DELETE FROM path_labels WHERE rust_id = ?1",
-            rusqlite::params![rust_id],
-        )?;
-    } else {
-        conn.execute(
-            "INSERT OR REPLACE INTO path_labels (rust_id, label) VALUES (?1, ?2)",
-            rusqlite::params![rust_id, label],
-        )?;
-    }
-    Ok(())
+    set_simple_label(conn, "path_labels", "rust_id", &rust_id, label)
 }
 
 /// Return all path labels as a HashMap<rust_id, label>.
@@ -743,6 +743,50 @@ pub fn has_seed_for_mfp(conn: &Connection, mfp: &str) -> Result<bool> {
     Ok(count > 0)
 }
 
+////////////////////////
+// fiat_prices table  //
+////////////////////////
+
+/// Create the fiat_prices table if it does not already exist.
+pub fn ensure_fiat_prices_table(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS fiat_prices (
+            txid     TEXT NOT NULL,
+            currency TEXT NOT NULL,
+            price    REAL NOT NULL,
+            PRIMARY KEY (txid, currency)
+        );",
+    )?;
+    Ok(())
+}
+
+/// Store (or replace) the BTC price in `currency` at the time of a transaction.
+pub fn store_fiat_price(conn: &Connection, txid: &str, currency: &str, price: f64) -> Result<()> {
+    conn.execute(
+        "INSERT OR REPLACE INTO fiat_prices (txid, currency, price) VALUES (?1, ?2, ?3)",
+        rusqlite::params![txid, currency, price],
+    )?;
+    Ok(())
+}
+
+/// Return all stored (txid, price) pairs for the given currency.
+pub fn get_fiat_prices(conn: &Connection, currency: &str) -> Result<Vec<(String, f64)>> {
+    let mut stmt = conn.prepare("SELECT txid, price FROM fiat_prices WHERE currency = ?1")?;
+    let prices = stmt
+        .query_map([currency], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(prices)
+}
+
+/// Delete all stored fiat prices (called when the user changes currency).
+pub fn clear_fiat_prices(conn: &Connection) -> Result<()> {
+    conn.execute("DELETE FROM fiat_prices", [])?;
+    Ok(())
+}
+
 /// Update last_synced_at to the current Unix timestamp and return it.
 pub fn touch_last_synced(conn: &Connection) -> Result<i64> {
     let now = std::time::SystemTime::now()
@@ -798,6 +842,7 @@ pub fn load_or_create_wallet(
     ensure_path_labels_table(&conn)?;
     ensure_coin_labels_table(&conn)?;
     ensure_seed_entries_table(&conn)?;
+    ensure_fiat_prices_table(&conn)?;
 
     // Clean up orphaned auto-labels created before source_entity was tracked.
     // Auto-labels are derived data and will be regenerated by repropagate_all_labels.

@@ -88,10 +88,7 @@ class ProjectDescriptorService {
         value: relTimelockValue,
       );
     }
-    return APIRelativeTimelock(
-      timelockType: APIRelativeTimelockType.blocks,
-      value: 0,
-    );
+    return kNoRelativeTimelock;
   }
 
   /// Build the [APIAbsoluteTimelock] value from an editable spend path's
@@ -107,9 +104,6 @@ class ProjectDescriptorService {
         value: absTimelockValue,
       );
     }
-    return APIAbsoluteTimelock(
-      timelockType: APIAbsoluteTimelockType.blocks,
-      value: 0,
-    );
+    return kNoAbsoluteTimelock;
   }
 }

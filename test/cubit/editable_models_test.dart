@@ -25,7 +25,7 @@ void main() {
     });
 
     test('fromDb maps all fields', () {
-      final dbKey = ProjectKey(
+      const dbKey = ProjectKey(
         id: 42,
         projectId: 1,
         mfp: 'abc12345',
@@ -43,7 +43,7 @@ void main() {
     });
 
     test('fromDb with null customName', () {
-      final dbKey = ProjectKey(
+      const dbKey = ProjectKey(
         id: 1,
         projectId: 1,
         mfp: 'abc12345',

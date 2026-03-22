@@ -7,6 +7,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ class CoinsView extends StatelessWidget {
     final network = state.walletInfo.network;
 
     if (!state.utxosLoaded) {
-      return const Center(child: CircularProgressIndicator());
+      return LoadingIndicator(message: l10n.loadingCoins);
     }
 
     final utxos = state.utxos;
@@ -94,6 +95,8 @@ class CoinsView extends StatelessWidget {
               spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
               tipHeight: state.tipHeight,
               keyLabels: state.keyLabels,
+              currentBtcPrice: state.currentBtcPrice,
+              fiatCurrency: state.fiatCurrency,
             ),
           ),
       ],
@@ -107,6 +110,8 @@ class _CoinTile extends StatelessWidget {
   final List<APISpendPath> spendPaths;
   final int tipHeight;
   final Map<String, String> keyLabels;
+  final double? currentBtcPrice;
+  final String? fiatCurrency;
 
   const _CoinTile({
     required this.utxo,
@@ -114,6 +119,8 @@ class _CoinTile extends StatelessWidget {
     required this.spendPaths,
     required this.tipHeight,
     required this.keyLabels,
+    this.currentBtcPrice,
+    this.fiatCurrency,
   });
 
   @override
@@ -140,6 +147,13 @@ class _CoinTile extends StatelessWidget {
     );
     final label = utxo.effectiveLabel;
     final isInherited = utxo.isAuto;
+    final amountStyle = TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: label != null ? 12 : null,
+      color: label != null
+          ? Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh)
+          : null,
+    );
     final isMempool = utxo.mempoolSpendingTxid != null;
     final isSpending = isMempool || utxo.pendingPsbtIds.isNotEmpty;
 
@@ -189,18 +203,27 @@ class _CoinTile extends StatelessWidget {
                     ),
                   ],
                 ),
-              Text(
-                '${BitcoinFormatter.formatNum(sats)} sats',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: label != null ? 12 : null,
-                  color: label != null
-                      ? Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withAlpha(AppAlpha.mediumHigh)
-                      : null,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '${BitcoinFormatter.formatNum(sats)} sats',
+                    style: amountStyle,
+                  ),
+                  if (currentBtcPrice != null && fiatCurrency != null) ...[
+                    const Spacer(),
+                    Text(
+                      BitcoinFormatter.formatSatsFiat(
+                          sats, currentBtcPrice!, fiatCurrency!),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(AppAlpha.secondary),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

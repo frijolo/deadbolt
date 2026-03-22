@@ -136,7 +136,7 @@ abstract class AppThemeManager {
       brightness: Brightness.light,
     ),
     useMaterial3: true,
-    extensions: [KeyColorExtension(keyColors: _lightKeyColors)],
+    extensions: [const KeyColorExtension(keyColors: _lightKeyColors)],
   );
 
   static ThemeData getDarkThemeData() => ThemeData(
@@ -145,7 +145,7 @@ abstract class AppThemeManager {
       brightness: Brightness.dark,
     ),
     useMaterial3: true,
-    extensions: [KeyColorExtension(keyColors: _darkKeyColors)],
+    extensions: [const KeyColorExtension(keyColors: _darkKeyColors)],
   );
 
   static ThemeMode getThemeMode(AppTheme theme) => switch (theme) {

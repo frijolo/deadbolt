@@ -35,3 +35,13 @@ enum TimelockMode {
   relative,
   absolute;
 }
+
+const kNoRelativeTimelock = APIRelativeTimelock(
+  timelockType: APIRelativeTimelockType.blocks,
+  value: 0,
+);
+
+const kNoAbsoluteTimelock = APIAbsoluteTimelock(
+  timelockType: APIAbsoluteTimelockType.blocks,
+  value: 0,
+);

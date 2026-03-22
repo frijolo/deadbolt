@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `derive_and_format_keyspec`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -96,9 +96,17 @@ Future<bool> walletRequiresXpub({required String walletPath}) => RustLib
     .api
     .crateApiWalletWalletRequiresXpub(walletPath: walletPath);
 
+/// Return the network stored in the wallet meta sidecar without opening the DB.
+/// Returns None for DeviceKey wallets or when the meta cannot be read.
+Future<String?> getWalletNetworkHint({required String walletPath}) => RustLib
+    .instance
+    .api
+    .crateApiWalletGetWalletNetworkHint(walletPath: walletPath);
+
 /// Add a new xpub slot to a XpubKey-protected wallet.
 /// `current_xpub` is any already-registered xpub (used to derive the data key).
 /// `new_mfp` and `new_xpub` identify the slot to add.
+/// Derivation is looked up from the wallet descriptor automatically.
 Future<void> addXpubSlot({
   required String walletPath,
   required String newMfp,
@@ -123,7 +131,7 @@ Future<void> removeXpubSlot({
   mfp: mfp,
 );
 
-/// List the MFPs of all registered xpub slots for a XpubKey-protected wallet.
+/// List all registered xpub slots for a XpubKey-protected wallet, including derivation hints.
 Future<List<APIXpubSlot>> listXpubSlots({required String walletPath}) =>
     RustLib.instance.api.crateApiWalletListXpubSlots(walletPath: walletPath);
 
@@ -253,35 +261,42 @@ int copyProjectKeysToWallet({
   walletPassword: walletPassword,
 );
 
-/// Export a wallet to a self-contained encrypted `.deadbolt` backup.
+/// Export a wallet to a self-contained encrypted `.deadbolt` backup (v2 format).
 ///
-/// The backup is always encrypted with `export_password` via Argon2id, so it is
-/// portable regardless of the original protection type.
+/// `export_protection` must be `UserPassword` or `XpubKey`.
+/// - `UserPassword`: provide `export_password`; the credential is protected with Argon2id.
+/// - `XpubKey`: xpubs are auto-extracted from the descriptor; each gets its own slot.
 ///
+/// `security_level` controls the Argon2id parameters for the export credential slots.
 /// The returned bytes should be saved as a `.deadbolt` file.
 Future<Uint8List> exportWalletBackup({
   required String walletPath,
   required String deviceKeyHex,
   String? openPassword,
-  required String exportPassword,
+  required APIProtectionType exportProtection,
+  String? exportPassword,
+  required APISecurityLevel securityLevel,
 }) => RustLib.instance.api.crateApiWalletExportWalletBackup(
   walletPath: walletPath,
   deviceKeyHex: deviceKeyHex,
   openPassword: openPassword,
+  exportProtection: exportProtection,
   exportPassword: exportPassword,
+  securityLevel: securityLevel,
 );
 
-/// Import a `.deadbolt` backup and add it as a new wallet in `wallets_dir`.
+/// Import a `.deadbolt` backup (v1 or v2) and add it as a new wallet in `wallets_dir`.
 ///
+/// `import_credential`: password for UserPassword backups, xpub or keyspec for XpubKey backups.
 /// Returns the `APIWalletInfo` of the restored wallet.
 Future<APIWalletInfo> importWalletBackup({
   required List<int> backupBytes,
-  required String importPassword,
+  required String importCredential,
   required String deviceKeyHex,
   required String walletsDir,
 }) => RustLib.instance.api.crateApiWalletImportWalletBackup(
   backupBytes: backupBytes,
-  importPassword: importPassword,
+  importCredential: importCredential,
   deviceKeyHex: deviceKeyHex,
   walletsDir: walletsDir,
 );
@@ -348,7 +363,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required String deviceKeyHex,
     required APIProtectionType newProtectionType,
     String? newPassword,
+    required APISecurityLevel securityLevel,
   });
+
+  /// Delete all stored fiat prices (called when the user changes fiat currency).
+  Future<void> clearFiatPrices();
 
   /// Build an unsigned PSBT with optional coin control and spend-path selection.
   ///
@@ -389,6 +408,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Return the cached balance (no network call).
   Future<APIBalance> getBalance();
 
+  /// Return all stored BTC prices for `currency` as a list of (txid, price) pairs.
+  Future<List<APIFiatPrice>> getFiatPrices({required String currency});
+
   /// Read wallet metadata from the open connection (no file re-open).
   Future<APIWalletInfo> getInfo();
 
@@ -415,6 +437,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// and output addresses. External input transactions not in BDK's graph are fetched
   /// from Electrum (using the URL stored from the last sync).
   Future<APITxDetails> getTxDetails({required String txid});
+
+  /// Return transactions that have no stored fiat price for `currency`.
+  Future<List<APITxMissingFiat>> getTxidsMissingFiat({
+    required String currency,
+  });
 
   /// Return full detail for a UTXO: the UTXO plus the explicit labels of its cluster peers.
   Future<APIUtxoDetails> getUtxoDetails({
@@ -515,6 +542,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   APIPsbtInfo signPsbtWithKey({
     required PlatformInt64 psbtId,
     required String mfp,
+  });
+
+  /// Store (or replace) the BTC price in `currency` at the time of a transaction.
+  Future<void> storeFiatPrice({
+    required String txid,
+    required String currency,
+    required double btcPrice,
   });
 
   /// Sync with Electrum, persist, and update last_synced_at.

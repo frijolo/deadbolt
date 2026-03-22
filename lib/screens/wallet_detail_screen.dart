@@ -22,6 +22,8 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/change_protection_dialog.dart';
+import 'package:deadbolt/screens/export_backup_dialog.dart'
+    show showExportBackupDialog;
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart';
@@ -46,6 +48,7 @@ import 'package:deadbolt/screens/wallet_detail/receive_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail/transactions_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/addresses_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
+import 'package:deadbolt/widgets/loading_indicator.dart';
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -56,9 +59,13 @@ class WalletDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          WalletDetailCubit(service: context.read<WalletService>())
-            ..load(walletPath),
+      create: (context) {
+        final l10n = context.l10n;
+        return WalletDetailCubit(service: context.read<WalletService>())
+          ..load(walletPath,
+              openingMessage: l10n.openingWallet,
+              loadingDataMessage: l10n.loadingWalletData);
+      },
       child: _WalletDetailView(onNavigate: onNavigate),
     );
   }
@@ -83,48 +90,78 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final electrumUrl = settings.electrumUrlForNetwork(
       state.walletInfo.network,
     );
-    context.read<WalletDetailCubit>().startAutoSync(electrumUrl);
+    final cubit = context.read<WalletDetailCubit>();
+    cubit.setFiatConfig(
+      settings.fiatEnabled,
+      settings.fiatCurrency,
+      settings.fiatProvider,
+    );
+    cubit.startAutoSync(electrumUrl);
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<WalletDetailCubit, WalletDetailState>(
-      listener: (context, state) async {
-        _maybeStartAutoSync(context, state);
-        if (state is WalletDetailLoaded) {
-          handleTransientError(context, state.errorMessage,
-              context.read<WalletDetailCubit>().clearError);
-        }
-        if (state is WalletDetailNeedsPassword) {
-          if (!context.mounted) return;
-          final String? credential;
-          if (state.isXpubKey) {
-            credential = await showXpubUnlockDialog(context);
-          } else {
-            credential = await showPasswordPrompt(
-              context,
-              title: 'Enter wallet password',
-              subtitle: 'This wallet is protected with a password.',
-            );
-          }
-          if (credential != null && context.mounted) {
-            context
-                .read<WalletDetailCubit>()
-                .load(state.walletPath, password: credential);
-          } else if (context.mounted) {
-            Navigator.of(context).maybePop();
-          }
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<WalletDetailCubit, WalletDetailState>(
+          listener: (context, state) async {
+            _maybeStartAutoSync(context, state);
+            if (state is WalletDetailLoaded) {
+              handleTransientError(context, state.errorMessage,
+                  context.read<WalletDetailCubit>().clearError);
+            }
+            if (state is WalletDetailNeedsPassword) {
+              if (!context.mounted) return;
+              final String? credential;
+              if (state.isXpubKey) {
+                credential = await showXpubUnlockDialog(context,
+                    walletPath: state.walletPath, network: state.network);
+              } else {
+                credential = await showPasswordPrompt(
+                  context,
+                  title: 'Enter wallet password',
+                  subtitle: 'This wallet is protected with a password.',
+                );
+              }
+              if (credential != null && context.mounted) {
+                context
+                    .read<WalletDetailCubit>()
+                    .load(state.walletPath,
+                        password: credential,
+                        openingMessage: context.l10n.openingWallet,
+                        loadingDataMessage: context.l10n.loadingWalletData);
+              } else if (context.mounted) {
+                Navigator.of(context).maybePop();
+              }
+            }
+          },
+        ),
+        BlocListener<SettingsCubit, AppSettings>(
+          listenWhen: (prev, curr) =>
+              prev.fiatEnabled != curr.fiatEnabled ||
+              prev.fiatCurrency != curr.fiatCurrency ||
+              prev.fiatProvider != curr.fiatProvider,
+          listener: (context, settings) {
+            context.read<WalletDetailCubit>().setFiatConfig(
+                  settings.fiatEnabled,
+                  settings.fiatCurrency,
+                  settings.fiatProvider,
+                );
+          },
+        ),
+      ],
       child: BlocBuilder<WalletDetailCubit, WalletDetailState>(
         builder: (context, state) {
           return switch (state) {
             WalletDetailInitial() ||
-            WalletDetailLoading() ||
             WalletDetailNeedsPassword() =>
               Scaffold(
                 appBar: AppBar(),
                 body: const Center(child: CircularProgressIndicator()),
+              ),
+            WalletDetailLoading(:final message) => Scaffold(
+                appBar: AppBar(),
+                body: LoadingIndicator(message: message),
               ),
             WalletDetailError(:final message) => Scaffold(
               appBar: AppBar(),
@@ -192,6 +229,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         showChangeProtectionDialog(
           context,
           currentProtection: state.walletInfo.protection.protectionType,
+          currentSecurityLevel: state.walletInfo.protection.securityLevel,
         );
     }
   }
@@ -343,14 +381,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 
     if (!context.mounted) return;
 
-    // Always ask for an export password for portability
-    final exportPassword = await showPasswordPrompt(
-      context,
-      title: 'Set backup password',
-      subtitle: 'This password protects the backup file.',
-      confirmRequired: true,
-    );
-    if (exportPassword == null || !context.mounted) return;
+    final opts = await showExportBackupDialog(context);
+    if (opts == null || !context.mounted) return;
 
     final List<int> backupBytes;
     try {
@@ -358,7 +390,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         walletPath: walletPath,
         deviceKeyHex: deviceKey,
         openPassword: openPassword,
-        exportPassword: exportPassword,
+        exportProtection: opts.protectionType,
+        exportPassword: opts.password,
+        securityLevel: opts.securityLevel,
       );
     } catch (e) {
       if (context.mounted) showErrorToastException(context, e);
@@ -586,7 +620,24 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             color: AppAccent.color,
             letterSpacing: 0.0,
           ),
-          const SizedBox(width: 4),
+          if (state.isSyncing)
+            const SizedBox(
+              width: 40,
+              height: 40,
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.sync),
+              tooltip: l10n.syncTooltip,
+              onPressed: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+            ),
           PopupMenuButton<_WalletMenuAction>(
             tooltip: l10n.moreOptionsTooltip,
             onSelected: (action) => _onMenuAction(context, action, state),
@@ -632,6 +683,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             onChangeProtectionTap: () => showChangeProtectionDialog(
               context,
               currentProtection: state.walletInfo.protection.protectionType,
+              currentSecurityLevel: state.walletInfo.protection.securityLevel,
             ),
           ),
           1 => TransactionsView(state: state),
@@ -680,7 +732,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 // Overview view (tab 0) — balance + action buttons
 // ─────────────────────────────────────────────────────────────
 
-class _OverviewView extends StatelessWidget {
+enum _BalanceUnit { sats, btc, fiat }
+
+class _OverviewView extends StatefulWidget {
   final WalletDetailLoaded state;
   final VoidCallback onSendTap;
   final VoidCallback onReceiveTap;
@@ -704,8 +758,48 @@ class _OverviewView extends StatelessWidget {
   });
 
   @override
+  State<_OverviewView> createState() => _OverviewViewState();
+}
+
+class _OverviewViewState extends State<_OverviewView> {
+  _BalanceUnit _unit = _BalanceUnit.sats;
+
+  bool get _fiatAvailable =>
+      widget.state.currentBtcPrice != null &&
+      widget.state.fiatCurrency != null;
+
+  List<_BalanceUnit> get _availableUnits => [
+        _BalanceUnit.sats,
+        _BalanceUnit.btc,
+        if (_fiatAvailable) _BalanceUnit.fiat,
+      ];
+
+  void _cycleUnit() {
+    final units = _availableUnits;
+    final next = (units.indexOf(_unit) + 1) % units.length;
+    setState(() => _unit = units[next]);
+  }
+
+  String _fmt(int sats) {
+    final l10n = context.l10n;
+    switch (_unit) {
+      case _BalanceUnit.sats:
+        return l10n.balanceSats(sats);
+      case _BalanceUnit.btc:
+        return l10n.balanceBtc((sats / 1e8).toStringAsFixed(8));
+      case _BalanceUnit.fiat:
+        return BitcoinFormatter.formatSatsFiat(
+          sats,
+          widget.state.currentBtcPrice!,
+          widget.state.fiatCurrency!,
+        );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final state = widget.state;
     final balance = state.balance;
     final walletInfo = state.walletInfo;
     final totalSats =
@@ -713,7 +807,6 @@ class _OverviewView extends StatelessWidget {
         balance.trustedPending +
         balance.untrustedPending +
         balance.immature;
-    final btcString = (totalSats.toDouble() / 100000000.0).toStringAsFixed(8);
     final lastSynced = walletInfo.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
         : null;
@@ -723,68 +816,87 @@ class _OverviewView extends StatelessWidget {
       children: [
         // ── Balance card ────────────────────────────────────────────────────
         Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.balanceBtc(btcString),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _BalanceChip(
-                      label: l10n.balanceConfirmed,
-                      sats: balance.confirmed.toInt(),
-                    ),
-                    if (balance.trustedPending + balance.untrustedPending >
-                        BigInt.zero)
-                      _BalanceChip(
-                        label: l10n.balancePending,
-                        sats: (balance.trustedPending +
-                                balance.untrustedPending)
-                            .toInt(),
-                        dimmed: true,
-                      ),
-                    if (balance.immature > BigInt.zero)
-                      _BalanceChip(
-                        label: l10n.balanceImmature,
-                        sats: balance.immature.toInt(),
-                        dimmed: true,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        lastSynced != null
-                            ? l10n.lastSynced(_formatOverviewDateTime(lastSynced))
-                            : l10n.notYetSynced,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withAlpha(AppAlpha.secondary),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: _cycleUnit,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _fmt(totalSats.toInt()),
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    if (state.isSyncing)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                      Icon(
+                        Icons.swap_horiz,
+                        size: 18,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(AppAlpha.secondary),
                       ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _BalanceChip(
+                        label: l10n.balanceConfirmed,
+                        value: _fmt(balance.confirmed.toInt()),
+                      ),
+                      if (balance.trustedPending + balance.untrustedPending >
+                          BigInt.zero)
+                        _BalanceChip(
+                          label: l10n.balancePending,
+                          value: _fmt((balance.trustedPending +
+                                  balance.untrustedPending)
+                              .toInt()),
+                          dimmed: true,
+                        ),
+                      if (balance.immature > BigInt.zero)
+                        _BalanceChip(
+                          label: l10n.balanceImmature,
+                          value: _fmt(balance.immature.toInt()),
+                          dimmed: true,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          lastSynced != null
+                              ? l10n.lastSynced(_formatOverviewDateTime(lastSynced))
+                              : l10n.notYetSynced,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withAlpha(AppAlpha.secondary),
+                          ),
+                        ),
+                      ),
+                      if (state.isSyncing)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -792,25 +904,25 @@ class _OverviewView extends StatelessWidget {
 
         // ── Primary actions ─────────────────────────────────────────────────
         _twoButtons(
-          icon1: Icons.arrow_upward, label1: l10n.walletSendButton, onTap1: onSendTap, filled1: true,
-          icon2: Icons.arrow_downward, label2: l10n.walletReceiveButton, onTap2: onReceiveTap, filled2: true,
+          icon1: Icons.arrow_upward, label1: l10n.walletSendButton, onTap1: widget.onSendTap, filled1: true,
+          icon2: Icons.arrow_downward, label2: l10n.walletReceiveButton, onTap2: widget.onReceiveTap, filled2: true,
         ),
         const SizedBox(height: 12),
 
         // ── Secondary actions ───────────────────────────────────────────────
         _twoButtons(
-          icon1: Icons.sync, label1: l10n.syncButton, onTap1: onSyncTap, enabled1: !state.isSyncing,
-          icon2: Icons.manage_search, label2: l10n.rescanButton, onTap2: onRescanTap,
+          icon1: Icons.sync, label1: l10n.syncButton, onTap1: widget.onSyncTap, enabled1: !state.isSyncing,
+          icon2: Icons.manage_search, label2: l10n.rescanButton, onTap2: widget.onRescanTap,
         ),
         const SizedBox(height: 12),
         _twoButtons(
-          icon1: Icons.upload_outlined, label1: l10n.exportBip329Button, onTap1: onExportLabelsTap,
-          icon2: Icons.download_outlined, label2: l10n.importBip329Button, onTap2: onImportLabelsTap,
+          icon1: Icons.upload_outlined, label1: l10n.exportBip329Button, onTap1: widget.onExportLabelsTap,
+          icon2: Icons.download_outlined, label2: l10n.importBip329Button, onTap2: widget.onImportLabelsTap,
         ),
         const SizedBox(height: 12),
         _twoButtons(
-          icon1: Icons.memory, label1: 'Hardware wallet', onTap1: onHwTap,
-          icon2: Icons.shield_outlined, label2: 'Encryption', onTap2: onChangeProtectionTap,
+          icon1: Icons.memory, label1: 'Hardware wallet', onTap1: widget.onHwTap,
+          icon2: Icons.shield_outlined, label2: 'Encryption', onTap2: widget.onChangeProtectionTap,
         ),
       ],
     );
@@ -909,35 +1021,30 @@ class _ActionButton extends StatelessWidget {
 
 class _BalanceChip extends StatelessWidget {
   final String label;
-  final int sats;
+  final String value;
   final bool dimmed;
 
   const _BalanceChip({
     required this.label,
-    required this.sats,
+    required this.value,
     this.dimmed = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withAlpha(dimmed ? 97 : 178),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(dimmed ? 97 : 178),
           ),
         ),
         Text(
-          l10n.balanceSats(sats),
+          value,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withAlpha(dimmed ? 97 : 210),
+            color: Theme.of(context).colorScheme.onSurface.withAlpha(dimmed ? 97 : 210),
           ),
         ),
       ],
@@ -968,7 +1075,7 @@ class _DescriptorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!state.descriptorLoaded) {
-      return const Center(child: CircularProgressIndicator());
+      return LoadingIndicator(message: context.l10n.analyzingDescriptorLoading);
     }
 
     final analysis = state.descriptorAnalysis;

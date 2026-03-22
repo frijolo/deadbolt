@@ -4,6 +4,22 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [v1.5.0]
+
+### New Features
+- **XPub key protection (Type 2)** — Wallets can now be protected with any xpub from the descriptor. Each registered xpub receives its own encrypted slot in the `.meta` sidecar; any one of them unlocks the wallet. Hardware wallet users can unlock directly via BitBox02 without typing or pasting an xpub.
+- **Change protection in-place** — A new "Encryption" button in the wallet overview and the wallet menu lets users switch between DeviceKey, Password, and XPub protection at any time, without exporting or importing the wallet. The database is re-keyed on the existing connection (no downtime, no backup required).
+- **Selectable Argon2id security levels** — Change-protection and backup export now offer three resistance levels: Standard (~300 ms on mobile, 64 MB), High (~1.6 s, 256 MB), and Extreme (~5.5 s, 512 MB). Parameters were calibrated on real mid-range Android hardware.
+- **Hardware wallet unlock for XPub wallets** — The XPub unlock dialog integrates with the BitBox02 flow: registered xpub slots are listed, the device root fingerprint is matched automatically, and the correct xpub is derived without manual input.
+
+### Improvements
+- Balance display in the wallet overview now cycles between sats, BTC, and fiat (when a price feed is configured) on tap.
+- All full-screen loading spinners now display a descriptive status message (e.g. "Opening wallet…", "Loading wallet data…").
+- Lock and unlock buttons in the wallet list are now a single `IconButton` in the trailing position, eliminating layout shift when toggling.
+- XPub unlock dialog reorganized into two rows (secondary actions on top, primary actions below) to prevent overflow on narrow screens.
+
+---
+
 ## [v1.4.1]
 
 ### New Features
@@ -167,6 +183,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
 [v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0

@@ -19,7 +19,7 @@ void main() {
   late AppDatabase db;
   late MockProjectDescriptorService mockService;
 
-  final fakeAnalysisResult = APIAnalysisResult(
+  const fakeAnalysisResult = APIAnalysisResult(
     descriptor: 'wpkh([abc12345/84h/0h/0h]xpub123/*)',
     network: APINetwork.testnet,
     walletType: APIWalletType.p2Wpkh,
@@ -33,9 +33,9 @@ void main() {
     spendPaths: [
       APISpendPath(
         id: 1001,
-        policyPath: const [],
+        policyPath: [],
         threshold: 1,
-        mfps: const ['abc12345'],
+        mfps: ['abc12345'],
         relTimelock: APIRelativeTimelock(
           timelockType: APIRelativeTimelockType.blocks,
           value: 0,
@@ -135,7 +135,7 @@ void main() {
       build: () => ProjectListCubit(db, service: mockService),
       act: (cubit) async {
         await Future<void>.delayed(Duration.zero);
-        final json = '{"version":1,"exportedAt":"2024-06-15T12:00:00.000",'
+        const json = '{"version":1,"exportedAt":"2024-06-15T12:00:00.000",'
             '"project":{"name":"Imported","descriptor":"wpkh(...)"},'
             '"keyLabels":{},"pathLabels":{}}';
         await cubit.importProject(json);

@@ -10,21 +10,29 @@ import 'package:deadbolt/utils/toast_helper.dart';
 Future<void> showChangeProtectionDialog(
   BuildContext context, {
   required APIProtectionType currentProtection,
+  required APISecurityLevel currentSecurityLevel,
 }) async {
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (_) => BlocProvider.value(
       value: context.read<WalletDetailCubit>(),
-      child: _ChangeProtectionDialog(currentProtection: currentProtection),
+      child: _ChangeProtectionDialog(
+        currentProtection: currentProtection,
+        currentSecurityLevel: currentSecurityLevel,
+      ),
     ),
   );
 }
 
 class _ChangeProtectionDialog extends StatefulWidget {
   final APIProtectionType currentProtection;
+  final APISecurityLevel currentSecurityLevel;
 
-  const _ChangeProtectionDialog({required this.currentProtection});
+  const _ChangeProtectionDialog({
+    required this.currentProtection,
+    required this.currentSecurityLevel,
+  });
 
   @override
   State<_ChangeProtectionDialog> createState() =>
@@ -33,6 +41,7 @@ class _ChangeProtectionDialog extends StatefulWidget {
 
 class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
   late APIProtectionType _selected;
+  late APISecurityLevel _level;
   final _formKey = GlobalKey<FormState>();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -44,6 +53,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
   void initState() {
     super.initState();
     _selected = widget.currentProtection;
+    _level = widget.currentSecurityLevel;
   }
 
   @override
@@ -54,14 +64,18 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
   }
 
   String _protectionLabel(APIProtectionType type) => switch (type) {
-        APIProtectionType.deviceKey => 'Device key (automatic)',
+        APIProtectionType.deviceKey => 'Unprotected',
         APIProtectionType.userPassword => 'Password',
-        APIProtectionType.xpubKey => 'xpub key',
+        APIProtectionType.xpubKey => 'XPub',
       };
+
+  bool get _hasChanges =>
+      _selected != widget.currentProtection ||
+      _level != widget.currentSecurityLevel;
 
   Future<void> _confirm(BuildContext context) async {
     if (_isChanging) return;
-    if (_selected == widget.currentProtection) {
+    if (!_hasChanges) {
       Navigator.of(context).pop();
       return;
     }
@@ -73,6 +87,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
       newProtectionType: _selected,
       newPassword:
           _selected == APIProtectionType.userPassword ? _passwordCtrl.text : null,
+      securityLevel: _level,
     );
 
     if (!context.mounted) return;
@@ -88,7 +103,6 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isSame = _selected == widget.currentProtection;
 
     return AlertDialog(
       title: const Text('Change wallet protection'),
@@ -106,24 +120,56 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text('New protection', style: theme.textTheme.labelMedium),
-              const SizedBox(height: 4),
-              RadioGroup<APIProtectionType>(
-                groupValue: _selected,
-                onChanged: _isChanging
-                    ? (_) {}
-                    : (v) => setState(() => _selected = v!),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _radioRow(APIProtectionType.deviceKey,
-                        'Device key (automatic)'),
-                    _radioRow(APIProtectionType.userPassword, 'Password'),
-                    _radioRow(APIProtectionType.xpubKey,
-                        'xpub key (any descriptor key unlocks)'),
-                  ],
-                ),
+              Text('Protection', style: theme.textTheme.labelMedium),
+              const SizedBox(height: 8),
+              SegmentedButton<APIProtectionType>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: APIProtectionType.deviceKey,
+                    label: Text('None'),
+                  ),
+                  ButtonSegment(
+                    value: APIProtectionType.userPassword,
+                    label: Text('Password'),
+                  ),
+                  ButtonSegment(
+                    value: APIProtectionType.xpubKey,
+                    label: Text('XPub'),
+                  ),
+                ],
+                selected: {_selected},
+                onSelectionChanged: _isChanging
+                    ? null
+                    : (v) => setState(() => _selected = v.first),
               ),
+              if (_selected != APIProtectionType.deviceKey) ...[
+                const SizedBox(height: 16),
+                Text('Anti-brute-force level',
+                    style: theme.textTheme.labelMedium),
+                const SizedBox(height: 8),
+                SegmentedButton<APISecurityLevel>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: APISecurityLevel.standard,
+                      label: Text('Standard'),
+                    ),
+                    ButtonSegment(
+                      value: APISecurityLevel.high,
+                      label: Text('High'),
+                    ),
+                    ButtonSegment(
+                      value: APISecurityLevel.extreme,
+                      label: Text('Extreme'),
+                    ),
+                  ],
+                  selected: {_level},
+                  onSelectionChanged: _isChanging
+                      ? null
+                      : (v) => setState(() => _level = v.first),
+                ),
+              ],
               if (_selected == APIProtectionType.userPassword) ...[
                 const SizedBox(height: 12),
                 TextFormField(
@@ -168,29 +214,6 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   },
                 ),
               ],
-              if (_selected == APIProtectionType.xpubKey) ...[
-                const SizedBox(height: 12),
-                _infoBox(
-                  context,
-                  'All xpubs from the descriptor will be registered as unlock keys. '
-                  'Do not share those xpubs with third parties.',
-                ),
-              ],
-              if (_selected == APIProtectionType.deviceKey &&
-                  widget.currentProtection != APIProtectionType.deviceKey) ...[
-                const SizedBox(height: 12),
-                _infoBox(
-                  context,
-                  'Device key is tied to this device. If you copy the wallet '
-                  'file without the device key file, it cannot be opened.',
-                ),
-              ],
-              const SizedBox(height: 8),
-              _infoBox(
-                context,
-                'The wallet database will be re-encrypted with a new key. '
-                'Backup files are not affected — they use their own independent encryption.',
-              ),
             ],
           ),
         ),
@@ -201,7 +224,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _isChanging || isSame ? null : () => _confirm(context),
+          onPressed: _isChanging || !_hasChanges ? null : () => _confirm(context),
           child: _isChanging
               ? const SizedBox(
                   width: 16,
@@ -211,41 +234,6 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
               : const Text('Change'),
         ),
       ],
-    );
-  }
-
-  Widget _radioRow(APIProtectionType value, String label) {
-    return Row(
-      children: [
-        Radio<APIProtectionType>(value: value),
-        Expanded(child: Text(label)),
-      ],
-    );
-  }
-
-  Widget _infoBox(BuildContext context, String text) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline,
-              size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

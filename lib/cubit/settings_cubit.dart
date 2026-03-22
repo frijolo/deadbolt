@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 
@@ -21,6 +22,9 @@ class AppSettings {
   final String explorerSignet;
   final String explorerRegtest;
   final double minFeeRate;
+  final bool fiatEnabled;
+  final String fiatCurrency;
+  final PriceProviderType fiatProvider;
 
   const AppSettings({
     required this.locale,
@@ -38,6 +42,9 @@ class AppSettings {
     this.explorerSignet = 'https://mempool.space/signet',
     this.explorerRegtest = '',
     this.minFeeRate = 0.1,
+    this.fiatEnabled = false,
+    this.fiatCurrency = 'usd',
+    this.fiatProvider = PriceProviderType.coinGecko,
   });
 
   String electrumUrlForNetwork(APINetwork net) {
@@ -104,6 +111,9 @@ class AppSettings {
     String? explorerSignet,
     String? explorerRegtest,
     double? minFeeRate,
+    bool? fiatEnabled,
+    String? fiatCurrency,
+    PriceProviderType? fiatProvider,
   }) {
     return AppSettings(
       locale: locale ?? this.locale,
@@ -121,6 +131,9 @@ class AppSettings {
       explorerSignet: explorerSignet ?? this.explorerSignet,
       explorerRegtest: explorerRegtest ?? this.explorerRegtest,
       minFeeRate: minFeeRate ?? this.minFeeRate,
+      fiatEnabled: fiatEnabled ?? this.fiatEnabled,
+      fiatCurrency: fiatCurrency ?? this.fiatCurrency,
+      fiatProvider: fiatProvider ?? this.fiatProvider,
     );
   }
 }
@@ -141,6 +154,9 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _explorerSignetKey = 'explorerSignet';
   static const _explorerRegtestKey = 'explorerRegtest';
   static const _minFeeRateKey = 'minFeeRate';
+  static const _fiatEnabledKey = 'fiatEnabled';
+  static const _fiatCurrencyKey = 'fiatCurrency';
+  static const _fiatProviderKey = 'fiatProvider';
 
   SharedPreferences? _prefs;
 
@@ -211,8 +227,11 @@ class SettingsCubit extends Cubit<AppSettings> {
           prefs.getString(_explorerSignetKey) ?? defaults.explorerSignet,
       explorerRegtest:
           prefs.getString(_explorerRegtestKey) ?? defaults.explorerRegtest,
-      minFeeRate:
-          prefs.getDouble(_minFeeRateKey) ?? defaults.minFeeRate,
+      minFeeRate: prefs.getDouble(_minFeeRateKey) ?? defaults.minFeeRate,
+      fiatEnabled: prefs.getBool(_fiatEnabledKey) ?? defaults.fiatEnabled,
+      fiatCurrency: prefs.getString(_fiatCurrencyKey) ?? defaults.fiatCurrency,
+      fiatProvider: PriceProviderType.values.byName(
+          prefs.getString(_fiatProviderKey) ?? defaults.fiatProvider.name),
     ));
   }
 
@@ -256,5 +275,28 @@ class SettingsCubit extends Cubit<AppSettings> {
     final prefs = await _getPrefs();
     await prefs.setString(_electrumKeyFor(network), url);
     emit(state.copyWithElectrum(network, url));
+  }
+
+  Future<void> setFiatEnabled(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_fiatEnabledKey, enabled);
+    emit(state.copyWith(fiatEnabled: enabled));
+  }
+
+  Future<void> setFiatCurrency(String currency) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_fiatCurrencyKey, currency);
+    emit(state.copyWith(fiatCurrency: currency));
+  }
+
+  Future<void> setFiatProvider(PriceProviderType provider) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_fiatProviderKey, provider.name);
+    // If current currency is not supported by new provider, reset to usd
+    final supported = currenciesForProvider(provider);
+    final newCurrency =
+        supported.contains(state.fiatCurrency) ? state.fiatCurrency : 'usd';
+    await prefs.setString(_fiatCurrencyKey, newCurrency);
+    emit(state.copyWith(fiatProvider: provider, fiatCurrency: newCurrency));
   }
 }

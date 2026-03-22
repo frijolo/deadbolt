@@ -4,8 +4,8 @@ use rand::TryRngCore;
 
 use crate::api::model::APINetwork;
 use crate::core::key_protection::{
-    generate_data_key, generate_salt, resolve_data_key, wrap_key, wrap_with_xpub, ProtectionMeta,
-    DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
+    generate_data_key, generate_salt, resolve_data_key, resolve_xpub_data_key, wrap_key,
+    wrap_with_xpub, ProtectionMeta, DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
 };
 use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
@@ -34,10 +34,18 @@ pub enum WalletProtectionRequest {
     /// Wrap with the device key (Type 0).
     DeviceKey,
     /// Derive wrapping key from password via Argon2id (Type 1).
-    UserPassword { password: String },
+    UserPassword {
+        password: String,
+        m_cost: u32,
+        t_cost: u32,
+    },
     /// Wrap with each xpub in the descriptor; any one can unlock (Type 2).
-    /// `xpub_slots`: list of `(mfp, xpub)` pairs extracted from the descriptor.
-    XpubKey { xpub_slots: Vec<(String, String)> },
+    /// `xpub_slots`: list of `(mfp, xpub, derivation)` triples extracted from the descriptor.
+    XpubKey {
+        xpub_slots: Vec<(String, String, String)>,
+        m_cost: u32,
+        t_cost: u32,
+    },
 }
 
 /// Create a new wallet .db file with a UUID filename, initialize BDK tables,
@@ -112,22 +120,21 @@ pub fn build_protection_meta(
                 wrapped_key,
             })
         }
-        WalletProtectionRequest::UserPassword { password } => {
+        WalletProtectionRequest::UserPassword {
+            password,
+            m_cost,
+            t_cost,
+        } => {
             use crate::core::key_protection::derive_key_from_password;
             let salt = generate_salt();
-            let wrapping_key = derive_key_from_password(
-                &password,
-                &salt,
-                DEFAULT_M_COST,
-                DEFAULT_T_COST,
-                DEFAULT_P_COST,
-            )?;
+            let wrapping_key =
+                derive_key_from_password(&password, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
             let wrapped_key = wrap_key(data_key, &wrapping_key)?;
             Ok(ProtectionMeta::UserPassword {
                 version: 1,
                 salt,
-                m_cost: DEFAULT_M_COST,
-                t_cost: DEFAULT_T_COST,
+                m_cost,
+                t_cost,
                 p_cost: DEFAULT_P_COST,
                 wrapped_key,
                 display_name: display_name.map(|s| s.to_string()),
@@ -135,7 +142,11 @@ pub fn build_protection_meta(
                 last_synced_at: None,
             })
         }
-        WalletProtectionRequest::XpubKey { xpub_slots } => {
+        WalletProtectionRequest::XpubKey {
+            xpub_slots,
+            m_cost,
+            t_cost,
+        } => {
             if xpub_slots.is_empty() {
                 return Err(anyhow::anyhow!(
                     "XpubKey protection requires at least one xpub"
@@ -143,7 +154,9 @@ pub fn build_protection_meta(
             }
             let slots = xpub_slots
                 .iter()
-                .map(|(mfp, xpub)| wrap_with_xpub(mfp, xpub, data_key))
+                .map(|(mfp, xpub, derivation)| {
+                    wrap_with_xpub(mfp, xpub, data_key, m_cost, t_cost, derivation)
+                })
                 .collect::<Result<Vec<_>>>()?;
             Ok(ProtectionMeta::XpubKey {
                 version: 1,
@@ -159,14 +172,12 @@ pub fn build_protection_meta(
 /// Open a wallet and return its data key by resolving the protection meta.
 /// - For DeviceKey wallets: pass `password = None`.
 /// - For UserPassword wallets: pass `password = Some("user-password")`.
-/// - For XpubKey wallets: pass `password = Some("xpub...")`.
+/// - For XpubKey wallets: pass `password = Some("xpub or [mfp/path]xpub")`.
 pub fn resolve_wallet_key(
     wallet_path: &str,
     device_key_hex: &str,
     password: Option<&str>,
 ) -> Result<String> {
-    use crate::core::key_protection::resolve_data_key;
-
     let meta = read_meta(wallet_path)?;
     match &meta {
         ProtectionMeta::DeviceKey { .. } => resolve_data_key(&meta, device_key_hex),
@@ -175,10 +186,10 @@ pub fn resolve_wallet_key(
                 password.ok_or_else(|| anyhow::anyhow!("Password required to open this wallet"))?;
             resolve_data_key(&meta, pwd)
         }
-        ProtectionMeta::XpubKey { .. } => {
-            let xpub =
+        ProtectionMeta::XpubKey { slots, .. } => {
+            let credential =
                 password.ok_or_else(|| anyhow::anyhow!("xpub required to open this wallet"))?;
-            resolve_data_key(&meta, xpub)
+            resolve_xpub_data_key(credential, slots)
         }
     }
 }
@@ -208,6 +219,8 @@ pub fn list_wallets_in_dir(
             Ok(m) => m,
             Err(_) => {
                 if let Err(e) = migrate_legacy_wallet(&path_str, device_key_hex) {
+                    // Soft failure: skip unmigratable wallets rather than aborting list().
+                    // Output to stderr (logcat on Android) until a proper log crate is wired up.
                     eprintln!("Wallet migration skipped for '{}': {}", path_str, e);
                     continue;
                 }
@@ -373,21 +386,40 @@ pub fn wallet_needs_xpub(wallet_path: &str) -> bool {
     matches!(read_meta(wallet_path), Ok(ProtectionMeta::XpubKey { .. }))
 }
 
+/// Read the network hint from the wallet's meta sidecar without opening the DB.
+/// Returns the lowercase network string (e.g. "bitcoin", "testnet") or None.
+pub fn wallet_network_hint(wallet_path: &str) -> Option<String> {
+    match read_meta(wallet_path) {
+        Ok(ProtectionMeta::UserPassword { network, .. }) => network,
+        Ok(ProtectionMeta::XpubKey { network, .. }) => network,
+        _ => None,
+    }
+}
+
 /// Add a new xpub slot to a XpubKey-protected wallet.
 /// `data_key` must be the already-resolved data key (obtained after opening).
+/// `derivation` is the path suffix stored as a display hint (may be empty).
 /// Returns an error if the MFP is already registered or the wallet is not XpubKey protected.
 pub fn add_xpub_slot_to_wallet(
     wallet_path: &str,
     mfp: &str,
     xpub: &str,
     data_key: &str,
+    derivation: &str,
 ) -> Result<()> {
     let mut meta = read_meta(wallet_path)?;
     if let ProtectionMeta::XpubKey { ref mut slots, .. } = meta {
         if slots.iter().any(|s| s.mfp == mfp) {
             return Err(anyhow::anyhow!("MFP {} is already registered", mfp));
         }
-        let slot = wrap_with_xpub(mfp, xpub, data_key)?;
+        let slot = wrap_with_xpub(
+            mfp,
+            xpub,
+            data_key,
+            DEFAULT_M_COST,
+            DEFAULT_T_COST,
+            derivation,
+        )?;
         slots.push(slot);
         write_meta(wallet_path, &meta)?;
         Ok(())
@@ -488,6 +520,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "test-password".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 
@@ -532,6 +566,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "my-secret".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 
@@ -555,6 +591,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "correct".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 
@@ -576,6 +614,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "secret".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 
@@ -686,6 +726,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "s3cr3t".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 
@@ -735,6 +777,8 @@ mod tests {
             DEVICE_KEY,
             WalletProtectionRequest::UserPassword {
                 password: "pw".to_string(),
+                m_cost: 1024,
+                t_cost: 1,
             },
         )?;
 

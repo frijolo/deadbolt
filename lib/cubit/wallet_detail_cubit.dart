@@ -4,11 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/hot_key_helpers.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor, APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
+import 'package:deadbolt/src/rust/api/wallet.dart'
+    show ApiWallet, getWalletNetworkHint;
 
 // Re-export for the screen
 export 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
@@ -23,7 +25,10 @@ sealed class WalletDetailState {}
 
 class WalletDetailInitial extends WalletDetailState {}
 
-class WalletDetailLoading extends WalletDetailState {}
+class WalletDetailLoading extends WalletDetailState {
+  final String? message;
+  WalletDetailLoading({this.message});
+}
 
 class WalletDetailLoaded extends WalletDetailState {
   final APIWalletInfo walletInfo;
@@ -64,6 +69,12 @@ class WalletDetailLoaded extends WalletDetailState {
   // Hot signing keys stored in this wallet
   final List<APIHotKeyInfo> hotKeys;
 
+  // Fiat price data: txid -> BTC price in fiatCurrency at tx time (historical)
+  final Map<String, double> fiatPrices;
+  // Current BTC price for UTXO display (not stored in DB — always current)
+  final double? currentBtcPrice;
+  final String? fiatCurrency;
+
   // Transient error to show as toast (cleared after display)
   final String? errorMessage;
 
@@ -93,6 +104,9 @@ class WalletDetailLoaded extends WalletDetailState {
     this.psbtAnalyses = const {},
     this.psbtsLoaded = false,
     this.hotKeys = const [],
+    this.fiatPrices = const {},
+    this.currentBtcPrice,
+    this.fiatCurrency,
     this.errorMessage,
   });
 
@@ -122,6 +136,9 @@ class WalletDetailLoaded extends WalletDetailState {
     Map<int, APIPsbtAnalysis>? psbtAnalyses,
     bool? psbtsLoaded,
     List<APIHotKeyInfo>? hotKeys,
+    Map<String, double>? fiatPrices,
+    Object? currentBtcPrice = _keep,
+    Object? fiatCurrency = _keep,
     Object? errorMessage = _keep,
   }) {
     return WalletDetailLoaded(
@@ -153,7 +170,14 @@ class WalletDetailLoaded extends WalletDetailState {
       psbtAnalyses: psbtAnalyses ?? this.psbtAnalyses,
       psbtsLoaded: psbtsLoaded ?? this.psbtsLoaded,
       hotKeys: hotKeys ?? this.hotKeys,
-      errorMessage: errorMessage == _keep ? this.errorMessage : errorMessage as String?,
+      fiatPrices: fiatPrices ?? this.fiatPrices,
+      currentBtcPrice: currentBtcPrice == _keep
+          ? this.currentBtcPrice
+          : currentBtcPrice as double?,
+      fiatCurrency:
+          fiatCurrency == _keep ? this.fiatCurrency : fiatCurrency as String?,
+      errorMessage:
+          errorMessage == _keep ? this.errorMessage : errorMessage as String?,
     );
   }
 
@@ -166,7 +190,10 @@ class WalletDetailNeedsPassword extends WalletDetailState {
   final String walletPath;
   /// True when the wallet uses XpubKey protection (prompts for xpub, not password).
   final bool isXpubKey;
-  WalletDetailNeedsPassword(this.walletPath, {this.isXpubKey = false});
+  /// Network hint read from the meta sidecar (null when unavailable).
+  final APINetwork? network;
+  WalletDetailNeedsPassword(this.walletPath,
+      {this.isXpubKey = false, this.network});
 }
 
 class WalletDetailError extends WalletDetailState {
@@ -185,6 +212,14 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Timer? _syncTimer;
   Timer? _retryTimer;
   String? _electrumUrl;
+
+  bool _fiatEnabled = false;
+  String _fiatCurrency = 'usd';
+  PriceService? _priceService;
+  bool _isFetchingFiatPrices = false;
+  // Set when a fetch is requested while one is already in progress; triggers a
+  // re-fetch after the current one completes (e.g. currency changed mid-fetch).
+  bool _needsFiatRefetch = false;
 
   WalletDetailCubit({WalletService? service})
       : _service = service ?? WalletService(),
@@ -241,25 +276,44 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     _service.evictPassword(current.walletInfo.walletPath);
   }
 
-  Future<void> load(String walletPath, {String? password}) async {
-    emit(WalletDetailLoading());
+  Future<void> load(
+    String walletPath, {
+    String? password,
+    String? openingMessage,
+    String? loadingDataMessage,
+  }) async {
+    emit(WalletDetailLoading(message: openingMessage));
     try {
       if (password != null) _service.cachePassword(walletPath, password);
       // If no password is available (provided or cached), check upfront whether
       // one is required — avoids brittle string matching on the Rust error.
       final effectivePassword =
           password ?? _service.getCachedPassword(walletPath);
-      if (effectivePassword == null &&
-          await _service.walletRequiresPassword(walletPath)) {
-        final isXpubKey = await _service.walletRequiresXpub(walletPath);
-        emit(WalletDetailNeedsPassword(walletPath, isXpubKey: isXpubKey));
-        return;
+      if (effectivePassword == null) {
+        // Check both flags in parallel — each reads the .meta sidecar once.
+        final (needsPassword, isXpubKey) = await (
+          _service.walletRequiresPassword(walletPath),
+          _service.walletRequiresXpub(walletPath),
+        ).wait;
+        if (needsPassword) {
+          APINetwork? network;
+          if (isXpubKey) {
+            final hint = await getWalletNetworkHint(walletPath: walletPath);
+            network = hint != null ? APINetwork.values.where((n) => n.name == hint).firstOrNull : null;
+          }
+          emit(WalletDetailNeedsPassword(walletPath,
+              isXpubKey: isXpubKey, network: network));
+          return;
+        }
       }
-      final handle = await _service.openWallet(walletPath, password: password);
-      final walletInfo = await handle.getInfo();
-      final balance = await handle.getBalance();
-      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
-      final tipHeight = await handle.getTipHeight();
+      final handle = await _service.openWallet(walletPath, password: effectivePassword);
+      if (loadingDataMessage != null) emit(WalletDetailLoading(message: loadingDataMessage));
+      final (walletInfo, balance, page, tipHeight) = await (
+        handle.getInfo(),
+        handle.getBalance(),
+        handle.getTransactions(page: 0, pageSize: _pageSize),
+        handle.getTipHeight(),
+      ).wait;
 
       // Load PSBTs eagerly
       List<APIPsbtInfo> psbts = [];
@@ -315,10 +369,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
 
       await handle.sync_(electrumUrl: electrumUrl);
 
-      final walletInfo = await handle.getInfo();
-      final balance = await handle.getBalance();
-      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
-      final tipHeight = await handle.getTipHeight();
+      final (walletInfo, balance, page, tipHeight) = await (
+        handle.getInfo(),
+        handle.getBalance(),
+        handle.getTransactions(page: 0, pageSize: _pageSize),
+        handle.getTipHeight(),
+      ).wait;
 
       // Reload addresses/UTXOs too if they were already loaded (sync may reveal new ones)
       final receiveAddrs = current.receiveAddressesLoaded
@@ -372,7 +428,10 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: current.psbtsLoaded,
         hotKeys: atEmit.hotKeys,
+        fiatPrices: atEmit.fiatPrices,
+        fiatCurrency: atEmit.fiatCurrency,
       ));
+      unawaited(_fetchMissingFiatPrices());
     } catch (e, stackTrace) {
       if (e.toString().contains('No such mempool or blockchain transaction')) {
         // Race condition: tx was just broadcast but the Electrum server hasn't
@@ -465,10 +524,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         currentPage: nextPage,
       ));
     } catch (e, stackTrace) {
-      logError('WalletDetailCubit.loadMoreTransactions()', e, stackTrace);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('WalletDetailCubit.loadMoreTransactions()', e, stackTrace);
     }
   }
 
@@ -551,10 +607,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         ));
       }
     } catch (e, stackTrace) {
-      logError('WalletDetailCubit._loadAddresses()', e, stackTrace);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('WalletDetailCubit._loadAddresses()', e, stackTrace);
     }
   }
 
@@ -566,10 +619,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       if (state is! WalletDetailLoaded) return;
       emit((state as WalletDetailLoaded).copyWith(utxos: utxos, utxosLoaded: true));
     } catch (e, stackTrace) {
-      logError('WalletDetailCubit._loadUtxos()', e, stackTrace);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('WalletDetailCubit._loadUtxos()', e, stackTrace);
     }
   }
 
@@ -585,10 +635,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Reload full list after revealing
       await _loadAddresses(keychain);
     } catch (e, stackTrace) {
-      logError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('WalletDetailCubit.revealMoreAddresses()', e, stackTrace);
     }
   }
 
@@ -711,10 +758,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       final lines = current.walletHandle.exportBip329();
       return lines.join('\n');
     } catch (e, st) {
-      logError('exportBip329Labels', e, st);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('exportBip329Labels', e, st);
       return null;
     }
   }
@@ -732,10 +776,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       await _refreshAllAfterLabelChange();
       return true;
     } catch (e, st) {
-      logError('importBip329Labels', e, st);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(errorMessage: formatRustError(e)));
-      }
+      _emitError('importBip329Labels', e, st);
       return false;
     }
   }
@@ -1115,6 +1156,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<bool> changeProtection({
     required APIProtectionType newProtectionType,
     String? newPassword,
+    APISecurityLevel securityLevel = APISecurityLevel.standard,
   }) async {
     final current = state;
     if (current is! WalletDetailLoaded) return false;
@@ -1125,6 +1167,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         deviceKeyHex: keyHex,
         newProtectionType: newProtectionType,
         newPassword: newPassword,
+        securityLevel: securityLevel,
       );
 
       // Update credential cache.
@@ -1138,13 +1181,161 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
           _service.evictPassword(walletPath);
       }
 
-      // Refresh walletInfo so the UI shows the new protection type.
-      final updatedInfo = await _service.getWalletInfo(walletPath);
+      // Update walletInfo in-place — no need to re-open the wallet (which
+      // would require the new credential). The wallet handle stays open.
+      final newProtection = APIWalletProtection(
+        protectionType: newProtectionType,
+        needsPassword: switch (newProtectionType) {
+          APIProtectionType.deviceKey => false,
+          APIProtectionType.userPassword => true,
+          APIProtectionType.xpubKey => true,
+        },
+        securityLevel: securityLevel,
+      );
+      final updatedInfo = APIWalletInfo(
+        walletPath: current.walletInfo.walletPath,
+        name: current.walletInfo.name,
+        descriptor: current.walletInfo.descriptor,
+        network: current.walletInfo.network,
+        createdAt: current.walletInfo.createdAt,
+        lastSyncedAt: current.walletInfo.lastSyncedAt,
+        protection: newProtection,
+      );
       emit(current.copyWith(walletInfo: updatedInfo));
       return true;
     } catch (e, st) {
       _emitError('WalletDetailCubit.changeProtection()', e, st);
       return false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Fiat price support
+  // -------------------------------------------------------------------------
+
+  /// Update fiat configuration and trigger a price fetch for missing transactions.
+  Future<void> setFiatConfig(
+    bool enabled,
+    String currency,
+    PriceProviderType provider,
+  ) async {
+    final sameConfig = enabled == _fiatEnabled &&
+        currency == _fiatCurrency &&
+        provider == (_priceService?.providerType ?? PriceProviderType.coinGecko);
+    if (sameConfig) return;
+
+    _fiatEnabled = enabled;
+    _fiatCurrency = currency;
+
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+
+    if (!enabled) {
+      _priceService = null;
+      emit(s.copyWith(
+        fiatPrices: const {},
+        currentBtcPrice: null,
+        fiatCurrency: null,
+      ));
+      return;
+    }
+
+    if (_priceService == null || _priceService!.providerType != provider) {
+      _priceService = PriceService(provider);
+    }
+    // Emit the new currency immediately so the UI reflects the change
+    // before the async price fetch completes.
+    emit(s.copyWith(fiatCurrency: currency));
+    unawaited(_fetchMissingFiatPrices());
+  }
+
+  /// Fetch BTC prices for any transactions that don't have a stored fiat price,
+  /// then update the state. Skips if a fetch is already in progress.
+  Future<void> _fetchMissingFiatPrices() async {
+    if (_isFetchingFiatPrices) {
+      _needsFiatRefetch = true;
+      return;
+    }
+    if (!_fiatEnabled || _priceService == null) return;
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+
+    _isFetchingFiatPrices = true;
+    try {
+      final service = _priceService!;
+      final currency = _fiatCurrency;
+      final now = DateTime.now();
+
+      // Current price, missing-tx query, and existing DB prices run in parallel.
+      final (missing, currentBtcPrice, existingStored) = await (
+        s.walletHandle.getTxidsMissingFiat(currency: currency),
+        service.getBtcPrice(currency, now),
+        s.walletHandle.getFiatPrices(currency: currency),
+      ).wait;
+
+      // Build base map from prices already stored in DB (previous sessions).
+      final allPrices = {for (final p in existingStored) p.txid: p.btcPrice};
+
+      if (missing.isNotEmpty) {
+        // Group txids by day bucket so we make one API call per unique date.
+        final Map<String, ({DateTime time, List<String> txids})> byBucket = {};
+        for (final tx in missing) {
+          final time = tx.confirmationTime != null
+              ? DateTime.fromMillisecondsSinceEpoch(tx.confirmationTime! * 1000)
+              : now;
+          final utc = time.toUtc();
+          final key = tx.confirmationTime != null
+              ? '${utc.year}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}'
+              : 'current';
+          final bucket =
+              byBucket.putIfAbsent(key, () => (time: time, txids: []));
+          bucket.txids.add(tx.txid);
+        }
+
+        // Fetch all unique day buckets in parallel.
+        // Reuse currentBtcPrice for the 'current' bucket (unconfirmed txs).
+        final entries = byBucket.entries.toList();
+        final prices = await Future.wait(
+          entries.map((e) => e.key == 'current'
+              ? Future.value(currentBtcPrice)
+              : service.getBtcPrice(currency, e.value.time)),
+        );
+
+        // Store newly fetched prices in DB in parallel and merge into map.
+        final storeFutures = <Future<void>>[];
+        for (var i = 0; i < entries.length; i++) {
+          final price = prices[i];
+          if (price == null) continue;
+          for (final txid in entries[i].value.txids) {
+            allPrices[txid] = price;
+            storeFutures.add(
+              s.walletHandle.storeFiatPrice(
+                txid: txid,
+                currency: currency,
+                btcPrice: price,
+              ),
+            );
+          }
+        }
+        await Future.wait(storeFutures);
+      }
+
+      if (state is WalletDetailLoaded) {
+        final current = state as WalletDetailLoaded;
+        emit(current.copyWith(
+          fiatPrices: allPrices,
+          currentBtcPrice: currentBtcPrice,
+          fiatCurrency: currency,
+        ));
+      }
+    } catch (e, st) {
+      _emitError('WalletDetailCubit._fetchMissingFiatPrices()', e, st);
+    } finally {
+      _isFetchingFiatPrices = false;
+      if (_needsFiatRefetch) {
+        _needsFiatRefetch = false;
+        unawaited(_fetchMissingFiatPrices());
+      }
     }
   }
 }

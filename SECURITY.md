@@ -196,7 +196,9 @@ flutter build <platform> --release
 - ✅ **Memory safety** - Core logic in Rust (memory-safe language)
 - ✅ **CI/CD verification** - Automated testing on all platforms
 - ✅ **Wallet encryption** - SQLCipher (AES-256-CBC) per-wallet database; data key wrapped with AES-256-GCM
-- ✅ **Password-derived keys** - Argon2id KDF for password-protected wallets (Type 1)
+- ✅ **Password-derived keys** - Argon2id KDF for password-protected wallets (Type 1) and xpub-protected wallets (Type 2)
+- ✅ **XPub key protection** - Wallets can be unlocked by any registered xpub from the descriptor; brute-force infeasible due to xpub entropy (~256 bits)
+- ✅ **Selectable Argon2id levels** - Standard / High / Extreme presets calibrated on real mobile hardware (300 ms / 1.6 s / 5.5 s)
 - ✅ **Encrypted backups** - `.deadbolt` backup format uses Argon2id + AES-256-GCM; self-contained and portable
 
 ### Planned Improvements
@@ -252,5 +254,5 @@ Published security advisories will be available at:
 
 ---
 
-**Last updated**: 2026-03-20
+**Last updated**: 2026-03-22
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`

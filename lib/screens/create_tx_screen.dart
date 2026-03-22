@@ -870,7 +870,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(
               value: cubit,
-              child: PsbtDetailScreen(psbt: psbt, spendPath: _selectedPath!),
+              child: PsbtDetailScreen(psbt: psbt, spendPath: _selectedPath),
             ),
           ),
         );

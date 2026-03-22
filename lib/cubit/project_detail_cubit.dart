@@ -660,19 +660,13 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
               timelockType: ep.relTimelockType.toRust(),
               value: ep.relTimelockValue,
             )
-          : APIRelativeTimelock(
-              timelockType: APIRelativeTimelockType.blocks,
-              value: 0,
-            );
+          : kNoRelativeTimelock;
       final absTimelock = ep.timelockMode == TimelockMode.absolute
           ? APIAbsoluteTimelock(
               timelockType: ep.absTimelockType.toRust(),
               value: ep.absTimelockValue,
             )
-          : APIAbsoluteTimelock(
-              timelockType: APIAbsoluteTimelockType.blocks,
-              value: 0,
-            );
+          : kNoAbsoluteTimelock;
       return APISpendPathDef(
         threshold: ep.threshold,
         mfps: ep.mfps,

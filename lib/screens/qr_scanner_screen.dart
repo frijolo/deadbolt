@@ -12,6 +12,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/qr_decoder.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/loading_indicator.dart';
 
 /// Platforms where [mobile_scanner] has a native plugin implementation.
 bool get _isCameraSupported =>
@@ -309,7 +310,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                   fit: BoxFit.cover,
                 ),
               )
-            : const Center(child: CircularProgressIndicator()),
+            : LoadingIndicator(message: context.l10n.initializingCamera),
         // BC-UR overlay
         if (_isAnimated) _buildUrOverlay(),
       ],
@@ -356,7 +357,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 Text(
                   '$_receivedCount / $_expectedCount',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppAccent.color,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,

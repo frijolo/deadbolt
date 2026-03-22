@@ -497,6 +497,8 @@ impl APIWallet {
         }
 
         // If not already finalized by signer, try to finalize via BDK/miniscript.
+        // `finalize_psbt` / `sign` are deprecated in BDK 2.2.0 (signer module moved to
+        // bitcoin::psbt), but no replacement exists for miniscript-aware finalization in 2.3.0.
         if !is_psbt_finalized(&psbt) {
             #[allow(deprecated)]
             let ok = core
@@ -597,6 +599,9 @@ impl APIWallet {
             .map_err(|e| anyhow::anyhow!("Failed to build signer for {}: {}", mfp, e))?;
 
         // Add only the signer for this MFP.
+        // `get_signers` / `add_signer` / `SignerOrdering` / `sign` are deprecated in BDK 2.2.0
+        // (signer module moved to bitcoin::psbt). No stable replacement for runtime signer
+        // injection exists in BDK 2.3.0; remove once BDK provides one.
         for keychain in [KeychainKind::External, KeychainKind::Internal] {
             #[allow(deprecated)]
             for signer in temp.get_signers(keychain).signers() {

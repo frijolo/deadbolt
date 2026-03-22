@@ -694,6 +694,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get loadingWallets => 'Cargando billeteras...';
 
   @override
+  String get openingWallet => 'Abriendo cartera…';
+
+  @override
+  String get loadingWalletData => 'Cargando datos de cartera…';
+
+  @override
+  String get loadingAddresses => 'Cargando direcciones…';
+
+  @override
+  String get loadingCoins => 'Cargando monedas…';
+
+  @override
+  String get initializingCamera => 'Iniciando cámara…';
+
+  @override
   String get deleteWalletTitle => 'Eliminar billetera';
 
   @override
@@ -751,6 +766,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletPasswordProtected => 'Protegida con contraseña';
 
   @override
+  String get lockWallet => 'Bloquear cartera';
+
+  @override
   String get notYetSynced => 'No sincronizado aún';
 
   @override
@@ -760,6 +778,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get syncButton => 'Sincronizar';
+
+  @override
+  String get syncTooltip => 'Sincronizar billetera';
 
   @override
   String get syncing => 'Sincronizando...';
@@ -851,6 +872,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsMinFeeRate => 'Comisión mínima (sat/vB)';
+
+  @override
+  String get fiatSectionTitle => 'Valores fiat';
+
+  @override
+  String get fiatEnabledLabel => 'Mostrar valores fiat';
+
+  @override
+  String get fiatCurrencyLabel => 'Divisa';
+
+  @override
+  String get fiatProviderLabel => 'Proveedor de precios';
+
+  @override
+  String get fiatProviderCoinGecko => 'CoinGecko';
+
+  @override
+  String get fiatProviderMempoolSpace => 'Mempool.space';
 
   @override
   String get explorerSectionTitle => 'Explorador de bloques';

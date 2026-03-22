@@ -100,6 +100,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl dco_decode_api_coin_control(dynamic raw);
 
   @protected
+  APIFiatPrice dco_decode_api_fiat_price(dynamic raw);
+
+  @protected
   APIHotKeyInfo dco_decode_api_hot_key_info(dynamic raw);
 
   @protected
@@ -163,6 +166,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRelativeTimelockType dco_decode_api_relative_timelock_type(dynamic raw);
 
   @protected
+  APISecurityLevel dco_decode_api_security_level(dynamic raw);
+
+  @protected
   APISpendPath dco_decode_api_spend_path(dynamic raw);
 
   @protected
@@ -176,6 +182,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APITxDetails dco_decode_api_tx_details(dynamic raw);
+
+  @protected
+  APITxMissingFiat dco_decode_api_tx_missing_fiat(dynamic raw);
 
   @protected
   APIUtxo dco_decode_api_utxo(dynamic raw);
@@ -244,6 +253,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APICoinControl> dco_decode_list_api_coin_control(dynamic raw);
 
   @protected
+  List<APIFiatPrice> dco_decode_list_api_fiat_price(dynamic raw);
+
+  @protected
   List<APIHotKeyInfo> dco_decode_list_api_hot_key_info(dynamic raw);
 
   @protected
@@ -284,6 +296,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APITransaction> dco_decode_list_api_transaction(dynamic raw);
+
+  @protected
+  List<APITxMissingFiat> dco_decode_list_api_tx_missing_fiat(dynamic raw);
 
   @protected
   List<APIUtxo> dco_decode_list_api_utxo(dynamic raw);
@@ -417,6 +432,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
 
   @protected
+  APIFiatPrice sse_decode_api_fiat_price(SseDeserializer deserializer);
+
+  @protected
   APIHotKeyInfo sse_decode_api_hot_key_info(SseDeserializer deserializer);
 
   @protected
@@ -494,6 +512,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APISecurityLevel sse_decode_api_security_level(SseDeserializer deserializer);
+
+  @protected
   APISpendPath sse_decode_api_spend_path(SseDeserializer deserializer);
 
   @protected
@@ -509,6 +530,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APITxDetails sse_decode_api_tx_details(SseDeserializer deserializer);
+
+  @protected
+  APITxMissingFiat sse_decode_api_tx_missing_fiat(SseDeserializer deserializer);
 
   @protected
   APIUtxo sse_decode_api_utxo(SseDeserializer deserializer);
@@ -587,6 +611,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<APIFiatPrice> sse_decode_list_api_fiat_price(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<APIHotKeyInfo> sse_decode_list_api_hot_key_info(
     SseDeserializer deserializer,
   );
@@ -645,6 +674,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APITransaction> sse_decode_list_api_transaction(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APITxMissingFiat> sse_decode_list_api_tx_missing_fiat(
     SseDeserializer deserializer,
   );
 
@@ -801,6 +835,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_fiat_price(APIFiatPrice self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_hot_key_info(
     APIHotKeyInfo self,
     SseSerializer serializer,
@@ -897,6 +934,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_security_level(
+    APISecurityLevel self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_spend_path(APISpendPath self, SseSerializer serializer);
 
   @protected
@@ -919,6 +962,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_tx_details(APITxDetails self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_tx_missing_fiat(
+    APITxMissingFiat self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_utxo(APIUtxo self, SseSerializer serializer);
@@ -1012,6 +1061,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_api_fiat_price(
+    List<APIFiatPrice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_api_hot_key_info(
     List<APIHotKeyInfo> self,
     SseSerializer serializer,
@@ -1092,6 +1147,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_transaction(
     List<APITransaction> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_tx_missing_fiat(
+    List<APITxMissingFiat> self,
     SseSerializer serializer,
   );
 

@@ -58,7 +58,7 @@ The device key is a single 32-byte random value, encoded as 64 lowercase hex cha
 
 **Purpose**: The device key is the wrapping key for **Type 0 (DeviceKey)** wallets. It never directly encrypts database contents — each wallet has its own per-wallet data key that is wrapped by the device key.
 
-> **Warning**: If `.wallet_key` is lost, all Type 0 wallets become permanently inaccessible. Type 1 (UserPassword) wallets are unaffected, as their data keys are wrapped with a password-derived key instead.
+> **Warning**: If `.wallet_key` is lost, all Type 0 wallets become permanently inaccessible. Type 1 (UserPassword) and Type 2 (XpubKey) wallets are unaffected, as their data keys are wrapped with a credential-derived key instead.
 
 ---
 
@@ -67,30 +67,28 @@ The device key is a single 32-byte random value, encoded as 64 lowercase hex cha
 Each wallet has a unique **data key** (32 random bytes). This is the key that SQLCipher uses to encrypt the database file. The data key itself is never stored in plaintext — it is **wrapped** (encrypted) and stored in the `.meta` sidecar file.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Type 0 (DeviceKey)          Type 1 (UserPassword)          │
-│                                                             │
-│  device_key (from .wallet_key)  Argon2id(password, salt)   │
-│         │                              │                    │
-│         ▼                              ▼                    │
-│     AES-256-GCM wrap              AES-256-GCM wrap          │
-│         │                              │                    │
-│         ▼                              ▼                    │
-│   wrapped_data_key ──────────────────── wrapped_data_key   │
-│         │  (stored in .meta)           │  (stored in .meta)│
-│         │                              │                    │
-│    unwrap with device_key        unwrap with Argon2id key   │
-│         │                              │                    │
-│         ▼                              ▼                    │
-│     data_key ────────────────────── data_key               │
-│         │                              │                    │
-│         └──────────┬───────────────────┘                    │
-│                    ▼                                        │
-│          PRAGMA key = x'<data_key>'                        │
-│                    │                                        │
-│                    ▼                                        │
-│           <uuid>.db (SQLCipher)                            │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Type 0 (DeviceKey)   Type 1 (UserPassword)       Type 2 (XpubKey)          │
+│                                                                              │
+│  device_key           Argon2id(password,salt)   Argon2id(xpubN, saltN)      │
+│  (from .wallet_key)          │                  (one slot per descriptor xpub)│
+│         │                   ▼                          │                     │
+│         ▼            AES-256-GCM wrap          AES-256-GCM wrap (per slot)  │
+│   AES-256-GCM wrap          │                          │                     │
+│         │                   ▼                          ▼                     │
+│   wrapped_data_key    wrapped_data_key          wrapped_data_key[0..N]       │
+│   (in .meta)          (in .meta)                (in .meta, one per xpub)    │
+│         │                   │                          │                     │
+│    unwrap with         unwrap with              unwrap with any              │
+│    device_key          Argon2id key             matching xpub                │
+│         │                   │                          │                     │
+│         └─────────────┬─────┘──────────────────────────┘                    │
+│                       ▼                                                      │
+│             PRAGMA key = x'<data_key>'                                       │
+│                       │                                                      │
+│                       ▼                                                      │
+│              <uuid>.db (SQLCipher)                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -100,7 +98,7 @@ Each wallet has a unique **data key** (32 random bytes). This is the key that SQ
 ### Type 0 — DeviceKey (automatic)
 
 - The data key is wrapped with the **device key** stored in `.wallet_key`.
-- No user password required to open the wallet.
+- No user credential required to open the wallet.
 - Wallets are tied to the device. Backups require `.wallet_key` to be moved alongside them, or use the `.deadbolt` export.
 
 ### Type 1 — UserPassword
@@ -109,6 +107,18 @@ Each wallet has a unique **data key** (32 random bytes). This is the key that SQ
 - The wallet requires the password every session (or until the app is terminated).
 - Passwords are held in memory only during the active session and are never persisted to disk.
 - These wallets are **portable**: the backup is fully self-contained and can be restored on any device given only the password.
+
+### Type 2 — XpubKey
+
+- The data key is wrapped independently with **each xpub present in the descriptor**. Any one of them can unlock the wallet.
+- Opening the wallet requires pasting any registered xpub (bare or in keyspec `[mfp/path]xpub` format). Hardware wallet users can unlock directly via a connected BitBox02 — the device's root fingerprint is matched against registered slots automatically.
+- Since xpubs already carry ~256 bits of entropy, brute-force attack against an individual slot is computationally infeasible.
+- These wallets are **portable**: they do not depend on the device key and can be unlocked on any device by anyone who possesses a registered xpub.
+- Slots can be added or removed after creation (requires presenting a currently-registered xpub).
+
+### Changing Protection
+
+Any protection type can be changed to any other at any time using the **Encryption** button in the wallet overview or the wallet menu. The operation re-encrypts the database in-place via `PRAGMA rekey` on the existing connection — no export or import is required, and the wallet remains accessible throughout. A fresh data key is generated on every protection change for forward secrecy.
 
 ---
 
@@ -133,12 +143,42 @@ Each `.db` file has a companion `<uuid>.db.meta` file containing JSON. This file
   "type": "user_password",
   "version": 1,
   "salt": "<hex>",
-  "m_cost": 65536,
-  "t_cost": 3,
+  "m_cost": 4096,
+  "t_cost": 1,
   "p_cost": 1,
-  "wrapped_key": "<hex>"
+  "wrapped_key": "<hex>",
+  "display_name": "My Wallet",
+  "network": "bitcoin",
+  "last_synced_at": 1710000000
 }
 ```
+
+`display_name`, `network`, and `last_synced_at` are cached in the sidecar so locked wallets can be shown in the list without opening them. They are refreshed on every successful open and sync.
+
+### Type 2 — XpubKey
+
+```json
+{
+  "type": "xpub_key",
+  "version": 1,
+  "slots": [
+    {
+      "mfp": "deadbeef",
+      "salt": "<hex>",
+      "m_cost": 4096,
+      "t_cost": 1,
+      "p_cost": 1,
+      "derivation": "48h/0h/0h/2h",
+      "wrapped_key": "<hex>"
+    }
+  ],
+  "display_name": "My Wallet",
+  "network": "bitcoin",
+  "last_synced_at": 1710000000
+}
+```
+
+Each entry in `slots` corresponds to one xpub from the descriptor. `mfp` is the 8-hex-char master fingerprint used for fast slot lookup. `derivation` is a display hint for the UI only; it does not affect key derivation. `wrapped_key` format is identical to Type 1.
 
 **`wrapped_key` format**: `hex(nonce[12] || ciphertext[32] || tag[16])` — 60 bytes total, encoded as 120 hex characters.
 
@@ -241,7 +281,9 @@ The `data` field is Base64-encoded. The `data_key_wrapped` field is hex-encoded.
 
 ### Import flow
 
-On import, the restored database is always re-keyed to a fresh random data key and stored as a Type 0 (DeviceKey) wallet on the new device.
+On import, the original wallet protection type is preserved:
+- **Type 0 / Type 1 backups**: the restored database is re-keyed to a fresh random data key and stored as a Type 0 (DeviceKey) wallet on the new device.
+- **Type 2 (XpubKey) backups**: imported using any registered xpub as the credential. The restored wallet retains XpubKey protection on the new device.
 
 ---
 
@@ -255,13 +297,21 @@ On import, the restored database is always re-keyed to a fresh random data key a
 | SQLCipher | BDK's bundled SQLCipher | Database encryption (AES-256-CBC, raw key mode) |
 | SHA-256 | BDK | Spend path identifiers (internal) |
 
-**Argon2id default parameters**:
-- Memory: 65536 KiB (64 MiB)
-- Iterations: 3
-- Parallelism: 1
-- Output length: 32 bytes
+**Argon2id parameters** vary by context:
 
-These target approximately 300ms on a modern CPU, following OWASP recommendations for interactive logins.
+*Wallet open (Type 1 / Type 2 initial creation)*:
+- Memory: 4096 KiB (4 MiB), Iterations: 1, Parallelism: 1 (~10–30 ms on mobile)
+- For Type 2 (XpubKey), the xpub itself provides ~256 bits of entropy, making brute-force computationally infeasible regardless of Argon2 parameters.
+- For Type 1 (UserPassword) at initial creation, the low parameters are compensated by strong password choice. Users who want higher resistance should use **Change Protection** to re-encrypt with a selected security level.
+
+*Change-protection and backup export (selectable security level)*:
+| Level    | Memory     | Iterations | Target latency (mobile) |
+|----------|------------|------------|-------------------------|
+| Standard | 64 MiB     | 5          | ~300 ms                 |
+| High     | 256 MiB    | 6          | ~1.6 s                  |
+| Extreme  | 512 MiB    | 10         | ~5.5 s                  |
+
+Parameters were benchmarked on a mid-range Android device (Termux, aarch64).
 
 ---
 
@@ -374,12 +424,13 @@ These follow the [BDK SQLite schema](https://github.com/bitcoindevkit/bdk/tree/m
 **Note on project seeds**: The designer (project) mode has a separate `project_seeds.db` file where hot keys can be stored at the project level. Keys can be copied from there into a specific wallet's `seed_entries` table. These are two independent encrypted stores.
 
 **What is not protected**:
-- The `.meta` file is unencrypted and reveals the protection type and, for Type 1 wallets, the Argon2id salt. An attacker with the `.meta` file can launch an offline password-guessing attack against Type 1 wallets if they also have the `.db` file.
-- The `.wallet_key` file is protected by filesystem permissions only (mode 600). On Android, it is in app-private storage. If the device is compromised (rooted Android, physical access to Linux home dir), the device key is exposed, compromising all Type 0 wallets.
+- The `.meta` file is unencrypted and reveals the protection type and, for Type 1 wallets, the Argon2id salt. An attacker with the `.meta` file can launch an offline password-guessing attack against Type 1 wallets if they also have the `.db` file. Type 2 slots also contain a salt per xpub, but the xpub itself provides ~256 bits of entropy, making brute-force infeasible.
+- The `.wallet_key` file is protected by filesystem permissions only (mode 600). On Android, it is in app-private storage. If the device is compromised (rooted Android, physical access to Linux home dir), the device key is exposed, compromising all Type 0 wallets. Type 1 and Type 2 wallets are unaffected.
 - The `.deadbolt` backup file is fully self-contained. Its security depends entirely on the strength of the export password and the computational hardness of Argon2id with the specified parameters.
 
 **Backup recommendations**:
 - Use a strong, unique export password (≥16 random characters) when creating `.deadbolt` backups.
 - Store the export password separately from the backup file (e.g. in a password manager).
-- Type 1 wallets offer better portability guarantees: they do not depend on the device key and can be fully recovered from the backup password alone.
+- Type 1 and Type 2 wallets offer better portability guarantees: they do not depend on the device key and can be fully recovered on any device given only the password or a registered xpub.
 - For Type 0 wallets, keep a secure copy of `.wallet_key` alongside your backups, or export to `.deadbolt` format (which is always password-protected regardless of the original type).
+- Consider using **Change Protection** with High or Extreme security level if you store significant funds in a password-protected wallet — the default creation parameters are optimized for speed, not maximum brute-force resistance.

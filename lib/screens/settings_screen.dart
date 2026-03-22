@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/widgets/wallet_type_picker.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
@@ -65,6 +66,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(height: 1),
                 _MinFeeRateTile(settings: settings, cubit: cubit),
+                const Divider(height: 1),
+                _FiatSection(settings: settings, cubit: cubit),
                 const Divider(height: 1),
                 _ElectrumUrlSection(settings: settings, cubit: cubit),
                 const Divider(height: 1),
@@ -473,6 +476,54 @@ class _WalletTypeSettingTileState extends State<_WalletTypeSettingTile> {
           widget.onChanged(walletTypeFromAxes(_policy, f));
         },
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fiat values section
+// ─────────────────────────────────────────────────────────────
+
+class _FiatSection extends StatelessWidget {
+  final AppSettings settings;
+  final SettingsCubit cubit;
+
+  const _FiatSection({required this.settings, required this.cubit});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final currencies = currenciesForProvider(settings.fiatProvider);
+    final effectiveCurrency = currencies.contains(settings.fiatCurrency)
+        ? settings.fiatCurrency
+        : currencies.first;
+
+    return Column(
+      children: [
+        SwitchListTile(
+          title: Text(l10n.fiatSectionTitle),
+          subtitle: Text(l10n.fiatEnabledLabel),
+          value: settings.fiatEnabled,
+          onChanged: cubit.setFiatEnabled,
+        ),
+        if (settings.fiatEnabled) ...[
+          _SettingsDropdown<PriceProviderType>(
+            label: l10n.fiatProviderLabel,
+            value: settings.fiatProvider,
+            items: [
+              (PriceProviderType.coinGecko, l10n.fiatProviderCoinGecko),
+              (PriceProviderType.mempoolSpace, l10n.fiatProviderMempoolSpace),
+            ],
+            onChanged: cubit.setFiatProvider,
+          ),
+          _SettingsDropdown<String>(
+            label: l10n.fiatCurrencyLabel,
+            value: effectiveCurrency,
+            items: [for (final c in currencies) (c, c.toUpperCase())],
+            onChanged: cubit.setFiatCurrency,
+          ),
+        ],
+      ],
     );
   }
 }

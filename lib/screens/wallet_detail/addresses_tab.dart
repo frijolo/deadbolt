@@ -7,6 +7,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/colored_address_text.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
+import 'package:deadbolt/widgets/loading_indicator.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Addresses view (tab 2)
@@ -77,7 +78,7 @@ class _AddressList extends StatelessWidget {
     final l10n = context.l10n;
 
     if (!loaded) {
-      return const Center(child: CircularProgressIndicator());
+      return LoadingIndicator(message: l10n.loadingAddresses);
     }
 
     if (addresses.isEmpty) {

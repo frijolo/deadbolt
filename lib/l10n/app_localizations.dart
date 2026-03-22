@@ -1388,6 +1388,36 @@ abstract class AppLocalizations {
   /// **'Loading wallets...'**
   String get loadingWallets;
 
+  /// No description provided for @openingWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening wallet…'**
+  String get openingWallet;
+
+  /// No description provided for @loadingWalletData.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading wallet data…'**
+  String get loadingWalletData;
+
+  /// No description provided for @loadingAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading addresses…'**
+  String get loadingAddresses;
+
+  /// No description provided for @loadingCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading coins…'**
+  String get loadingCoins;
+
+  /// No description provided for @initializingCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Initializing camera…'**
+  String get initializingCamera;
+
   /// No description provided for @deleteWalletTitle.
   ///
   /// In en, this message translates to:
@@ -1478,6 +1508,12 @@ abstract class AppLocalizations {
   /// **'Password protected'**
   String get walletPasswordProtected;
 
+  /// No description provided for @lockWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock wallet'**
+  String get lockWallet;
+
   /// No description provided for @notYetSynced.
   ///
   /// In en, this message translates to:
@@ -1495,6 +1531,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync'**
   String get syncButton;
+
+  /// No description provided for @syncTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync wallet'**
+  String get syncTooltip;
 
   /// No description provided for @syncing.
   ///
@@ -1645,6 +1687,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Minimum fee rate (sat/vB)'**
   String get settingsMinFeeRate;
+
+  /// No description provided for @fiatSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fiat Values'**
+  String get fiatSectionTitle;
+
+  /// No description provided for @fiatEnabledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fiat values'**
+  String get fiatEnabledLabel;
+
+  /// No description provided for @fiatCurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get fiatCurrencyLabel;
+
+  /// No description provided for @fiatProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Price provider'**
+  String get fiatProviderLabel;
+
+  /// No description provided for @fiatProviderCoinGecko.
+  ///
+  /// In en, this message translates to:
+  /// **'CoinGecko'**
+  String get fiatProviderCoinGecko;
+
+  /// No description provided for @fiatProviderMempoolSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Mempool.space'**
+  String get fiatProviderMempoolSpace;
 
   /// No description provided for @explorerSectionTitle.
   ///

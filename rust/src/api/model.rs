@@ -98,6 +98,9 @@ pub enum APIProtectionType {
 pub struct APIXpubSlot {
     /// Master fingerprint (8-char lowercase hex).
     pub mfp: String,
+    /// Derivation path suffix stored as a display hint (e.g. "48h/0h/0h/2h").
+    /// Empty for legacy slots.
+    pub derivation_hint: String,
 }
 
 /// Protection information returned as part of `APIWalletInfo`.
@@ -106,6 +109,8 @@ pub struct APIWalletProtection {
     pub protection_type: APIProtectionType,
     /// True when this wallet requires a credential (password or xpub) to open.
     pub needs_password: bool,
+    /// The Argon2id security level in use (DeviceKey wallets always report Standard).
+    pub security_level: APISecurityLevel,
 }
 
 ///////////////////
@@ -452,6 +457,26 @@ pub struct APIBalance {
 }
 
 ////////////////////
+// APIFiatPrice   //
+////////////////////
+
+pub struct APIFiatPrice {
+    pub txid: String,
+    /// BTC price in the requested fiat currency at the time of the transaction.
+    pub btc_price: f64,
+}
+
+///////////////////////
+// APITxMissingFiat  //
+///////////////////////
+
+pub struct APITxMissingFiat {
+    pub txid: String,
+    /// Unix timestamp of confirmation; None for unconfirmed transactions.
+    pub confirmation_time: Option<i64>,
+}
+
+////////////////////
 // APITransaction //
 ////////////////////
 #[derive(Clone)]
@@ -682,6 +707,50 @@ pub struct APIAddressDetails {
     pub related_utxos: Vec<APIRelatedUtxo>,
     /// All transactions that sent to or spent from this address (unconfirmed first).
     pub related_txs: Vec<APIRelatedTx>,
+}
+
+//////////////////////
+// APISecurityLevel //
+//////////////////////
+
+/// Argon2id brute-force resistance level for backup export and change-protection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum APISecurityLevel {
+    /// m=65536 (64 MB), t=5 — ~300 ms on mobile. Good for interactive unlocking.
+    Standard,
+    /// m=262144 (256 MB), t=6 — ~1.6 s on mobile. Requires deliberate effort.
+    High,
+    /// m=524288 (512 MB), t=10 — ~5.5 s on mobile. For long-term key storage.
+    Extreme,
+}
+
+impl APISecurityLevel {
+    pub fn m_cost(self) -> u32 {
+        match self {
+            Self::Standard => 65536,
+            Self::High => 262144,
+            Self::Extreme => 524288,
+        }
+    }
+
+    pub fn t_cost(self) -> u32 {
+        match self {
+            Self::Standard => 5,
+            Self::High => 6,
+            Self::Extreme => 10,
+        }
+    }
+
+    /// Infer level from stored m_cost (best match; defaults to Standard).
+    pub fn from_m_cost(m_cost: u32) -> Self {
+        if m_cost >= 524288 {
+            Self::Extreme
+        } else if m_cost >= 262144 {
+            Self::High
+        } else {
+            Self::Standard
+        }
+    }
 }
 
 ////////////////////

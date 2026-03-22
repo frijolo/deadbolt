@@ -137,9 +137,13 @@ pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
         .map_err(|_| anyhow!("Decryption failed — wrong password or corrupted data"))
 }
 
-/// Default Argon2id parameters (~300ms on a modern CPU).
-pub const DEFAULT_M_COST: u32 = 65536;
-pub const DEFAULT_T_COST: u32 = 3;
+/// Default Argon2id parameters.
+/// m=4096 (4 MB) + t=1 gives ~10–30 ms on mobile, which is acceptable for
+/// interactive unlocking. UserPassword wallets benefit from the extra latency
+/// only marginally — the descriptor-based xpub in XpubKey wallets already has
+/// ~256 bits of entropy so no brute-force is possible regardless.
+pub const DEFAULT_M_COST: u32 = 4096;
+pub const DEFAULT_T_COST: u32 = 1;
 pub const DEFAULT_P_COST: u32 = 1;
 
 /// One xpub-derived wrapping slot for `ProtectionMeta::XpubKey`.
@@ -151,32 +155,73 @@ pub struct XpubSlot {
     pub m_cost: u32,
     pub t_cost: u32,
     pub p_cost: u32,
+    /// Derivation path suffix (e.g. "48h/0h/0h/2h") stored for UI hint display.
+    /// Empty for legacy slots created before this field was added.
+    #[serde(default)]
+    pub derivation: String,
     pub wrapped_key: String,
 }
 
 /// Wrap `data_key` using `xpub` as credential and return a new slot.
-pub fn wrap_with_xpub(mfp: &str, xpub: &str, data_key: &str) -> Result<XpubSlot> {
+/// `derivation` is the path suffix (e.g. "48h/0h/0h/2h") stored as a display hint.
+pub fn wrap_with_xpub(
+    mfp: &str,
+    xpub: &str,
+    data_key: &str,
+    m_cost: u32,
+    t_cost: u32,
+    derivation: &str,
+) -> Result<XpubSlot> {
     let salt = generate_salt();
-    let wrapping_key =
-        derive_key_from_password(xpub, &salt, DEFAULT_M_COST, DEFAULT_T_COST, DEFAULT_P_COST)?;
+    let wrapping_key = derive_key_from_password(xpub, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
     let wrapped_key = wrap_key(data_key, &wrapping_key)?;
     Ok(XpubSlot {
         mfp: mfp.to_string(),
         salt,
-        m_cost: DEFAULT_M_COST,
-        t_cost: DEFAULT_T_COST,
+        m_cost,
+        t_cost,
         p_cost: DEFAULT_P_COST,
+        derivation: derivation.to_string(),
         wrapped_key,
     })
 }
 
-/// Try `xpub` against every slot and return the data key on first match.
-pub fn unwrap_xpub_slots(xpub: &str, slots: &[XpubSlot]) -> Result<String> {
+/// Parse a credential that may be a bare xpub or a keyspec `[mfp/path]xpub`.
+/// Returns `(mfp_hint, xpub)` where `mfp_hint` is `Some(8-char hex)` if parsed.
+pub fn parse_xpub_credential(credential: &str) -> (Option<&str>, &str) {
+    let trimmed = credential.trim();
+    if let Some(rest) = trimmed.strip_prefix('[') {
+        if let Some(bracket_end) = rest.find(']') {
+            let inside = &rest[..bracket_end];
+            let mfp_end = inside.find('/').unwrap_or(inside.len());
+            let mfp = &inside[..mfp_end];
+            let xpub = rest[bracket_end + 1..].trim();
+            if mfp.len() == 8 && mfp.chars().all(|c| c.is_ascii_hexdigit()) && !xpub.is_empty() {
+                return (Some(mfp), xpub);
+            }
+        }
+    }
+    (None, trimmed)
+}
+
+/// Try `xpub` against slots and return `(data_key, matched_mfp)` on first match.
+/// When `mfp_hint` is provided, only the matching slot is tried (fast path).
+/// When `mfp_hint` is `None`, all slots are tried in order.
+pub fn unwrap_xpub_slots(
+    xpub: &str,
+    mfp_hint: Option<&str>,
+    slots: &[XpubSlot],
+) -> Result<(String, String)> {
     for slot in slots {
+        if let Some(hint) = mfp_hint {
+            if slot.mfp != hint {
+                continue;
+            }
+        }
         let wrapping_key =
             derive_key_from_password(xpub, &slot.salt, slot.m_cost, slot.t_cost, slot.p_cost)?;
         if let Ok(data_key) = unwrap_key(&slot.wrapped_key, &wrapping_key) {
-            return Ok(data_key);
+            return Ok((data_key, slot.mfp.clone()));
         }
     }
     Err(anyhow!("xpub does not match any registered slot"))
@@ -242,8 +287,15 @@ pub fn resolve_data_key(meta: &ProtectionMeta, credential: &str) -> Result<Strin
                 derive_key_from_password(credential, salt, *m_cost, *t_cost, *p_cost)?;
             unwrap_key(wrapped_key, &wrapping_key)
         }
-        ProtectionMeta::XpubKey { slots, .. } => unwrap_xpub_slots(credential, slots),
+        ProtectionMeta::XpubKey { slots, .. } => resolve_xpub_data_key(credential, slots),
     }
+}
+
+/// Resolve the data key from an xpub credential (bare xpub or keyspec).
+/// Extracted so `resolve_data_key` and `resolve_wallet_key` share the same path.
+pub fn resolve_xpub_data_key(credential: &str, slots: &[XpubSlot]) -> Result<String> {
+    let (mfp_hint, xpub) = parse_xpub_credential(credential);
+    unwrap_xpub_slots(xpub, mfp_hint, slots).map(|(data_key, _)| data_key)
 }
 
 #[cfg(test)]
@@ -425,39 +477,42 @@ mod tests {
     #[test]
     fn test_wrap_with_xpub_roundtrip() {
         let data_key = generate_data_key();
-        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key).unwrap();
+        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
         assert_eq!(slot.mfp, "c449c5c5");
 
         let slots = vec![slot];
-        let recovered = unwrap_xpub_slots(TEST_XPUB, &slots).unwrap();
+        let (recovered, mfp) = unwrap_xpub_slots(TEST_XPUB, None, &slots).unwrap();
         assert_eq!(recovered, data_key);
+        assert_eq!(mfp, "c449c5c5");
     }
 
     #[test]
     fn test_unwrap_xpub_wrong_xpub_fails() {
         let data_key = generate_data_key();
-        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key).unwrap();
-        let result = unwrap_xpub_slots(TEST_XPUB2, &[slot]);
+        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
+        let result = unwrap_xpub_slots(TEST_XPUB2, None, &[slot]);
         assert!(result.is_err(), "Different xpub must not unlock");
     }
 
     #[test]
     fn test_unwrap_xpub_any_slot_works() {
         let data_key = generate_data_key();
-        let slot1 = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key).unwrap();
-        let slot2 = wrap_with_xpub("c61af686", TEST_XPUB2, &data_key).unwrap();
+        let slot1 = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
+        let slot2 = wrap_with_xpub("c61af686", TEST_XPUB2, &data_key, 1024, 1, "").unwrap();
         let slots = vec![slot1, slot2];
 
-        let r1 = unwrap_xpub_slots(TEST_XPUB, &slots).unwrap();
-        let r2 = unwrap_xpub_slots(TEST_XPUB2, &slots).unwrap();
+        let (r1, mfp1) = unwrap_xpub_slots(TEST_XPUB, None, &slots).unwrap();
+        let (r2, mfp2) = unwrap_xpub_slots(TEST_XPUB2, None, &slots).unwrap();
         assert_eq!(r1, data_key);
         assert_eq!(r2, data_key);
+        assert_eq!(mfp1, "c449c5c5");
+        assert_eq!(mfp2, "c61af686");
     }
 
     #[test]
     fn test_protection_meta_serde_xpub_key() {
         let data_key = generate_data_key();
-        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key).unwrap();
+        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
         let meta = ProtectionMeta::XpubKey {
             version: 1,
             slots: vec![slot],
@@ -478,9 +533,66 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_xpub_credential_bare() {
+        let (mfp, xpub) = parse_xpub_credential(TEST_XPUB);
+        assert!(mfp.is_none());
+        assert_eq!(xpub, TEST_XPUB);
+    }
+
+    #[test]
+    fn test_parse_xpub_credential_keyspec() {
+        let keyspec = format!("[c449c5c5/48h/0h/0h/2h]{}", TEST_XPUB);
+        let (mfp, xpub) = parse_xpub_credential(&keyspec);
+        assert_eq!(mfp, Some("c449c5c5"));
+        assert_eq!(xpub, TEST_XPUB);
+    }
+
+    #[test]
+    fn test_parse_xpub_credential_keyspec_no_path() {
+        let keyspec = format!("[c449c5c5]{}", TEST_XPUB);
+        let (mfp, xpub) = parse_xpub_credential(&keyspec);
+        assert_eq!(mfp, Some("c449c5c5"));
+        assert_eq!(xpub, TEST_XPUB);
+    }
+
+    #[test]
+    fn test_unwrap_xpub_slots_with_mfp_hint() {
+        let data_key = generate_data_key();
+        let slot1 = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
+        let slot2 = wrap_with_xpub("c61af686", TEST_XPUB2, &data_key, 1024, 1, "").unwrap();
+        let slots = vec![slot1, slot2];
+
+        // With correct MFP hint, only the matching slot is tried.
+        let (r, mfp) = unwrap_xpub_slots(TEST_XPUB, Some("c449c5c5"), &slots).unwrap();
+        assert_eq!(r, data_key);
+        assert_eq!(mfp, "c449c5c5");
+
+        // Wrong MFP hint → no slot is tried → error.
+        let r2 = unwrap_xpub_slots(TEST_XPUB, Some("deadbeef"), &slots);
+        assert!(r2.is_err());
+    }
+
+    #[test]
+    fn test_resolve_data_key_xpub_with_keyspec() {
+        let data_key = generate_data_key();
+        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
+        let meta = ProtectionMeta::XpubKey {
+            version: 1,
+            slots: vec![slot],
+            display_name: None,
+            network: None,
+            last_synced_at: None,
+        };
+        // Keyspec credential → MFP hint extracted → direct slot match.
+        let keyspec = format!("[c449c5c5/48h/0h/0h/2h]{}", TEST_XPUB);
+        let resolved = resolve_data_key(&meta, &keyspec).unwrap();
+        assert_eq!(resolved, data_key);
+    }
+
+    #[test]
     fn test_resolve_data_key_xpub_type() {
         let data_key = generate_data_key();
-        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key).unwrap();
+        let slot = wrap_with_xpub("c449c5c5", TEST_XPUB, &data_key, 1024, 1, "").unwrap();
         let meta = ProtectionMeta::XpubKey {
             version: 1,
             slots: vec![slot],

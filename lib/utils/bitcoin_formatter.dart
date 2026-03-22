@@ -23,6 +23,21 @@ class BitcoinFormatter {
   static String formatDouble(double n, int decimalDigits) =>
       NumberFormat.decimalPatternDigits(decimalDigits: decimalDigits).format(n);
 
+  /// Convert [sats] to BTC value and format with [fiatPrice] and [currency].
+  static String formatSatsFiat(int sats, double fiatPrice, String currency) =>
+      formatFiat(sats / 1e8 * fiatPrice, currency);
+
+  /// Format a fiat value with the currency code (e.g. "USD 1,234.56").
+  /// Currencies with no decimals (JPY, KRW, etc.) are shown as integers.
+  static String formatFiat(double value, String currency) {
+    const noDecimals = {'jpy', 'krw', 'clp', 'vnd', 'idr', 'mmk', 'ngn'};
+    final decimals = noDecimals.contains(currency.toLowerCase()) ? 0 : 2;
+    return NumberFormat.currency(
+      symbol: '${currency.toUpperCase()} ',
+      decimalDigits: decimals,
+    ).format(value);
+  }
+
 
   static String formatRelativeTimelock(
       RelativeTimelockType type, int value) {

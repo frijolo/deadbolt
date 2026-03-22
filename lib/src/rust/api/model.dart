@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -175,6 +175,26 @@ class APICoinControl {
           runtimeType == other.runtimeType &&
           txid == other.txid &&
           vout == other.vout;
+}
+
+class APIFiatPrice {
+  final String txid;
+
+  /// BTC price in the requested fiat currency at the time of the transaction.
+  final double btcPrice;
+
+  const APIFiatPrice({required this.txid, required this.btcPrice});
+
+  @override
+  int get hashCode => txid.hashCode ^ btcPrice.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIFiatPrice &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          btcPrice == other.btcPrice;
 }
 
 /// Metadata about a hot signing key stored inside the wallet.
@@ -754,6 +774,28 @@ class APIRelativeTimelock {
 
 enum APIRelativeTimelockType { blocks, time }
 
+/// Argon2id brute-force resistance level for backup export and change-protection.
+enum APISecurityLevel {
+  /// m=19456 (19 MB), t=2 — ~200–500 ms on mobile. OWASP minimum recommended.
+  standard,
+
+  /// m=65536 (64 MB), t=3 — ~1–3 s on mobile. RFC 9106 memory-constrained profile.
+  high,
+
+  /// m=262144 (256 MB), t=4 — ~5–15 s on mobile. For long-term key storage.
+  extreme;
+
+  /// Infer level from stored m_cost (best match; defaults to Standard).
+  static Future<APISecurityLevel> fromMCost({required int mCost}) =>
+      RustLib.instance.api.crateApiModelApiSecurityLevelFromMCost(mCost: mCost);
+
+  Future<int> mCost() =>
+      RustLib.instance.api.crateApiModelApiSecurityLevelMCost(that: this);
+
+  Future<int> tCost() =>
+      RustLib.instance.api.crateApiModelApiSecurityLevelTCost(that: this);
+}
+
 class APISpendPath {
   final int id;
   final List<APIPolicyPath> policyPath;
@@ -981,6 +1023,26 @@ class APITxDetails {
           outputAddresses == other.outputAddresses;
 }
 
+class APITxMissingFiat {
+  final String txid;
+
+  /// Unix timestamp of confirmation; None for unconfirmed transactions.
+  final PlatformInt64? confirmationTime;
+
+  const APITxMissingFiat({required this.txid, this.confirmationTime});
+
+  @override
+  int get hashCode => txid.hashCode ^ confirmationTime.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APITxMissingFiat &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          confirmationTime == other.confirmationTime;
+}
+
 class APIUtxo {
   final String txid;
   final int vout;
@@ -1148,13 +1210,18 @@ class APIWalletProtection {
   /// True when this wallet requires a credential (password or xpub) to open.
   final bool needsPassword;
 
+  /// The Argon2id security level in use (DeviceKey wallets always report Standard).
+  final APISecurityLevel securityLevel;
+
   const APIWalletProtection({
     required this.protectionType,
     required this.needsPassword,
+    required this.securityLevel,
   });
 
   @override
-  int get hashCode => protectionType.hashCode ^ needsPassword.hashCode;
+  int get hashCode =>
+      protectionType.hashCode ^ needsPassword.hashCode ^ securityLevel.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1162,7 +1229,8 @@ class APIWalletProtection {
       other is APIWalletProtection &&
           runtimeType == other.runtimeType &&
           protectionType == other.protectionType &&
-          needsPassword == other.needsPassword;
+          needsPassword == other.needsPassword &&
+          securityLevel == other.securityLevel;
 }
 
 enum APIWalletType {
@@ -1181,15 +1249,20 @@ class APIXpubSlot {
   /// Master fingerprint (8-char lowercase hex).
   final String mfp;
 
-  const APIXpubSlot({required this.mfp});
+  /// Derivation path suffix stored as a display hint (e.g. "48h/0h/0h/2h").
+  /// Empty for legacy slots.
+  final String derivationHint;
+
+  const APIXpubSlot({required this.mfp, required this.derivationHint});
 
   @override
-  int get hashCode => mfp.hashCode;
+  int get hashCode => mfp.hashCode ^ derivationHint.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is APIXpubSlot &&
           runtimeType == other.runtimeType &&
-          mfp == other.mfp;
+          mfp == other.mfp &&
+          derivationHint == other.derivationHint;
 }
