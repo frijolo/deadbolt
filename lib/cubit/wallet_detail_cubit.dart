@@ -308,11 +308,16 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       }
       final handle = await _service.openWallet(walletPath, password: effectivePassword);
       if (loadingDataMessage != null) emit(WalletDetailLoading(message: loadingDataMessage));
-      final (walletInfo, balance, page, tipHeight) = await (
+      // Load all local data in parallel before sync starts — avoids the BDK
+      // mutex contention that would block address/UTXO reads during sync.
+      final (walletInfo, balance, page, tipHeight, receiveAddrs, changeAddrs, utxos) = await (
         handle.getInfo(),
         handle.getBalance(),
         handle.getTransactions(page: 0, pageSize: _pageSize),
         handle.getTipHeight(),
+        handle.getAddresses(keychain: APIKeychain.external_),
+        handle.getAddresses(keychain: APIKeychain.internal),
+        handle.getUtxos(),
       ).wait;
 
       // Load PSBTs eagerly
@@ -342,6 +347,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         hasMore: page.hasMore,
         currentPage: 0,
         tipHeight: tipHeight,
+        receiveAddresses: receiveAddrs,
+        changeAddresses: changeAddrs,
+        receiveAddressesLoaded: true,
+        changeAddressesLoaded: true,
+        utxos: utxos,
+        utxosLoaded: true,
         psbts: psbts,
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: true,

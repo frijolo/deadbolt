@@ -1477,4 +1477,27 @@ class AppLocalizationsEs extends AppLocalizations {
   String rbfAbsFeeTooLow(int fee) {
     return 'Comisión total demasiado baja para RBF — el mínimo es $fee sats';
   }
+
+  @override
+  String get settingsSectionAppearance => 'Apariencia';
+
+  @override
+  String get settingsSectionDefaults => 'Valores por defecto';
+
+  @override
+  String get settingsSectionTransactions => 'Transacciones';
+
+  @override
+  String get settingsSectionConnectivity => 'Conectividad';
+
+  @override
+  String get disclaimerTitle =>
+      'Software en desarrollo — Úsalo bajo tu responsabilidad';
+
+  @override
+  String get disclaimerBody =>
+      'Deadbolt está en desarrollo activo y puede contener errores.\n\nTodavía no es apto para fondos reales. El uso es bajo tu propia responsabilidad.';
+
+  @override
+  String get disclaimerDontShow7Days => 'No mostrar durante 7 días';
 }

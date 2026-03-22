@@ -29,49 +29,97 @@ class SettingsScreen extends StatelessWidget {
           builder: (context, settings) {
             final cubit = context.read<SettingsCubit>();
             return ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
-                _SettingsDropdown<AppTheme>(
-                  label: l10n.themeLabel,
-                  value: settings.appTheme,
-                  items: [
-                    (AppTheme.system, l10n.themeSystem),
-                    (AppTheme.light, l10n.themeLight),
-                    (AppTheme.dark, l10n.themeDark),
+                _SectionCard(
+                  title: l10n.settingsSectionAppearance,
+                  icon: Icons.palette_outlined,
+                  children: [
+                    _SettingsDropdown<AppTheme>(
+                      label: l10n.themeLabel,
+                      value: settings.appTheme,
+                      items: [
+                        (AppTheme.system, l10n.themeSystem),
+                        (AppTheme.light, l10n.themeLight),
+                        (AppTheme.dark, l10n.themeDark),
+                      ],
+                      onChanged: cubit.setAppTheme,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingsDropdown<Locale>(
+                      label: l10n.languageLabel,
+                      value: settings.locale,
+                      items: [
+                        (const Locale('en'), l10n.settingsLanguageEn),
+                        (const Locale('es'), l10n.settingsLanguageEs),
+                      ],
+                      onChanged: cubit.setLocale,
+                    ),
                   ],
-                  onChanged: cubit.setAppTheme,
                 ),
-                _SettingsDropdown<Locale>(
-                  label: l10n.languageLabel,
-                  value: settings.locale,
-                  items: [
-                    (const Locale('en'), l10n.settingsLanguageEn),
-                    (const Locale('es'), l10n.settingsLanguageEs),
+                _SectionCard(
+                  title: l10n.settingsSectionDefaults,
+                  icon: Icons.tune_outlined,
+                  children: [
+                    _SettingsDropdown<APINetwork>(
+                      label: l10n.preferredNetworkLabel,
+                      value: settings.network,
+                      items: [
+                        for (final n in APINetwork.values)
+                          (n, localizedNetworkName(context, n)),
+                      ],
+                      onChanged: cubit.setNetwork,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _WalletTypeSettingTile(
+                      label: l10n.preferredWalletTypeLabel,
+                      current: settings.walletType,
+                      onChanged: cubit.setWalletType,
+                    ),
                   ],
-                  onChanged: cubit.setLocale,
                 ),
-                _SettingsDropdown<APINetwork>(
-                  label: l10n.preferredNetworkLabel,
-                  value: settings.network,
-                  items: [
-                    for (final n in APINetwork.values)
-                      (n, localizedNetworkName(context, n)),
+                _SectionCard(
+                  title: l10n.settingsSectionTransactions,
+                  icon: Icons.receipt_long_outlined,
+                  children: [
+                    _MinFeeRateTile(settings: settings, cubit: cubit),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _FiatSection(settings: settings, cubit: cubit),
                   ],
-                  onChanged: cubit.setNetwork,
                 ),
-                _WalletTypeSettingTile(
-                  label: l10n.preferredWalletTypeLabel,
-                  current: settings.walletType,
-                  onChanged: cubit.setWalletType,
+                _SectionCard(
+                  title: l10n.settingsSectionConnectivity,
+                  icon: Icons.wifi_outlined,
+                  children: [
+                    _ConnectivityUrlSection(
+                      title: l10n.electrumSectionTitle,
+                      hint: l10n.electrumUrlHint,
+                      networkLabels: {
+                        APINetwork.bitcoin: l10n.electrumNetworkMainnet,
+                        APINetwork.testnet: l10n.electrumNetworkTestnet,
+                        APINetwork.testnet4: l10n.electrumNetworkTestnet4,
+                        APINetwork.signet: l10n.electrumNetworkSignet,
+                        APINetwork.regtest: l10n.electrumNetworkRegtest,
+                      },
+                      currentUrlFor: settings.electrumUrlForNetwork,
+                      onSave: cubit.setElectrumUrl,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _ConnectivityUrlSection(
+                      title: l10n.explorerSectionTitle,
+                      hint: l10n.explorerUrlHint,
+                      networkLabels: {
+                        APINetwork.bitcoin: l10n.explorerNetworkMainnet,
+                        APINetwork.testnet: l10n.explorerNetworkTestnet,
+                        APINetwork.testnet4: l10n.explorerNetworkTestnet4,
+                        APINetwork.signet: l10n.explorerNetworkSignet,
+                        APINetwork.regtest: l10n.explorerNetworkRegtest,
+                      },
+                      currentUrlFor: settings.explorerBaseForNetwork,
+                      onSave: cubit.setExplorerUrl,
+                    ),
+                  ],
                 ),
-                const Divider(height: 1),
-                _MinFeeRateTile(settings: settings, cubit: cubit),
-                const Divider(height: 1),
-                _FiatSection(settings: settings, cubit: cubit),
-                const Divider(height: 1),
-                _ElectrumUrlSection(settings: settings, cubit: cubit),
-                const Divider(height: 1),
-                _ExplorerUrlSection(settings: settings, cubit: cubit),
               ],
             );
           },
@@ -81,49 +129,181 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _ElectrumUrlSection extends StatefulWidget {
-  final AppSettings settings;
-  final SettingsCubit cubit;
+// ─────────────────────────────────────────────────────────────
+// Section card
+// ─────────────────────────────────────────────────────────────
 
-  const _ElectrumUrlSection({required this.settings, required this.cubit});
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
 
-  @override
-  State<_ElectrumUrlSection> createState() => _ElectrumUrlSectionState();
-}
-
-class _ElectrumUrlSectionState extends State<_ElectrumUrlSection> {
-  bool _expanded = false;
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final networkLabels = {
-      APINetwork.bitcoin: l10n.electrumNetworkMainnet,
-      APINetwork.testnet: l10n.electrumNetworkTestnet,
-      APINetwork.testnet4: l10n.electrumNetworkTestnet4,
-      APINetwork.signet: l10n.electrumNetworkSignet,
-      APINetwork.regtest: l10n.electrumNetworkRegtest,
-    };
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final ts = theme.textTheme;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l10n.electrumSectionTitle),
-          trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-          onTap: () => setState(() => _expanded = !_expanded),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+          child: Row(
+            children: [
+              Icon(icon, size: 14, color: cs.primary),
+              const SizedBox(width: 6),
+              Text(
+                title.toUpperCase(),
+                style: ts.labelSmall?.copyWith(
+                  color: cs.primary,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
-        if (_expanded)
-          for (final entry in networkLabels.entries)
-            _ElectrumField(
-              label: entry.value,
-              currentUrl: widget.settings.electrumUrlForNetwork(entry.key),
-              onSave: (url) => widget.cubit.setElectrumUrl(entry.key, url),
-            ),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: children),
+        ),
       ],
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Connectivity — generic per-network URL section
+// ─────────────────────────────────────────────────────────────
+
+class _ConnectivityUrlSection extends StatelessWidget {
+  final String title;
+  final String hint;
+  final Map<APINetwork, String> networkLabels;
+  final String Function(APINetwork) currentUrlFor;
+  final void Function(APINetwork, String) onSave;
+
+  const _ConnectivityUrlSection({
+    required this.title,
+    required this.hint,
+    required this.networkLabels,
+    required this.currentUrlFor,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
+      title: Text(title),
+      children: [
+        for (final entry in networkLabels.entries)
+          _UrlField(
+            label: entry.value,
+            currentUrl: currentUrlFor(entry.key),
+            hint: hint,
+            onSave: (url) => onSave(entry.key, url),
+          ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Generic URL text field (replaces _ElectrumField + _ExplorerField)
+// ─────────────────────────────────────────────────────────────
+
+class _UrlField extends StatefulWidget {
+  final String label;
+  final String currentUrl;
+  final String hint;
+  final void Function(String) onSave;
+
+  const _UrlField({
+    required this.label,
+    required this.currentUrl,
+    required this.hint,
+    required this.onSave,
+  });
+
+  @override
+  State<_UrlField> createState() => _UrlFieldState();
+}
+
+class _UrlFieldState extends State<_UrlField> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentUrl);
+    _focusNode = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_UrlField old) {
+    super.didUpdateWidget(old);
+    if (!_editing && old.currentUrl != widget.currentUrl) {
+      _controller.text = widget.currentUrl;
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
+  void _save() {
+    if (!_editing) return;
+    widget.onSave(_controller.text.trim());
+    setState(() => _editing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          hintText: widget.hint,
+          border: const OutlineInputBorder(),
+        ),
+        onTap: () => setState(() => _editing = true),
+        onSubmitted: (_) => _save(),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Generic dropdown row
+// ─────────────────────────────────────────────────────────────
 
 class _SettingsDropdown<T> extends StatelessWidget {
   final String label;
@@ -146,7 +326,9 @@ class _SettingsDropdown<T> extends StatelessWidget {
         value: value,
         underline: const SizedBox.shrink(),
         alignment: AlignmentDirectional.centerEnd,
-        onChanged: (v) { if (v != null) onChanged(v); },
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
         items: items
             .map((e) => DropdownMenuItem<T>(
                   value: e.$1,
@@ -158,268 +340,9 @@ class _SettingsDropdown<T> extends StatelessWidget {
   }
 }
 
-class _ExplorerUrlSection extends StatefulWidget {
-  final AppSettings settings;
-  final SettingsCubit cubit;
-
-  const _ExplorerUrlSection({required this.settings, required this.cubit});
-
-  @override
-  State<_ExplorerUrlSection> createState() => _ExplorerUrlSectionState();
-}
-
-class _ExplorerUrlSectionState extends State<_ExplorerUrlSection> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final networkLabels = {
-      APINetwork.bitcoin: l10n.explorerNetworkMainnet,
-      APINetwork.testnet: l10n.explorerNetworkTestnet,
-      APINetwork.testnet4: l10n.explorerNetworkTestnet4,
-      APINetwork.signet: l10n.explorerNetworkSignet,
-      APINetwork.regtest: l10n.explorerNetworkRegtest,
-    };
-
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l10n.explorerSectionTitle),
-          trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-          onTap: () => setState(() => _expanded = !_expanded),
-        ),
-        if (_expanded)
-          for (final entry in networkLabels.entries)
-            _ExplorerField(
-              label: entry.value,
-              currentUrl: widget.settings.explorerBaseForNetwork(entry.key),
-              onSave: (url) => widget.cubit.setExplorerUrl(entry.key, url),
-            ),
-      ],
-    );
-  }
-}
-
-class _ExplorerField extends StatefulWidget {
-  final String label;
-  final String currentUrl;
-  final void Function(String) onSave;
-
-  const _ExplorerField({
-    required this.label,
-    required this.currentUrl,
-    required this.onSave,
-  });
-
-  @override
-  State<_ExplorerField> createState() => _ExplorerFieldState();
-}
-
-class _ExplorerFieldState extends State<_ExplorerField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _editing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.currentUrl);
-    _focusNode = FocusNode()..addListener(_onFocusChange);
-  }
-
-  @override
-  void didUpdateWidget(_ExplorerField old) {
-    super.didUpdateWidget(old);
-    if (!_editing && old.currentUrl != widget.currentUrl) {
-      _controller.text = widget.currentUrl;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) _save();
-  }
-
-  void _save() {
-    if (!_editing) return;
-    widget.onSave(_controller.text.trim());
-    setState(() => _editing = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: l10n.explorerUrlHint,
-          border: const OutlineInputBorder(),
-        ),
-        onTap: () => setState(() => _editing = true),
-        onSubmitted: (_) => _save(),
-      ),
-    );
-  }
-}
-
-class _MinFeeRateTile extends StatefulWidget {
-  final AppSettings settings;
-  final SettingsCubit cubit;
-
-  const _MinFeeRateTile({required this.settings, required this.cubit});
-
-  @override
-  State<_MinFeeRateTile> createState() => _MinFeeRateTileState();
-}
-
-class _MinFeeRateTileState extends State<_MinFeeRateTile> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _editing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        TextEditingController(text: widget.settings.minFeeRate.toString());
-    _focusNode = FocusNode()..addListener(_onFocusChange);
-  }
-
-  @override
-  void didUpdateWidget(_MinFeeRateTile old) {
-    super.didUpdateWidget(old);
-    if (!_editing && old.settings.minFeeRate != widget.settings.minFeeRate) {
-      _controller.text = widget.settings.minFeeRate.toString();
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) _save();
-  }
-
-  void _save() {
-    if (!_editing) return;
-    final value = double.tryParse(_controller.text.trim());
-    if (value != null && value > 0) {
-      widget.cubit.setMinFeeRate(value);
-    } else {
-      _controller.text = widget.settings.minFeeRate.toString();
-    }
-    setState(() => _editing = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        decoration: InputDecoration(
-          labelText: l10n.settingsMinFeeRate,
-          hintText: '0.1',
-          suffixText: 'sat/vB',
-          border: const OutlineInputBorder(),
-        ),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onTap: () => setState(() => _editing = true),
-        onSubmitted: (_) => _save(),
-      ),
-    );
-  }
-}
-
-class _ElectrumField extends StatefulWidget {
-  final String label;
-  final String currentUrl;
-  final void Function(String) onSave;
-
-  const _ElectrumField({
-    required this.label,
-    required this.currentUrl,
-    required this.onSave,
-  });
-
-  @override
-  State<_ElectrumField> createState() => _ElectrumFieldState();
-}
-
-class _ElectrumFieldState extends State<_ElectrumField> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _editing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.currentUrl);
-    _focusNode = FocusNode()..addListener(_onFocusChange);
-  }
-
-  @override
-  void didUpdateWidget(_ElectrumField old) {
-    super.didUpdateWidget(old);
-    if (!_editing && old.currentUrl != widget.currentUrl) {
-      _controller.text = widget.currentUrl;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) _save();
-  }
-
-  void _save() {
-    if (!_editing) return;
-    widget.onSave(_controller.text.trim());
-    setState(() => _editing = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: l10n.electrumUrlHint,
-          border: const OutlineInputBorder(),
-        ),
-        onTap: () => setState(() => _editing = true),
-        onSubmitted: (_) => _save(),
-      ),
-    );
-  }
-}
+// ─────────────────────────────────────────────────────────────
+// Wallet type picker tile
+// ─────────────────────────────────────────────────────────────
 
 class _WalletTypeSettingTile extends StatefulWidget {
   final String label;
@@ -481,6 +404,85 @@ class _WalletTypeSettingTileState extends State<_WalletTypeSettingTile> {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Min fee rate tile
+// ─────────────────────────────────────────────────────────────
+
+class _MinFeeRateTile extends StatefulWidget {
+  final AppSettings settings;
+  final SettingsCubit cubit;
+
+  const _MinFeeRateTile({required this.settings, required this.cubit});
+
+  @override
+  State<_MinFeeRateTile> createState() => _MinFeeRateTileState();
+}
+
+class _MinFeeRateTileState extends State<_MinFeeRateTile> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        TextEditingController(text: widget.settings.minFeeRate.toString());
+    _focusNode = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_MinFeeRateTile old) {
+    super.didUpdateWidget(old);
+    if (!_editing && old.settings.minFeeRate != widget.settings.minFeeRate) {
+      _controller.text = widget.settings.minFeeRate.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
+  void _save() {
+    if (!_editing) return;
+    final value = double.tryParse(_controller.text.trim());
+    if (value != null && value > 0) {
+      widget.cubit.setMinFeeRate(value);
+    } else {
+      _controller.text = widget.settings.minFeeRate.toString();
+    }
+    setState(() => _editing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          labelText: l10n.settingsMinFeeRate,
+          hintText: '0.1',
+          suffixText: 'sat/vB',
+          border: const OutlineInputBorder(),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onTap: () => setState(() => _editing = true),
+        onSubmitted: (_) => _save(),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Fiat values section
 // ─────────────────────────────────────────────────────────────
 
@@ -507,6 +509,7 @@ class _FiatSection extends StatelessWidget {
           onChanged: cubit.setFiatEnabled,
         ),
         if (settings.fiatEnabled) ...[
+          const Divider(height: 1, indent: 16, endIndent: 16),
           _SettingsDropdown<PriceProviderType>(
             label: l10n.fiatProviderLabel,
             value: settings.fiatProvider,
@@ -516,6 +519,7 @@ class _FiatSection extends StatelessWidget {
             ],
             onChanged: cubit.setFiatProvider,
           ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
           _SettingsDropdown<String>(
             label: l10n.fiatCurrencyLabel,
             value: effectiveCurrency,

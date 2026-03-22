@@ -1472,4 +1472,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String rbfAbsFeeTooLow(int fee) {
     return 'Total fee too low for RBF — minimum is $fee sats';
   }
+
+  @override
+  String get settingsSectionAppearance => 'Appearance';
+
+  @override
+  String get settingsSectionDefaults => 'Defaults';
+
+  @override
+  String get settingsSectionTransactions => 'Transactions';
+
+  @override
+  String get settingsSectionConnectivity => 'Connectivity';
+
+  @override
+  String get disclaimerTitle => 'Beta Software — Use at Your Own Risk';
+
+  @override
+  String get disclaimerBody =>
+      'Deadbolt is under active development and may contain bugs or errors.\n\nIt is not yet suitable for use with real funds. Use at your own risk.';
+
+  @override
+  String get disclaimerDontShow7Days => 'Don\'t show for 7 days';
 }

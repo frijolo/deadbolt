@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/about_screen.dart';
+import 'package:deadbolt/screens/disclaimer_dialog.dart';
 import 'package:deadbolt/screens/project_list_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_list_screen.dart';
@@ -17,6 +18,23 @@ class _AppScaffoldState extends State<AppScaffold> {
   int _selectedIndex = 0;
 
   void _navigate(int i) => setState(() => _selectedIndex = i);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final show = await shouldShowDisclaimer();
+      if (!mounted) return;
+      if (show) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const DisclaimerDialog(),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +63,7 @@ class _AppScaffoldState extends State<AppScaffold> {
           children: [
             NavigationRail(
               selectedIndex: _selectedIndex,
-              onDestinationSelected: (i) =>
-                  setState(() => _selectedIndex = i),
+              onDestinationSelected: _navigate,
               labelType: NavigationRailLabelType.all,
               destinations: destinations
                   .map((d) => NavigationRailDestination(

@@ -4,6 +4,19 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### New Features
+- **Beta disclaimer** — A dismissible warning dialog appears on first launch (and every 7 days) reminding users the app is under active development and not yet suitable for real funds.
+
+### Improvements
+- **Redesigned settings screen** — Settings are now grouped into four themed sections (Appearance, Defaults, Transactions, Connectivity), each in a card. Electrum and Explorer URL fields are collapsed by default inside the Connectivity card.
+
+### Fixes
+- **Addresses and coins available immediately** — Navigating to the Addresses or Coins tab while an initial sync is running no longer shows a spinner. Both tabs are now populated from the local database during wallet open, before sync starts.
+
+---
+
 ## [v1.5.0]
 
 ### New Features

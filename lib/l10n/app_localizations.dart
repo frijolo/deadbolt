@@ -2731,6 +2731,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total fee too low for RBF — minimum is {fee} sats'**
   String rbfAbsFeeTooLow(int fee);
+
+  /// No description provided for @settingsSectionAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsSectionAppearance;
+
+  /// No description provided for @settingsSectionDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Defaults'**
+  String get settingsSectionDefaults;
+
+  /// No description provided for @settingsSectionTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get settingsSectionTransactions;
+
+  /// No description provided for @settingsSectionConnectivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectivity'**
+  String get settingsSectionConnectivity;
+
+  /// No description provided for @disclaimerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Beta Software — Use at Your Own Risk'**
+  String get disclaimerTitle;
+
+  /// No description provided for @disclaimerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadbolt is under active development and may contain bugs or errors.\n\nIt is not yet suitable for use with real funds. Use at your own risk.'**
+  String get disclaimerBody;
+
+  /// No description provided for @disclaimerDontShow7Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t show for 7 days'**
+  String get disclaimerDontShow7Days;
 }
 
 class _AppLocalizationsDelegate

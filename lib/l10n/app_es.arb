@@ -672,5 +672,14 @@
     "placeholders": {
       "fee": { "type": "int" }
     }
-  }
+  },
+
+  "settingsSectionAppearance": "Apariencia",
+  "settingsSectionDefaults": "Valores por defecto",
+  "settingsSectionTransactions": "Transacciones",
+  "settingsSectionConnectivity": "Conectividad",
+
+  "disclaimerTitle": "Software en desarrollo — Úsalo bajo tu responsabilidad",
+  "disclaimerBody": "Deadbolt está en desarrollo activo y puede contener errores.\n\nTodavía no es apto para fondos reales. El uso es bajo tu propia responsabilidad.",
+  "disclaimerDontShow7Days": "No mostrar durante 7 días"
 }

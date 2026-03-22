@@ -678,5 +678,14 @@
     "placeholders": {
       "fee": { "type": "int" }
     }
-  }
+  },
+
+  "settingsSectionAppearance": "Appearance",
+  "settingsSectionDefaults": "Defaults",
+  "settingsSectionTransactions": "Transactions",
+  "settingsSectionConnectivity": "Connectivity",
+
+  "disclaimerTitle": "Beta Software — Use at Your Own Risk",
+  "disclaimerBody": "Deadbolt is under active development and may contain bugs or errors.\n\nIt is not yet suitable for use with real funds. Use at your own risk.",
+  "disclaimerDontShow7Days": "Don't show for 7 days"
 }
