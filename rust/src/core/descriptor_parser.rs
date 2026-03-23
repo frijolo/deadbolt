@@ -164,9 +164,9 @@ impl DescriptorParser {
         &self.parsed
     }
 
-    /// Get the original descriptor string
-    pub fn descriptor_str(&self) -> &str {
-        &self.descriptor_str
+    /// BDK normalizes hardened paths (h → ') and appends a checksum on serialization.
+    pub fn canonical_descriptor_str(&self) -> String {
+        self.parsed.to_string()
     }
 }
 
@@ -210,5 +210,29 @@ mod tests {
         let result = DescriptorParser::parse(descriptor);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_canonical_descriptor_adds_checksum() -> Result<()> {
+        // Descriptor without checksum — BDK adds checksum and normalizes h -> '
+        let descriptor = "wpkh([089177d9/84h/1h/0h]tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)";
+        let parser = DescriptorParser::parse(descriptor)?;
+
+        let canonical = parser.canonical_descriptor_str();
+        assert_eq!(canonical, "wpkh([089177d9/84'/1'/0']tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)#twnsqqr9");
+        Ok(())
+    }
+
+    #[test]
+    fn test_canonical_descriptor_idempotent() -> Result<()> {
+        let descriptor = "wpkh([089177d9/84h/1h/0h]tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)";
+        let parser1 = DescriptorParser::parse(descriptor)?;
+        let canonical1 = parser1.canonical_descriptor_str();
+
+        let parser2 = DescriptorParser::parse(&canonical1)?;
+        let canonical2 = parser2.canonical_descriptor_str();
+
+        assert_eq!(canonical1, canonical2);
+        Ok(())
     }
 }

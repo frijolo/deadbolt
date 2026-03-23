@@ -1457,6 +1457,7 @@ mod tests {
             KEY_HEX.to_string(),
             APIProtectionType::DeviceKey,
             None,
+            APISecurityLevel::Standard,
         )
     }
 
@@ -1555,6 +1556,7 @@ mod tests {
             KEY_HEX.to_string(),
             APIProtectionType::DeviceKey,
             None,
+            APISecurityLevel::Standard,
         )?;
         create_wallet(
             wallets_dir.clone(),
@@ -1564,6 +1566,7 @@ mod tests {
             KEY_HEX.to_string(),
             APIProtectionType::DeviceKey,
             None,
+            APISecurityLevel::Standard,
         )?;
 
         let list = list_wallets(wallets_dir, KEY_HEX.to_string())?;

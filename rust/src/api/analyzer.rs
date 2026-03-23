@@ -38,7 +38,7 @@ pub fn analyze_descriptor(descriptor: String) -> Result<APIAnalysisResult> {
     let spend_paths = APISpendPath::from_sorted(&spend_paths_core)?;
 
     Ok(APIAnalysisResult {
-        descriptor,
+        descriptor: analyzer.canonical_descriptor_str(),
         network: APINetwork::from(analyzer.network()),
         wallet_type: APIWalletType::from(analyzer.wallet_type()),
         keys,

@@ -13,18 +13,25 @@ String formatRustError(Object e) {
     errorStr = errorStr.split('Stack backtrace:')[0];
   }
   if (errorStr.contains('Electrum server error:')) {
-    errorStr = _extractElectrumMessage(errorStr);
+    errorStr = _extractElectrumMessage(errorStr) ?? errorStr;
   }
   return errorStr.trim();
 }
 
 // Extracts the human-readable message from an Electrum JSON error payload.
 // Example input: 'Electrum server error: {"code":1,"message":"bad-txns-inputs-missingorspent"}'
-String _extractElectrumMessage(String error) {
-  final jsonMatch = RegExp(r'\{[^}]*"message"\s*:\s*"([^"]+)"[^}]*\}').firstMatch(error);
-  if (jsonMatch == null) return error;
-  final prefix = error.substring(0, jsonMatch.start).trim();
-  final rawMessage = jsonMatch.group(1)!;
-  final message = (json.decode('"$rawMessage"') as String).trim();
-  return prefix.isEmpty ? message : '$prefix $message';
+// The message value may itself contain escaped JSON (e.g. sendrawtransaction errors), so
+// we parse the full JSON object rather than using a regex on the raw string.
+String? _extractElectrumMessage(String error) {
+  final jsonStart = error.indexOf('{');
+  if (jsonStart == -1) return null;
+  try {
+    final prefix = error.substring(0, jsonStart).trim();
+    final parsed = json.decode(error.substring(jsonStart)) as Map<String, dynamic>;
+    final message = (parsed['message'] as String?)?.trim();
+    if (message == null) return null;
+    return prefix.isEmpty ? message : '$prefix $message';
+  } catch (_) {
+    return null;
+  }
 }

@@ -67,9 +67,10 @@ impl DescriptorAnalyzer {
         SpendPath::extract_from_descriptor(self.parser.descriptor(), self.network)
     }
 
-    /// Get the original descriptor string
-    pub fn descriptor_str(&self) -> &str {
-        self.parser.descriptor_str()
+    /// BDK normalizes hardened paths (h → ') and appends a checksum on serialization.
+    /// All descriptors stored in the app must go through this to ensure consistency.
+    pub fn canonical_descriptor_str(&self) -> String {
+        self.parser.canonical_descriptor_str()
     }
 }
 
