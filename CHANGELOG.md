@@ -6,18 +6,23 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+---
+
+## [v1.5.1]
+
 ### New Features
 - **Beta disclaimer** — A dismissible warning dialog appears on first launch (and every 7 days) reminding users the app is under active development and not yet suitable for real funds.
+- **Security level selector at wallet creation** — When creating a password or xpub-protected wallet, users can now choose between Standard, High, and Extreme Argon2id resistance levels directly in the creation dialog (previously only changeable after the fact via Change Protection).
+- **Auto-populated spend path for single-sig wallets** — When designing a single-sig project, the spend path is created automatically after the key is added, so the user never has to add it manually.
+
+### Fixes
+- **Descriptor checksum normalization** — Descriptors entered without a checksum are now stored with the correct BDK-canonical form, ensuring wallets created from those projects always use a valid descriptor.
+- **Electrum broadcast errors now visible** — Errors from `sendrawtransaction` (which embed nested JSON in the message field) were silently swallowed due to a JSON parsing bug; they now display correctly as toasts.
+- **sh(wpkh) spend path extraction** — Spend paths for P2SH-wrapped P2WPKH descriptors now correctly report key derivation chain indices.
 
 ### Improvements
 - **Redesigned settings screen** — Settings are now grouped into four themed sections (Appearance, Defaults, Transactions, Connectivity), each in a card. Electrum and Explorer URL fields are collapsed by default inside the Connectivity card.
-- **Auto-populated spend path for single-sig wallets** — When designing a single-sig project, the spend path is created automatically after the key is added, so the user never has to add it manually.
-- **Security level selector at wallet creation** — When creating a password or xpub-protected wallet, users can now choose between Standard, High, and Extreme Argon2id resistance levels directly in the creation dialog (previously only changeable after the fact via Change Protection).
 - **Redesigned protection section in create wallet dialog** — Protection type selector replaced with a compact `SegmentedButton` (None / Password / XPub). The security level selector is shown inline only when a keyed protection type is selected.
-
-### Fixes
-- **Addresses and coins available immediately** — Navigating to the Addresses or Coins tab while an initial sync is running no longer shows a spinner. Both tabs are now populated from the local database during wallet open, before sync starts.
-- **sh(wpkh) spend path extraction** — Spend paths for P2SH-wrapped P2WPKH descriptors now correctly report key derivation chain indices.
 
 ---
 
@@ -203,6 +208,7 @@ Initial release of Deadbolt.
 [v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
 [v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
+[v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
 [v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0
 [v1.1.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.3
