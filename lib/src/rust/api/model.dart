@@ -776,13 +776,13 @@ enum APIRelativeTimelockType { blocks, time }
 
 /// Argon2id brute-force resistance level for backup export and change-protection.
 enum APISecurityLevel {
-  /// m=19456 (19 MB), t=2 — ~200–500 ms on mobile. OWASP minimum recommended.
+  /// m=65536 (64 MB), t=5 — ~300 ms on mobile. Good for interactive unlocking.
   standard,
 
-  /// m=65536 (64 MB), t=3 — ~1–3 s on mobile. RFC 9106 memory-constrained profile.
+  /// m=262144 (256 MB), t=6 — ~1.6 s on mobile. Requires deliberate effort.
   high,
 
-  /// m=262144 (256 MB), t=4 — ~5–15 s on mobile. For long-term key storage.
+  /// m=524288 (512 MB), t=10 — ~5.5 s on mobile. For long-term key storage.
   extreme;
 
   /// Infer level from stored m_cost (best match; defaults to Standard).

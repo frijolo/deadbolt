@@ -439,6 +439,7 @@ abstract class RustLibApi extends BaseApi {
     required String deviceKeyHex,
     required APIProtectionType protectionType,
     String? password,
+    required APISecurityLevel securityLevel,
   });
 
   Future<APIAbsoluteTimelock> crateApiAnalyzerDecodeLegacyAbsTimelock({
@@ -3191,6 +3192,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String deviceKeyHex,
     required APIProtectionType protectionType,
     String? password,
+    required APISecurityLevel securityLevel,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3203,6 +3205,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(deviceKeyHex, serializer);
           sse_encode_api_protection_type(protectionType, serializer);
           sse_encode_opt_String(password, serializer);
+          sse_encode_api_security_level(securityLevel, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3223,6 +3226,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceKeyHex,
           protectionType,
           password,
+          securityLevel,
         ],
         apiImpl: this,
       ),
@@ -3239,6 +3243,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       "deviceKeyHex",
       "protectionType",
       "password",
+      "securityLevel",
     ],
   );
 

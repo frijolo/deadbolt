@@ -14,7 +14,7 @@ Flow:
   9.  Review: Transactions → Addresses → Coins tabs
 
 Usage:
-  flutter build linux --debug       # build once
+  bash scripts/prepare_test_build.sh   # build once
   python3 scripts/demo_singlesig_wallet.py
 """
 
@@ -263,7 +263,7 @@ async def step_add_spend_path(d: UIDriver):
     g = d.window_geometry()
     abs_x = g["x"] + d.csd_x + btn_cx
     abs_y = g["y"] + d.csd_y + btn_cy
-    d._input.mouse_move(abs_x, abs_y)
+    d.mouse_move(abs_x, abs_y)
     await asyncio.sleep(0.4)  # let Flutter register hover
     await d.screenshot("/tmp/db_before_addkey_click.png")
     print(f"  → clicking '+ Add key' at Flutter({btn_cx},{btn_cy})")
@@ -278,7 +278,7 @@ async def step_add_spend_path(d: UIDriver):
         print(f"  → MFP not found yet, retrying with raise_window…")
         d.raise_window()
         await asyncio.sleep(0.3)
-        d._input.mouse_move(abs_x, abs_y)
+        d.mouse_move(abs_x, abs_y)
         await asyncio.sleep(0.3)
         d.flutter_click(btn_cx, btn_cy)
         await asyncio.sleep(STEP)

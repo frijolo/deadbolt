@@ -93,6 +93,7 @@ class WalletService {
     required APINetwork network,
     APIProtectionType protectionType = APIProtectionType.deviceKey,
     String? password,
+    APISecurityLevel securityLevel = APISecurityLevel.standard,
   }) async {
     final walletsDir = await getWalletsDir();
     final keyHex = await getOrCreateEncryptionKey();
@@ -104,6 +105,7 @@ class WalletService {
       deviceKeyHex: keyHex,
       protectionType: protectionType,
       password: password,
+      securityLevel: securityLevel,
     );
   }
 

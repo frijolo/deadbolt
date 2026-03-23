@@ -3,8 +3,8 @@
 Deadbolt live UI test driver.
 
 Launches the Flutter *debug* build, connects to its VM service, and allows
-UI interaction via VNC (x11vnc + vncdotool) with full state inspection via
-the widget/semantics tree.
+UI interaction via xdotool (XTEST) with full state inspection via the
+widget/semantics tree.
 
 Why debug mode (not profile/release):
   - Profile and release strip the debug dump extensions: debugDumpApp,
@@ -13,17 +13,16 @@ Why debug mode (not profile/release):
     compiled as a native binary (not flutter run).
 
 How the coordinate systems align:
-  - x11vnc launched with -id WID serves just the Flutter window.
-    The VNC framebuffer starts at the X11 window top-left (which includes
-    the GTK CSD title bar on GNOME/Adwaita).
-  - Flutter's render canvas starts at (csd_x, csd_y) inside that X11 window.
-  - So: VNC_mouse(fx + csd_x, fy + csd_y) = Flutter logical pixel (fx, fy).
+  - xdotool injects events into the X11 window at screen-absolute coordinates.
+  - Flutter's render canvas starts at (csd_x, csd_y) inside the GTK window
+    (Client-Side Decoration offset on GNOME/Adwaita).
+  - So: screen_abs = window_screen_pos + (csd_x, csd_y) + flutter_pos.
   - On Wayland+XWayland: launch with GDK_BACKEND=x11 so the window is an
-    X11 window that x11vnc and xdotool can find.
+    X11 window that xdotool can find.
 
 Usage:
-  # Build first (once):
-  flutter build linux --debug
+  # Build first (once — applies debug overlay + Rust release .so):
+  bash scripts/prepare_test_build.sh
 
   # Run smoke test (default):
   python3 scripts/ui_driver.py
@@ -35,8 +34,8 @@ Usage:
   python3 scripts/ui_driver.py --interactive
 
 Prerequisites:
-  pip3 install websockets vncdotool
-  sudo apt install x11vnc
+  pip3 install websockets
+  sudo apt install xdotool
 """
 
 import argparse
@@ -50,8 +49,6 @@ import sys
 import time
 from pathlib import Path
 
-import socket
-import struct
 import threading
 
 import websockets
@@ -84,12 +81,6 @@ SANDBOX_DATA_DIR = SANDBOX_DIR / "data"
 SANDBOX_DOCUMENTS_DIR = SANDBOX_DIR / "documents"
 SANDBOX_CONFIG_DIR = SANDBOX_DIR / "config"
 
-# GNOME Remote Desktop (wayland-native) VNC endpoint.
-# Set password once with: grdctl vnc set-password deadbolt
-# Override via env: DEADBOLT_VNC_PASSWORD=... python3 scripts/...
-VNC_PORT     = 5900
-VNC_PASSWORD = os.environ.get("DEADBOLT_VNC_PASSWORD", "deadbolt")
-
 # Flutter widget tree in debug mode can exceed 1 MB; allow up to 16 MB.
 WS_MAX_SIZE = 16 * 1024 * 1024
 
@@ -98,8 +89,8 @@ WS_MAX_SIZE = 16 * 1024 * 1024
 # The Flutter rendering canvas starts INSIDE this CSD frame.
 # Detected empirically: on GNOME/Adwaita, Flutter(0,0) = xdotool(CSD_X, CSD_Y).
 # Re-run scripts/calibrate_coords.py if you change your GTK theme.
-_CSD_X_DEFAULT = 26   # horizontal CSD offset for uinput ABS events (fallback default)
-_CSD_Y_DEFAULT = 70   # vertical CSD offset   for uinput ABS events (fallback default)
+_CSD_X_DEFAULT = 26   # horizontal CSD offset (GTK title bar on GNOME/Adwaita — fallback default)
+_CSD_Y_DEFAULT = 70   # vertical CSD offset   (GTK title bar on GNOME/Adwaita — fallback default)
 
 # Calibration file: written by scripts/calibrate.py, read at launch to skip
 # live calibration during normal test runs.  Gitignored.
@@ -290,40 +281,55 @@ _EVKEY = {
     "f12":       _ec.KEY_F12,
 }
 
-# printable ASCII → (evdev keycode, needs_shift)
-def _char_to_evkey(ch: str) -> tuple[int, bool]:
-    c = ord(ch)
+# printable ASCII → (evdev keycode, needs_shift, needs_altgr)
+# Mappings for Spanish keyboard layout (es + latin/type4 variant, pc105).
+# The Wayland compositor applies the Spanish XKB layout to all uinput evdev
+# keycodes, so we must use Spanish physical-key positions here.
+def _char_to_evkey(ch: str) -> tuple[int, bool, bool]:
     if ch.isalpha():
-        name = f"KEY_{ch.upper()}"
-        return getattr(_ec, name), ch.isupper()
-    digits = "0123456789"
-    if ch in digits:
-        return getattr(_ec, f"KEY_{ch}"), False
-    # shifted symbols on US keyboard
-    shifted = {
-        '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
-        '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
-        '_': _ec.KEY_MINUS, '+': _ec.KEY_EQUAL,
-        '{': _ec.KEY_LEFTBRACE, '}': _ec.KEY_RIGHTBRACE,
-        '|': _ec.KEY_BACKSLASH, ':': _ec.KEY_SEMICOLON,
-        '"': _ec.KEY_APOSTROPHE, '<': _ec.KEY_COMMA,
-        '>': _ec.KEY_DOT, '?': _ec.KEY_SLASH, '~': _ec.KEY_GRAVE,
+        return getattr(_ec, f"KEY_{ch.upper()}"), ch.isupper(), False
+    if ch.isdigit():
+        return getattr(_ec, f"KEY_{ch}"), False, False
+    # Unshifted keys (Spanish layout)
+    _unshifted = {
+        ' ': _ec.KEY_SPACE,
+        "'": _ec.KEY_MINUS,       # AE11 es: apostrophe
+        '-': _ec.KEY_SLASH,       # AB10 latin/type4: minus
+        ',': _ec.KEY_COMMA,       # AB08: comma
+        '.': _ec.KEY_DOT,         # AB09: period
+        '<': _ec.KEY_102ND,       # LSGT es: less
+        '+': _ec.KEY_RIGHTBRACE,  # AD12 es: plus
     }
-    unshifted = {
-        ' ': _ec.KEY_SPACE, '-': _ec.KEY_MINUS, '=': _ec.KEY_EQUAL,
-        '[': _ec.KEY_LEFTBRACE, ']': _ec.KEY_RIGHTBRACE,
-        '\\': _ec.KEY_BACKSLASH, ';': _ec.KEY_SEMICOLON,
-        "'": _ec.KEY_APOSTROPHE, ',': _ec.KEY_COMMA,
-        '.': _ec.KEY_DOT, '/': _ec.KEY_SLASH, '`': _ec.KEY_GRAVE,
+    # Shifted keys (Spanish layout)
+    _shifted = {
+        '>': _ec.KEY_102ND,       # LSGT es shifted: greater
+        '_': _ec.KEY_SLASH,       # AB10 shifted: underscore
+        ';': _ec.KEY_COMMA,       # AB08 shifted: semicolon
+        ':': _ec.KEY_DOT,         # AB09 shifted: colon
+        '/': _ec.KEY_7,           # AE07 latin/type4 shifted: slash
+        '(': _ec.KEY_8,           # AE08 shifted: parenleft
+        ')': _ec.KEY_9,           # AE09 shifted: parenright
+        '*': _ec.KEY_RIGHTBRACE,  # AD12 es shifted: asterisk
+        '?': _ec.KEY_MINUS,       # AE11 es shifted: question
+        '"': _ec.KEY_2,           # AE02 es shifted: quotedbl
+        '!': _ec.KEY_1,           # AE01 shifted: exclam
     }
-    if ch in shifted:
-        base = shifted[ch]
-        if isinstance(base, str):
-            base = getattr(_ec, f"KEY_{base}")
-        return base, True
-    if ch in unshifted:
-        return unshifted[ch], False
-    return _ec.KEY_SPACE, False  # fallback
+    # AltGr keys (Spanish layout: KEY_RIGHTALT held)
+    _altgr = {
+        '[': _ec.KEY_LEFTBRACE,   # AD11 es AltGr: bracketleft
+        ']': _ec.KEY_RIGHTBRACE,  # AD12 es AltGr: bracketright
+        '#': _ec.KEY_3,           # AE03 es AltGr: numbersign
+        '@': _ec.KEY_2,           # AE02 es AltGr: at
+        '{': _ec.KEY_7,           # AE07 es AltGr: braceleft
+        '}': _ec.KEY_0,           # AE10 es AltGr: braceright
+    }
+    if ch in _unshifted:
+        return _unshifted[ch], False, False
+    if ch in _shifted:
+        return _shifted[ch], True, False
+    if ch in _altgr:
+        return _altgr[ch], False, True
+    return _ec.KEY_SPACE, False, False  # fallback
 
 
 class _UInputDevice:
@@ -394,11 +400,14 @@ class _UInputDevice:
         """Press and release a single named key (xdotool-style name or single char)."""
         kc = _EVKEY.get(name.lower()) or _EVKEY.get(name)
         shift = False
+        altgr = False
         if kc is None and len(name) == 1:
-            kc, shift = _char_to_evkey(name)
+            kc, shift, altgr = _char_to_evkey(name)
         if kc is None:
             print(f"[uinput] WARNING: unknown key '{name}'")
             return
+        if altgr:
+            self._press(_ec.KEY_RIGHTALT)
         if shift:
             self._press(_ec.KEY_LEFTSHIFT)
         self._press(kc)
@@ -406,6 +415,8 @@ class _UInputDevice:
         self._release(kc)
         if shift:
             self._release(_ec.KEY_LEFTSHIFT)
+        if altgr:
+            self._release(_ec.KEY_RIGHTALT)
 
     def key_combo(self, combo: str):
         """Press a key combination like 'ctrl+a' — holds modifiers during press."""
@@ -414,7 +425,7 @@ class _UInputDevice:
         for p in parts:
             kc = _EVKEY.get(p.lower())
             if kc is None and len(p) == 1:
-                kc, _ = _char_to_evkey(p)
+                kc, _, _altgr = _char_to_evkey(p)
             if kc:
                 keycodes.append(kc)
         for kc in keycodes:
@@ -425,9 +436,11 @@ class _UInputDevice:
             time.sleep(0.02)
 
     def type_text(self, text: str):
-        """Type a string character by character."""
+        """Type a string character by character (Spanish keyboard layout)."""
         for ch in text:
-            kc, shift = _char_to_evkey(ch)
+            kc, shift, altgr = _char_to_evkey(ch)
+            if altgr:
+                self._press(_ec.KEY_RIGHTALT)
             if shift:
                 self._press(_ec.KEY_LEFTSHIFT)
             self._press(kc)
@@ -435,230 +448,38 @@ class _UInputDevice:
             self._release(kc)
             if shift:
                 self._release(_ec.KEY_LEFTSHIFT)
+            if altgr:
+                self._release(_ec.KEY_RIGHTALT)
             time.sleep(0.02)
+
+    async def type_text_async(self, text: str):
+        """Type a string character by character, yielding the asyncio event loop
+        between every character via asyncio.sleep().
+
+        Unlike type_text() which blocks the event loop for the entire string,
+        this version allows Flutter and other async tasks to receive CPU time
+        between keystrokes, preventing input loss on long strings.
+        """
+        for ch in text:
+            kc, shift, altgr = _char_to_evkey(ch)
+            if altgr:
+                self._press(_ec.KEY_RIGHTALT)
+            if shift:
+                self._press(_ec.KEY_LEFTSHIFT)
+            self._press(kc)
+            await asyncio.sleep(0.03)
+            self._release(kc)
+            if shift:
+                self._release(_ec.KEY_LEFTSHIFT)
+            if altgr:
+                self._release(_ec.KEY_RIGHTALT)
+            await asyncio.sleep(0.02)
 
     def close(self):
         try:
             self._ui.close()
         except Exception:
             pass
-
-
-# ---------------------------------------------------------------------------
-# Minimal VNC input-only client (no framebuffer, no Twisted, no asyncio issues)
-# ---------------------------------------------------------------------------
-
-# X11 keysym values for named keys (VNC uses X11 keysyms)
-_KEYSYM = {
-    "return":    0xFF0D,
-    "enter":     0xFF0D,
-    "kpenter":   0xFF8D,
-    "esc":       0xFF1B,
-    "bsp":       0xFF08,
-    "delete":    0xFFFF,
-    "tab":       0xFF09,
-    "spacebar":  0x0020,
-    "space":     0x0020,
-    "ctrl":      0xFFE3,   # Control_L
-    "lctrl":     0xFFE3,
-    "rctrl":     0xFFE4,
-    "shift":     0xFFE1,   # Shift_L
-    "lshift":    0xFFE1,
-    "rshift":    0xFFE2,
-    "alt":       0xFFE9,   # Alt_L
-    "lalt":      0xFFE9,
-    "ralt":      0xFFEA,
-    "super":     0xFFEB,
-    "left":      0xFF51,
-    "right":     0xFF53,
-    "up":        0xFF52,
-    "down":      0xFF54,
-    "home":      0xFF50,
-    "end":       0xFF57,
-    "pgup":      0xFF55,
-    "pgdn":      0xFF56,
-    "ins":       0xFF63,
-    "f1":        0xFFBE,
-    "f2":        0xFFBF,
-    "f3":        0xFFC0,
-    "f4":        0xFFC1,
-    "f5":        0xFFC2,
-    "f6":        0xFFC3,
-    "f7":        0xFFC4,
-    "f8":        0xFFC5,
-    "f9":        0xFFC6,
-    "f10":       0xFFC7,
-    "f11":       0xFFC8,
-    "f12":       0xFFC9,
-}
-
-
-def _vnc_des_key(password: str) -> bytes:
-    """Derive the DES key from a VNC password (bit-reversal per RFC 6143 §7.2.2)."""
-    pw = (password[:8] + "\x00" * 8)[:8]
-    return bytes(
-        sum((128 >> i) if (ord(c) & (1 << i)) else 0 for i in range(8))
-        for c in pw
-    )
-
-
-class _VNCInput:
-    """
-    Input-only VNC client over a raw socket.
-
-    Connects to a VNC server, authenticates, completes the init handshake,
-    then sends mouse (PointerEvent) and keyboard (KeyEvent) RFB messages.
-    No framebuffer subscription — pure input injection.
-    """
-
-    def __init__(self, host: str = "localhost", port: int = 5900,
-                 password: str = "deadbolt"):
-        self.host = host
-        self.port = port
-        self.password = password
-        self._sock: socket.socket | None = None
-        self._lock = threading.Lock()
-
-    @staticmethod
-    def _recv_exact(s: socket.socket, n: int) -> bytes:
-        """Read exactly n bytes from socket."""
-        buf = b""
-        while len(buf) < n:
-            chunk = s.recv(n - len(buf))
-            if not chunk:
-                raise ConnectionError("VNC connection closed unexpectedly")
-            buf += chunk
-        return buf
-
-    def connect(self):
-        s = socket.create_connection((self.host, self.port), timeout=10)
-        s.settimeout(10)
-
-        # ── Version handshake ───────────────────────────────────────────────
-        self._recv_exact(s, 12)               # e.g. b'RFB 003.008\n'
-        s.sendall(b"RFB 003.008\n")
-
-        # ── Security types ──────────────────────────────────────────────────
-        n = self._recv_exact(s, 1)[0]
-        if n == 0:
-            raise ConnectionError("VNC server refused connection")
-        types = list(self._recv_exact(s, n))
-        if 2 not in types:
-            raise ConnectionError(f"VNC server does not offer VNC auth (got {types})")
-        s.sendall(b"\x02")                    # choose VNC auth (type 2)
-
-        # ── VNC authentication (DES challenge-response) ─────────────────────
-        challenge = self._recv_exact(s, 16)
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        from cryptography.hazmat.backends import default_backend
-        key = _vnc_des_key(self.password)
-        cipher = Cipher(algorithms.TripleDES(key * 3), modes.ECB(),
-                        backend=default_backend())
-        enc = cipher.encryptor()
-        response = enc.update(challenge) + enc.finalize()
-        s.sendall(response)
-        result = struct.unpack("!I", self._recv_exact(s, 4))[0]
-        if result != 0:
-            raise ConnectionError("VNC authentication failed (wrong password?)")
-
-        # ── ClientInit + ServerInit ─────────────────────────────────────────
-        s.sendall(b"\x01")                    # shared = True
-        # ServerInit: width(2) + height(2) + pixel_format(16) + name_len(4) + name
-        header = self._recv_exact(s, 24)
-        name_len = struct.unpack("!I", header[20:24])[0]
-        if name_len > 0:
-            self._recv_exact(s, name_len)
-
-        self._sock = s
-
-    def _send(self, data: bytes):
-        with self._lock:
-            if self._sock is None:
-                raise RuntimeError("VNC not connected")
-            self._sock.sendall(data)
-
-    def mouse_event(self, x: int, y: int, buttons: int = 0):
-        """Send a PointerEvent (RFB msg type 5)."""
-        self._send(struct.pack("!BBHH", 5, buttons, x, y))
-
-    def mouse_click(self, x: int, y: int, button: int = 1):
-        """Move to (x, y) and click the given button (1=left, 2=middle, 3=right)."""
-        mask = 1 << (button - 1)
-        self.mouse_event(x, y, 0)        # move
-        time.sleep(0.05)
-        self.mouse_event(x, y, mask)     # press
-        time.sleep(0.05)
-        self.mouse_event(x, y, 0)        # release
-
-    def key_event(self, keysym: int, down: bool):
-        """Send a KeyEvent (RFB msg type 4)."""
-        self._send(struct.pack("!BBxxI", 4, 1 if down else 0, keysym))
-
-    def key_press(self, key: str):
-        """Press and release a single key (xdotool-style name or single char)."""
-        ks = self._resolve_keysym(key)
-        self.key_event(ks, True)
-        time.sleep(0.03)
-        self.key_event(ks, False)
-
-    def key_combo(self, combo: str):
-        """
-        Press a key combination such as 'ctrl+a' or 'ctrl-a'.
-        Modifiers are held down while the final key is pressed.
-        """
-        parts = [p.strip() for p in combo.replace("-", "+").split("+")]
-        # Map to keysyms
-        syms = [self._resolve_keysym(p) for p in parts]
-        # Press all down, release in reverse
-        for ks in syms:
-            self.key_event(ks, True)
-            time.sleep(0.02)
-        for ks in reversed(syms):
-            self.key_event(ks, False)
-            time.sleep(0.02)
-
-    def type_text(self, text: str):
-        """
-        Type a string by sending individual KeyEvents for each character.
-        For paste-style input, use paste() instead.
-        """
-        for ch in text:
-            ks = ord(ch) if ord(ch) >= 0x20 else _KEYSYM.get(ch, ord(ch))
-            if ch.isupper() or ch in '~!@#$%^&*()_+{}|:"<>?':
-                self.key_event(_KEYSYM["shift"], True)
-            self.key_event(ks, True)
-            time.sleep(0.03)
-            self.key_event(ks, False)
-            if ch.isupper() or ch in '~!@#$%^&*()_+{}|:"<>?':
-                self.key_event(_KEYSYM["shift"], False)
-            time.sleep(0.02)
-
-    def paste(self, text: str):
-        """
-        Send text via VNC clipboard (ClientCutText) then paste with Ctrl-V.
-        Faster than type_text for long strings.
-        """
-        encoded = text.encode("latin-1", errors="replace")
-        self._send(struct.pack("!BxxxI", 6, len(encoded)) + encoded)
-        time.sleep(0.1)
-        self.key_combo("ctrl+v")
-
-    def _resolve_keysym(self, name: str) -> int:
-        if len(name) == 1:
-            return ord(name)
-        lower = name.lower()
-        if lower in _KEYSYM:
-            return _KEYSYM[lower]
-        # Try matching vncdotool key names (already lowercase)
-        return _KEYSYM.get(lower, ord(name[0]) if name else 0x20)
-
-    def disconnect(self):
-        if self._sock:
-            try:
-                self._sock.close()
-            except Exception:
-                pass
-            self._sock = None
 
 
 # ---------------------------------------------------------------------------
@@ -684,7 +505,7 @@ def _reset_sandbox():
 
 
 class UIDriver:
-    """Controls the Deadbolt debug build via VM service + VNC (x11vnc + vncdotool)."""
+    """Controls the Deadbolt debug build via VM service + xdotool (XTEST)."""
 
     def __init__(self, csd_x: int = _CSD_X_DEFAULT, csd_y: int = _CSD_Y_DEFAULT,
                  sandbox: bool = True, debug_mouse: bool = False):
@@ -693,8 +514,8 @@ class UIDriver:
         self.isolate_id = None
         self.window_id = None     # X11 window ID (decimal string)
         self._req_id = 0
-        self.csd_x = csd_x       # Flutter→VNC horizontal offset (CSD title bar)
-        self.csd_y = csd_y       # Flutter→VNC vertical offset (CSD title bar)
+        self.csd_x = csd_x       # Flutter→screen horizontal offset (GTK CSD title bar)
+        self.csd_y = csd_y       # Flutter→screen vertical offset (GTK CSD title bar)
         self.sandbox = sandbox    # True: always start with empty app data
         self.debug_mouse = debug_mouse  # True: enable DEADBOLT_DEBUG_MOUSE crosshair overlay
         self._input: _UInputDevice | None = None  # uinput keyboard + mouse
@@ -724,6 +545,12 @@ class UIDriver:
             "GDK_BACKEND": "x11",
             # Enable the visual crosshair overlay when requested.
             "DEADBOLT_DEBUG_MOUSE": "1" if self.debug_mouse else "0",
+            # Disable XIM/IBus input method to prevent compose-sequence interference
+            # when injecting key events via uinput.  Without this, IBus can buffer
+            # characters and "commit" them in a way that clears the text field.
+            "XMODIFIERS": "@im=none",
+            "GTK_IM_MODULE": "none",
+            "QT_IM_MODULE": "none",
         }
 
         if self.sandbox:
@@ -807,6 +634,11 @@ class UIDriver:
             print(f"[calib] No .calib file — using defaults CSD_X={self.csd_x}, CSD_Y={self.csd_y}")
             print("[calib]   Run 'python3 scripts/calibrate.py' to generate it.")
 
+        # Auto-calibrate on every launch to adapt to the current window position.
+        # The calibration click lands at the window center; any resulting UI
+        # interaction (e.g. dismissing a dialog) is handled by the test setup.
+        await self.calibrate()
+
     async def calibrate(self):
         """Auto-calibrate CSD_X/CSD_Y by clicking at the window center and
         reading the Flutter-reported pointer coordinates from [mouse] output.
@@ -825,7 +657,15 @@ class UIDriver:
         abs_y = g["y"] + g["h"] // 2
 
         log_before = len(self._app_log)
-        self._input.mouse_click(abs_x, abs_y)
+        # Use xdotool (XTEST) for calibration — uinput ABS events are unreliable
+        # in X11/VirtualBox where the VirtualBox USB Tablet device takes precedence.
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.04)
+        subprocess.run(["xdotool", "click", "1"], env=env, stderr=subprocess.DEVNULL)
         await asyncio.sleep(0.4)
 
         new_lines = self._app_log[log_before:]
@@ -1275,7 +1115,7 @@ class UIDriver:
         return (400, 300)
 
     # ------------------------------------------------------------------
-    # VNC interaction
+    # Input: clicks and keyboard
     # ------------------------------------------------------------------
 
     def flutter_click(self, fx: int, fy: int, button: int = 1, delay_s: float = 0.15):
@@ -1306,7 +1146,7 @@ class UIDriver:
         abs_y = g["y"] + y
         self._do_click(abs_x, abs_y, button=button, delay_s=delay_s)
 
-    # vncdotool KEYMAP name translations (xdotool names → vncdotool names)
+    # Key name translations: GTK/Qt names → uinput evdev names used by key()
     _KEY_MAP = {
         "Return":    "return",
         "KP_Enter":  "kpenter",
@@ -1330,14 +1170,34 @@ class UIDriver:
     }
 
     def _vkey(self, name: str) -> str:
-        """Translate an xdotool-style key name to vncdotool KEYMAP name."""
+        """Translate a key name to the form expected by uinput key_press."""
         return self._KEY_MAP.get(name, name.lower())
 
+    def mouse_move(self, abs_x: int, abs_y: int):
+        """Move the cursor to screen-absolute coordinates via xdotool (XTEST)."""
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.04)
+
     def _do_click(self, abs_x: int, abs_y: int, button: int = 1, delay_s: float = 0.15):
-        """Send a mouse click at screen-absolute coordinates via uinput."""
-        if self._input is None:
-            raise RuntimeError("uinput device not initialised")
-        self._input.mouse_click(abs_x, abs_y, button=button)
+        """Send a mouse click at screen-absolute coordinates via xdotool (XTEST).
+
+        xdotool uses the XTEST X11 extension which injects events directly into
+        the X server event queue — reliable on X11 regardless of uinput ABS mapping.
+        """
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.04)
+        subprocess.run(
+            ["xdotool", "click", str(button)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
         time.sleep(delay_s)
 
     def type_text(self, text: str, delay_ms: int = 30):
@@ -1349,6 +1209,16 @@ class UIDriver:
         if self._input is None:
             raise RuntimeError("uinput device not initialised")
         self._input.type_text(text)
+
+    async def type_text_async(self, text: str):
+        """Type text via uinput, yielding the asyncio event loop between every
+        character.  Use this for long strings (>50 chars) where the synchronous
+        type_text() would block the event loop long enough to cause Flutter to
+        drop the text-field content.
+        """
+        if self._input is None:
+            raise RuntimeError("uinput device not initialised")
+        await self._input.type_text_async(text)
 
     def key(self, key_name: str):
         """Press a key or key combination via uinput.

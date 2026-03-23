@@ -82,6 +82,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
   // Protection
   APIProtectionType _protectionType = APIProtectionType.deviceKey;
+  APISecurityLevel _securityLevel = APISecurityLevel.standard;
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   bool _obscurePassword = true;
@@ -246,69 +247,76 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   }
 
   Widget _buildProtectionSection(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Wallet protection',
-            style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 4),
-        RadioGroup<APIProtectionType>(
-          groupValue: _protectionType,
-          onChanged: (v) => setState(() => _protectionType = v!),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Radio<APIProtectionType>(
-                      value: APIProtectionType.deviceKey),
-                  Expanded(
-                    child: Text('Device key (automatic)'),
-                  ),
-                ],
+        Text('Protection', style: theme.textTheme.labelMedium),
+        const SizedBox(height: 8),
+        SegmentedButton<APIProtectionType>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: APIProtectionType.deviceKey,
+              label: Text('None'),
+            ),
+            ButtonSegment(
+              value: APIProtectionType.userPassword,
+              label: Text('Password'),
+            ),
+            ButtonSegment(
+              value: APIProtectionType.xpubKey,
+              label: Text('XPub'),
+            ),
+          ],
+          selected: {_protectionType},
+          onSelectionChanged: (v) => setState(() => _protectionType = v.first),
+        ),
+        if (_protectionType != APIProtectionType.deviceKey) ...[
+          const SizedBox(height: 16),
+          Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<APISecurityLevel>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: APISecurityLevel.standard,
+                label: Text('Standard'),
               ),
-              Row(
-                children: [
-                  Radio<APIProtectionType>(
-                      value: APIProtectionType.userPassword),
-                  Expanded(
-                    child: Text('Password protection'),
-                  ),
-                ],
+              ButtonSegment(
+                value: APISecurityLevel.high,
+                label: Text('High'),
               ),
-              Row(
-                children: [
-                  Radio<APIProtectionType>(
-                      value: APIProtectionType.xpubKey),
-                  Expanded(
-                    child: Text('xpub key (any descriptor key unlocks)'),
-                  ),
-                ],
+              ButtonSegment(
+                value: APISecurityLevel.extreme,
+                label: Text('Extreme'),
               ),
             ],
+            selected: {_securityLevel},
+            onSelectionChanged: (v) => setState(() => _securityLevel = v.first),
           ),
-        ),
+        ],
         if (_protectionType == APIProtectionType.xpubKey) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
                 Icon(Icons.info_outline,
                     size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Any xpub from the descriptor can unlock this wallet. '
                     'Do not share those xpubs with third parties.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -316,12 +324,12 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
           ),
         ],
         if (_protectionType == APIProtectionType.userPassword) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'Password',
+              labelText: 'New password',
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword
@@ -443,6 +451,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         network: _selectedNetwork,
         protectionType: _protectionType,
         password: password,
+        securityLevel: _securityLevel,
       );
 
       if (widget.preselectedProject != null) {

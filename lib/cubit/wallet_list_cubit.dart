@@ -47,6 +47,7 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
     required APINetwork network,
     APIProtectionType protectionType = APIProtectionType.deviceKey,
     String? password,
+    APISecurityLevel securityLevel = APISecurityLevel.standard,
   }) async {
     try {
       final info = await _service.createWallet(
@@ -55,6 +56,7 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
         network: network,
         protectionType: protectionType,
         password: password,
+        securityLevel: securityLevel,
       );
       if (protectionType == APIProtectionType.userPassword && password != null) {
         _service.cachePassword(info.walletPath, password);

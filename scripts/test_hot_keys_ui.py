@@ -10,7 +10,7 @@ UI test for the Hot Key (signing key) flow:
   7. Tap "Add key" → verify "hot" badge appears on the key card
   8. Verify "Remove signing key" link appears / "Add signing key" chip disappears
 
-Run after: flutter build linux --debug
+Run after: bash scripts/prepare_test_build.sh
   python3 scripts/test_hot_keys_ui.py
 """
 

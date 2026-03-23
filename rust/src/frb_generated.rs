@@ -3477,6 +3477,8 @@ fn wire__crate__api__wallet__create_wallet_impl(
             let api_protection_type =
                 <crate::api::model::APIProtectionType>::sse_decode(&mut deserializer);
             let api_password = <Option<String>>::sse_decode(&mut deserializer);
+            let api_security_level =
+                <crate::api::model::APISecurityLevel>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -3489,6 +3491,7 @@ fn wire__crate__api__wallet__create_wallet_impl(
                             api_device_key_hex,
                             api_protection_type,
                             api_password,
+                            api_security_level,
                         )?;
                         Ok(output_ok)
                     })(),

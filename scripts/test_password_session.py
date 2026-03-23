@@ -11,7 +11,7 @@ Verifies:
   6. Lock → back on wallet list → wallet shows as locked again
   7. Tap again → password prompt appears
 
-Run after: flutter build linux --debug
+Run after: bash scripts/prepare_test_build.sh
   python3 scripts/test_password_session.py
 
 Requires: at least one UserPassword wallet (run test_wallet_lifecycle.py first)

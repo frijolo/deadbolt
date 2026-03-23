@@ -11,7 +11,7 @@ Flow:
   6.  Export wallet backup protected by a different password
 
 Usage:
-  flutter build linux --debug          # build once
+  bash scripts/prepare_test_build.sh   # build once
   python3 scripts/test_wallet_lifecycle.py
 """
 

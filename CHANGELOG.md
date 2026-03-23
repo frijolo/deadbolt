@@ -12,6 +12,8 @@ All notable changes to Deadbolt are documented here, newest first.
 ### Improvements
 - **Redesigned settings screen** — Settings are now grouped into four themed sections (Appearance, Defaults, Transactions, Connectivity), each in a card. Electrum and Explorer URL fields are collapsed by default inside the Connectivity card.
 - **Auto-populated spend path for single-sig wallets** — When designing a single-sig project, the spend path is created automatically after the key is added, so the user never has to add it manually.
+- **Security level selector at wallet creation** — When creating a password or xpub-protected wallet, users can now choose between Standard, High, and Extreme Argon2id resistance levels directly in the creation dialog (previously only changeable after the fact via Change Protection).
+- **Redesigned protection section in create wallet dialog** — Protection type selector replaced with a compact `SegmentedButton` (None / Password / XPub). The security level selector is shown inline only when a keyed protection type is selected.
 
 ### Fixes
 - **Addresses and coins available immediately** — Navigating to the Addresses or Coins tab while an initial sync is running no longer shows a spinner. Both tabs are now populated from the local database during wallet open, before sync starts.

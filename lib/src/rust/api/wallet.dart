@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`, `xpub_slots_from_descriptor`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
 
@@ -29,6 +29,7 @@ Future<APIWalletInfo> createWallet({
   required String deviceKeyHex,
   required APIProtectionType protectionType,
   String? password,
+  required APISecurityLevel securityLevel,
 }) => RustLib.instance.api.crateApiWalletCreateWallet(
   walletsDir: walletsDir,
   name: name,
@@ -37,6 +38,7 @@ Future<APIWalletInfo> createWallet({
   deviceKeyHex: deviceKeyHex,
   protectionType: protectionType,
   password: password,
+  securityLevel: securityLevel,
 );
 
 /// Read metadata from an existing wallet file.

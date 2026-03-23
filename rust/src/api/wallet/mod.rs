@@ -11,7 +11,7 @@ use crate::api::model::{
     APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
 use crate::core::key_protection::{
-    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta, DEFAULT_M_COST, DEFAULT_T_COST,
+    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta, DEFAULT_M_COST,
 };
 use crate::core::project_seeds::{
     delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
@@ -575,6 +575,7 @@ pub fn list_wallets(wallets_dir: String, encryption_key_hex: String) -> Result<V
 }
 
 /// Create a new wallet .db file and return its info.
+#[allow(clippy::too_many_arguments)]
 pub fn create_wallet(
     wallets_dir: String,
     name: String,
@@ -583,7 +584,10 @@ pub fn create_wallet(
     device_key_hex: String,
     protection_type: APIProtectionType,
     password: Option<String>,
+    security_level: APISecurityLevel,
 ) -> Result<APIWalletInfo> {
+    let m_cost = security_level.m_cost();
+    let t_cost = security_level.t_cost();
     let protection = match protection_type {
         APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
         APIProtectionType::UserPassword => {
@@ -591,14 +595,14 @@ pub fn create_wallet(
                 .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
             WalletProtectionRequest::UserPassword {
                 password: pwd,
-                m_cost: DEFAULT_M_COST,
-                t_cost: DEFAULT_T_COST,
+                m_cost,
+                t_cost,
             }
         }
         APIProtectionType::XpubKey => WalletProtectionRequest::XpubKey {
             xpub_slots: xpub_slots_from_descriptor(&descriptor)?,
-            m_cost: DEFAULT_M_COST,
-            t_cost: DEFAULT_T_COST,
+            m_cost,
+            t_cost,
         },
     };
     let (path, row) = create_wallet_db(
