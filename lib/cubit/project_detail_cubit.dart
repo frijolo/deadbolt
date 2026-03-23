@@ -5,6 +5,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/constants.dart';
@@ -333,6 +334,22 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
       }
     }
 
+    // If switching to a single-sig type and there is exactly one key
+    // but no spend paths yet, auto-populate the trivial spend path.
+    final currentPaths = updatedPaths ?? s.editedPaths ?? [];
+    if (_isSingleSigPolicy(walletType) &&
+        currentPaths.isEmpty &&
+        (s.editedKeys?.length ?? 0) == 1) {
+      final isKeyPath = walletType == APIWalletType.p2Tr;
+      updatedPaths = [
+        EditableSpendPath(
+          threshold: 1,
+          mfps: [s.editedKeys!.first.mfp],
+          isKeyPath: isKeyPath,
+        ),
+      ];
+    }
+
     emit(s.copyWith(
       editedWalletType: walletType,
       editedPaths: updatedPaths,
@@ -345,6 +362,11 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
     return paths.length == 1 &&
            paths[0].threshold == 1 &&
            paths[0].mfps.length == 1;
+  }
+
+  /// Returns true for wallet types that represent single-sig spending policy.
+  bool _isSingleSigPolicy(APIWalletType walletType) {
+    return walletPolicyFrom(walletType) == WalletPolicy.singleSig;
   }
 
   /// Get compatible wallet types based on current spend paths
@@ -418,7 +440,19 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
     );
 
     final keys = List.of(s.editedKeys!)..add(keyWithId);
-    emit(s.copyWith(editedKeys: keys, isDirty: true));
+
+    // For single-sig wallet types, auto-populate the spend path when the
+    // path list is empty, so the user doesn't have to add it manually.
+    var updatedPaths = s.editedPaths!;
+    final walletType = s.currentWalletType;
+    if (_isSingleSigPolicy(walletType) && updatedPaths.isEmpty) {
+      final isKeyPath = walletType == APIWalletType.p2Tr;
+      updatedPaths = [
+        EditableSpendPath(threshold: 1, mfps: [keyWithId.mfp], isKeyPath: isKeyPath),
+      ];
+    }
+
+    emit(s.copyWith(editedKeys: keys, editedPaths: updatedPaths, isDirty: true));
   }
 
   Future<void> removeKey(String mfp) async {

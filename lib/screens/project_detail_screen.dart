@@ -172,6 +172,9 @@ class _ProjectDetailView extends StatelessWidget {
       body: SafeArea(
         child: DefaultTabController(
           length: 3,
+          // For single-sig projects, start on the Keys tab so the user can
+          // add their key first; the spend path is auto-populated afterward.
+          initialIndex: walletPolicyFrom(state.currentWalletType) == WalletPolicy.singleSig ? 1 : 0,
           child: Column(
             children: [
               // Info header

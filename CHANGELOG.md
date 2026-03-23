@@ -11,9 +11,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Redesigned settings screen** — Settings are now grouped into four themed sections (Appearance, Defaults, Transactions, Connectivity), each in a card. Electrum and Explorer URL fields are collapsed by default inside the Connectivity card.
+- **Auto-populated spend path for single-sig wallets** — When designing a single-sig project, the spend path is created automatically after the key is added, so the user never has to add it manually.
 
 ### Fixes
 - **Addresses and coins available immediately** — Navigating to the Addresses or Coins tab while an initial sync is running no longer shows a spinner. Both tabs are now populated from the local database during wallet open, before sync starts.
+- **sh(wpkh) spend path extraction** — Spend paths for P2SH-wrapped P2WPKH descriptors now correctly report key derivation chain indices.
 
 ---
 

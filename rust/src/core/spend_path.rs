@@ -594,7 +594,16 @@ impl SpendPath {
                     spb.key_changes = chains.clone();
                 }
             }
-            _ => {} // Wpkh, etc. - single key handled separately
+            ShInner::Wpkh(wpkh) => {
+                // sh(wpkh(...)) — extract change index from the inner key
+                let chains: BTreeMap<String, u32> = mfp_of_dpk(wpkh.as_inner())
+                    .zip(change_of_dpk(wpkh.as_inner()))
+                    .map(|(mfp, ci)| [(mfp, ci)].into_iter().collect())
+                    .unwrap_or_default();
+                for spb in &mut spbs {
+                    spb.key_changes = chains.clone();
+                }
+            }
         }
 
         for spb in &mut spbs {
@@ -1099,6 +1108,20 @@ mod tests {
         assert_eq!(mfp, Some("73c5da0a".to_string()));
         assert_eq!(change_idx, Some(0)); // External chain from <0;1>
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_analyze_sh_wpkh_spend_paths() -> Result<()> {
+        use bdk_wallet::bitcoin::Network;
+        // Regression test: sh(wpkh(...)) spend path extraction must succeed
+        let descriptor_str = "sh(wpkh([73c5da0a/49h/1h/0h]tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba/<0;1>/*))";
+        let descriptor: bdk_wallet::miniscript::Descriptor<
+            bdk_wallet::miniscript::DescriptorPublicKey,
+        > = descriptor_str.parse()?;
+        let paths = SpendPath::extract_from_descriptor(&descriptor, Network::Testnet)?;
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].threshold, 1);
         Ok(())
     }
 }
