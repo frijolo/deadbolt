@@ -105,3 +105,4 @@ lcov.info
 *.sqlite
 *.sqlite3
 
+scripts/.calib

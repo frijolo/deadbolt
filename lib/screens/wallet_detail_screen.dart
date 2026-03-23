@@ -58,10 +58,10 @@ class WalletDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return BlocProvider(
-      create: (context) {
-        final l10n = context.l10n;
-        return WalletDetailCubit(service: context.read<WalletService>())
+      create: (ctx) {
+        return WalletDetailCubit(service: ctx.read<WalletService>())
           ..load(walletPath,
               openingMessage: l10n.openingWallet,
               loadingDataMessage: l10n.loadingWalletData);
