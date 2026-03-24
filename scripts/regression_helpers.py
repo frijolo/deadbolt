@@ -262,20 +262,24 @@ async def click_popup_item(
 
 async def create_project(d, name: str, descriptor: str):
     """
-    Create a project via the project-list → 'New' dialog → 'Import descriptor' mode.
+    Create a project via the project-list → 'New' button → bottom sheet
+    → 'From descriptor' → CreateProjectDialog in import mode.
 
-    Project list AppBar "Show menu" popup items:
-      item 0 = New (+24)    item 1 = Import (+72)
+    Project list AppBar has an '+' IconButton (tooltip='New') that opens a
+    bottom sheet with three options: "From scratch", "From descriptor",
+    "Import project".  Selecting "From descriptor" opens CreateProjectDialog
+    already in importDescriptor mode (title = "Import descriptor").
 
     After this call the driver is on the ProjectDetailScreen for `name`.
     """
     await navigate_designer(d)
-    await click_popup_item(d, "Show menu", 24, "New")
-    # Wait for the create-project dialog (fullscreenDialog push).
-    # Dialog opens in "Start from scratch" mode by default; we wait for the
-    # SegmentedButton and then click "Import descriptor" to switch modes.
+    await click_tooltip(d, "New")
+    # Multi-line label: "From descriptor\nPaste, scan or import..."
+    # wait_for needs plain substring, not the quoted form used for single-line labels.
+    await wait_for(d, 'From descriptor', "Bottom sheet opened")
+    await click_label(d, "From descriptor", delay=0.4)
+    # CreateProjectDialog opens directly in 'Import descriptor' mode.
     await wait_for(d, '"Import descriptor"', "Create project dialog opened")
-    await click_label(d, "Import descriptor", delay=0.4)
     await fill_field(d, "Project name", name)
     await fill_field(d, "Descriptor", descriptor)
     # Rust analysis takes 1–4 s depending on descriptor complexity

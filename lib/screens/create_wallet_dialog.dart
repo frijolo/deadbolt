@@ -119,13 +119,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.createWalletTitle),
-        actions: [
-          if (widget.onGoToGuided != null)
-            TextButton(
-              onPressed: () => widget.onGoToGuided!(context),
-              child: const Text('Guided'),
-            ),
-        ],
       ),
       body: SafeArea(
         child: Form(

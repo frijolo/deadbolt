@@ -14,6 +14,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Safe area fixes** — Bottom sheets and draggable sheet modals now correctly respect the system gesture bar on Android.
+- **Threshold buttons now show tooltips** — The +/− threshold controls in the guided multisig wallet wizard display "Increase threshold" / "Decrease threshold" on hover for improved accessibility.
 
 ---
 

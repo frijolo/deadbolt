@@ -1464,7 +1464,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionAppearance => 'Appearance';
 
   @override
-  String get settingsSectionDefaults => 'Defaults';
+  String get settingsSectionDefaults => 'Wallet';
 
   @override
   String get settingsSectionTransactions => 'Transactions';

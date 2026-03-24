@@ -2717,7 +2717,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSectionDefaults.
   ///
   /// In en, this message translates to:
-  /// **'Defaults'**
+  /// **'Wallet'**
   String get settingsSectionDefaults;
 
   /// No description provided for @settingsSectionTransactions.

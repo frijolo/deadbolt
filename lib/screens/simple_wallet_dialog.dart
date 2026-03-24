@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/models/timelock_types.dart';
-import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
@@ -102,49 +101,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     super.dispose();
-  }
-
-  bool _hasChanges() =>
-      _nameController.text.trim().isNotEmpty || _keyspecs.isNotEmpty;
-
-  Future<void> _goToAdvanced() async {
-    if (_hasChanges()) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Switch to advanced mode?'),
-          content: const Text(
-              'Your current entries will be lost. Continue to the advanced descriptor form?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Switch'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-    }
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => CreateWalletDialog(
-          cubit: widget.cubit,
-          onGoToGuided: (ctx) => Navigator.pushReplacement(
-            ctx,
-            MaterialPageRoute(
-              fullscreenDialog: true,
-              builder: (_) => SimpleWalletDialog(cubit: widget.cubit),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Future<String?> _collectKeyspec({Set<String> excludeMfps = const {}}) =>
@@ -263,12 +219,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('New Wallet'),
-        actions: [
-          TextButton(
-            onPressed: _goToAdvanced,
-            child: const Text('Advanced'),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Form(
@@ -429,6 +379,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 onPressed: _threshold > 1
                     ? () => setState(() => _threshold--)
                     : null,
+                tooltip: 'Decrease threshold',
                 icon: const Icon(Icons.remove_circle_outline, size: 20),
                 visualDensity: VisualDensity.compact,
               ),
@@ -438,6 +389,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 onPressed: _threshold < _keyspecs.length
                     ? () => setState(() => _threshold++)
                     : null,
+                tooltip: 'Increase threshold',
                 icon: const Icon(Icons.add_circle_outline, size: 20),
                 visualDensity: VisualDensity.compact,
               ),

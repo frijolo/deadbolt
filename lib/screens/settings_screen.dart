@@ -208,7 +208,7 @@ class _ConnectivityUrlSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-      childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       title: Text(title),
       children: [
         for (final entry in networkLabels.entries)

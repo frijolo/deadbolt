@@ -1469,7 +1469,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSectionAppearance => 'Apariencia';
 
   @override
-  String get settingsSectionDefaults => 'Valores por defecto';
+  String get settingsSectionDefaults => 'Wallet';
 
   @override
   String get settingsSectionTransactions => 'Transacciones';
