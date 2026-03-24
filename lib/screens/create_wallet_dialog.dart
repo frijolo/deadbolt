@@ -13,9 +13,10 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
-import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
+import 'package:deadbolt/widgets/network_dropdown_field.dart';
+import 'package:deadbolt/widgets/protection_section.dart';
 
 /// Opens [CreateWalletDialog] pre-filled with [project], then navigates to
 /// [WalletDetailScreen] on success.  Shows an error toast if [project] has no
@@ -88,8 +89,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   APISecurityLevel _securityLevel = APISecurityLevel.standard;
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscurePasswordConfirm = true;
 
   @override
   void initState() {
@@ -192,10 +191,22 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
 
               // Network — always shown so the user can pick the exact
               // testnet variant (testnet / testnet4 / signet / regtest)
-              _buildNetworkDropdown(context),
+              NetworkDropdownField(
+                value: _selectedNetwork,
+                onChanged: (n) => setState(() => _selectedNetwork = n),
+              ),
 
               const SizedBox(height: 16),
-              _buildProtectionSection(context),
+              ProtectionSection(
+                passwordController: _passwordController,
+                passwordConfirmController: _passwordConfirmController,
+                initialProtectionType: _protectionType,
+                initialSecurityLevel: _securityLevel,
+                onChanged: (type, level) => setState(() {
+                  _protectionType = type;
+                  _securityLevel = level;
+                }),
+              ),
 
               // Delete project checkbox (only when from project)
               if (widget.preselectedProject != null) ...[
@@ -244,156 +255,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildProtectionSection(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Protection', style: theme.textTheme.labelMedium),
-        const SizedBox(height: 8),
-        SegmentedButton<APIProtectionType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-              value: APIProtectionType.deviceKey,
-              label: Text('None'),
-            ),
-            ButtonSegment(
-              value: APIProtectionType.userPassword,
-              label: Text('Password'),
-            ),
-            ButtonSegment(
-              value: APIProtectionType.xpubKey,
-              label: Text('XPub'),
-            ),
-          ],
-          selected: {_protectionType},
-          onSelectionChanged: (v) => setState(() => _protectionType = v.first),
-        ),
-        if (_protectionType != APIProtectionType.deviceKey) ...[
-          const SizedBox(height: 16),
-          Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
-          const SizedBox(height: 8),
-          SegmentedButton<APISecurityLevel>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                value: APISecurityLevel.standard,
-                label: Text('Standard'),
-              ),
-              ButtonSegment(
-                value: APISecurityLevel.high,
-                label: Text('High'),
-              ),
-              ButtonSegment(
-                value: APISecurityLevel.extreme,
-                label: Text('Extreme'),
-              ),
-            ],
-            selected: {_securityLevel},
-            onSelectionChanged: (v) => setState(() => _securityLevel = v.first),
-          ),
-        ],
-        if (_protectionType == APIProtectionType.xpubKey) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Any xpub from the descriptor can unlock this wallet. '
-                    'Do not share those xpubs with third parties.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (_protectionType == APIProtectionType.userPassword) ...[
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'New password',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword
-                    ? Icons.visibility_off
-                    : Icons.visibility),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            validator: (v) {
-              if (_protectionType != APIProtectionType.userPassword) {
-                return null;
-              }
-              if (v == null || v.isEmpty) return 'Password cannot be empty';
-              return null;
-            },
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _passwordConfirmController,
-            obscureText: _obscurePasswordConfirm,
-            decoration: InputDecoration(
-              labelText: 'Confirm password',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePasswordConfirm
-                    ? Icons.visibility_off
-                    : Icons.visibility),
-                onPressed: () => setState(
-                    () => _obscurePasswordConfirm = !_obscurePasswordConfirm),
-              ),
-            ),
-            validator: (v) {
-              if (_protectionType != APIProtectionType.userPassword) {
-                return null;
-              }
-              if (v != _passwordController.text) {
-                return 'Passwords do not match';
-              }
-              return null;
-            },
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildNetworkDropdown(BuildContext context) {
-    final l10n = context.l10n;
-    return DropdownButtonFormField<APINetwork>(
-      key: ValueKey(_selectedNetwork),
-      initialValue: _selectedNetwork,
-      decoration: InputDecoration(
-        labelText: l10n.networkLabel,
-        border: const OutlineInputBorder(),
-      ),
-      items: APINetwork.values
-          .map((n) => DropdownMenuItem(
-                value: n,
-                child: Text(localizedNetworkName(context, n)),
-              ))
-          .toList(),
-      onChanged: (n) => setState(() => _selectedNetwork = n!),
     );
   }
 

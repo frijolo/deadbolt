@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/src/rust/api/wallet.dart'
@@ -40,6 +42,7 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
   int _targetCount = 12;
   List<String> _suggestions = [];
   bool _loadingLastWord = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -49,12 +52,14 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     widget.controller.removeListener(_onTextChanged);
     super.dispose();
   }
 
   void _onTextChanged() {
-    _updateSuggestions();
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), _updateSuggestions);
   }
 
   /// Parses cursor position and returns (completedWordCount, currentPrefix).

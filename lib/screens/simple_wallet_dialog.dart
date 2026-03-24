@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
-import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
-import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart'
     show kKeyspecPattern, showKeyspecSheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/network_dropdown_field.dart';
+import 'package:deadbolt/widgets/protection_section.dart';
 
 // ---------------------------------------------------------------------------
 // File-private helpers
@@ -32,12 +32,6 @@ APIPubKey _parseKeyspec(String keyspec) {
 }
 
 String _mfpOf(String keyspec) => kKeyspecPattern.firstMatch(keyspec)!.group(1)!;
-
-String _shortXpub(String keyspec) {
-  final xpub = kKeyspecPattern.firstMatch(keyspec)!.group(3)!;
-  if (xpub.length > 12) return '...${xpub.substring(xpub.length - 12)}';
-  return xpub;
-}
 
 APIWalletType _mapWalletType(_ScriptChoice script, bool isMultisig) {
   return switch (script) {
@@ -94,8 +88,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
   late APINetwork _selectedNetwork;
   APIProtectionType _protectionType = APIProtectionType.deviceKey;
   APISecurityLevel _securityLevel = APISecurityLevel.standard;
-  bool _obscurePassword = true;
-  bool _obscurePasswordConfirm = true;
   bool _isCreating = false;
 
   @override
@@ -357,11 +349,23 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               const SizedBox(height: 20),
 
               // Network
-              _buildNetworkDropdown(context),
+              NetworkDropdownField(
+                value: _selectedNetwork,
+                onChanged: (n) => setState(() => _selectedNetwork = n),
+              ),
               const SizedBox(height: 16),
 
               // Protection
-              _buildProtectionSection(context),
+              ProtectionSection(
+                passwordController: _passwordController,
+                passwordConfirmController: _passwordConfirmController,
+                initialProtectionType: _protectionType,
+                initialSecurityLevel: _securityLevel,
+                onChanged: (type, level) => setState(() {
+                  _protectionType = type;
+                  _securityLevel = level;
+                }),
+              ),
               const SizedBox(height: 24),
 
               // Create / loading
@@ -463,7 +467,10 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
   Widget _buildKeyTile(
       BuildContext context, int index, KeyColorExtension ext) {
     final keyspec = _keyspecs[index];
-    final mfp = _mfpOf(keyspec);
+    final match = kKeyspecPattern.firstMatch(keyspec)!;
+    final mfp = match.group(1)!;
+    final xpub = match.group(3)!;
+    final shortXpub = xpub.length > 12 ? '...${xpub.substring(xpub.length - 12)}' : xpub;
     final color = ext.keyColors[index % ext.keyColors.length];
 
     return Card(
@@ -472,7 +479,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         dense: true,
         leading: MfpBadge(label: mfp, color: color),
         title: Text(
-          _shortXpub(keyspec),
+          shortXpub,
           style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
         ),
         trailing: Row(
@@ -500,139 +507,4 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     );
   }
 
-  Widget _buildNetworkDropdown(BuildContext context) {
-    return DropdownButtonFormField<APINetwork>(
-      key: ValueKey(_selectedNetwork),
-      initialValue: _selectedNetwork,
-      decoration: InputDecoration(
-        labelText: context.l10n.networkLabel,
-        border: const OutlineInputBorder(),
-      ),
-      items: APINetwork.values
-          .map((n) => DropdownMenuItem(
-                value: n,
-                child: Text(localizedNetworkName(context, n)),
-              ))
-          .toList(),
-      onChanged: (n) => setState(() => _selectedNetwork = n!),
-    );
-  }
-
-  Widget _buildProtectionSection(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionLabel(context, 'Protection'),
-        const SizedBox(height: 8),
-        SegmentedButton<APIProtectionType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-                value: APIProtectionType.deviceKey, label: Text('None')),
-            ButtonSegment(
-                value: APIProtectionType.userPassword,
-                label: Text('Password')),
-            ButtonSegment(
-                value: APIProtectionType.xpubKey, label: Text('XPub')),
-          ],
-          selected: {_protectionType},
-          onSelectionChanged: (v) =>
-              setState(() => _protectionType = v.first),
-        ),
-        if (_protectionType != APIProtectionType.deviceKey) ...[
-          const SizedBox(height: 16),
-          Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
-          const SizedBox(height: 8),
-          SegmentedButton<APISecurityLevel>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                  value: APISecurityLevel.standard, label: Text('Standard')),
-              ButtonSegment(
-                  value: APISecurityLevel.high, label: Text('High')),
-              ButtonSegment(
-                  value: APISecurityLevel.extreme, label: Text('Extreme')),
-            ],
-            selected: {_securityLevel},
-            onSelectionChanged: (v) =>
-                setState(() => _securityLevel = v.first),
-          ),
-        ],
-        if (_protectionType == APIProtectionType.xpubKey) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline,
-                    size: 16, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Any xpub from the wallet can unlock it. '
-                    'Do not share those xpubs with third parties.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (_protectionType == APIProtectionType.userPassword) ...[
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'New password',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword
-                    ? Icons.visibility_off
-                    : Icons.visibility),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            validator: (v) {
-              if (_protectionType != APIProtectionType.userPassword) {
-                return null;
-              }
-              if (v == null || v.isEmpty) return 'Password cannot be empty';
-              return null;
-            },
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _passwordConfirmController,
-            obscureText: _obscurePasswordConfirm,
-            decoration: InputDecoration(
-              labelText: 'Confirm password',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePasswordConfirm
-                    ? Icons.visibility_off
-                    : Icons.visibility),
-                onPressed: () => setState(() =>
-                    _obscurePasswordConfirm = !_obscurePasswordConfirm),
-              ),
-            ),
-            validator: (v) {
-              if (_protectionType != APIProtectionType.userPassword) {
-                return null;
-              }
-              if (v != _passwordController.text) return 'Passwords do not match';
-              return null;
-            },
-          ),
-        ],
-      ],
-    );
-  }
 }
