@@ -4,13 +4,17 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.5.2]
 
 ### New Features
 - **Guided wallet creation** — The Wallets tab + button now opens a bottom sheet with four options: Guided creation (new `SimpleWalletDialog` wizard), From descriptor, From project, and From backup.
 - **Guided project creation** — The Designer tab + button now opens a bottom sheet with three options: From scratch, From descriptor, and Import project. The mode segmented button inside the dialog is gone.
 - **BIP39 mnemonic entry field** — Mnemonic input in key derivation now uses a dedicated `MnemonicEntryField` widget with word-count indicator and inline error display.
 - **BIP39 Rust API** — New `bip39Wordlist()` and `bip39ValidLastWords()` FFI functions expose the BIP39 English wordlist and valid-last-word filtering for mnemonic auto-complete.
+
+### Fixes
+- **Settings section label** — The "Defaults" section in Settings is now labelled "Wallet".
+- **Connectivity field label clipping** — The first URL field label in the Electrum and Explorer sections was clipped by the expansion tile header; fixed with correct top padding.
 
 ### Improvements
 - **Safe area fixes** — Bottom sheets and draggable sheet modals now correctly respect the system gesture bar on Android.
@@ -218,6 +222,7 @@ Initial release of Deadbolt.
 [v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
 [v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
+[v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
 [v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0
