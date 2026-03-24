@@ -22,6 +22,7 @@ void showWalletPathSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    useSafeArea: true,
     builder: (_) => _WalletPathSheetContent(
       path: path,
       initialLabel: initialLabel,
@@ -98,9 +99,7 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
       minChildSize: 0.35,
       maxChildSize: 0.85,
       expand: false,
-      builder: (_, scrollController) => SafeArea(
-        top: false,
-        child: Container(
+      builder: (_, scrollController) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -210,7 +209,6 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
               ),
             ),
           ],
-        ),
         ),
       ),
     );

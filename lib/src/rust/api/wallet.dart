@@ -312,6 +312,24 @@ Future<APIProtectionType> inspectWalletBackup({
 
 /// Strip non-essential fields from a PSBT to reduce QR code size.
 ///
+/// Returns the BIP39 English wordlist (2048 words, alphabetically sorted).
+List<String> bip39Wordlist() =>
+    RustLib.instance.api.crateApiWalletBip39Wordlist();
+
+/// Returns all BIP39 words that, when appended to `partial_words`, produce a valid
+/// mnemonic of a supported BIP39 length (12, 15, 18, 21, or 24 words) and start
+/// with `prefix`.
+///
+/// `partial_words` must contain exactly (target_length - 1) words, e.g. 11 words
+/// for a 12-word mnemonic. Returns an empty list if the count is wrong.
+List<String> bip39ValidLastWords({
+  required String partialWords,
+  required String prefix,
+}) => RustLib.instance.api.crateApiWalletBip39ValidLastWords(
+  partialWords: partialWords,
+  prefix: prefix,
+);
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.

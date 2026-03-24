@@ -71,6 +71,7 @@ void showTextExportSheet(
   showModalBottomSheet<void>(
     context: context,
     builder: (ctx) => SafeArea(
+      top: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -116,6 +117,7 @@ void showTextExportSheet(
               _showAsTextDialog(context, text);
             },
           ),
+          const SizedBox(height: 8),
         ],
       ),
     ),

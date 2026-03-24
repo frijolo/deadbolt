@@ -14,10 +14,11 @@ import 'package:deadbolt/src/rust/api/wallet.dart'
     show deriveKeyspec, deriveKeyspecFromXprv, validateMnemonic;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
+import 'package:deadbolt/widgets/mnemonic_entry_field.dart';
 import 'package:deadbolt/widgets/text_import_sheet.dart';
 
 /// Pattern for parsing keyspec format: [mfp/path]xpub
-final _keyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
+final kKeyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
 
 /// Returns the standard BIP derivation path for the given wallet type and network.
 ///
@@ -195,6 +196,31 @@ Future<bool> showAddPrivateKeySheet(
   return result ?? false;
 }
 
+/// Opens the key input sheet to collect a single keyspec string.
+///
+/// Supports all input methods (manual xpub, mnemonic, xprv, import, hardware
+/// wallet). Does NOT store anything — just returns "[mfp/path]xpub" or null if
+/// the user cancelled.
+Future<String?> showKeyspecSheet(
+  BuildContext context, {
+  required APINetwork network,
+  required APIWalletType walletType,
+  int existingKeyCount = 0,
+  Set<String> existingMfps = const {},
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _AddKeySheet(
+      network: network,
+      walletType: walletType,
+      existingKeyCount: existingKeyCount,
+      existingMfps: existingMfps,
+      keyspecMode: true,
+    ),
+  );
+}
+
 /// Opens the "Add private key" bottom sheet for a **project** context.
 ///
 /// Stores the seed in the encrypted project_seeds.db via [cubit].
@@ -251,6 +277,9 @@ class _AddKeySheet extends StatefulWidget {
       onAddMnemonic;
   final Future<APIHotKeyInfo?> Function(String xprv)? onAddXprv;
 
+  // Keyspec-only mode: pops with "[mfp/path]xpub" string instead of void
+  final bool keyspecMode;
+
   const _AddKeySheet({
     required this.network,
     this.walletType,
@@ -267,6 +296,7 @@ class _AddKeySheet extends StatefulWidget {
     this.keyLabel,
     this.onAddMnemonic,
     this.onAddXprv,
+    this.keyspecMode = false,
   });
 
   @override
@@ -379,10 +409,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     if (path.isEmpty) return;
 
     if (_seedType == _SeedType.mnemonic) {
-      final words = _mnemonicController.text.trim();
-      final wc =
-          words.isEmpty ? 0 : words.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-      if (wc != 12 && wc != 24) {
+      if (!_isValidWordCount) {
         setState(() {
           _derivedKeyspec = null;
           _deriveError = null;
@@ -448,8 +475,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
 
   Future<void> _validateMnemonicForWallet() async {
     if (!mounted) return;
-    final count = _wordCount;
-    if (count != 12 && count != 24) {
+    if (!_isValidWordCount) {
       setState(() {
         _walletMfp = null;
         _walletMfpError = null;
@@ -490,6 +516,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     return words.where((w) => w.isNotEmpty).length;
   }
 
+  bool get _isValidWordCount => bip39ValidWordCounts.contains(_wordCount);
+
   // --- Submit ---
 
   Future<void> _submit() async {
@@ -517,7 +545,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               () => _errorText = _deriveError ?? 'Derive the key first');
           return;
         }
-        final match = _keyspecPattern.firstMatch(_derivedKeyspec!);
+        final match = kKeyspecPattern.firstMatch(_derivedKeyspec!);
         if (match == null) {
           setState(() => _errorText = 'Invalid derived keyspec');
           return;
@@ -630,6 +658,11 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       customName: widget.editingKey?.customName,
     );
 
+    if (widget.keyspecMode) {
+      Navigator.pop(context, '[$mfp/$path]$xpub');
+      return;
+    }
+
     if (_isEditMode) {
       await widget.onUpdateKey!(key);
     } else {
@@ -653,7 +686,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   Future<void> _onImportTapped() async {
     final result = await showTextImportSheet(context);
     if (result == null || !mounted) return;
-    final match = _keyspecPattern.firstMatch(result.trim());
+    final match = kKeyspecPattern.firstMatch(result.trim());
     if (match == null) {
       setState(() {
         _showMethodPicker = false;
@@ -684,7 +717,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       network: widget.network,
     );
     if (keyspec == null || !mounted) return;
-    final match = _keyspecPattern.firstMatch(keyspec.trim());
+    final match = kKeyspecPattern.firstMatch(keyspec.trim());
     if (match == null) {
       setState(() {
         _showMethodPicker = false;
@@ -917,30 +950,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
         ),
         const SizedBox(height: 12),
         if (_seedType == _SeedType.mnemonic) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Seed phrase'),
-              Text(
-                '$_wordCount / ${_wordCount <= 12 ? 12 : 24}',
-                style: TextStyle(
-                  color: (_wordCount == 12 || _wordCount == 24)
-                      ? Colors.green
-                      : Theme.of(context).colorScheme.secondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _mnemonicController,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'word1 word2 word3 ...',
-            ),
-          ),
+          MnemonicEntryField(controller: _mnemonicController),
           const SizedBox(height: 12),
           TextField(
             controller: _passphraseController,
@@ -1001,30 +1011,9 @@ class _AddKeySheetState extends State<_AddKeySheet> {
         ),
         const SizedBox(height: 12),
         if (_seedType == _SeedType.mnemonic) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Seed phrase'),
-              Text(
-                '$_wordCount / ${_wordCount <= 12 ? 12 : 24}',
-                style: TextStyle(
-                  color: (_wordCount == 12 || _wordCount == 24)
-                      ? Colors.green
-                      : Theme.of(context).colorScheme.secondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          TextField(
+          MnemonicEntryField(
             controller: _mnemonicController,
-            maxLines: 4,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              hintText: 'word1 word2 word3 ...',
-              errorText: _walletMfpError,
-            ),
+            errorText: _walletMfpError,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -1179,7 +1168,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       ];
     }
     if (_derivedKeyspec != null) {
-      final match = _keyspecPattern.firstMatch(_derivedKeyspec!);
+      final match = kKeyspecPattern.firstMatch(_derivedKeyspec!);
       final derivedMfp = match?.group(1)?.toLowerCase();
       final mfpMatches = !_isEditMode ||
           derivedMfp == widget.editingKey!.mfp.toLowerCase();

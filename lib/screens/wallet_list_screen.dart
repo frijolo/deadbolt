@@ -2,10 +2,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
+import 'package:deadbolt/screens/simple_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -17,6 +17,8 @@ import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
+
+enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup }
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -35,34 +37,10 @@ class WalletListScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.walletsTitle),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'new') _showCreateDialog(context);
-              if (value == 'import') _importBackup(context);
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'new',
-                child: Row(
-                  children: [
-                    const Icon(Icons.add),
-                    const SizedBox(width: 8),
-                    Text(l10n.menuNew),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'import',
-                child: Row(
-                  children: [
-                    Icon(Icons.restore_outlined),
-                    SizedBox(width: 8),
-                    Text('Import wallet'),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: l10n.menuNew,
+            onPressed: () => _showCreateDialog(context),
           ),
         ],
       ),
@@ -109,66 +87,24 @@ class WalletListScreen extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     final l10n = context.l10n;
-    final projectState = context.watch<ProjectListCubit>().state;
-    final hasProjects = projectState is ProjectListLoaded &&
-        projectState.projects.any((p) => p.descriptor.isNotEmpty);
-
-    if (hasProjects) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.noWallets,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _showCreateDialog(context),
-              icon: const Icon(Icons.add),
-              label: Text(l10n.menuNew),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.noWalletsGuidedTitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.noWallets,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
             ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.noWalletsGuidedBody,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => onNavigate?.call(1),
-              icon: const Icon(Icons.design_services_outlined),
-              label: Text(l10n.goToDesigner),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => _showCreateDialog(context),
-              icon: const Icon(Icons.edit_outlined),
-              label: Text(l10n.enterDescriptorManually),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => _showCreateDialog(context),
+            icon: const Icon(Icons.add),
+            label: Text(l10n.menuNew),
+          ),
+        ],
       ),
     );
   }
@@ -298,22 +234,93 @@ class WalletListScreen extends StatelessWidget {
   }
 
   void _showCreateDialog(BuildContext context) async {
-    final cubit = context.read<WalletListCubit>();
-    final walletPath = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => CreateWalletDialog(
-          cubit: cubit,
-          onGoToProjects: () => onNavigate?.call(1),
+    final choice = await showModalBottomSheet<_CreateMode>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx)
+                      .colorScheme
+                      .onSurfaceVariant
+                      .withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('Guided creation'),
+              subtitle: const Text('Standard wallet from your keys'),
+              onTap: () => Navigator.pop(ctx, _CreateMode.guided),
+            ),
+            ListTile(
+              leading: const Icon(Icons.code_outlined),
+              title: const Text('From descriptor'),
+              subtitle: const Text('Enter a Bitcoin descriptor directly'),
+              onTap: () => Navigator.pop(ctx, _CreateMode.fromDescriptor),
+            ),
+            ListTile(
+              leading: const Icon(Icons.design_services_outlined),
+              title: const Text('From project'),
+              subtitle: const Text('Use a descriptor from the designer'),
+              onTap: () => Navigator.pop(ctx, _CreateMode.fromProject),
+            ),
+            ListTile(
+              leading: const Icon(Icons.restore_outlined),
+              title: const Text('From backup'),
+              subtitle: const Text('Restore a wallet from a .deadbolt file'),
+              onTap: () => Navigator.pop(ctx, _CreateMode.fromBackup),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
+
+    if (choice == null || !context.mounted) return;
+
+    final cubit = context.read<WalletListCubit>();
+    String? walletPath;
+
+    switch (choice) {
+      case _CreateMode.guided:
+        walletPath = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => SimpleWalletDialog(cubit: cubit),
+          ),
+        );
+      case _CreateMode.fromDescriptor:
+        walletPath = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => CreateWalletDialog(cubit: cubit),
+          ),
+        );
+      case _CreateMode.fromProject:
+        onNavigate?.call(1);
+        return;
+      case _CreateMode.fromBackup:
+        await _importBackup(context);
+        return;
+    }
+
     if (walletPath != null && context.mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => WalletDetailScreen(walletPath: walletPath),
+          builder: (_) => WalletDetailScreen(walletPath: walletPath!),
         ),
       );
     }

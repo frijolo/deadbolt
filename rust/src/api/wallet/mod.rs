@@ -1412,6 +1412,51 @@ pub fn inspect_wallet_backup(backup_bytes: Vec<u8>) -> Result<APIProtectionType>
 
 /// Strip non-essential fields from a PSBT to reduce QR code size.
 ///
+/// Returns the BIP39 English wordlist (2048 words, alphabetically sorted).
+#[frb(sync)]
+pub fn bip39_wordlist() -> Vec<String> {
+    bdk_wallet::keys::bip39::Language::English
+        .word_list()
+        .iter()
+        .map(|w| w.to_string())
+        .collect()
+}
+
+/// Returns all BIP39 words that, when appended to `partial_words`, produce a valid
+/// mnemonic of a supported BIP39 length (12, 15, 18, 21, or 24 words) and start
+/// with `prefix`.
+///
+/// `partial_words` must contain exactly (target_length - 1) words, e.g. 11 words
+/// for a 12-word mnemonic. Returns an empty list if the count is wrong.
+#[frb(sync)]
+pub fn bip39_valid_last_words(partial_words: String, prefix: String) -> Vec<String> {
+    use bdk_wallet::keys::bip39::{Language, Mnemonic};
+
+    let count = partial_words.split_whitespace().count();
+    // Accept positions 11, 14, 17, 20, 23 (one before each valid length)
+    const VALID_POSITIONS: [usize; 5] = [11, 14, 17, 20, 23];
+    if !VALID_POSITIONS.contains(&count) {
+        return vec![];
+    }
+
+    let wordlist = Language::English.word_list();
+    let prefix_lower = prefix.to_lowercase();
+    let base = partial_words.trim();
+
+    wordlist
+        .iter()
+        .filter(|&&word| word.starts_with(prefix_lower.as_str()))
+        .filter_map(|&word| {
+            let candidate = format!("{base} {word}");
+            if Mnemonic::parse(&candidate).is_ok() {
+                Some(word.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.

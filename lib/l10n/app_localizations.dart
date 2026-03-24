@@ -1340,30 +1340,6 @@ abstract class AppLocalizations {
   /// **'No wallets yet.\nTap + to create one.'**
   String get noWallets;
 
-  /// No description provided for @noWalletsGuidedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No wallets yet'**
-  String get noWalletsGuidedTitle;
-
-  /// No description provided for @noWalletsGuidedBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Step 1: Go to Designer to analyze your descriptor.\nStep 2: Come back here to create a wallet from it.'**
-  String get noWalletsGuidedBody;
-
-  /// No description provided for @goToDesigner.
-  ///
-  /// In en, this message translates to:
-  /// **'Go to Designer'**
-  String get goToDesigner;
-
-  /// No description provided for @enterDescriptorManually.
-  ///
-  /// In en, this message translates to:
-  /// **'I already have a descriptor'**
-  String get enterDescriptorManually;
-
   /// No description provided for @createWalletFromProject.
   ///
   /// In en, this message translates to:

@@ -366,6 +366,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       builder: (sheetCtx) {
         final theme = Theme.of(sheetCtx);
         return SafeArea(
+          top: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,7 +412,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 );
               }),
               const SizedBox(height: 8),
-            ],
+          ],
           ),
         );
       },

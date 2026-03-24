@@ -287,10 +287,6 @@
 
   "walletsTitle": "Billeteras",
   "noWallets": "No hay billeteras.\nToca + para crear una.",
-  "noWalletsGuidedTitle": "Aún no hay billeteras",
-  "noWalletsGuidedBody": "Paso 1: Ve al Diseñador para analizar tu descriptor.\nPaso 2: Vuelve aquí para crear una billetera.",
-  "goToDesigner": "Ir al Diseñador",
-  "enterDescriptorManually": "Ya tengo un descriptor",
   "createWalletFromProject": "Crear billetera",
   "generateProjectFromWallet": "Analizar en Diseñador",
   "projectHasNoDescriptor": "Este proyecto aún no tiene descriptor. Constrúyelo primero.",

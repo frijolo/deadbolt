@@ -18,6 +18,7 @@ Future<String?> showTextImportSheet(BuildContext context) async {
   final action = await showModalBottomSheet<_ImportAction>(
     context: context,
     builder: (ctx) => SafeArea(
+      top: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -41,6 +42,7 @@ Future<String?> showTextImportSheet(BuildContext context) async {
             title: Text(l10n.pasteText),
             onTap: () => Navigator.pop(ctx, _ImportAction.text),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     ),
@@ -131,6 +133,7 @@ Future<String?> showPsbtImportSheet(BuildContext context) async {
   final action = await showModalBottomSheet<_ImportAction>(
     context: context,
     builder: (ctx) => SafeArea(
+      top: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -154,6 +157,7 @@ Future<String?> showPsbtImportSheet(BuildContext context) async {
             title: Text(l10n.pasteText),
             onTap: () => Navigator.pop(ctx, _ImportAction.text),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     ),

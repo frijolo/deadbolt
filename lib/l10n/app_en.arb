@@ -293,10 +293,6 @@
 
   "walletsTitle": "Wallets",
   "noWallets": "No wallets yet.\nTap + to create one.",
-  "noWalletsGuidedTitle": "No wallets yet",
-  "noWalletsGuidedBody": "Step 1: Go to Designer to analyze your descriptor.\nStep 2: Come back here to create a wallet from it.",
-  "goToDesigner": "Go to Designer",
-  "enterDescriptorManually": "I already have a descriptor",
   "createWalletFromProject": "Create wallet",
   "generateProjectFromWallet": "Analyze in Designer",
   "projectHasNoDescriptor": "This project has no descriptor yet. Build one first.",

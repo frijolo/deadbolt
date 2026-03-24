@@ -151,31 +151,33 @@ class _CoinSelectorScreenState extends State<CoinSelectorScreen> {
           ),
         ],
       ),
-      body: filtered.isEmpty
-          ? Center(
-              child: Text(
-                l10n.noCoins,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+      body: SafeArea(
+        child: filtered.isEmpty
+            ? Center(
+                child: Text(
+                  l10n.noCoins,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                  ),
                 ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final utxo = filtered[index];
+                  final isSelected = _selectedIds.contains(_utxoId(utxo));
+                  return _CoinSelectorTile(
+                    utxo: utxo,
+                    isSelected: isSelected,
+                    selectedPath: widget.selectedPath,
+                    tipHeight: widget.tipHeight,
+                    keyLabels: widget.keyLabels,
+                    onTap: () => _toggleUtxo(utxo),
+                  );
+                },
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final utxo = filtered[index];
-                final isSelected = _selectedIds.contains(_utxoId(utxo));
-                return _CoinSelectorTile(
-                  utxo: utxo,
-                  isSelected: isSelected,
-                  selectedPath: widget.selectedPath,
-                  tipHeight: widget.tipHeight,
-                  keyLabels: widget.keyLabels,
-                  onTap: () => _toggleUtxo(utxo),
-                );
-              },
-            ),
+      ),
     );
   }
 }

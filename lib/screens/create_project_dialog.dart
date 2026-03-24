@@ -17,8 +17,9 @@ enum CreateMode { importDescriptor, fromScratch }
 
 class CreateProjectDialog extends StatefulWidget {
   final ProjectListCubit cubit;
+  final CreateMode mode;
 
-  const CreateProjectDialog({super.key, required this.cubit});
+  const CreateProjectDialog({super.key, required this.cubit, required this.mode});
 
   @override
   State<CreateProjectDialog> createState() => _CreateProjectDialogState();
@@ -27,7 +28,7 @@ class CreateProjectDialog extends StatefulWidget {
 class _CreateProjectDialogState extends State<CreateProjectDialog> {
   final _descriptorController = TextEditingController();
   final _nameController = TextEditingController();
-  CreateMode _mode = CreateMode.fromScratch;
+  late CreateMode _mode;
   late APINetwork _selectedNetwork;
   WalletPolicy _policy = WalletPolicy.singleSig;
   WalletAddressFormat _addressFormat = WalletAddressFormat.segwit;
@@ -44,6 +45,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       _selectedNetwork = settings.network;
       _policy = walletPolicyFrom(settings.walletType);
       _addressFormat = walletAddressFormatFrom(settings.walletType);
+      _mode = widget.mode;
       _initialized = true;
     }
   }
@@ -59,39 +61,18 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
+    final title = widget.mode == CreateMode.importDescriptor
+        ? l10n.importDescriptorMode
+        : l10n.fromScratchMode;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.newProjectTitle),
-      ),
+      appBar: AppBar(title: Text(title)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Mode selector
-              SegmentedButton<CreateMode>(
-                segments: [
-                  ButtonSegment(
-                    value: CreateMode.importDescriptor,
-                    label: Text(l10n.importDescriptorMode),
-                    icon: const Icon(Icons.file_download, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: CreateMode.fromScratch,
-                    label: Text(l10n.fromScratchMode),
-                    icon: const Icon(Icons.add_circle_outline, size: 16),
-                  ),
-                ],
-                selected: {_mode},
-                onSelectionChanged: (Set<CreateMode> newSelection) {
-                  setState(() {
-                    _mode = newSelection.first;
-                    _error = null;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
               // Project name
               Text(
                 l10n.projectNameLabel,

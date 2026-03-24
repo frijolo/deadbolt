@@ -35,6 +35,7 @@ void showKeySheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    useSafeArea: true,
     builder: (_) => _KeySheetContent(
       mfp: mfp,
       initialName: initialName,
@@ -110,9 +111,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
       minChildSize: 0.35,
       maxChildSize: 0.85,
       expand: false,
-      builder: (_, scrollController) => SafeArea(
-        top: false,
-        child: Container(
+      builder: (_, scrollController) => Container(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -162,7 +161,6 @@ class _KeySheetContentState extends State<_KeySheetContent> {
               ),
             ),
           ],
-        ),
         ),
       ),
     );

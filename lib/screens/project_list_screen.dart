@@ -19,6 +19,8 @@ import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
+enum _ProjectCreateMode { fromScratch, fromDescriptor, importProject }
+
 class ProjectListScreen extends StatelessWidget {
   final int navIndex;
   final void Function(int)? onNavigate;
@@ -35,37 +37,10 @@ class ProjectListScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.projectsTitle),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) async {
-              if (value == 'new') {
-                _showCreateDialog(context);
-              } else if (value == 'import') {
-                await _showImportDialog(context);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'new',
-                child: Row(
-                  children: [
-                    const Icon(Icons.add),
-                    const SizedBox(width: 8),
-                    Text(l10n.menuNew),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'import',
-                child: Row(
-                  children: [
-                    const Icon(Icons.file_download_outlined),
-                    const SizedBox(width: 8),
-                    Text(l10n.menuImport),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: l10n.menuNew,
+            onPressed: () => _showCreateSheet(context),
           ),
         ],
       ),
@@ -100,7 +75,7 @@ class ProjectListScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
                         FilledButton.icon(
-                          onPressed: () => _showCreateDialog(context),
+                          onPressed: () => _showCreateSheet(context),
                           icon: const Icon(Icons.add),
                           label: Text(l10n.menuNew),
                         ),
@@ -253,27 +228,81 @@ class ProjectListScreen extends StatelessWidget {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
-  void _showCreateDialog(BuildContext context) async {
-    final projectId = await Navigator.push<int>(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => CreateProjectDialog(
-          cubit: context.read<ProjectListCubit>(),
+  Future<void> _showCreateSheet(BuildContext context) async {
+    final choice = await showModalBottomSheet<_ProjectCreateMode>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('From scratch'),
+              subtitle: const Text('Pick network and wallet type, then add keys'),
+              onTap: () => Navigator.pop(ctx, _ProjectCreateMode.fromScratch),
+            ),
+            ListTile(
+              leading: const Icon(Icons.code_outlined),
+              title: const Text('From descriptor'),
+              subtitle: const Text('Paste, scan or import a Bitcoin descriptor'),
+              onTap: () => Navigator.pop(ctx, _ProjectCreateMode.fromDescriptor),
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_download_outlined),
+              title: const Text('Import project'),
+              subtitle: const Text('Restore a project from a .json export'),
+              onTap: () => Navigator.pop(ctx, _ProjectCreateMode.importProject),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
-    if (projectId != null && context.mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProjectDetailScreen(
-            db: context.read<AppDatabase>(),
-            projectId: projectId,
-            onNavigate: onNavigate,
+
+    if (choice == null || !context.mounted) return;
+
+    switch (choice) {
+      case _ProjectCreateMode.fromScratch:
+      case _ProjectCreateMode.fromDescriptor:
+        final mode = choice == _ProjectCreateMode.fromScratch
+            ? CreateMode.fromScratch
+            : CreateMode.importDescriptor;
+        final projectId = await Navigator.push<int>(
+          context,
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => CreateProjectDialog(
+              cubit: context.read<ProjectListCubit>(),
+              mode: mode,
+            ),
           ),
-        ),
-      );
+        );
+        if (projectId != null && context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProjectDetailScreen(
+                db: context.read<AppDatabase>(),
+                projectId: projectId,
+                onNavigate: onNavigate,
+              ),
+            ),
+          );
+        }
+      case _ProjectCreateMode.importProject:
+        await _showImportDialog(context);
     }
   }
 
@@ -346,6 +375,7 @@ class ProjectListScreen extends StatelessWidget {
                 _importFromQr(context);
               },
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

@@ -78,8 +78,8 @@ void showProjectExportSheet(
   final l10n = context.l10n;
   showModalBottomSheet<void>(
     context: context,
-    builder: (ctx) => SafeArea(
-      child: Column(
+    useSafeArea: true,
+    builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
@@ -155,8 +155,7 @@ void showProjectExportSheet(
                 }
               },
             ),
-        ],
-      ),
+      ],
     ),
   );
 }

@@ -58,13 +58,16 @@ Future<void> createWalletFromProject(
 class CreateWalletDialog extends StatefulWidget {
   final WalletListCubit cubit;
   final Project? preselectedProject;
-  final VoidCallback? onGoToProjects;
+  /// Called when the user wants to switch back to the guided wizard.
+  /// Receives the [BuildContext] of [CreateWalletDialog] so the caller can
+  /// do a `Navigator.pushReplacement` from the correct navigator.
+  final void Function(BuildContext ctx)? onGoToGuided;
 
   const CreateWalletDialog({
     super.key,
     required this.cubit,
     this.preselectedProject,
-    this.onGoToProjects,
+    this.onGoToGuided,
   });
 
   @override
@@ -115,7 +118,16 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.createWalletTitle)),
+      appBar: AppBar(
+        title: Text(l10n.createWalletTitle),
+        actions: [
+          if (widget.onGoToGuided != null)
+            TextButton(
+              onPressed: () => widget.onGoToGuided!(context),
+              child: const Text('Guided'),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -206,17 +218,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                   onPressed: _onCreate,
                   child: Text(l10n.createWalletButton),
                 ),
-                if (widget.preselectedProject == null) ...[
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onGoToProjects?.call();
-                    },
-                    icon: const Icon(Icons.design_services_outlined),
-                    label: Text(l10n.fromProjectAction),
-                  ),
-                ],
               ],
             ],
           ),

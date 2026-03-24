@@ -261,6 +261,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     showModalBottomSheet<void>(
       context: context,
       builder: (ctx) => SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

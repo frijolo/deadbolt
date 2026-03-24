@@ -668,19 +668,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noWallets => 'No hay billeteras.\nToca + para crear una.';
 
   @override
-  String get noWalletsGuidedTitle => 'Aún no hay billeteras';
-
-  @override
-  String get noWalletsGuidedBody =>
-      'Paso 1: Ve al Diseñador para analizar tu descriptor.\nPaso 2: Vuelve aquí para crear una billetera.';
-
-  @override
-  String get goToDesigner => 'Ir al Diseñador';
-
-  @override
-  String get enterDescriptorManually => 'Ya tengo un descriptor';
-
-  @override
   String get createWalletFromProject => 'Crear billetera';
 
   @override
