@@ -52,7 +52,6 @@ from pathlib import Path
 import threading
 
 import websockets
-from evdev import UInput, ecodes as _ec
 
 # ---------------------------------------------------------------------------
 # Config
@@ -230,256 +229,6 @@ class _CrosshairPainter extends CustomPainter {
 """.lstrip()
 
 
-# ---------------------------------------------------------------------------
-# Kernel-level keyboard via uinput (python-evdev)
-# Bypasses all Wayland/XWayland focus concerns — events go directly to the
-# kernel input stack, which libinput delivers to whatever Wayland surface
-# the compositor considers focused.
-# ---------------------------------------------------------------------------
-
-# evdev keycodes for named keys
-_EVKEY = {
-    "return":    _ec.KEY_ENTER,
-    "enter":     _ec.KEY_ENTER,
-    "kpenter":   _ec.KEY_KPENTER,
-    "esc":       _ec.KEY_ESC,
-    "bsp":       _ec.KEY_BACKSPACE,
-    "BackSpace": _ec.KEY_BACKSPACE,
-    "delete":    _ec.KEY_DELETE,
-    "tab":       _ec.KEY_TAB,
-    "space":     _ec.KEY_SPACE,
-    "spacebar":  _ec.KEY_SPACE,
-    "ctrl":      _ec.KEY_LEFTCTRL,
-    "lctrl":     _ec.KEY_LEFTCTRL,
-    "rctrl":     _ec.KEY_RIGHTCTRL,
-    "shift":     _ec.KEY_LEFTSHIFT,
-    "lshift":    _ec.KEY_LEFTSHIFT,
-    "rshift":    _ec.KEY_RIGHTSHIFT,
-    "alt":       _ec.KEY_LEFTALT,
-    "lalt":      _ec.KEY_LEFTALT,
-    "ralt":      _ec.KEY_RIGHTALT,
-    "super":     _ec.KEY_LEFTMETA,
-    "left":      _ec.KEY_LEFT,
-    "right":     _ec.KEY_RIGHT,
-    "up":        _ec.KEY_UP,
-    "down":      _ec.KEY_DOWN,
-    "home":      _ec.KEY_HOME,
-    "end":       _ec.KEY_END,
-    "pgup":      _ec.KEY_PAGEUP,
-    "pgdn":      _ec.KEY_PAGEDOWN,
-    "f1":        _ec.KEY_F1,
-    "f2":        _ec.KEY_F2,
-    "f3":        _ec.KEY_F3,
-    "f4":        _ec.KEY_F4,
-    "f5":        _ec.KEY_F5,
-    "f6":        _ec.KEY_F6,
-    "f7":        _ec.KEY_F7,
-    "f8":        _ec.KEY_F8,
-    "f9":        _ec.KEY_F9,
-    "f10":       _ec.KEY_F10,
-    "f11":       _ec.KEY_F11,
-    "f12":       _ec.KEY_F12,
-}
-
-# printable ASCII → (evdev keycode, needs_shift, needs_altgr)
-# Mappings for Spanish keyboard layout (es + latin/type4 variant, pc105).
-# The Wayland compositor applies the Spanish XKB layout to all uinput evdev
-# keycodes, so we must use Spanish physical-key positions here.
-def _char_to_evkey(ch: str) -> tuple[int, bool, bool]:
-    if ch.isalpha():
-        return getattr(_ec, f"KEY_{ch.upper()}"), ch.isupper(), False
-    if ch.isdigit():
-        return getattr(_ec, f"KEY_{ch}"), False, False
-    # Unshifted keys (Spanish layout)
-    _unshifted = {
-        ' ': _ec.KEY_SPACE,
-        "'": _ec.KEY_MINUS,       # AE11 es: apostrophe
-        '-': _ec.KEY_SLASH,       # AB10 latin/type4: minus
-        ',': _ec.KEY_COMMA,       # AB08: comma
-        '.': _ec.KEY_DOT,         # AB09: period
-        '<': _ec.KEY_102ND,       # LSGT es: less
-        '+': _ec.KEY_RIGHTBRACE,  # AD12 es: plus
-    }
-    # Shifted keys (Spanish layout)
-    _shifted = {
-        '>': _ec.KEY_102ND,       # LSGT es shifted: greater
-        '_': _ec.KEY_SLASH,       # AB10 shifted: underscore
-        ';': _ec.KEY_COMMA,       # AB08 shifted: semicolon
-        ':': _ec.KEY_DOT,         # AB09 shifted: colon
-        '/': _ec.KEY_7,           # AE07 latin/type4 shifted: slash
-        '(': _ec.KEY_8,           # AE08 shifted: parenleft
-        ')': _ec.KEY_9,           # AE09 shifted: parenright
-        '*': _ec.KEY_RIGHTBRACE,  # AD12 es shifted: asterisk
-        '?': _ec.KEY_MINUS,       # AE11 es shifted: question
-        '"': _ec.KEY_2,           # AE02 es shifted: quotedbl
-        '!': _ec.KEY_1,           # AE01 shifted: exclam
-    }
-    # AltGr keys (Spanish layout: KEY_RIGHTALT held)
-    _altgr = {
-        '[': _ec.KEY_LEFTBRACE,   # AD11 es AltGr: bracketleft
-        ']': _ec.KEY_RIGHTBRACE,  # AD12 es AltGr: bracketright
-        '#': _ec.KEY_3,           # AE03 es AltGr: numbersign
-        '@': _ec.KEY_2,           # AE02 es AltGr: at
-        '{': _ec.KEY_7,           # AE07 es AltGr: braceleft
-        '}': _ec.KEY_0,           # AE10 es AltGr: braceright
-    }
-    if ch in _unshifted:
-        return _unshifted[ch], False, False
-    if ch in _shifted:
-        return _shifted[ch], True, False
-    if ch in _altgr:
-        return _altgr[ch], False, True
-    return _ec.KEY_SPACE, False, False  # fallback
-
-
-class _UInputDevice:
-    """
-    Virtual keyboard + absolute mouse via Linux uinput.
-
-    Events are injected directly into the kernel input stack, which libinput
-    then delivers to the Wayland compositor regardless of focus state.
-    This completely bypasses Wayland/XWayland focus issues.
-
-    Mouse uses ABS_X/ABS_Y (absolute positioning) — the device is registered
-    with the screen resolution so coordinates map directly to screen pixels.
-    """
-
-    def __init__(self, screen_w: int = 1920, screen_h: int = 1080):
-        from evdev import AbsInfo
-        cap = {
-            _ec.EV_KEY: list(range(1, 256)) + [_ec.BTN_LEFT, _ec.BTN_RIGHT, _ec.BTN_MIDDLE],
-            _ec.EV_ABS: [
-                (_ec.ABS_X, AbsInfo(value=0, min=0, max=screen_w - 1,
-                                    fuzz=0, flat=0, resolution=1)),
-                (_ec.ABS_Y, AbsInfo(value=0, min=0, max=screen_h - 1,
-                                    fuzz=0, flat=0, resolution=1)),
-            ],
-            _ec.EV_REL: [_ec.REL_X, _ec.REL_Y, _ec.REL_WHEEL],
-        }
-        import evdev
-        self._ui = UInput(
-            events=cap,
-            name="deadbolt-ui-driver",
-            version=0x1,
-            input_props=[evdev.InputDevice.ID_BUS_USB
-                         if hasattr(evdev.InputDevice, 'ID_BUS_USB') else 0x03],
-        )
-        time.sleep(0.5)  # wait for udev + compositor to register the device
-
-    # ── internal helpers ────────────────────────────────────────────────────
-
-    def _press(self, keycode: int):
-        self._ui.write(_ec.EV_KEY, keycode, 1)
-        self._ui.syn()
-
-    def _release(self, keycode: int):
-        self._ui.write(_ec.EV_KEY, keycode, 0)
-        self._ui.syn()
-
-    # ── mouse ───────────────────────────────────────────────────────────────
-
-    def mouse_move(self, x: int, y: int):
-        """Move mouse pointer to absolute screen coordinates (x, y)."""
-        self._ui.write(_ec.EV_ABS, _ec.ABS_X, x)
-        self._ui.write(_ec.EV_ABS, _ec.ABS_Y, y)
-        self._ui.syn()
-        time.sleep(0.05)
-
-    def mouse_click(self, x: int, y: int, button: int = 1):
-        """Move to (x, y) and click the specified button (1=left, 2=middle, 3=right)."""
-        btn = {1: _ec.BTN_LEFT, 2: _ec.BTN_MIDDLE, 3: _ec.BTN_RIGHT}[button]
-        self.mouse_move(x, y)
-        time.sleep(0.05)
-        self._press(btn)
-        time.sleep(0.05)
-        self._release(btn)
-
-    # ── keyboard ────────────────────────────────────────────────────────────
-
-    def key_press(self, name: str):
-        """Press and release a single named key (xdotool-style name or single char)."""
-        kc = _EVKEY.get(name.lower()) or _EVKEY.get(name)
-        shift = False
-        altgr = False
-        if kc is None and len(name) == 1:
-            kc, shift, altgr = _char_to_evkey(name)
-        if kc is None:
-            print(f"[uinput] WARNING: unknown key '{name}'")
-            return
-        if altgr:
-            self._press(_ec.KEY_RIGHTALT)
-        if shift:
-            self._press(_ec.KEY_LEFTSHIFT)
-        self._press(kc)
-        time.sleep(0.03)
-        self._release(kc)
-        if shift:
-            self._release(_ec.KEY_LEFTSHIFT)
-        if altgr:
-            self._release(_ec.KEY_RIGHTALT)
-
-    def key_combo(self, combo: str):
-        """Press a key combination like 'ctrl+a' — holds modifiers during press."""
-        parts = [p.strip() for p in combo.replace("-", "+").split("+")]
-        keycodes = []
-        for p in parts:
-            kc = _EVKEY.get(p.lower())
-            if kc is None and len(p) == 1:
-                kc, _, _altgr = _char_to_evkey(p)
-            if kc:
-                keycodes.append(kc)
-        for kc in keycodes:
-            self._press(kc)
-            time.sleep(0.02)
-        for kc in reversed(keycodes):
-            self._release(kc)
-            time.sleep(0.02)
-
-    def type_text(self, text: str):
-        """Type a string character by character (Spanish keyboard layout)."""
-        for ch in text:
-            kc, shift, altgr = _char_to_evkey(ch)
-            if altgr:
-                self._press(_ec.KEY_RIGHTALT)
-            if shift:
-                self._press(_ec.KEY_LEFTSHIFT)
-            self._press(kc)
-            time.sleep(0.03)
-            self._release(kc)
-            if shift:
-                self._release(_ec.KEY_LEFTSHIFT)
-            if altgr:
-                self._release(_ec.KEY_RIGHTALT)
-            time.sleep(0.02)
-
-    async def type_text_async(self, text: str):
-        """Type a string character by character, yielding the asyncio event loop
-        between every character via asyncio.sleep().
-
-        Unlike type_text() which blocks the event loop for the entire string,
-        this version allows Flutter and other async tasks to receive CPU time
-        between keystrokes, preventing input loss on long strings.
-        """
-        for ch in text:
-            kc, shift, altgr = _char_to_evkey(ch)
-            if altgr:
-                self._press(_ec.KEY_RIGHTALT)
-            if shift:
-                self._press(_ec.KEY_LEFTSHIFT)
-            self._press(kc)
-            await asyncio.sleep(0.03)
-            self._release(kc)
-            if shift:
-                self._release(_ec.KEY_LEFTSHIFT)
-            if altgr:
-                self._release(_ec.KEY_RIGHTALT)
-            await asyncio.sleep(0.02)
-
-    def close(self):
-        try:
-            self._ui.close()
-        except Exception:
-            pass
 
 
 # ---------------------------------------------------------------------------
@@ -518,7 +267,6 @@ class UIDriver:
         self.csd_y = csd_y       # Flutter→screen vertical offset (GTK CSD title bar)
         self.sandbox = sandbox    # True: always start with empty app data
         self.debug_mouse = debug_mouse  # True: enable DEADBOLT_DEBUG_MOUSE crosshair overlay
-        self._input: _UInputDevice | None = None  # uinput keyboard + mouse
 
     # ------------------------------------------------------------------
     # Launch & connect
@@ -546,7 +294,7 @@ class UIDriver:
             # Enable the visual crosshair overlay when requested.
             "DEADBOLT_DEBUG_MOUSE": "1" if self.debug_mouse else "0",
             # Disable XIM/IBus input method to prevent compose-sequence interference
-            # when injecting key events via uinput.  Without this, IBus can buffer
+            # when injecting key events via xdotool.  Without this, IBus can buffer
             # characters and "commit" them in a way that clears the text field.
             "XMODIFIERS": "@im=none",
             "GTK_IM_MODULE": "none",
@@ -613,9 +361,6 @@ class UIDriver:
         else:
             print("[launch] WARNING: window not found via xdotool")
 
-        # Create virtual input device (keyboard + mouse via uinput)
-        await self._start_input()
-
         # Wait for Flutter to finish rendering the first frame
         await asyncio.sleep(2.0)
 
@@ -649,16 +394,15 @@ class UIDriver:
         scripts handle UI state explicitly.
         """
         g = self.window_geometry()
-        if g is None or self._input is None:
-            print("[calib] WARNING: window or input not ready, skipping calibration")
+        if g is None:
+            print("[calib] WARNING: window not ready, skipping calibration")
             return
 
         abs_x = g["x"] + g["w"] // 2
         abs_y = g["y"] + g["h"] // 2
 
         log_before = len(self._app_log)
-        # Use xdotool (XTEST) for calibration — uinput ABS events are unreliable
-        # in X11/VirtualBox where the VirtualBox USB Tablet device takes precedence.
+        # Use xdotool (XTEST) for calibration.
         env = {**os.environ, "DISPLAY": DISPLAY}
         subprocess.run(
             ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
@@ -683,28 +427,6 @@ class UIDriver:
 
         print(f"[calib] WARNING: no [mouse] DOWN received; "
               f"keeping defaults CSD_X={self.csd_x}, CSD_Y={self.csd_y}")
-
-    async def _start_input(self):
-        """Create a uinput virtual device for keyboard + mouse input.
-
-        Events are injected directly into the kernel input stack.
-        libinput picks them up and delivers them to the Wayland compositor,
-        which routes them to the focused surface — bypassing all focus issues.
-        """
-        # Detect screen resolution for ABS mouse coordinates
-        w, h = 1920, 1080
-        try:
-            out = subprocess.check_output(
-                ["xdotool", "getdisplaygeometry"],
-                env={**os.environ, "DISPLAY": DISPLAY},
-                text=True, stderr=subprocess.DEVNULL,
-            ).strip().split()
-            w, h = int(out[0]), int(out[1])
-        except Exception:
-            pass
-        print(f"[input] Creating uinput device (screen {w}×{h})")
-        self._input = _UInputDevice(screen_w=w, screen_h=h)
-        print("[input] uinput device ready")
 
     def _wait_for_vm_url(self, timeout=20):
         deadline = time.time() + timeout
@@ -1121,7 +843,7 @@ class UIDriver:
     def flutter_click(self, fx: int, fy: int, button: int = 1, delay_s: float = 0.15):
         """
         Click at Flutter logical pixel coordinates (fx, fy).
-        Converts to screen-absolute uinput coordinates:
+        Converts to screen-absolute coordinates:
           screen_abs = window_screen_pos + CSD_offset + flutter_pos
         Moves the X11 cursor to the target position first (via xdotool) so that
         Flutter receives the hover event and the pointer is registered at the
@@ -1146,33 +868,6 @@ class UIDriver:
         abs_y = g["y"] + y
         self._do_click(abs_x, abs_y, button=button, delay_s=delay_s)
 
-    # Key name translations: GTK/Qt names → uinput evdev names used by key()
-    _KEY_MAP = {
-        "Return":    "return",
-        "KP_Enter":  "kpenter",
-        "Escape":    "esc",
-        "BackSpace": "bsp",
-        "Delete":    "delete",
-        "Tab":       "tab",
-        "space":     "spacebar",
-        "ctrl":      "ctrl",
-        "shift":     "shift",
-        "alt":       "alt",
-        "super":     "super",
-        "Left":      "left",
-        "Right":     "right",
-        "Up":        "up",
-        "Down":      "down",
-        "Home":      "home",
-        "End":       "end",
-        "Prior":     "pgup",
-        "Next":      "pgdn",
-    }
-
-    def _vkey(self, name: str) -> str:
-        """Translate a key name to the form expected by uinput key_press."""
-        return self._KEY_MAP.get(name, name.lower())
-
     def mouse_move(self, abs_x: int, abs_y: int):
         """Move the cursor to screen-absolute coordinates via xdotool (XTEST)."""
         env = {**os.environ, "DISPLAY": DISPLAY}
@@ -1186,7 +881,7 @@ class UIDriver:
         """Send a mouse click at screen-absolute coordinates via xdotool (XTEST).
 
         xdotool uses the XTEST X11 extension which injects events directly into
-        the X server event queue — reliable on X11 regardless of uinput ABS mapping.
+        the X server event queue — reliable on X11.
         """
         env = {**os.environ, "DISPLAY": DISPLAY}
         subprocess.run(
@@ -1201,37 +896,32 @@ class UIDriver:
         time.sleep(delay_s)
 
     def type_text(self, text: str, delay_ms: int = 30):
-        """Type arbitrary text via uinput keyboard (one key event per character).
-
-        uinput events go directly to the kernel input stack and reach whatever
-        Wayland surface has focus — no Wayland/XWayland focus indirection.
-        """
-        if self._input is None:
-            raise RuntimeError("uinput device not initialised")
-        self._input.type_text(text)
+        """Type arbitrary text via xdotool (XTEST)."""
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "type", "--clearmodifiers", f"--delay={delay_ms}", "--", text],
+            env=env, stderr=subprocess.DEVNULL,
+        )
 
     async def type_text_async(self, text: str):
-        """Type text via uinput, yielding the asyncio event loop between every
-        character.  Use this for long strings (>50 chars) where the synchronous
-        type_text() would block the event loop long enough to cause Flutter to
-        drop the text-field content.
-        """
-        if self._input is None:
-            raise RuntimeError("uinput device not initialised")
-        await self._input.type_text_async(text)
+        """Type text via xdotool asynchronously (non-blocking for the event loop)."""
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        proc = await asyncio.create_subprocess_exec(
+            "xdotool", "type", "--clearmodifiers", "--delay=30", "--", text,
+            env=env, stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc.wait()
 
     def key(self, key_name: str):
-        """Press a key or key combination via uinput.
+        """Press a key or key combination via xdotool.
 
         Accepts xdotool-style names: 'Return', 'Escape', 'ctrl+a', 'BackSpace'.
-        Modifier combinations use '+' as separator.
         """
-        if self._input is None:
-            raise RuntimeError("uinput device not initialised")
-        if "+" in key_name or "-" in key_name:
-            self._input.key_combo(key_name)
-        else:
-            self._input.key_press(self._vkey(key_name))
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "key", "--clearmodifiers", key_name],
+            env=env, stderr=subprocess.DEVNULL,
+        )
 
     def raise_window(self):
         """Bring window to front and give it X11 focus via xdotool."""
@@ -1308,10 +998,6 @@ class UIDriver:
     # ------------------------------------------------------------------
 
     async def close(self):
-        # Release uinput virtual device
-        if self._input:
-            self._input.close()
-            self._input = None
         # (gnome-remote-desktop is a system service — we do not start/stop it)
         # Close VM service WebSocket
         if self.ws:

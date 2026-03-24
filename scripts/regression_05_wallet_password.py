@@ -57,9 +57,11 @@ PROJECT_NAME = "Reg05-WPKH-Project"
 WALLET_NAME  = "Reg05-Password-Wallet"
 WALLET_PASS  = "reg05-test-password"
 
+# fresh wallet with no prior transactions
+# mnemonic: piece blue stadium control fiction kick group mimic hollow dog mask interest
 DESCRIPTOR = (
-    "wpkh([5436d724/84h/1h/0h]"
-    "tpubDCWivZp6qaqCALCt8MyLqAb3awnWm4hfbBPjdZqirYFXYeZ5YsfbWVaPacULZTGtK1RPBSZ92UWNjnhL4fB9UVrF2FjgW8cgmBjxPBmB4iB"
+    "wpkh([ff81be5d/84h/1h/0h]"
+    "tpubDDjVt7cey7cxQ1nXzxpXuNT5vJecpvtMhmZywA9U9ChWDk8z6HSGPJ7YS6pyd8ZXQyfCeUCXrkyEqNeTFUmpdXT9r3TD1DAYoY52UEyy1Yf"
     "/<0;1>/*)"
 )
 

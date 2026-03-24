@@ -38,30 +38,50 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self.lock_wallet()?;
-        let is_first_sync = read_wallet_info(&core.conn)?.last_synced_at.is_none();
+        // Phase 1: build the scan request (holds mutex briefly, then releases).
+        let (is_first_sync, request_full, request_sync) = {
+            let core = self.lock_wallet()?;
+            let first = read_wallet_info(&core.conn)?.last_synced_at.is_none();
+            let full_req = if first {
+                Some(core.wallet.start_full_scan())
+            } else {
+                None
+            };
+            let sync_req = if first {
+                None
+            } else {
+                Some(core.wallet.start_sync_with_revealed_spks())
+            };
+            (first, full_req, sync_req)
+        };
 
+        // Phase 2: network I/O — mutex NOT held so other threads can read the wallet.
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
-
-        if is_first_sync {
-            let request = core.wallet.start_full_scan();
-            let update = client.full_scan(request, STOP_GAP, BATCH_SIZE, false)?;
-            core.wallet.apply_update(update)?;
+        let update_full = if is_first_sync {
+            Some(client.full_scan(request_full.unwrap(), STOP_GAP, BATCH_SIZE, false)?)
         } else {
-            let request = core.wallet.start_sync_with_revealed_spks();
-            let update = client.sync(request, BATCH_SIZE, false)?;
-            core.wallet.apply_update(update)?;
-        }
+            None
+        };
+        let update_sync = if !is_first_sync {
+            Some(client.sync(request_sync.unwrap(), BATCH_SIZE, false)?)
+        } else {
+            None
+        };
 
-        core.persist()?;
-        let now_ts = touch_last_synced(&core.conn)?;
+        // Phase 3: apply update and persist (re-acquires mutex).
+        let (network, now_ts) = {
+            let mut core = self.lock_wallet()?;
+            if let Some(u) = update_full {
+                core.wallet.apply_update(u)?;
+            } else if let Some(u) = update_sync {
+                core.wallet.apply_update(u)?;
+            }
+            core.persist()?;
+            let now_ts = touch_last_synced(&core.conn)?;
+            cleanup_broadcast_psbts(&mut core);
+            (APINetwork::from(core.wallet.network()), now_ts)
+        };
 
-        // Auto-delete PSBTs whose transaction is now known to the wallet
-        // (broadcast externally and seen by Electrum during this sync).
-        cleanup_broadcast_psbts(&mut core);
-
-        let network = APINetwork::from(core.wallet.network());
-        drop(core);
         if wallet_needs_password(&self.path) {
             refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
         }
@@ -77,20 +97,26 @@ impl APIWallet {
         use bdk_electrum::electrum_client;
         use bdk_electrum::BdkElectrumClient;
 
-        let mut core = self.lock_wallet()?;
+        // Phase 1: build request (holds mutex briefly, then releases).
+        let request = {
+            let core = self.lock_wallet()?;
+            core.wallet.start_full_scan()
+        };
 
+        // Phase 2: network I/O — mutex NOT held.
         let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
-        let request = core.wallet.start_full_scan();
         let update = client.full_scan(request, STOP_GAP, BATCH_SIZE, false)?;
-        core.wallet.apply_update(update)?;
-        core.persist()?;
-        let now_ts = touch_last_synced(&core.conn)?;
 
-        // Auto-delete PSBTs whose transaction is now known after rescan.
-        cleanup_broadcast_psbts(&mut core);
+        // Phase 3: apply update and persist (re-acquires mutex).
+        let (network, now_ts) = {
+            let mut core = self.lock_wallet()?;
+            core.wallet.apply_update(update)?;
+            core.persist()?;
+            let now_ts = touch_last_synced(&core.conn)?;
+            cleanup_broadcast_psbts(&mut core);
+            (APINetwork::from(core.wallet.network()), now_ts)
+        };
 
-        let network = APINetwork::from(core.wallet.network());
-        drop(core);
         if wallet_needs_password(&self.path) {
             refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
         }
