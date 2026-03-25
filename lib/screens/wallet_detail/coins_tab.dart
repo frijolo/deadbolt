@@ -6,7 +6,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 
@@ -230,7 +230,7 @@ class _CoinTile extends StatelessWidget {
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ColoredAddressText(address: utxo.address, truncate: true),
+              ColoredGroupText(text: utxo.address, truncate: true),
               const SizedBox(height: 2),
               Row(
                 children: [

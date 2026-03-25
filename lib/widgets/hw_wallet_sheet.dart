@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 
 // re-export for callers that need the APIXpubSlot type
 export 'package:deadbolt/src/rust/api/model.dart' show APIXpubSlot;
@@ -612,7 +612,7 @@ class _VerifyAddressSpinner extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: ColoredAddressText(address: address, fontSize: 13),
+              child: ColoredGroupText(text: address, fontSize: 13),
             ),
           ),
           const SizedBox(height: 20),

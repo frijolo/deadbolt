@@ -15,7 +15,7 @@ import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwSignSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
@@ -876,7 +876,7 @@ class _DetailRow extends StatelessWidget {
         ),
         Expanded(
           child: isAddress
-              ? ColoredAddressText(address: value)
+              ? ColoredGroupText(text: value)
               : Text(value, style: theme.textTheme.bodySmall),
         ),
       ],

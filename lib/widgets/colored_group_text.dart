@@ -1,50 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 
-/// Renders a Bitcoin address (or txid) with groups of 4 characters alternating
+/// Renders a Bitcoin address, txid, or xpub with groups of 4 characters alternating
 /// between the theme's primary color and a dim foreground, for easy visual
-/// verification. Uses the app's default font (no monospace override).
+/// verification.
 ///
-/// When [truncate] is true, the address is cut from the middle keeping complete
+/// When [monospace] is true, a monospace font is applied (use for xpubs and key data).
+///
+/// When [truncate] is true, the text is cut from the middle keeping complete
 /// 4-character groups on both sides (responsive to available width).
 ///
 /// [suffix] is appended verbatim in faint color after the main text (e.g. ':0'
 /// for outpoints). Its width is reserved before truncation so it is always
 /// fully visible.
-class ColoredAddressText extends StatelessWidget {
-  final String address;
+class ColoredGroupText extends StatelessWidget {
+  final String text;
   final double? fontSize;
   final bool truncate;
   final String suffix;
+  final bool monospace;
 
-  const ColoredAddressText({
+  const ColoredGroupText({
     super.key,
-    required this.address,
+    required this.text,
     this.fontSize,
     this.truncate = false,
     this.suffix = '',
+    this.monospace = false,
   });
 
   TextStyle _baseStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.bodySmall ?? const TextStyle();
-    return fontSize != null ? base.copyWith(fontSize: fontSize) : base;
+    final sized = fontSize != null ? base.copyWith(fontSize: fontSize) : base;
+    return monospace ? sized.copyWith(fontFamily: 'monospace') : sized;
   }
 
-  /// Splits [address] into complete 4-character groups.
   List<String> _groups() {
     final result = <String>[];
-    for (var i = 0; i < address.length; i += 4) {
-      result.add(address.substring(i, (i + 4).clamp(0, address.length)));
+    for (var i = 0; i < text.length; i += 4) {
+      result.add(text.substring(i, (i + 4).clamp(0, text.length)));
     }
     return result;
   }
 
-  double _measure(String text, TextStyle style) {
+  double _measure(String s, TextStyle style) {
     final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
+      text: TextSpan(text: s, style: style),
       textDirection: TextDirection.ltr,
     )..layout();
-    return painter.width;
+    final w = painter.width;
+    painter.dispose();
+    return w;
   }
 
   Widget _buildFull(BuildContext context) {
@@ -88,7 +94,7 @@ class ColoredAddressText extends StatelessWidget {
     final widths = groups.map((g) => _measure(g, style)).toList();
     final ellipsisW = _measure('…', style);
 
-    // If the full address fits, show it without truncation.
+    // If the full text fits, show it without truncation.
     final totalW = widths.fold(0.0, (a, b) => a + b);
     if (totalW <= budget) return _buildFull(context);
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart';
@@ -233,10 +234,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: SelectableText(
-                  widget.xpub,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                ),
+                child: ColoredGroupText(text: widget.xpub, truncate: false, monospace: true),
               ),
               const SizedBox(width: 8),
               IconButton(

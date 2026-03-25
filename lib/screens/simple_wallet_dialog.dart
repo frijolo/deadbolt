@@ -12,6 +12,7 @@ import 'package:deadbolt/widgets/add_key_dialog.dart'
     show kKeyspecPattern, showKeyspecSheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/network_dropdown_field.dart';
 import 'package:deadbolt/widgets/protection_section.dart';
 
@@ -422,7 +423,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     final match = kKeyspecPattern.firstMatch(keyspec)!;
     final mfp = match.group(1)!;
     final xpub = match.group(3)!;
-    final shortXpub = xpub.length > 12 ? '...${xpub.substring(xpub.length - 12)}' : xpub;
     final color = ext.keyColors[index % ext.keyColors.length];
 
     return Card(
@@ -430,10 +430,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       child: ListTile(
         dense: true,
         leading: MfpBadge(label: mfp, color: color),
-        title: Text(
-          shortXpub,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-        ),
+        title: ColoredGroupText(text: xpub, fontSize: 12, truncate: true, monospace: true),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

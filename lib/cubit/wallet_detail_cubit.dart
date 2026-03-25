@@ -836,7 +836,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return null;
     try {
       final psbtRecipients = current.psbts.map((p) => p.recipient).toSet();
-      return await _nextUnusedAddress(current.walletHandle, exclude: psbtRecipients);
+      final addr = await _nextUnusedAddress(current.walletHandle, exclude: psbtRecipients);
+      return addr?.address;
     } catch (_) {
       return null;
     }
@@ -849,7 +850,22 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<String?> getNextReceiveAddressFor(String walletPath) async {
     try {
       final handle = await _service.openWallet(walletPath);
-      return await _nextUnusedAddress(handle);
+      final addr = await _nextUnusedAddress(handle);
+      return addr?.address;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<APIAddress?> getNextReceiveAddress() async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      final psbtRecipients = current.psbts.map((p) => p.recipient).toSet();
+      return await _nextUnusedAddress(
+        current.walletHandle,
+        exclude: psbtRecipients,
+      );
     } catch (_) {
       return null;
     }
@@ -857,13 +873,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
 
   /// Finds the first unused external address on [handle], skipping any in
   /// [exclude]. Reveals more addresses and retries once if all are used.
-  Future<String?> _nextUnusedAddress(
+  Future<APIAddress?> _nextUnusedAddress(
     ApiWallet handle, {
     Set<String> exclude = const {},
   }) async {
-    String? firstAvailable(List<APIAddress> addrs) {
+    APIAddress? firstAvailable(List<APIAddress> addrs) {
       for (final addr in addrs) {
-        if (!addr.isUsed && !exclude.contains(addr.address)) return addr.address;
+        if (!addr.isUsed &&
+            !exclude.contains(addr.address) &&
+            (addr.label == null || addr.label!.isEmpty)) {
+          return addr;
+        }
       }
       return null;
     }

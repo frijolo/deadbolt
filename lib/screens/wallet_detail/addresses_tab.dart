@@ -5,7 +5,7 @@ import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 
@@ -214,7 +214,7 @@ class _AddressTile extends StatelessWidget {
                     ),
                   ],
                 ),
-              ColoredAddressText(address: address.address, truncate: true),
+              ColoredGroupText(text: address.address, truncate: true),
             ],
           ),
           subtitle: hasBalance

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/key_edit_sheet.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 
@@ -124,15 +125,7 @@ class KeyCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 2),
-            Text(
-              xpub,
-              style: TextStyle(
-                fontSize: 11,
-                color: cs.onSurface.withAlpha(AppAlpha.secondary),
-                fontFamily: 'monospace',
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
+            ColoredGroupText(text: xpub, fontSize: 11, truncate: true, monospace: true),
           ],
         ),
         trailing: Icon(

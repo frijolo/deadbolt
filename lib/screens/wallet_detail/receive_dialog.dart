@@ -8,7 +8,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
 
@@ -143,8 +143,8 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
-                child: ColoredAddressText(
-                  address: _address.address,
+                child: ColoredGroupText(
+                  text: _address.address,
                   fontSize: 12,
                 ),
               ),

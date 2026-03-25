@@ -12,7 +12,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
 import 'package:deadbolt/widgets/outpoint_text.dart';
@@ -136,7 +136,7 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: ColoredAddressText(address: address.address),
+                      child: ColoredGroupText(text: address.address),
                     ),
                     IconButton(
                       icon: const Icon(Icons.share_outlined, size: 16),
@@ -457,8 +457,8 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                                                 snap.data!.addressLabelIsAuto,
                                           ),
                                         ),
-                                      ColoredAddressText(
-                                          address: utxo.address),
+                                      ColoredGroupText(
+                                          text: utxo.address),
                                     ],
                                   ),
                                 ),
@@ -917,7 +917,7 @@ class _RelatedAddressRow extends StatelessWidget {
                             fontSize: 12, fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   )
-                : ColoredAddressText(address: a.address, truncate: true),
+                : ColoredGroupText(text: a.address, truncate: true),
           ),
           const SizedBox(width: 6),
           if (a.valueSat != null)
@@ -1701,7 +1701,7 @@ class _PendingPsbtRow extends StatelessWidget {
                                 : FontStyle.normal,
                           ),
                         )
-                      : ColoredAddressText(address: title, truncate: true),
+                      : ColoredGroupText(text: title, truncate: true),
                   Text(
                     '${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
                     style: TextStyle(

@@ -5,7 +5,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
-import 'package:deadbolt/widgets/colored_address_text.dart';
+import 'package:deadbolt/widgets/colored_group_text.dart';
 
 /// Full-screen UTXO picker. Returns the selected [APIUtxo] list via
 /// [Navigator.pop], or null if the user cancelled.
@@ -251,7 +251,7 @@ class _CoinSelectorTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ColoredAddressText(address: utxo.address, truncate: true),
+            ColoredGroupText(text: utxo.address, truncate: true),
             const SizedBox(height: 2),
             Row(
               children: [

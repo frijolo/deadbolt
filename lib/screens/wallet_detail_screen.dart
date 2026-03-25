@@ -240,20 +240,13 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) async {
     final cubit = context.read<WalletDetailCubit>();
-    await cubit.ensureReceiveAddressLoaded();
+    final address = await cubit.getNextReceiveAddress();
     if (!context.mounted) return;
-    final fresh = cubit.state;
-    if (fresh is! WalletDetailLoaded) return;
-    final unused = fresh.receiveAddresses
-        .where((a) => !a.isUsed && (a.label == null || a.label!.isEmpty))
-        .cast<APIAddress?>()
-        .firstOrNull;
-    if (!context.mounted) return;
-    if (unused == null) {
+    if (address == null) {
       showErrorToast(context, context.l10n.noUnusedReceiveAddress);
       return;
     }
-    showWalletDialog(context, ReceiveDialog(address: unused));
+    showWalletDialog(context, ReceiveDialog(address: address));
   }
 
   Future<void> _generateProjectFromWallet(
