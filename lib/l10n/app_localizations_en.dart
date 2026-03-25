@@ -1481,4 +1481,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get disclaimerDontShow7Days => 'Don\'t show for 7 days';
+
+  @override
+  String get electrumPrivacyWarning =>
+      'Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.';
+
+  @override
+  String get goToSettings => 'Settings';
 }

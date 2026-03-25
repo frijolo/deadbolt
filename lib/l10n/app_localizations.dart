@@ -2749,6 +2749,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Don\'t show for 7 days'**
   String get disclaimerDontShow7Days;
+
+  /// No description provided for @electrumPrivacyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.'**
+  String get electrumPrivacyWarning;
+
+  /// No description provided for @goToSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get goToSettings;
 }
 
 class _AppLocalizationsDelegate

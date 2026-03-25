@@ -412,14 +412,11 @@ pub fn add_xpub_slot_to_wallet(
         if slots.iter().any(|s| s.mfp == mfp) {
             return Err(anyhow::anyhow!("MFP {} is already registered", mfp));
         }
-        let slot = wrap_with_xpub(
-            mfp,
-            xpub,
-            data_key,
-            DEFAULT_M_COST,
-            DEFAULT_T_COST,
-            derivation,
-        )?;
+        let (m_cost, t_cost) = slots
+            .first()
+            .map(|s| (s.m_cost, s.t_cost))
+            .unwrap_or((DEFAULT_M_COST, DEFAULT_T_COST));
+        let slot = wrap_with_xpub(mfp, xpub, data_key, m_cost, t_cost, derivation)?;
         slots.push(slot);
         write_meta(wallet_path, &meta)?;
         Ok(())

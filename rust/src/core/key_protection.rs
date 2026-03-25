@@ -137,13 +137,12 @@ pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
         .map_err(|_| anyhow!("Decryption failed — wrong password or corrupted data"))
 }
 
-/// Default Argon2id parameters.
-/// m=4096 (4 MB) + t=1 gives ~10–30 ms on mobile, which is acceptable for
-/// interactive unlocking. UserPassword wallets benefit from the extra latency
-/// only marginally — the descriptor-based xpub in XpubKey wallets already has
-/// ~256 bits of entropy so no brute-force is possible regardless.
-pub const DEFAULT_M_COST: u32 = 4096;
-pub const DEFAULT_T_COST: u32 = 1;
+/// Default Argon2id parameters — OWASP 2023 minimum baseline.
+/// m=65536 (64 MB) + t=3 gives ~300 ms on mobile, matching
+/// `APISecurityLevel::Standard`. Used as fallback for XpubKey slots when no
+/// existing slot parameters are available to inherit.
+pub const DEFAULT_M_COST: u32 = 65536;
+pub const DEFAULT_T_COST: u32 = 3;
 pub const DEFAULT_P_COST: u32 = 1;
 
 /// One xpub-derived wrapping slot for `ProtectionMeta::XpubKey`.

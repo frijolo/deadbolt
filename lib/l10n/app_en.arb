@@ -683,5 +683,8 @@
 
   "disclaimerTitle": "Beta Software — Use at Your Own Risk",
   "disclaimerBody": "Deadbolt is under active development and may contain bugs or errors.\n\nIt is not yet suitable for use with real funds. Use at your own risk.",
-  "disclaimerDontShow7Days": "Don't show for 7 days"
+  "disclaimerDontShow7Days": "Don't show for 7 days",
+
+  "electrumPrivacyWarning": "Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.",
+  "goToSettings": "Settings"
 }

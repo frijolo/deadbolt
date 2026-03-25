@@ -43,6 +43,7 @@ import 'package:deadbolt/widgets/text_import_sheet.dart'
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
+import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 import 'package:deadbolt/screens/wallet_detail/receive_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail/transactions_tab.dart';
@@ -607,6 +608,46 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     }
   }
 
+  static const _kDefaultMainnetElectrum = 'ssl://electrum.blockstream.info:50002';
+
+  Widget _buildElectrumPrivacyWarning(BuildContext context, WalletDetailLoaded state) {
+    if (state.walletInfo.network != APINetwork.bitcoin) return const SizedBox.shrink();
+    final settings = context.watch<SettingsCubit>().state;
+    if (settings.electrumUrlForNetwork(APINetwork.bitcoin) != _kDefaultMainnetElectrum) {
+      return const SizedBox.shrink();
+    }
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.privacy_tip_outlined, size: 18, color: cs.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.electrumPrivacyWarning,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSecondaryContainer,
+                    ),
+              ),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: cs.onSecondaryContainer),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+              child: Text(l10n.goToSettings),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoaded(BuildContext context, WalletDetailLoaded state) {
     final l10n = context.l10n;
     final network = state.walletInfo.network;
@@ -665,32 +706,39 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         ],
       ),
       body: SafeArea(
-        child: switch (state.selectedTab) {
-          0 => _OverviewView(
-            state: state,
-            onSendTap: () => _openSendFlow(context, state),
-            onReceiveTap: () => _openReceiveFlow(context, state),
-            onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
-            onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
-            onExportLabelsTap: () => _exportWithChoice(context, state),
-            onImportLabelsTap: () => _importWithChoice(context, state),
-            onHwTap: () => showHwActionsSheet(
-              context,
-              walletName: state.walletInfo.name,
-              descriptor: state.walletInfo.descriptor,
-              network: state.walletInfo.network,
+        child: Column(
+          children: [
+            _buildElectrumPrivacyWarning(context, state),
+            Expanded(
+              child: switch (state.selectedTab) {
+                0 => _OverviewView(
+                  state: state,
+                  onSendTap: () => _openSendFlow(context, state),
+                  onReceiveTap: () => _openReceiveFlow(context, state),
+                  onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+                  onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
+                  onExportLabelsTap: () => _exportWithChoice(context, state),
+                  onImportLabelsTap: () => _importWithChoice(context, state),
+                  onHwTap: () => showHwActionsSheet(
+                    context,
+                    walletName: state.walletInfo.name,
+                    descriptor: state.walletInfo.descriptor,
+                    network: state.walletInfo.network,
+                  ),
+                  onChangeProtectionTap: () => showChangeProtectionDialog(
+                    context,
+                    currentProtection: state.walletInfo.protection.protectionType,
+                    currentSecurityLevel: state.walletInfo.protection.securityLevel,
+                  ),
+                ),
+                1 => TransactionsView(state: state),
+                2 => AddressesView(state: state),
+                3 => CoinsView(state: state),
+                _ => _DescriptorView(state: state),
+              },
             ),
-            onChangeProtectionTap: () => showChangeProtectionDialog(
-              context,
-              currentProtection: state.walletInfo.protection.protectionType,
-              currentSecurityLevel: state.walletInfo.protection.securityLevel,
-            ),
-          ),
-          1 => TransactionsView(state: state),
-          2 => AddressesView(state: state),
-          3 => CoinsView(state: state),
-          _ => _DescriptorView(state: state),
-        },
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: state.selectedTab,

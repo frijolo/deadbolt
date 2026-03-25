@@ -4,6 +4,18 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Security
+- **Stronger Argon2id defaults** — Default KDF parameters raised to OWASP 2023 minimum (m=65536, t=3). Adding a new xpub slot to an existing wallet now inherits the slot parameters of the first existing slot for consistency.
+- **MIT license added** — Repository now ships an explicit MIT license.
+- **Pinned git fork dependencies** — `bitbox-api-rs` and `async-hwi` forks are now referenced by immutable commit SHA instead of branch name, preventing unintended upstream changes from being pulled on rebuild.
+
+### Improvements
+- **Mainnet Electrum privacy warning** — A persistent banner is displayed in the wallet detail screen when using a mainnet wallet with the default public Electrum server, with a direct link to Settings.
+
+---
+
 ## [v1.5.2]
 
 ### New Features

@@ -677,5 +677,8 @@
 
   "disclaimerTitle": "Software en desarrollo — Úsalo bajo tu responsabilidad",
   "disclaimerBody": "Deadbolt está en desarrollo activo y puede contener errores.\n\nTodavía no es apto para fondos reales. El uso es bajo tu propia responsabilidad.",
-  "disclaimerDontShow7Days": "No mostrar durante 7 días"
+  "disclaimerDontShow7Days": "No mostrar durante 7 días",
+
+  "electrumPrivacyWarning": "Usando un servidor Electrum público. Tu IP e historial de transacciones pueden ser visibles para terceros. Configura un servidor propio en Ajustes.",
+  "goToSettings": "Ajustes"
 }
