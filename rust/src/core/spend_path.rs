@@ -1069,6 +1069,70 @@ fn get_unique_policy_id(wallet: &Wallet) -> Result<String> {
 mod tests {
     use super::*;
 
+    // --- calculate_spend_path_id ---
+
+    #[test]
+    fn test_spend_path_id_is_deterministic() {
+        let id1 = calculate_spend_path_id(2, &["aabb".into(), "ccdd".into()], 144, 0);
+        let id2 = calculate_spend_path_id(2, &["aabb".into(), "ccdd".into()], 144, 0);
+        assert_eq!(id1, id2, "Same inputs must always produce the same ID");
+    }
+
+    #[test]
+    fn test_spend_path_id_mfp_order_independent() {
+        let id1 = calculate_spend_path_id(2, &["aabb".into(), "ccdd".into()], 0, 0);
+        let id2 = calculate_spend_path_id(2, &["ccdd".into(), "aabb".into()], 0, 0);
+        assert_eq!(
+            id1, id2,
+            "MFP order must not affect the ID (sorted internally)"
+        );
+    }
+
+    #[test]
+    fn test_spend_path_id_differs_by_threshold() {
+        let id1 = calculate_spend_path_id(1, &["aabb".into(), "ccdd".into()], 0, 0);
+        let id2 = calculate_spend_path_id(2, &["aabb".into(), "ccdd".into()], 0, 0);
+        assert_ne!(id1, id2, "Different thresholds must produce different IDs");
+    }
+
+    #[test]
+    fn test_spend_path_id_differs_by_mfp_set() {
+        let id1 = calculate_spend_path_id(1, &["aabb".into()], 0, 0);
+        let id2 = calculate_spend_path_id(1, &["ccdd".into()], 0, 0);
+        assert_ne!(id1, id2, "Different MFP sets must produce different IDs");
+    }
+
+    #[test]
+    fn test_spend_path_id_differs_by_rel_timelock() {
+        let id1 = calculate_spend_path_id(1, &["aabb".into()], 0, 0);
+        let id2 = calculate_spend_path_id(1, &["aabb".into()], 144, 0);
+        assert_ne!(
+            id1, id2,
+            "Different rel_timelocks must produce different IDs"
+        );
+    }
+
+    #[test]
+    fn test_spend_path_id_differs_by_abs_timelock() {
+        let id1 = calculate_spend_path_id(1, &["aabb".into()], 0, 0);
+        let id2 = calculate_spend_path_id(1, &["aabb".into()], 0, 800000);
+        assert_ne!(
+            id1, id2,
+            "Different abs_timelocks must produce different IDs"
+        );
+    }
+
+    #[test]
+    fn test_spend_path_id_empty_mfps() {
+        // Should not panic — empty MFP slice is valid input
+        let id = calculate_spend_path_id(1, &[], 0, 0);
+        // Just verify it returns a consistent value
+        let id2 = calculate_spend_path_id(1, &[], 0, 0);
+        assert_eq!(id, id2);
+    }
+
+    // --- SpendPath::extract_from_descriptor ---
+
     #[test]
     fn test_key_changes_extraction_p2wpkh() -> Result<()> {
         let descriptor = "wpkh([73c5da0a/84h/1h/0h]tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)#ljsrrz3y";
