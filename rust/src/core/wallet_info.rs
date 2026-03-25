@@ -2,10 +2,10 @@ use anyhow::Result;
 use rand::rngs::OsRng;
 use rand::TryRngCore;
 
-use crate::api::model::APINetwork;
+use crate::api::model::{APINetwork, APISecurityLevel};
 use crate::core::key_protection::{
     generate_data_key, generate_salt, resolve_data_key, resolve_xpub_data_key, wrap_key,
-    wrap_with_xpub, ProtectionMeta, DEFAULT_M_COST, DEFAULT_P_COST, DEFAULT_T_COST,
+    wrap_with_xpub, ProtectionMeta, DEFAULT_P_COST,
 };
 use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
@@ -412,10 +412,10 @@ pub fn add_xpub_slot_to_wallet(
         if slots.iter().any(|s| s.mfp == mfp) {
             return Err(anyhow::anyhow!("MFP {} is already registered", mfp));
         }
-        let (m_cost, t_cost) = slots
-            .first()
-            .map(|s| (s.m_cost, s.t_cost))
-            .unwrap_or((DEFAULT_M_COST, DEFAULT_T_COST));
+        let (m_cost, t_cost) = slots.first().map(|s| (s.m_cost, s.t_cost)).unwrap_or((
+            APISecurityLevel::Standard.m_cost(),
+            APISecurityLevel::Standard.t_cost(),
+        ));
         let slot = wrap_with_xpub(mfp, xpub, data_key, m_cost, t_cost, derivation)?;
         slots.push(slot);
         write_meta(wallet_path, &meta)?;

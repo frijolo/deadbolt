@@ -11,7 +11,7 @@ use crate::api::model::{
     APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
 use crate::core::key_protection::{
-    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta, DEFAULT_M_COST,
+    decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
 };
 use crate::core::project_seeds::{
     delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
@@ -315,7 +315,10 @@ fn protection_for_path(wallet_path: &str) -> APIWalletProtection {
             security_level: APISecurityLevel::from_m_cost(m_cost),
         },
         Ok(ProtectionMeta::XpubKey { ref slots, .. }) => {
-            let m_cost = slots.first().map(|s| s.m_cost).unwrap_or(DEFAULT_M_COST);
+            let m_cost = slots
+                .first()
+                .map(|s| s.m_cost)
+                .unwrap_or(APISecurityLevel::Standard.m_cost());
             APIWalletProtection {
                 protection_type: APIProtectionType::XpubKey,
                 needs_password: true,

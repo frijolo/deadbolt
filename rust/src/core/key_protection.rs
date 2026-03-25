@@ -137,12 +137,8 @@ pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
         .map_err(|_| anyhow!("Decryption failed — wrong password or corrupted data"))
 }
 
-/// Default Argon2id parameters — OWASP 2023 minimum baseline.
-/// m=65536 (64 MB) + t=3 gives ~300 ms on mobile, matching
-/// `APISecurityLevel::Standard`. Used as fallback for XpubKey slots when no
-/// existing slot parameters are available to inherit.
-pub const DEFAULT_M_COST: u32 = 65536;
-pub const DEFAULT_T_COST: u32 = 3;
+/// Parallelism factor for all Argon2id operations.
+/// Always 1 — mobile devices have limited memory bandwidth.
 pub const DEFAULT_P_COST: u32 = 1;
 
 /// One xpub-derived wrapping slot for `ProtectionMeta::XpubKey`.
