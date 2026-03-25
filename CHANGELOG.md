@@ -11,6 +11,9 @@ All notable changes to Deadbolt are documented here, newest first.
 - **MIT license added** — Repository now ships an explicit MIT license.
 - **Pinned git fork dependencies** — `bitbox-api-rs` and `async-hwi` forks are now referenced by immutable commit SHA instead of branch name, preventing unintended upstream changes from being pulled on rebuild.
 
+### Fixes
+- **Labels missing from exported backups** — Wallet backups now capture a consistent database snapshot using `VACUUM INTO`, which consolidates any pending WAL writes into the exported file. Previously, labels set after the last checkpoint were silently omitted from the backup.
+
 ### Improvements
 - **Mainnet Electrum privacy warning** — A persistent banner is displayed in the wallet detail screen when using a mainnet wallet with the default public Electrum server, with a direct link to Settings.
 

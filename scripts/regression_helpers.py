@@ -329,6 +329,7 @@ async def create_wallet_from_project(
     wallet_name: str,
     protection: str = "device_key",
     password: str = "",
+    network: str | None = None,
 ):
     """
     Create a wallet from the current ProjectDetailScreen.
@@ -342,12 +343,24 @@ async def create_wallet_from_project(
     Args:
         protection: "device_key" (default) | "password" | "xpub"
         password:   Required when protection="password"
+        network:    Optional localized network name to override the auto-detected
+                    one (e.g. "Signet").  Uses the NetworkDropdownField on the
+                    create-wallet screen.
     """
     await click_popup_item(d, "More options", 72, "Create wallet")
     await wait_for(d, '"New Wallet"', "Create wallet screen opened")
 
     # Wallet name field is pre-filled; overwrite with desired name
     await fill_field(d, "Wallet name", wallet_name)
+
+    if network is not None:
+        # The NetworkDropdownField (labelText "Network") shows the current value
+        # as its label in semantics.  Tap the field to open the dropdown, then
+        # select the requested network.
+        await click_label(d, "Network", delay=0.5)
+        await wait_for(d, f'"{network}"', f"network dropdown — {network}", retries=6, delay=0.4)
+        await click_label(d, network, delay=0.4)
+        print(f"    [ok] wallet network set to '{network}'")
 
     if protection == "password":
         # SegmentedButton — click the "Password" segment by label

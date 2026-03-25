@@ -1025,6 +1025,40 @@ mod tests {
         Ok(())
     }
 
+    /// Reproduce the backup-labels bug: write a label via conn_a (opened through
+    /// load_or_create_wallet), then check whether a fresh conn_b can see it.
+    /// If conn_a leaves an open transaction, conn_b will see an empty table.
+    #[test]
+    fn test_label_visible_from_second_connection() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("wallet.db").to_string_lossy().to_string();
+
+        // Simulate the app: open wallet through load_or_create_wallet (same as CoreWallet::open)
+        let (_wallet, conn_a) =
+            load_or_create_wallet(&path, MAINNET_DESC, Network::Bitcoin, KEY_HEX)?;
+
+        // Write a label exactly as set_address_label does from the live wallet
+        set_address_label(&conn_a, "bc1qtest", "my-label", false, None)?;
+
+        // conn_a can read it back (within its own transaction if any)
+        let labels_a = get_all_address_labels(&conn_a)?;
+        assert!(
+            labels_a.contains_key("bc1qtest"),
+            "Label not visible from conn_a itself"
+        );
+
+        // Now open a completely fresh connection — same as export_wallet_backup does
+        let conn_b = open_encrypted_connection(&path, KEY_HEX)?;
+        let labels_b = get_all_address_labels(&conn_b)?;
+        assert!(
+            labels_b.contains_key("bc1qtest"),
+            "Label NOT visible from conn_b — conn_a likely has an uncommitted transaction. \
+             labels_b = {:?}",
+            labels_b
+        );
+        Ok(())
+    }
+
     #[test]
     fn test_wrong_key_cannot_open_existing_db() -> Result<()> {
         let dir = tempdir()?;

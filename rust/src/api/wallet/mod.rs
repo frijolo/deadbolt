@@ -1213,11 +1213,30 @@ pub fn export_wallet_backup(
 
     let wallet_data_key =
         resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
-    let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
-    let row = read_wallet_info(&conn)?;
-    drop(conn);
+    let row = {
+        let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
+        read_wallet_info(&conn)?
+    };
 
-    let db_bytes = std::fs::read(&wallet_path)?;
+    // Read a complete, consistent snapshot of the database by using VACUUM INTO,
+    // which consolidates the WAL into the destination file atomically.  Reading
+    // the raw .db file directly would miss any writes still pending in the WAL.
+    // The destination file is encrypted with the same key as the source because
+    // SQLCipher applies its codec at the pager level during VACUUM INTO.
+    let temp_path = format!("{}.export_tmp", wallet_path);
+    // Remove any leftover temp file from a previously aborted export.
+    let _ = std::fs::remove_file(&temp_path);
+    let db_bytes = {
+        let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
+        conn.execute(
+            &format!("VACUUM INTO '{}'", temp_path.replace('\'', "''")),
+            [],
+        )?;
+        drop(conn);
+        let bytes = std::fs::read(&temp_path);
+        let _ = std::fs::remove_file(&temp_path);
+        bytes?
+    };
     let export_data_key = generate_data_key();
     let m_cost = security_level.m_cost();
     let t_cost = security_level.t_cost();
