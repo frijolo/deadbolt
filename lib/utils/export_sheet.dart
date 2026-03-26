@@ -11,6 +11,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLiana;
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 /// Shows the Liana/Standard format dialog when the descriptor has a NUMS
@@ -29,30 +30,32 @@ Future<void> showDescriptorExportSheet(
   String exportText = descriptor;
   if (lianaDescriptor != null && context.mounted) {
     final l10n = context.l10n;
-    final useLiana = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.exportDescriptorFormatTitle),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: ListTile(
-              leading: const Icon(Icons.check_circle_outline),
-              title: Text(l10n.exportDescriptorStandard),
-              subtitle: Text(l10n.exportDescriptorStandardDesc),
-            ),
+    final useLiana = await showSheet<bool>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Text(
+            l10n.exportDescriptorFormatTitle,
+            style: Theme.of(ctx).textTheme.titleMedium,
           ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: ListTile(
-              leading: const Icon(Icons.schema_outlined),
-              title: Text(l10n.exportDescriptorLiana),
-              subtitle: Text(l10n.exportDescriptorLianaDesc),
-            ),
-          ),
-        ],
-      ),
-    );
+        ),
+        ListTile(
+          leading: const Icon(Icons.check_circle_outline),
+          title: Text(l10n.exportDescriptorStandard),
+          subtitle: Text(l10n.exportDescriptorStandardDesc),
+          onTap: () => Navigator.pop(ctx, false),
+        ),
+        ListTile(
+          leading: const Icon(Icons.schema_outlined),
+          title: Text(l10n.exportDescriptorLiana),
+          subtitle: Text(l10n.exportDescriptorLianaDesc),
+          onTap: () => Navigator.pop(ctx, true),
+        ),
+        const SizedBox(height: 8),
+      ],
+    ));
     if (useLiana == null || !context.mounted) return;
     if (useLiana) exportText = lianaDescriptor;
   }
@@ -75,10 +78,7 @@ void showProjectExportSheet(
   required String projectName,
 }) {
   final l10n = context.l10n;
-  showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    builder: (ctx) => Column(
+  showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(

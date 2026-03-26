@@ -15,6 +15,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
 
 /// True on Android and iOS — platforms where [share_plus] is the right way to
 /// export a file (via the native share sheet → "Save to Files" / "Drive" …).
@@ -71,11 +72,7 @@ void showTextExportSheet(
   bool bigText = false,
 }) {
   final l10n = context.l10n;
-  showModalBottomSheet<void>(
-    context: context,
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Column(
+  showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!bigText) ListTile(
@@ -127,7 +124,6 @@ void showTextExportSheet(
           const SizedBox(height: 8),
         ],
       ),
-    ),
   );
 }
 
@@ -137,11 +133,7 @@ void showPsbtExportSheet(
   String fileName = 'transaction',
 }) {
   final l10n = context.l10n;
-  showModalBottomSheet<void>(
-    context: context,
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Column(
+  showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
@@ -194,10 +186,8 @@ void showPsbtExportSheet(
           const SizedBox(height: 8),
         ],
       ),
-    ),
   );
 }
-
 
 Future<void> _shareAsFile(
   BuildContext context, {
@@ -219,14 +209,19 @@ Future<void> _shareAsFile(
 
 void _showAsTextDialog(BuildContext context, String text) {
   final l10n = context.l10n;
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(l10n.showAsText),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 300,
+  showSheet<void>(context, (ctx) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(l10n.showAsText,
+            style: Theme.of(ctx).textTheme.titleMedium),
+      ),
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 300),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
           child: SelectableText(
             text,
             style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
@@ -235,14 +230,18 @@ void _showAsTextDialog(BuildContext context, String text) {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(l10n.close),
+      Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.close),
+          ),
         ),
-      ],
-    ),
-  );
+      ),
+    ],
+  ));
 }
 
 // ---------------------------------------------------------------------------

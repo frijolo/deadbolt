@@ -228,10 +228,7 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   Future<void> _showCreateSheet(BuildContext context) async {
-    final choice = await showModalBottomSheet<_ProjectCreateMode>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
+    final choice = await showSheet<_ProjectCreateMode>(context, (ctx) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
@@ -266,9 +263,7 @@ class ProjectListScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
+        ));
 
     if (choice == null || !context.mounted) return;
 

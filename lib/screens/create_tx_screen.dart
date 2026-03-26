@@ -17,6 +17,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
@@ -361,13 +362,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
     if (!mounted) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetCtx) {
+    await showSheet<void>(context, (sheetCtx) {
         final theme = Theme.of(sheetCtx);
-        return SafeArea(
-          top: false,
-          child: Column(
+        return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -413,10 +410,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
               }),
               const SizedBox(height: 8),
           ],
-          ),
-        );
-      },
-    );
+          );
+      });
   }
 
   Future<void> _fillAddressFromWallet(String walletPath) async {

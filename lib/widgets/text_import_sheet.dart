@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
 
 enum _ImportAction { clipboard, qr, file, text }
 
@@ -15,36 +16,31 @@ enum _ImportAction { clipboard, qr, file, text }
 /// Returns the imported text content, or null if cancelled.
 Future<String?> showTextImportSheet(BuildContext context, {bool bigText = false}) async {
   final l10n = context.l10n;
-  final action = await showModalBottomSheet<_ImportAction>(
-    context: context,
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!bigText) ListTile(
-            leading: const Icon(Icons.paste_outlined),
-            title: Text(l10n.pasteFromClipboard),
-            onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
-          ),
-          ListTile(
-            leading: const Icon(Icons.qr_code_scanner),
-            title: Text(l10n.scanQrCode),
-            onTap: () => Navigator.pop(ctx, _ImportAction.qr),
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_open_outlined),
-            title: Text(l10n.fromFile),
-            onTap: () => Navigator.pop(ctx, _ImportAction.file),
-          ),
-          if (!bigText) ListTile(
-            leading: const Icon(Icons.edit_note),
-            title: Text(l10n.pasteText),
-            onTap: () => Navigator.pop(ctx, _ImportAction.text),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+  final action = await showSheet<_ImportAction>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!bigText) ListTile(
+          leading: const Icon(Icons.paste_outlined),
+          title: Text(l10n.pasteFromClipboard),
+          onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
+        ),
+        ListTile(
+          leading: const Icon(Icons.qr_code_scanner),
+          title: Text(l10n.scanQrCode),
+          onTap: () => Navigator.pop(ctx, _ImportAction.qr),
+        ),
+        ListTile(
+          leading: const Icon(Icons.file_open_outlined),
+          title: Text(l10n.fromFile),
+          onTap: () => Navigator.pop(ctx, _ImportAction.file),
+        ),
+        if (!bigText) ListTile(
+          leading: const Icon(Icons.edit_note),
+          title: Text(l10n.pasteText),
+          onTap: () => Navigator.pop(ctx, _ImportAction.text),
+        ),
+        const SizedBox(height: 8),
+      ],
     ),
   );
   if (action == null || !context.mounted) return null;
@@ -130,36 +126,31 @@ Future<String?> _fromTextDialog(BuildContext context) async {
 /// Returns a base64 PSBT string, or null if cancelled / error.
 Future<String?> showPsbtImportSheet(BuildContext context) async {
   final l10n = context.l10n;
-  final action = await showModalBottomSheet<_ImportAction>(
-    context: context,
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.paste_outlined),
-            title: Text(l10n.pasteFromClipboard),
-            onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
-          ),
-          ListTile(
-            leading: const Icon(Icons.qr_code_scanner),
-            title: Text(l10n.scanQrCode),
-            onTap: () => Navigator.pop(ctx, _ImportAction.qr),
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_open_outlined),
-            title: Text(l10n.fromFile),
-            onTap: () => Navigator.pop(ctx, _ImportAction.file),
-          ),
-          ListTile(
-            leading: const Icon(Icons.edit_note),
-            title: Text(l10n.pasteText),
-            onTap: () => Navigator.pop(ctx, _ImportAction.text),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+  final action = await showSheet<_ImportAction>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.paste_outlined),
+          title: Text(l10n.pasteFromClipboard),
+          onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
+        ),
+        ListTile(
+          leading: const Icon(Icons.qr_code_scanner),
+          title: Text(l10n.scanQrCode),
+          onTap: () => Navigator.pop(ctx, _ImportAction.qr),
+        ),
+        ListTile(
+          leading: const Icon(Icons.file_open_outlined),
+          title: Text(l10n.fromFile),
+          onTap: () => Navigator.pop(ctx, _ImportAction.file),
+        ),
+        ListTile(
+          leading: const Icon(Icons.edit_note),
+          title: Text(l10n.pasteText),
+          onTap: () => Navigator.pop(ctx, _ImportAction.text),
+        ),
+        const SizedBox(height: 8),
+      ],
     ),
   );
   if (action == null || !context.mounted) return null;

@@ -63,6 +63,7 @@ class _HwActionsSheet extends StatelessWidget {
       },
       builder: (context, state) {
         return SafeArea(
+          top: false,
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               16,

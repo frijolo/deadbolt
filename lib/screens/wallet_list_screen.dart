@@ -234,11 +234,7 @@ class WalletListScreen extends StatelessWidget {
   }
 
   void _showCreateDialog(BuildContext context) async {
-    final choice = await showModalBottomSheet<_CreateMode>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Column(
+    final choice = await showSheet<_CreateMode>(context, (ctx) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
@@ -282,9 +278,7 @@ class WalletListScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
+        ));
 
     if (choice == null || !context.mounted) return;
 
