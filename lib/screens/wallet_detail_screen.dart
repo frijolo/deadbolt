@@ -456,6 +456,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       fileName: '${safeName}_labels',
       copiedMessage: l10n.exportBip329Copied,
       fileExtension: 'jsonl',
+      bigText: true,
     );
   }
 
@@ -533,7 +534,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) async {
     final l10n = context.l10n;
-    final content = await showTextImportSheet(context);
+    final content = await showTextImportSheet(context, bigText: true);
     if (content == null || content.trim().isEmpty) return;
     if (!context.mounted) return;
     final ok = await context.read<WalletDetailCubit>().importBip329Labels(content);

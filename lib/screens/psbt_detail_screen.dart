@@ -1,9 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/theme/app_theme.dart';
@@ -11,14 +6,13 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwSignSheet;
-import 'package:deadbolt/widgets/text_export_sheet.dart' show showQrDialog;
+import 'package:deadbolt/widgets/text_export_sheet.dart' show showPsbtExportSheet;
 import 'package:deadbolt/widgets/text_import_sheet.dart' show showPsbtImportSheet;
 import 'package:deadbolt/widgets/popup_menu_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
@@ -257,78 +251,10 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   // ─── Export ───────────────────────────────────────────────────────────────
 
   void _exportPsbt(BuildContext context) {
-    final l10n = context.l10n;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.qr_code),
-              title: Text(l10n.showQrCode),
-              onTap: () async {
-                Navigator.pop(ctx);
-                // Strip non_witness_utxo and other non-essential fields to
-                // reduce QR size. Falls back to original if stripping fails.
-                final strippedBase64 = await stripPsbtForHw(
-                  psbtBase64: _psbt.psbtBase64,
-                ).catchError((_) => _psbt.psbtBase64);
-                if (!context.mounted) return;
-                // Animated BC-UR must use ur:crypto-psbt with raw binary bytes.
-                // Static QR shows the base64 string (Krux, Coldcard accept both).
-                showQrDialog(
-                  context,
-                  strippedBase64,
-                  urBytes: base64Decode(strippedBase64),
-                  urType: 'crypto-psbt',
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: Text(l10n.copyToClipboard),
-              onTap: () {
-                Navigator.pop(ctx);
-                Clipboard.setData(ClipboardData(text: _psbt.psbtBase64));
-                showSuccessToast(context, l10n.psbtExportedCopied);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.save_alt_outlined),
-              title: Text(l10n.saveAs),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _saveToFile(context);
-              },
-            ),
-          ],
-        ),
-      ),
+    showPsbtExportSheet(
+      context,
+      psbtBase64: _psbt.psbtBase64,
     );
-  }
-
-  Future<void> _saveToFile(BuildContext context) async {
-    try {
-      final bytes = base64Decode(_psbt.psbtBase64);
-      final savedPath = await FilePicker.platform.saveFile(
-        fileName: 'transaction.psbt',
-        type: FileType.custom,
-        allowedExtensions: ['psbt'],
-        bytes: bytes,
-      );
-      if (savedPath == null) return;
-      // On desktop, FilePicker may not write the bytes itself.
-      if (!await File(savedPath).exists()) {
-        await File(savedPath).writeAsBytes(bytes);
-      }
-      if (context.mounted) {
-        showSuccessToast(context, context.l10n.savedToDownloads);
-      }
-    } catch (e) {
-      if (context.mounted) showErrorToastException(context, e);
-    }
   }
 
   // ─── Import signed ────────────────────────────────────────────────────────

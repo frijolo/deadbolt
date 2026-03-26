@@ -7,10 +7,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
@@ -66,6 +68,7 @@ void showTextExportSheet(
   required String fileName,
   required String copiedMessage,
   String fileExtension = 'txt',
+  bool bigText = false,
 }) {
   final l10n = context.l10n;
   showModalBottomSheet<void>(
@@ -75,7 +78,7 @@ void showTextExportSheet(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
+          if (!bigText) ListTile(
             leading: const Icon(Icons.copy_outlined),
             title: Text(l10n.copyToClipboard),
             onTap: () {
@@ -97,19 +100,23 @@ void showTextExportSheet(
             title: Text(l10n.saveAs),
             onTap: () async {
               Navigator.pop(ctx);
-              await _saveWithFilePicker(context, text, fileName, fileExtension);
+              await _saveWithFilePicker(context, utf8.encode(text), fileName, fileExtension);
             },
           ),
-          if (_isMobileExport)
+          if (_isMobileExport || bigText)
             ListTile(
               leading: const Icon(Icons.share_outlined),
               title: Text(l10n.shareText),
               onTap: () {
                 Navigator.pop(ctx);
-                SharePlus.instance.share(ShareParams(text: text));
+                _shareAsFile(
+                  context,
+                  bytes: utf8.encode(text),
+                  fileName: '$fileName.$fileExtension',
+                );
               },
             ),
-          ListTile(
+          if (!bigText) ListTile(
             leading: const Icon(Icons.text_snippet_outlined),
             title: Text(l10n.showAsText),
             onTap: () {
@@ -122,6 +129,92 @@ void showTextExportSheet(
       ),
     ),
   );
+}
+
+void showPsbtExportSheet(
+  BuildContext context, {
+  required String psbtBase64,
+  String fileName = 'transaction',
+}) {
+  final l10n = context.l10n;
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.qr_code),
+            title: Text(l10n.showQrCode),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final strippedBase64 = await stripPsbtForHw(
+                psbtBase64: psbtBase64,
+              ).catchError((_) => psbtBase64);
+              if (!context.mounted) return;
+              showQrDialog(
+                context,
+                strippedBase64,
+                urBytes: base64Decode(strippedBase64),
+                urType: 'crypto-psbt',
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_outlined),
+            title: Text(l10n.copyToClipboard),
+            onTap: () {
+              Navigator.pop(ctx);
+              Clipboard.setData(ClipboardData(text: psbtBase64));
+              showSuccessToast(context, l10n.psbtExportedCopied);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: Text(l10n.saveAs),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await _saveWithFilePicker(context, base64Decode(psbtBase64), fileName, 'psbt');
+            },
+          ),
+          if (_isMobileExport)
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: Text(l10n.shareText),
+              onTap: () {
+                Navigator.pop(ctx);
+                _shareAsFile(
+                  context,
+                  bytes: base64Decode(psbtBase64),
+                  fileName: '$fileName.psbt',
+                );
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+
+Future<void> _shareAsFile(
+  BuildContext context, {
+  required Uint8List bytes,
+  required String fileName,
+}) async {
+  try {
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+  } catch (e) {
+    if (context.mounted) {
+      final l10n = context.l10n;
+      showErrorToast(context, l10n.exportFailed(e.toString()));
+    }
+  }
 }
 
 void _showAsTextDialog(BuildContext context, String text) {
@@ -178,20 +271,19 @@ void showQrDialog(
 
 Future<void> _saveWithFilePicker(
   BuildContext context,
-  String text,
+  Uint8List bytes,
   String fileName,
   String ext,
 ) async {
   final l10n = context.l10n;
   try {
-    final bytes = utf8.encode(text);
     final savedPath = await FilePicker.platform.saveFile(
       fileName: '$fileName.$ext',
       type: FileType.custom,
       allowedExtensions: [ext],
       bytes: bytes,
     );
-    if (savedPath == null) return; // user cancelled
+    if (savedPath == null) return;
     // On desktop, FilePicker may not write the bytes itself.
     if (!File(savedPath).existsSync()) {
       await File(savedPath).writeAsBytes(bytes);

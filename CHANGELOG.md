@@ -16,6 +16,8 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Mainnet Electrum privacy warning** — A persistent banner is displayed in the wallet detail screen when using a mainnet wallet with the default public Electrum server, with a direct link to Settings.
+- **Share exports as files** — On mobile, sharing a PSBT, BIP-329 labels, or project now sends an actual file (`.psbt`, `.jsonl`, `.deadbolt.json`) via the native share sheet instead of raw text.
+- **Simplified import/export for large content** — Project import and BIP-329 labels import/export now show only QR and file options, hiding clipboard and manual-paste for content too large for those flows.
 
 ---
 

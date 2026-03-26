@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:file_picker/file_picker.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/theme/app_theme.dart';
@@ -10,7 +9,6 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
-import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
@@ -18,6 +16,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/app_nav_drawer.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
+import 'package:deadbolt/widgets/text_import_sheet.dart';
 
 enum _ProjectCreateMode { fromScratch, fromDescriptor, importProject }
 
@@ -352,89 +351,15 @@ class ProjectListScreen extends StatelessWidget {
   }
 
   Future<void> _showImportDialog(BuildContext context) async {
-    final l10n = context.l10n;
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.file_download_outlined),
-              title: Text(l10n.importFromFile),
-              onTap: () {
-                Navigator.pop(ctx);
-                _importFromFile(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.qr_code_scanner),
-              title: Text(l10n.scanQrCode),
-              onTap: () {
-                Navigator.pop(ctx);
-                _importFromQr(context);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
+    final jsonString = await showTextImportSheet(context, bigText: true);
+    if (jsonString == null || jsonString.isEmpty || !context.mounted) return;
+    await _importProject(context, jsonString);
   }
 
-  Future<void> _importFromFile(BuildContext context) async {
+  Future<void> _importProject(BuildContext context, String jsonString) async {
     try {
       final cubit = context.read<ProjectListCubit>();
       final db = context.read<AppDatabase>();
-      final l10n = context.l10n;
-
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        withData: true,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
-      if (file.bytes == null) {
-        if (context.mounted) {
-          showErrorToast(context, l10n.couldNotReadFile);
-        }
-        return;
-      }
-
-      final jsonString = String.fromCharCodes(file.bytes!);
-      final projectId = await cubit.importProject(jsonString);
-
-      if (context.mounted) {
-        showSuccessToast(context, l10n.projectImportedSuccess);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProjectDetailScreen(
-              db: db,
-              projectId: projectId,
-              onNavigate: onNavigate,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showErrorToast(context, context.l10n.importFailed(formatRustError(e)));
-      }
-    }
-  }
-
-  Future<void> _importFromQr(BuildContext context) async {
-    try {
-      final cubit = context.read<ProjectListCubit>();
-      final db = context.read<AppDatabase>();
-
-      final jsonString = await QrScannerScreen.push(context);
-      if (jsonString == null || jsonString.isEmpty) return;
-
       final projectId = await cubit.importProject(jsonString);
 
       if (context.mounted) {

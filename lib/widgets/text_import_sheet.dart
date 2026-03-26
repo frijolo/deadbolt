@@ -13,7 +13,7 @@ enum _ImportAction { clipboard, qr, file, text }
 /// Shows a bottom sheet with four import options that mirror [showTextExportSheet]:
 /// paste from clipboard, scan QR, load from file, and enter text manually.
 /// Returns the imported text content, or null if cancelled.
-Future<String?> showTextImportSheet(BuildContext context) async {
+Future<String?> showTextImportSheet(BuildContext context, {bool bigText = false}) async {
   final l10n = context.l10n;
   final action = await showModalBottomSheet<_ImportAction>(
     context: context,
@@ -22,7 +22,7 @@ Future<String?> showTextImportSheet(BuildContext context) async {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
+          if (!bigText) ListTile(
             leading: const Icon(Icons.paste_outlined),
             title: Text(l10n.pasteFromClipboard),
             onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
@@ -37,7 +37,7 @@ Future<String?> showTextImportSheet(BuildContext context) async {
             title: Text(l10n.fromFile),
             onTap: () => Navigator.pop(ctx, _ImportAction.file),
           ),
-          ListTile(
+          if (!bigText) ListTile(
             leading: const Icon(Icons.edit_note),
             title: Text(l10n.pasteText),
             onTap: () => Navigator.pop(ctx, _ImportAction.text),
