@@ -13,6 +13,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### New Features
 - **Tor routing** — Optional Tor support in Settings routes all Electrum connections through an embedded Tor client (arti). Persists across restarts.
+- **Fee rate presets** — Three preset buttons (economy / standard / priority) appear above the fee fields in the send screen, fetching live rates from the configured block explorer (mempool.space by default). Selecting a preset updates both fee rate and total fee fields; editing manually deselects the preset.
 
 ### Improvements
 - **Mainnet Electrum privacy warning** — A persistent banner is displayed in the wallet detail screen when using a mainnet wallet with the default public Electrum server, with a direct link to Settings.
@@ -20,6 +21,7 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Simplified import/export for large content** — Project import and BIP-329 labels import/export now show only QR and file options, hiding clipboard and manual-paste for content too large for those flows.
 
 ### Fixes
+- **RBF error messages** — When a replacement transaction fails validation, the error now distinguishes between fee rate too low (opens the rate field) and total fee too low (opens the total fee field), showing the exact minimum required in each case.
 - **Labels missing from exported backups** — Wallet backups now capture a consistent database snapshot using `VACUUM INTO`, which consolidates any pending WAL writes into the exported file. Previously, labels set after the last checkpoint were silently omitted from the backup.
 - **Duplicate sync spinner** — The wallet overview tab no longer shows a redundant sync spinner next to the last-synced timestamp; only the AppBar indicator remains.
 

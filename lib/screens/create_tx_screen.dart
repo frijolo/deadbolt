@@ -10,6 +10,7 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/services/fee_estimation_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -113,6 +114,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   // RBF info: mempoolSpendingTxid -> APIRbfInfo (null while loading)
   final Map<String, APIRbfInfo?> _rbfInfos = {};
 
+  FeePresets? _feePresets;
+  int? _selectedPresetIndex; // 0=economy, 1=normal, 2=priority; null=none
+
   // Focus nodes for the two fee fields — explicit requestFocus() is more reliable
   // than autofocus: true on desktop platforms.
   final _rateFocusNode = FocusNode();
@@ -129,6 +133,20 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     if (widget.spendPaths != null && widget.spendPaths!.isNotEmpty) {
       _selectedPath = widget.spendPaths!.first;
     }
+    _loadFeePresets();
+  }
+
+  APINetwork get _currentNetwork {
+    final state = context.read<WalletDetailCubit>().state;
+    return state is WalletDetailLoaded ? state.walletInfo.network : APINetwork.bitcoin;
+  }
+
+  void _loadFeePresets() {
+    final explorerBase =
+        context.read<SettingsCubit>().state.explorerBaseForNetwork(_currentNetwork);
+    FeeEstimationService.getPresets(explorerBase).then((p) {
+      if (mounted) setState(() => _feePresets = p);
+    });
   }
 
   @override
@@ -146,7 +164,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Fee callbacks ────────────────────────────────────────────────────────
 
-  void _onFeeRateChanged(String _) => setState(() {});
+  void _onFeeRateChanged(String _) => setState(() {
+    _selectedPresetIndex = null;
+  });
   void _onTotalFeeChanged(String _) => setState(() {});
   void _onAmountChanged(String _) {
     if (!_sendMax) setState(() {});
@@ -436,11 +456,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   }
 
   Future<void> _openCoinSelector() async {
-    final cubit = context.read<WalletDetailCubit>();
-    final state = cubit.state;
-    final network = state is WalletDetailLoaded
-        ? state.walletInfo.network
-        : APINetwork.bitcoin;
+    final network = _currentNetwork;
     final result = await CoinSelectorScreen.push(
       context,
       allUtxos: widget.allUtxos,
@@ -728,6 +744,52 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     );
   }
 
+  // ─── Fee presets ──────────────────────────────────────────────────────────
+
+  void _applyPreset(int index) {
+    if (_feePresets == null) return;
+    final rates = [_feePresets!.economy, _feePresets!.normal, _feePresets!.priority];
+    setState(() {
+      _selectedPresetIndex = index;
+      _feeRateCtrl.text = rates[index].toStringAsFixed(1);
+      _feeEditMode = _FeeEditMode.none;
+    });
+    final summary = _txSummary;
+    if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
+  }
+
+  Widget _buildFeePresets() {
+    if (_feePresets == null) return const SizedBox.shrink();
+    final presets = _feePresets!;
+    final selected = _selectedPresetIndex != null ? {_selectedPresetIndex!} : <int>{};
+    return SegmentedButton<int>(
+      style: const ButtonStyle(visualDensity: VisualDensity.compact),
+      showSelectedIcon: false,
+      segments: [
+        ButtonSegment(
+          value: 0,
+          icon: const Icon(Icons.hourglass_bottom, size: 14),
+          label: Text('${presets.economy.toStringAsFixed(0)} sat/vB'),
+        ),
+        ButtonSegment(
+          value: 1,
+          icon: const Icon(Icons.schedule, size: 14),
+          label: Text('${presets.normal.toStringAsFixed(0)} sat/vB'),
+        ),
+        ButtonSegment(
+          value: 2,
+          icon: const Icon(Icons.bolt, size: 14),
+          label: Text('${presets.priority.toStringAsFixed(0)} sat/vB'),
+        ),
+      ],
+      selected: selected,
+      emptySelectionAllowed: true,
+      onSelectionChanged: (Set<int> s) {
+        if (s.isNotEmpty) _applyPreset(s.first);
+      },
+    );
+  }
+
   // ─── Fee inline-edit field ────────────────────────────────────────────────
 
   Widget _buildFeeField({
@@ -826,8 +888,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         final totalOrigFee =
             resolvedRbfInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
         if (summary.feeSats <= totalOrigFee + newVsize) {
-          showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
-          setState(() => _feeEditMode = _FeeEditMode.rate);
+          showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalOrigFee + newVsize + 1));
+          setState(() => _feeEditMode = _FeeEditMode.total);
           return;
         }
       }
@@ -895,7 +957,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     // Effective minimum rate: stricter of relay minimum and RBF diagram constraint.
     final effectiveMinRate =
         resolvedRbfInfos.isNotEmpty ? max(minFeeRate.toDouble(), maxOrigRate) : minFeeRate.toDouble();
-    final currentRate = double.tryParse(_feeRateCtrl.text) ?? 0.0;
+    // Live display value for fee rate field — when editing total fee, show the
+    // live back-computed rate from summary so the display and error check agree.
+    final feeRateDisplay = _feeEditMode == _FeeEditMode.total
+        ? (summary != null
+            ? summary.feeRate.toStringAsFixed(2)
+            : _feeRateCtrl.text)
+        : _feeRateCtrl.text;
+    final currentRate = double.tryParse(feeRateDisplay) ?? 0.0;
 
     // RBF absolute fee minimum (Rule 4) — depends on new tx size.
     int rbfMinFeeSats = 0;
@@ -915,13 +984,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         rbfMinFeeSats > 0 && summary != null && !summary.insufficientFunds && summary.feeSats <= rbfMinFeeSats
             ? 'min: $rbfMinFeeSats sats'
             : null;
-
-    // Live display values for fee fields.
-    final feeRateDisplay = _feeEditMode == _FeeEditMode.total
-        ? (summary != null
-            ? summary.feeRate.toStringAsFixed(2)
-            : _feeRateCtrl.text)
-        : _feeRateCtrl.text;
     // Total fee display: live from summary in all modes except when the user
     // is actively editing the total fee field.
     final totalFeeDisplay = _feeEditMode == _FeeEditMode.total
@@ -1130,6 +1192,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
               ),
 
               const SizedBox(height: 16),
+
+              _buildFeePresets(),
+              if (_feePresets != null) const SizedBox(height: 8),
 
               // ── Fee fields (inline edit — only one active at a time) ──
               Row(
