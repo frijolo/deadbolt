@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/tor.dart' as tor_api;
 import 'package:deadbolt/theme/app_theme.dart';
 
 class AppSettings {
@@ -25,6 +27,7 @@ class AppSettings {
   final bool fiatEnabled;
   final String fiatCurrency;
   final PriceProviderType fiatProvider;
+  final bool torEnabled;
 
   const AppSettings({
     required this.locale,
@@ -45,6 +48,7 @@ class AppSettings {
     this.fiatEnabled = false,
     this.fiatCurrency = 'usd',
     this.fiatProvider = PriceProviderType.coinGecko,
+    this.torEnabled = false,
   });
 
   String electrumUrlForNetwork(APINetwork net) {
@@ -114,6 +118,7 @@ class AppSettings {
     bool? fiatEnabled,
     String? fiatCurrency,
     PriceProviderType? fiatProvider,
+    bool? torEnabled,
   }) {
     return AppSettings(
       locale: locale ?? this.locale,
@@ -134,6 +139,7 @@ class AppSettings {
       fiatEnabled: fiatEnabled ?? this.fiatEnabled,
       fiatCurrency: fiatCurrency ?? this.fiatCurrency,
       fiatProvider: fiatProvider ?? this.fiatProvider,
+      torEnabled: torEnabled ?? this.torEnabled,
     );
   }
 }
@@ -157,6 +163,7 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _fiatEnabledKey = 'fiatEnabled';
   static const _fiatCurrencyKey = 'fiatCurrency';
   static const _fiatProviderKey = 'fiatProvider';
+  static const _torEnabledKey = 'torEnabled';
 
   SharedPreferences? _prefs;
 
@@ -232,7 +239,25 @@ class SettingsCubit extends Cubit<AppSettings> {
       fiatCurrency: prefs.getString(_fiatCurrencyKey) ?? defaults.fiatCurrency,
       fiatProvider: PriceProviderType.values.byName(
           prefs.getString(_fiatProviderKey) ?? defaults.fiatProvider.name),
+      torEnabled: prefs.getBool(_torEnabledKey) ?? defaults.torEnabled,
     ));
+
+    // Restore Tor state across restarts.
+    if (prefs.getBool(_torEnabledKey) ?? false) {
+      _applyTorEnabled(true);
+    }
+  }
+
+  void _applyTorEnabled(bool enabled) {
+    getApplicationSupportDirectory().then((dir) {
+      tor_api.setTorDataDir(path: dir.path);
+      tor_api.setTorEnabled(enabled: enabled);
+      if (enabled) {
+        tor_api.startTor();
+      } else {
+        tor_api.stopTor();
+      }
+    });
   }
 
   Future<void> setLocale(Locale locale) async {
@@ -287,6 +312,13 @@ class SettingsCubit extends Cubit<AppSettings> {
     final prefs = await _getPrefs();
     await prefs.setString(_fiatCurrencyKey, currency);
     emit(state.copyWith(fiatCurrency: currency));
+  }
+
+  Future<void> setTorEnabled(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_torEnabledKey, enabled);
+    _applyTorEnabled(enabled);
+    emit(state.copyWith(torEnabled: enabled));
   }
 
   Future<void> setFiatProvider(PriceProviderType provider) async {

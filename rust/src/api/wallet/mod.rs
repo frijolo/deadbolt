@@ -59,6 +59,45 @@ pub struct APIPathLabel {
 const STOP_GAP: usize = 20;
 const BATCH_SIZE: usize = 5;
 
+// ---------------------------------------------------------------------------
+// Electrum client factory shared by ops, psbt, queries
+// ---------------------------------------------------------------------------
+
+use bdk_electrum::{
+    electrum_client::{Client, ConfigBuilder, Socks5Config},
+    BdkElectrumClient,
+};
+
+/// Create a BdkElectrumClient, routing through the local Tor SOCKS5 proxy when
+/// Tor is enabled. Fails if Tor is enabled but bootstrap has not yet completed.
+fn create_electrum_client(url: &str) -> Result<BdkElectrumClient<Client>> {
+    Ok(BdkElectrumClient::new(create_raw_electrum_client(url)?))
+}
+
+/// Create a raw Client for callers that need ElectrumApi directly (queries.rs).
+fn create_raw_electrum_client(url: &str) -> Result<Client> {
+    if crate::core::tor_manager::is_tor_enabled() {
+        let socks_addr = crate::core::tor_manager::tor_socks_addr()
+            .ok_or_else(|| anyhow::anyhow!("Tor is enabled but not connected yet"))?;
+        let config = ConfigBuilder::new()
+            .socks5(Some(Socks5Config::new(&socks_addr)))
+            .build();
+        Client::from_config(url, config).map_err(|_| {
+            // The relay stores the real Tor error before closing the socket,
+            // so it is always available here when we catch the electrum error.
+            let tor_msg = crate::core::tor_manager::take_tor_connection_error();
+            match tor_msg {
+                Some(msg) => anyhow::anyhow!("Tor connection failed: {msg}"),
+                None => {
+                    anyhow::anyhow!("Tor connection failed (check server address and Tor status)")
+                }
+            }
+        })
+    } else {
+        Client::new(url).map_err(|e| anyhow::anyhow!("Electrum client error: {e}"))
+    }
+}
+
 /// Resolve a label+flag pair into (explicit_label, effective_label, is_auto).
 ///
 /// - `label`: non-empty and non-auto only (for editing).

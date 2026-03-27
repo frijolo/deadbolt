@@ -675,6 +675,12 @@
   "settingsSectionTransactions": "Transacciones",
   "settingsSectionConnectivity": "Conectividad",
 
+  "torLabel": "Usar Tor",
+  "torSubtitle": "Enrutar todo el tráfico por Tor",
+  "torStatusConnecting": "Tor conectando...",
+  "torStatusConnected": "Tor activo",
+  "torErrorNotConnected": "Tor está activado pero aún no está conectado",
+
   "disclaimerTitle": "Software en desarrollo — Úsalo bajo tu responsabilidad",
   "disclaimerBody": "Deadbolt está en desarrollo activo y puede contener errores.\n\nTodavía no es apto para fondos reales. El uso es bajo tu propia responsabilidad.",
   "disclaimerDontShow7Days": "No mostrar durante 7 días",

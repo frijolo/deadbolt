@@ -9,6 +9,7 @@ pub mod project_seeds;
 pub mod pubkey;
 pub mod seed;
 pub mod spend_path;
+pub mod tor_manager;
 pub mod wallet;
 pub mod wallet_info;
 pub mod wallet_meta;

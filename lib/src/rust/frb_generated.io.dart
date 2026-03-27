@@ -6,6 +6,7 @@
 import 'api/analyzer.dart';
 import 'api/hw_wallet.dart';
 import 'api/model.dart';
+import 'api/tor.dart';
 import 'api/wallet.dart';
 import 'core/spend_path.dart';
 import 'dart:async';
@@ -338,6 +339,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  (double, String) dco_decode_record_f_32_string(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -724,6 +728,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  (double, String) sse_decode_record_f_32_string(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -1216,6 +1223,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_f_32_string(
+    (double, String) self,
     SseSerializer serializer,
   );
 

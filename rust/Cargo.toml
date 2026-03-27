@@ -29,7 +29,10 @@ aes-gcm = "0.10"
 async-trait = "0.1"
 async-hwi = { version = "0.0.30", default-features = false, features = ["bitbox"] }
 bitbox-api = { version = "0.9", features = ["tokio", "multithreaded"] }
-tokio = { version = "1", features = ["sync", "time"] }
+tokio = { version = "1", features = ["sync", "time", "rt-multi-thread", "net", "io-util"] }
+futures = { version = "0.3", default-features = false, features = ["std"] }
+arti-client = { version = "0.22", default-features = false, features = ["tokio", "rustls", "onion-service-client"] }
+tor-rtcompat = { version = "0.22", default-features = false, features = ["tokio", "rustls"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets

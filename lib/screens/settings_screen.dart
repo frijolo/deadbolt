@@ -91,6 +91,13 @@ class SettingsScreen extends StatelessWidget {
                   title: l10n.settingsSectionConnectivity,
                   icon: Icons.wifi_outlined,
                   children: [
+                    SwitchListTile(
+                      title: Text(l10n.torLabel),
+                      subtitle: Text(l10n.torSubtitle),
+                      value: settings.torEnabled,
+                      onChanged: cubit.setTorEnabled,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
                     _ConnectivityUrlSection(
                       title: l10n.electrumSectionTitle,
                       hint: l10n.electrumUrlHint,

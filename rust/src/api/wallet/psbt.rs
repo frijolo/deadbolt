@@ -471,8 +471,6 @@ impl APIWallet {
     ///
     /// Returns the broadcast txid on success.
     pub async fn broadcast_psbt(&self, id: i64, electrum_url: String) -> Result<String> {
-        use bdk_electrum::{electrum_client, BdkElectrumClient};
-
         let core = self.lock_wallet()?;
         let row = get_psbt_row(&core.conn, id)?;
         // Capture label before consuming the row.
@@ -514,7 +512,7 @@ impl APIWallet {
         let tx = psbt.extract_tx()?;
         let txid = tx.compute_txid();
 
-        let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
+        let client = create_electrum_client(&electrum_url)?;
         client.transaction_broadcast(&tx)?;
 
         // Apply the PSBT's label to the transaction before deleting the PSBT.

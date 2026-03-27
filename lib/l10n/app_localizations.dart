@@ -2732,6 +2732,36 @@ abstract class AppLocalizations {
   /// **'Connectivity'**
   String get settingsSectionConnectivity;
 
+  /// No description provided for @torLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Tor'**
+  String get torLabel;
+
+  /// No description provided for @torSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Route all traffic through Tor'**
+  String get torSubtitle;
+
+  /// No description provided for @torStatusConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Tor connecting...'**
+  String get torStatusConnecting;
+
+  /// No description provided for @torStatusConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Tor active'**
+  String get torStatusConnected;
+
+  /// No description provided for @torErrorNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Tor is enabled but not yet connected'**
+  String get torErrorNotConnected;
+
   /// No description provided for @disclaimerTitle.
   ///
   /// In en, this message translates to:

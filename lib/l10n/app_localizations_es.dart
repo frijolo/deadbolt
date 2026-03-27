@@ -1478,6 +1478,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSectionConnectivity => 'Conectividad';
 
   @override
+  String get torLabel => 'Usar Tor';
+
+  @override
+  String get torSubtitle => 'Enrutar todo el tráfico por Tor';
+
+  @override
+  String get torStatusConnecting => 'Tor conectando...';
+
+  @override
+  String get torStatusConnected => 'Tor activo';
+
+  @override
+  String get torErrorNotConnected =>
+      'Tor está activado pero aún no está conectado';
+
+  @override
   String get disclaimerTitle =>
       'Software en desarrollo — Úsalo bajo tu responsabilidad';
 

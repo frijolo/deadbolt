@@ -35,9 +35,6 @@ impl APIWallet {
     /// up to the stop gap. Uses incremental sync on subsequent calls to only check
     /// already-revealed script pubkeys, which is much faster.
     pub async fn sync(&self, electrum_url: String) -> Result<()> {
-        use bdk_electrum::electrum_client;
-        use bdk_electrum::BdkElectrumClient;
-
         // Phase 1: build the scan request (holds mutex briefly, then releases).
         let (is_first_sync, request_full, request_sync) = {
             let core = self.lock_wallet()?;
@@ -56,7 +53,7 @@ impl APIWallet {
         };
 
         // Phase 2: network I/O — mutex NOT held so other threads can read the wallet.
-        let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
+        let client = create_electrum_client(&electrum_url)?;
         let update_full = if is_first_sync {
             Some(client.full_scan(request_full.unwrap(), STOP_GAP, BATCH_SIZE, false)?)
         } else {
@@ -94,9 +91,6 @@ impl APIWallet {
 
     /// Force a full scan regardless of sync history (re-discovers all addresses).
     pub async fn rescan(&self, electrum_url: String) -> Result<()> {
-        use bdk_electrum::electrum_client;
-        use bdk_electrum::BdkElectrumClient;
-
         // Phase 1: build request (holds mutex briefly, then releases).
         let request = {
             let core = self.lock_wallet()?;
@@ -104,7 +98,7 @@ impl APIWallet {
         };
 
         // Phase 2: network I/O — mutex NOT held.
-        let client = BdkElectrumClient::new(electrum_client::Client::new(&electrum_url)?);
+        let client = create_electrum_client(&electrum_url)?;
         let update = client.full_scan(request, STOP_GAP, BATCH_SIZE, false)?;
 
         // Phase 3: apply update and persist (re-acquires mutex).

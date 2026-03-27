@@ -417,7 +417,7 @@ impl APIWallet {
             let mut map = HashMap::new();
             if !missing_txids.is_empty() && !electrum_url.is_empty() {
                 use bdk_electrum::electrum_client::ElectrumApi;
-                if let Ok(client) = bdk_electrum::electrum_client::Client::new(&electrum_url) {
+                if let Ok(client) = create_raw_electrum_client(&electrum_url) {
                     for id in missing_txids {
                         if let Ok(tx) = client.transaction_get(&id) {
                             map.insert(id.to_string(), tx);
@@ -659,7 +659,7 @@ impl APIWallet {
                     HashMap::new();
                 if !missing_txids.is_empty() && !electrum_url.is_empty() {
                     use bdk_electrum::electrum_client::ElectrumApi;
-                    if let Ok(client) = bdk_electrum::electrum_client::Client::new(&electrum_url) {
+                    if let Ok(client) = create_raw_electrum_client(&electrum_url) {
                         for id in &missing_txids {
                             if let Ok(t) = client.transaction_get(id) {
                                 parent_txs.insert(*id, t);

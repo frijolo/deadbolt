@@ -49,15 +49,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     ];
 
     if (isWide) {
-      final body = IndexedStack(
-        index: _selectedIndex,
-        children: [
-          WalletListScreen(onNavigate: _navigate),
-          ProjectListScreen(onNavigate: _navigate),
-          const SettingsScreen(),
-          const AboutScreen(),
-        ],
-      );
       return Scaffold(
         body: Row(
           children: [
@@ -73,7 +64,17 @@ class _AppScaffoldState extends State<AppScaffold> {
                   .toList(),
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: body),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  WalletListScreen(onNavigate: _navigate),
+                  ProjectListScreen(onNavigate: _navigate),
+                  const SettingsScreen(),
+                  const AboutScreen(),
+                ],
+              ),
+            ),
           ],
         ),
       );

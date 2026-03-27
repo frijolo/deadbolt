@@ -929,12 +929,6 @@ class _OverviewViewState extends State<_OverviewView> {
                           ),
                         ),
                       ),
-                      if (state.isSyncing)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
                     ],
                   ),
                 ],
