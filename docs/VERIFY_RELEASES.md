@@ -170,7 +170,7 @@ For convenience, save this script as `verify-deadbolt.sh`:
 #!/bin/bash
 set -e
 
-VERSION="${1:-v1.4.0}"
+VERSION="${1:-v1.5.2}"
 PLATFORM="${2:-linux-x64}"
 REPO="https://github.com/frijolo/deadbolt/releases/download"
 

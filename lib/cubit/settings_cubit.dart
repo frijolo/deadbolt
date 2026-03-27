@@ -29,12 +29,14 @@ class AppSettings {
   final PriceProviderType fiatProvider;
   final bool torEnabled;
 
+  static const kDefaultElectrumMainnet = 'ssl://electrum.blockstream.info:50002';
+
   const AppSettings({
     required this.locale,
     required this.network,
     required this.walletType,
     this.appTheme = AppTheme.system,
-    this.electrumMainnet = 'ssl://electrum.blockstream.info:50002',
+    this.electrumMainnet = AppSettings.kDefaultElectrumMainnet,
     this.electrumTestnet = 'ssl://electrum.blockstream.info:60002',
     this.electrumTestnet4 = 'ssl://electrum.blockstream.info:60002',
     this.electrumSignet = 'ssl://mempool.space:60602',
@@ -248,16 +250,15 @@ class SettingsCubit extends Cubit<AppSettings> {
     }
   }
 
-  void _applyTorEnabled(bool enabled) {
-    getApplicationSupportDirectory().then((dir) {
-      tor_api.setTorDataDir(path: dir.path);
-      tor_api.setTorEnabled(enabled: enabled);
-      if (enabled) {
-        tor_api.startTor();
-      } else {
-        tor_api.stopTor();
-      }
-    });
+  Future<void> _applyTorEnabled(bool enabled) async {
+    final dir = await getApplicationSupportDirectory();
+    tor_api.setTorDataDir(path: dir.path);
+    tor_api.setTorEnabled(enabled: enabled);
+    if (enabled) {
+      tor_api.startTor();
+    } else {
+      tor_api.stopTor();
+    }
   }
 
   Future<void> setLocale(Locale locale) async {
@@ -317,7 +318,7 @@ class SettingsCubit extends Cubit<AppSettings> {
   Future<void> setTorEnabled(bool enabled) async {
     final prefs = await _getPrefs();
     await prefs.setBool(_torEnabledKey, enabled);
-    _applyTorEnabled(enabled);
+    await _applyTorEnabled(enabled);
     emit(state.copyWith(torEnabled: enabled));
   }
 

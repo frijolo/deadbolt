@@ -95,20 +95,13 @@ class _TorStatusTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final color = connected ? cs.primary : cs.tertiary;
 
-    String label;
-    if (connected) {
-      label = l10n.torStatusConnected;
-    } else {
-      final (frac, statusLine) = tor_api.torBootstrapProgress();
-      final pct = (frac * 100).round();
-      label = pct > 0
-          ? '${l10n.torStatusConnecting} $pct%'
-          : l10n.torStatusConnecting;
-    }
-
-    final (frac, statusLine) = connected
-        ? (1.0, '')
-        : tor_api.torBootstrapProgress();
+    final (frac, statusLine) = connected ? (1.0, '') : tor_api.torBootstrapProgress();
+    final pct = (frac * 100).round();
+    final label = connected
+        ? l10n.torStatusConnected
+        : pct > 0
+            ? '${l10n.torStatusConnecting} $pct%'
+            : l10n.torStatusConnecting;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

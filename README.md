@@ -29,7 +29,11 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Project Import/Export**: Save and load descriptor projects as JSON files
 - **Theme Support**: Light, Dark, and System default themes
 - **Internationalization**: UI available in English and Spanish
-- **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server
+- **Tor Routing**: Optional embedded Tor client (arti) routes all Electrum connections through the Tor network — no system Tor daemon required, persists across restarts
+- **Fiat Price Display**: Optional BTC price overlay (CoinGecko or mempool.space) shows balance and transaction amounts in fiat alongside sats/BTC
+- **Configurable Connectivity**: Set custom Electrum and block explorer URLs per network (mainnet, testnet, testnet4, signet, regtest), adjustable minimum fee rate
+- **Guided Wallet Wizard**: Step-by-step wizard for creating single-sig and multisig wallets without manually crafting a descriptor
+- **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server; optionally route through Tor for enhanced network privacy
 - **Cross-Platform**: Available for Android, Linux, and Windows
 - **Signed Releases**: SHA256 checksums are GPG-signed for release verification
 
@@ -114,7 +118,7 @@ Both workflows produce a signed PSBT that can be broadcast directly from the app
 
 ### What Deadbolt Does NOT Do
 
-- **Does NOT send data to third parties** - Wallet sync connects only to the Electrum server you configure
+- **Does NOT send data to third parties** - Wallet sync connects only to the Electrum server you configure (and optionally through Tor)
 - **Does NOT collect telemetry** - No analytics, tracking, or usage data of any kind
 
 ## Building from Source
@@ -170,13 +174,20 @@ cd rust && cargo clippy
 deadbolt/
 ├── lib/                    # Dart/Flutter code
 │   ├── main.dart          # App entry point
-│   ├── screens/           # UI screens
-│   ├── cubit/             # BLoC state management
+│   ├── screens/           # UI screens (+ screens/wallet_detail/ sub-screens)
+│   ├── cubit/             # BLoC state management (6 cubits)
+│   ├── services/          # WalletService, ProjectDescriptorService, PriceService
+│   ├── data/              # Drift database (projects only)
+│   ├── models/            # Shared data models
+│   ├── widgets/           # Reusable widgets
+│   ├── utils/             # Formatters, helpers, toast
+│   ├── theme/             # Material 3 theme
 │   └── src/rust/          # Auto-generated FFI bindings (DO NOT EDIT)
 ├── rust/                  # Rust core logic
 │   ├── src/
 │   │   ├── api/          # FFI boundary (exposed to Dart)
-│   │   └── core/         # Internal logic (BDK, descriptors, etc.)
+│   │   │   └── wallet/   # Wallet API (directory)
+│   │   └── core/         # Internal logic (BDK, descriptors, Tor, etc.)
 │   └── Cargo.toml
 ├── docs/                  # Documentation
 ├── .github/workflows/     # CI/CD pipelines
@@ -225,6 +236,7 @@ Deadbolt is designed with privacy in mind:
 
 - **No telemetry** - No analytics, tracking, or data collection
 - **No built-in servers** - Wallet sync connects only to the Electrum server you configure
+- **Optional Tor routing** - Enable the built-in Tor client to hide your wallet's IP address from the Electrum server
 - **Local storage only** - Data stays on your device
 - **Descriptor analysis is fully offline** - No network access needed to parse and analyze descriptors
 
@@ -237,15 +249,17 @@ However, be aware:
 
 ### Rust
 
-- **bdk_wallet** (2.3.0) - Bitcoin Development Kit for descriptor parsing
-- **anyhow** - Error handling
+- **bdk_wallet** (2.3.0) - Bitcoin Development Kit for descriptor parsing and wallet management
+- **arti-client** + **tor-rtcompat** (0.22) - Embedded Tor client
+- **bitbox-api** (0.9) - BitBox02 hardware wallet integration
 - **flutter_rust_bridge** (2.11.1) - Dart ↔ Rust FFI
+- **anyhow** / **thiserror** - Error handling
 
 ### Dart/Flutter
 
 - **flutter_rust_bridge** (2.11.1) - FFI bindings
 - **flutter_bloc** (9.1.1) - State management
-- **drift** - SQLite database (for persistence)
+- **drift** (2.31.0) - SQLite database for project persistence
 
 See [pubspec.yaml](pubspec.yaml) and [rust/Cargo.toml](rust/Cargo.toml) for full dependency lists.
 

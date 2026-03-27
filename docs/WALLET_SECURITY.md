@@ -198,9 +198,10 @@ This bypasses SQLCipher's own PBKDF2 derivation — the 32-byte data key is used
 
 ### Internal Tables
 
-The database contains [BDK (Bitcoin Development Kit)](https://github.com/bitcoindevkit/bdk) internal tables plus two Deadbolt-specific tables:
+The database contains [BDK (Bitcoin Development Kit)](https://github.com/bitcoindevkit/bdk) internal tables plus several Deadbolt-specific tables:
 
 ```sql
+-- Single-row wallet metadata
 CREATE TABLE wallet_info (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
     name        TEXT    NOT NULL,
@@ -210,6 +211,7 @@ CREATE TABLE wallet_info (
     last_synced_at INTEGER          -- Unix seconds, NULL if never synced
 );
 
+-- Hot signing keys stored inside the wallet
 CREATE TABLE seed_entries (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     mfp        TEXT NOT NULL UNIQUE,  -- Master fingerprint of the key
@@ -220,6 +222,8 @@ CREATE TABLE seed_entries (
     created_at INTEGER NOT NULL
 );
 ```
+
+Additional Deadbolt-specific tables store labels (`tx_labels`, `address_labels`, `key_labels`, `path_labels`, `coin_labels`), saved unsigned transactions / PSBTs (`unsigned_txs`), and cached fiat prices (`fiat_prices`). All of these are created on demand and remain empty until the relevant feature is used.
 
 `wallet_info` stores public metadata only. `seed_entries` holds wallet-level hot signing keys; it is present in all wallets but remains empty unless the user explicitly adds a signing key.
 

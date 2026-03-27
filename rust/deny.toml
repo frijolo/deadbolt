@@ -1,10 +1,24 @@
 [advisories]
 db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = [
+    # paste v1.0.15 — unmaintained (RUSTSEC-2024-0436). Transitive dep through
+    # arti-client → fs-mistrust → pwd-grp → derive-adhoc. No safe upgrade path.
+    "RUSTSEC-2024-0436",
+    # ring v0.16.20 — AES overflow panic (RUSTSEC-2025-0009) and unmaintained
+    # (RUSTSEC-2025-0010). Transitive dep through arti-client TLS stack.
+    # ring 0.16 is only used for TLS in the Tor client, not for wallet crypto.
+    "RUSTSEC-2025-0009",
+    "RUSTSEC-2025-0010",
+    # rsa v0.9.10 — Marvin Attack (RUSTSEC-2023-0071). Transitive dep through
+    # arti-client. Not used for any Bitcoin or wallet key operations.
+    "RUSTSEC-2023-0071",
+]
 
 [licenses]
 allow = [
     "MIT",
     "Apache-2.0",
+    "BSD-2-Clause",       # coarsetime (arti-client dep)
     "BSD-3-Clause",
     "ISC",
     "CC0-1.0",
@@ -13,11 +27,18 @@ allow = [
     "OpenSSL",            # aws-lc-sys (rustls dep)
     "MPL-2.0",            # webpki-roots (electrum-client dep)
     "Unlicense",          # noise-protocol (async-hwi dep)
+    "Zlib",               # slotmap (arti-client dep)
 ]
 
 [[licenses.clarify]]
 name = "async-hwi"
 expression = "MIT"        # no license field in manifest; upstream repo is MIT
+license-files = []
+
+[[licenses.clarify]]
+name = "ring"
+version = "=0.16.20"
+expression = "MIT AND ISC AND OpenSSL"   # ring custom license (not SPDX-compatible)
 license-files = []
 
 [bans]

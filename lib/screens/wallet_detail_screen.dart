@@ -602,12 +602,10 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     }
   }
 
-  static const _kDefaultMainnetElectrum = 'ssl://electrum.blockstream.info:50002';
-
   Widget _buildElectrumPrivacyWarning(BuildContext context, WalletDetailLoaded state) {
     if (state.walletInfo.network != APINetwork.bitcoin) return const SizedBox.shrink();
     final settings = context.watch<SettingsCubit>().state;
-    if (settings.electrumUrlForNetwork(APINetwork.bitcoin) != _kDefaultMainnetElectrum) {
+    if (settings.electrumUrlForNetwork(APINetwork.bitcoin) != AppSettings.kDefaultElectrumMainnet) {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
@@ -878,7 +876,7 @@ class _OverviewViewState extends State<_OverviewView> {
                         ),
                       ),
                       Icon(
-                        Icons.swap_horiz,
+                        Icons.compare_arrows,
                         size: 18,
                         color: Theme.of(context)
                             .colorScheme

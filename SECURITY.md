@@ -33,9 +33,9 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
-wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/SHA256SUMS
-wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/SHA256SUMS.asc
-wget https://github.com/frijolo/deadbolt/releases/download/v1.4.0/deadbolt-<platform>.<ext>
+wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/SHA256SUMS
+wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/SHA256SUMS.asc
+wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/deadbolt-<platform>.<ext>
 
 # 3. Verify GPG signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -152,6 +152,7 @@ We will credit you in the security advisory unless you prefer to remain anonymou
    - Supports hot signing keys (encrypted private keys stored locally) and BitBox02 hardware wallet signing
    - If you use hot signing keys, protect your device — the encrypted key material is stored in app-private storage. See [docs/WALLET_SECURITY.md](docs/WALLET_SECURITY.md) for the full security architecture
    - Wallet sync connects only to the Electrum server you configure — no data sent to third parties
+   - Optional built-in Tor routing (arti) hides your IP from the Electrum server; enable in Settings
    - Does NOT collect telemetry or analytics
 
 3. **Protect your descriptors and signing keys**
@@ -173,10 +174,10 @@ git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Verify latest signed tag
-git tag -v v1.4.0
+git tag -v v1.5.2
 
 # Checkout verified tag
-git checkout v1.4.0
+git checkout v1.5.2
 
 # Build
 flutter pub get
@@ -200,6 +201,7 @@ flutter build <platform> --release
 - ✅ **XPub key protection** - Wallets can be unlocked by any registered xpub from the descriptor; brute-force infeasible due to xpub entropy (~256 bits)
 - ✅ **Selectable Argon2id levels** - Standard / High / Extreme presets calibrated on real mobile hardware (300 ms / 1.6 s / 5.5 s)
 - ✅ **Encrypted backups** - `.deadbolt` backup format uses Argon2id + AES-256-GCM; self-contained and portable
+- ✅ **Tor routing** - Optional embedded Tor client (arti) routes all Electrum traffic through the Tor network, hiding the user's IP from the Electrum server
 
 ### Planned Improvements
 
@@ -254,5 +256,5 @@ Published security advisories will be available at:
 
 ---
 
-**Last updated**: 2026-03-22
+**Last updated**: 2026-03-27
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`
