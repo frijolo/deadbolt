@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.6.0]
 
 ### Security
 - **Stronger Argon2id defaults** — Default KDF parameters raised to OWASP 2023 minimum (m=65536, t=3). Adding a new xpub slot to an existing wallet now inherits the slot parameters of the first existing slot for consistency.
@@ -247,6 +247,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.6.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.0
 [v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
 [v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
