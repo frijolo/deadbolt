@@ -130,23 +130,39 @@ abstract class AppThemeManager {
     Color(0xFFC62828), // red 800
   ];
 
-  static ThemeData getLightThemeData() => ThemeData(
-    colorScheme: ColorScheme.fromSeed(
+  static TextButtonThemeData _textButtonTheme(ColorScheme cs) =>
+      TextButtonThemeData(
+        style: TextButton.styleFrom(
+          side: BorderSide(color: cs.outline.withAlpha(AppAlpha.border)),
+          shape: const StadiumBorder(),
+        ),
+      );
+
+  static ThemeData getLightThemeData() {
+    final cs = ColorScheme.fromSeed(
       seedColor: Colors.orange,
       brightness: Brightness.light,
-    ),
-    useMaterial3: true,
-    extensions: [const KeyColorExtension(keyColors: _lightKeyColors)],
-  );
+    );
+    return ThemeData(
+      colorScheme: cs,
+      useMaterial3: true,
+      extensions: [const KeyColorExtension(keyColors: _lightKeyColors)],
+      textButtonTheme: _textButtonTheme(cs),
+    );
+  }
 
-  static ThemeData getDarkThemeData() => ThemeData(
-    colorScheme: ColorScheme.fromSeed(
+  static ThemeData getDarkThemeData() {
+    final cs = ColorScheme.fromSeed(
       seedColor: Colors.orange,
       brightness: Brightness.dark,
-    ),
-    useMaterial3: true,
-    extensions: [const KeyColorExtension(keyColors: _darkKeyColors)],
-  );
+    );
+    return ThemeData(
+      colorScheme: cs,
+      useMaterial3: true,
+      extensions: [const KeyColorExtension(keyColors: _darkKeyColors)],
+      textButtonTheme: _textButtonTheme(cs),
+    );
+  }
 
   static ThemeMode getThemeMode(AppTheme theme) => switch (theme) {
     AppTheme.light  => ThemeMode.light,

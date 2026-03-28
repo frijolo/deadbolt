@@ -86,6 +86,7 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
   }
 
   void _saveLabel(String label) {
+    label = label.trim();
     if (label == (_address.label ?? '')) return;
     context.read<WalletDetailCubit>().setAddressLabel(
           _address.address,
@@ -100,107 +101,113 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
     final scheme = Theme.of(context).colorScheme;
 
     return AlertDialog(
+      scrollable: true,
       titlePadding: kDialogTitlePadding,
       title: dialogCloseTitle(l10n.walletReceiveButton,
           onClose: () => Navigator.of(context).pop(),
           tooltip: l10n.cancel),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.all(8),
-                child: QrImageView(
-                  data: _address.address,
-                  version: QrVersions.auto,
-                  errorCorrectionLevel: QrErrorCorrectLevel.M,
-                  backgroundColor: Colors.white,
-                ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: QrImageView(
+                data: _address.address,
+                version: QrVersions.auto,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+                backgroundColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
+          ),
+          const SizedBox(height: 6),
+
+          Center(
+            child: Text(
               l10n.addressIndex(_address.index),
               style: TextStyle(
                 fontSize: 12,
                 color: scheme.onSurface.withAlpha(AppAlpha.secondary),
               ),
             ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: ColoredGroupText(
-                  text: _address.address,
-                  fontSize: 12,
-                ),
+          ),
+          const SizedBox(height: 12),
+
+          TextField(
+            controller: _labelController,
+            decoration: InputDecoration(
+              labelText: l10n.addressLabelTitle,
+              hintText: l10n.addressLabelHint,
+              isDense: true,
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: _saveLabel,
+            onTapOutside: (_) => _saveLabel(_labelController.text),
+          ),
+          const SizedBox(height: 12),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: ColoredGroupText(
+                text: _address.address,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _labelController,
-              decoration: InputDecoration(
-                labelText: l10n.addressLabelTitle,
-                hintText: l10n.addressLabelHint,
-                isDense: true,
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: _saveLabel,
-              onTapOutside: (_) => _saveLabel(_labelController.text.trim()),
+          ),
+          const SizedBox(height: 12),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.copy, size: 16),
+              label: Text(l10n.copyToClipboard),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: _address.address));
+                showSuccessToast(context, l10n.copiedToClipboard);
+              },
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: Text(l10n.copyToClipboard),
-                    onPressed: () {
-                      Clipboard.setData(
-                          ClipboardData(text: _address.address));
-                      showSuccessToast(context, l10n.copiedToClipboard);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.memory, size: 16),
-                    label: const Text('Verify'),
-                    onPressed: () => _verifyOnDevice(context),
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(height: 8),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.memory, size: 16),
+              label: const Text('Verify'),
+              onPressed: () => _verifyOnDevice(context),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: _navigating
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.skip_next, size: 16),
+              label: Text(l10n.receiveNextAddress),
+              onPressed: _navigating ? null : _goToNext,
+            ),
+          ),
+        ],
       ),
-      actions: [
-        _navigating
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : TextButton.icon(
-                icon: const Icon(Icons.skip_next, size: 18),
-                label: Text(l10n.receiveNextAddress),
-                onPressed: _goToNext,
-              ),
-      ],
     );
   }
 

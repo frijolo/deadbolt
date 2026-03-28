@@ -19,6 +19,7 @@ import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
+import 'package:deadbolt/widgets/fee_presets_widget.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
@@ -1176,10 +1177,13 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
     // "+ Add recipient" button
     widgets.add(
-      TextButton.icon(
-        onPressed: _addRecipient,
-        icon: const Icon(Icons.add, size: 16),
-        label: Text(l10n.createTxAddRecipient),
+      Align(
+        alignment: Alignment.center,
+        child: TextButton.icon(
+          onPressed: _addRecipient,
+          icon: const Icon(Icons.add, size: 16),
+          label: Text(l10n.createTxAddRecipient),
+        ),
       ),
     );
 
@@ -1231,38 +1235,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     });
     final summary = _txSummary;
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
-  }
-
-  Widget _buildFeePresets() {
-    if (_feePresets == null) return const SizedBox.shrink();
-    final presets = _feePresets!;
-    final selected = _selectedPresetIndex != null ? {_selectedPresetIndex!} : <int>{};
-    return SegmentedButton<int>(
-      style: const ButtonStyle(visualDensity: VisualDensity.compact),
-      showSelectedIcon: false,
-      segments: [
-        ButtonSegment(
-          value: 0,
-          icon: const Icon(Icons.hourglass_bottom, size: 14),
-          label: Text('${presets.economy.toStringAsFixed(0)} sat/vB'),
-        ),
-        ButtonSegment(
-          value: 1,
-          icon: const Icon(Icons.schedule, size: 14),
-          label: Text('${presets.normal.toStringAsFixed(0)} sat/vB'),
-        ),
-        ButtonSegment(
-          value: 2,
-          icon: const Icon(Icons.bolt, size: 14),
-          label: Text('${presets.priority.toStringAsFixed(0)} sat/vB'),
-        ),
-      ],
-      selected: selected,
-      emptySelectionAllowed: true,
-      onSelectionChanged: (Set<int> s) {
-        if (s.isNotEmpty) _applyPreset(s.first);
-      },
-    );
   }
 
   // ─── Fee inline-edit field ────────────────────────────────────────────────
@@ -1576,8 +1548,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                               ? Text(
                                   l10n.coinSelectorNoCoinsSelected,
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-                                    fontStyle: FontStyle.italic,
+                                    color: theme.colorScheme.error,
                                   ),
                                 )
                               : Text(
@@ -1623,7 +1594,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
               ..._buildRecipientList(context, theme, summary),
               const SizedBox(height: 16),
 
-              _buildFeePresets(),
+              buildFeePresetsSegments(_feePresets, _selectedPresetIndex, _applyPreset),
               if (_feePresets != null) const SizedBox(height: 8),
 
               // ── Fee fields (inline edit — only one active at a time) ──

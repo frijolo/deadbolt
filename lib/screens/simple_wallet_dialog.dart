@@ -8,8 +8,9 @@ import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart'
-    show kKeyspecPattern, showKeyspecSheet;
+    show KeyspecResult, kKeyspecPattern, showKeyspecSheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -22,8 +23,8 @@ import 'package:deadbolt/widgets/protection_section.dart';
 
 enum _ScriptChoice { legacy, nestedSegwit, nativeSegwit, taproot }
 
-APIPubKey _parseKeyspec(String keyspec) {
-  final m = kKeyspecPattern.firstMatch(keyspec)!;
+APIPubKey _parseKeyspec(KeyspecResult result) {
+  final m = kKeyspecPattern.firstMatch(result.keyspec)!;
   return APIPubKey(
     mfp: m.group(1)!,
     derivationPath: m.group(2)!,
@@ -31,7 +32,8 @@ APIPubKey _parseKeyspec(String keyspec) {
   );
 }
 
-String _mfpOf(String keyspec) => kKeyspecPattern.firstMatch(keyspec)!.group(1)!;
+String _mfpOf(KeyspecResult result) =>
+    kKeyspecPattern.firstMatch(result.keyspec)!.group(1)!;
 
 APIWalletType _mapWalletType(_ScriptChoice script, bool isMultisig) {
   return switch (script) {
@@ -82,7 +84,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
 
   bool _isMultisig = false;
   _ScriptChoice _scriptChoice = _ScriptChoice.nativeSegwit;
-  final List<String> _keyspecs = []; // each: "[mfp/path]xpub"
+  final List<KeyspecResult> _keyspecs = []; // each: "[mfp/path]xpub" + optional seed
   int _threshold = 1;
 
   late APINetwork _selectedNetwork;
@@ -104,7 +106,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     super.dispose();
   }
 
-  Future<String?> _collectKeyspec({Set<String> excludeMfps = const {}}) =>
+  Future<KeyspecResult?> _collectKeyspec({Set<String> excludeMfps = const {}}) =>
       showKeyspecSheet(
         context,
         network: _selectedNetwork,
@@ -114,11 +116,11 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       );
 
   Future<void> _addKey() async {
-    final keyspec = await _collectKeyspec(
+    final result = await _collectKeyspec(
         excludeMfps: _keyspecs.map(_mfpOf).toSet());
-    if (keyspec != null && mounted) {
+    if (result != null && mounted) {
       setState(() {
-        _keyspecs.add(keyspec);
+        _keyspecs.add(result);
         if (_threshold > _keyspecs.length) _threshold = _keyspecs.length;
       });
     }
@@ -129,9 +131,9 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       for (final (i, k) in _keyspecs.indexed)
         if (i != index) _mfpOf(k),
     };
-    final keyspec = await _collectKeyspec(excludeMfps: excludeMfps);
-    if (keyspec != null && mounted) {
-      setState(() => _keyspecs[index] = keyspec);
+    final result = await _collectKeyspec(excludeMfps: excludeMfps);
+    if (result != null && mounted) {
+      setState(() => _keyspecs[index] = result);
     }
   }
 
@@ -208,6 +210,24 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         password: password,
         securityLevel: _securityLevel,
       );
+
+      // If any key was entered via seed, persist it as a hot key now.
+      final seedKeys = _keyspecs
+          .where((r) => r.mnemonic != null || r.xprv != null)
+          .toList();
+      if (seedKeys.isNotEmpty && mounted) {
+        final service = context.read<WalletService>();
+        final handle = await service.openWallet(walletPath, password: password);
+        for (final r in seedKeys) {
+          if (r.mnemonic != null) {
+            handle.addMnemonicKey(
+                mnemonic: r.mnemonic!, passphrase: r.passphrase);
+          } else if (r.xprv != null) {
+            handle.addXprvKey(xprv: r.xprv!);
+          }
+        }
+      }
+
       if (mounted) Navigator.pop(context, walletPath);
     } catch (e) {
       if (mounted) setState(() => _isCreating = false);
@@ -357,7 +377,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               TextButton.icon(
                 onPressed: _addKey,
                 icon: const Icon(Icons.add, size: 16),
-                label: Text(_isMultisig ? 'Add key' : 'Set key'),
+                label: const Text('Add key'),
                 style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero),
@@ -405,13 +425,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
             if (i > 0) const SizedBox(height: 4),
             _buildKeyTile(context, i, ext),
           ],
-        ] else ...[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _addKey,
-            icon: const Icon(Icons.key_outlined),
-            label: const Text('Add key'),
-          ),
         ],
       ],
     );
@@ -419,8 +432,8 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
 
   Widget _buildKeyTile(
       BuildContext context, int index, KeyColorExtension ext) {
-    final keyspec = _keyspecs[index];
-    final match = kKeyspecPattern.firstMatch(keyspec)!;
+    final result = _keyspecs[index];
+    final match = kKeyspecPattern.firstMatch(result.keyspec)!;
     final mfp = match.group(1)!;
     final xpub = match.group(3)!;
     final color = ext.keyColors[index % ext.keyColors.length];
@@ -440,15 +453,14 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               tooltip: 'Replace key',
               onPressed: () => _replaceKey(index),
             ),
-            if (_isMultisig || _keyspecs.length > 1)
-              IconButton(
-                icon: Icon(Icons.delete_outline,
-                    size: 18,
-                    color: Colors.red.withAlpha(AppAlpha.deleteAction)),
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Remove key',
-                onPressed: () => _removeKey(index),
-              ),
+            IconButton(
+              icon: Icon(Icons.delete_outline,
+                  size: 18,
+                  color: Colors.red.withAlpha(AppAlpha.deleteAction)),
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Remove key',
+              onPressed: () => _removeKey(index),
+            ),
           ],
         ),
         onTap: () => _replaceKey(index),

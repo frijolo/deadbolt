@@ -123,6 +123,33 @@ pub fn split_multipath_descriptor(desc: &str) -> (String, String) {
     )
 }
 
+/// Extract the account derivation path for a given MFP from a descriptor string.
+///
+/// Scans the descriptor for `[mfp/path]xpub...` entries and returns the path
+/// component (e.g. `"84'/0'/0'"`) for the first entry that matches `mfp`.
+///
+/// Used by `derive_address_wif` to reconstruct the full derivation path
+/// `m/{account_path}/{chain}/{index}` needed to derive a leaf private key.
+pub fn extract_account_path_for_mfp(descriptor: &str, mfp: &str) -> Result<String> {
+    use std::sync::OnceLock;
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)")
+            .expect("hard-coded key expression regex is valid")
+    });
+
+    let mfp_lower = mfp.to_lowercase();
+    for cap in re.captures_iter(descriptor) {
+        if cap[1].to_lowercase() == mfp_lower {
+            return Ok(cap[2].to_string());
+        }
+    }
+    Err(anyhow::anyhow!(
+        "No key entry for MFP {} found in descriptor",
+        mfp
+    ))
+}
+
 /// Derive a root xprv from a stored seed entry's fields.
 ///
 /// Handles both seed types in one place so callers don't repeat the

@@ -4,6 +4,24 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [v1.6.2]
+
+### New Features
+- **WIF key export** — Single-sig hot wallets can now export the private key of any address in WIF format. A security disclaimer is shown before revealing the key, which is then displayed with QR code, copy, and file-save options. Accessible via "Export private key (WIF)" in the address detail sheet.
+- **WIF key sweep** — Funds held by any external WIF private key can be swept into the current wallet in one flow. The wizard resolves the key to P2WPKH, P2PKH, and P2SH-P2WPKH addresses, queries Electrum for UTXOs, and builds, signs, and broadcasts the sweep transaction with live fee-rate presets. Accessible via "Sweep WIF key" in the wallet import menu.
+
+### Improvements
+- **Fee presets extracted to reusable widget** — The economy / standard / priority fee preset selector is now a standalone `FeePresetsWidget` shared across the send screen and the WIF sweep screen.
+- **Address detail layout** — The "Verify on device" and "Open in explorer" buttons in the address detail dialog are now stacked vertically for better readability on small screens.
+- **`showTextExportSheet` extensible actions** — The text export bottom sheet now accepts optional `extraItems` to append custom actions below the built-in export options (used by the WIF export flow).
+- **`showKeyspecSheet` returns seed material** — The key input sheet now returns a `KeyspecResult` record that includes the keyspec string and, when the user entered a seed, the mnemonic/passphrase/xprv — enabling the guided wallet wizard to store the hot key in a single step.
+- **TextButton global style** — All `TextButton` instances now carry a subtle outline border matching the theme's outline colour, making them easier to distinguish from plain text on all screens.
+- **Receive dialog scrollable** — The receive dialog is now marked `scrollable: true` to prevent overflow on small screens; address label is trimmed on save.
+- **No-coins-selected error styling** — The "No coins selected" hint in the send screen is now shown in the error colour instead of secondary italic text.
+- **Tor Electrum integration test** — Added `rust/tests/tor_electrum.rs` (`#[ignore]`), a manual integration test that bootstraps Tor and pings a user-supplied Electrum onion service.
+
+---
+
 ## [v1.6.1]
 
 ### Improvements

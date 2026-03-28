@@ -1195,6 +1195,18 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
+  /// Derive the WIF-encoded private key for a specific address in this wallet.
+  Future<String?> revealAddressWif(String address, String mfp) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      return current.walletHandle.deriveAddressWif(address: address, mfp: mfp);
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.revealAddressWif()', e, st);
+      return null;
+    }
+  }
+
   /// Sign a PSBT with the hot key identified by [mfp]. Returns the updated [APIPsbtInfo] or null on error.
   Future<APIPsbtInfo?> signPsbtWithKey(int psbtId, String mfp) async {
     final current = state;

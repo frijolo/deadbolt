@@ -11,6 +11,7 @@ import 'api/hw_wallet.dart';
 import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
+import 'api/wif_sweep.dart';
 import 'core/spend_path.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -211,6 +212,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType dco_decode_api_wallet_type(dynamic raw);
 
   @protected
+  APIWifAddress dco_decode_api_wif_address(dynamic raw);
+
+  @protected
+  APIWifUtxo dco_decode_api_wif_utxo(dynamic raw);
+
+  @protected
   APIXpubSlot dco_decode_api_xpub_slot(dynamic raw);
 
   @protected
@@ -317,6 +324,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIWalletInfo> dco_decode_list_api_wallet_info(dynamic raw);
+
+  @protected
+  List<APIWifAddress> dco_decode_list_api_wif_address(dynamic raw);
+
+  @protected
+  List<APIWifUtxo> dco_decode_list_api_wif_utxo(dynamic raw);
 
   @protected
   List<APIXpubSlot> dco_decode_list_api_xpub_slot(dynamic raw);
@@ -573,6 +586,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType sse_decode_api_wallet_type(SseDeserializer deserializer);
 
   @protected
+  APIWifAddress sse_decode_api_wif_address(SseDeserializer deserializer);
+
+  @protected
+  APIWifUtxo sse_decode_api_wif_utxo(SseDeserializer deserializer);
+
+  @protected
   APIXpubSlot sse_decode_api_xpub_slot(SseDeserializer deserializer);
 
   @protected
@@ -715,6 +734,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIWalletInfo> sse_decode_list_api_wallet_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<APIWifAddress> sse_decode_list_api_wif_address(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIWifUtxo> sse_decode_list_api_wif_utxo(SseDeserializer deserializer);
 
   @protected
   List<APIXpubSlot> sse_decode_list_api_xpub_slot(SseDeserializer deserializer);
@@ -1026,6 +1053,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_wallet_type(APIWalletType self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_wif_address(APIWifAddress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_wif_utxo(APIWifUtxo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_xpub_slot(APIXpubSlot self, SseSerializer serializer);
 
   @protected
@@ -1203,6 +1236,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_wallet_info(
     List<APIWalletInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_wif_address(
+    List<APIWifAddress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_wif_utxo(
+    List<APIWifUtxo> self,
     SseSerializer serializer,
   );
 

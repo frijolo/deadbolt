@@ -75,8 +75,8 @@ fn create_electrum_client(url: &str) -> Result<BdkElectrumClient<Client>> {
     Ok(BdkElectrumClient::new(create_raw_electrum_client(url)?))
 }
 
-/// Create a raw Client for callers that need ElectrumApi directly (queries.rs).
-fn create_raw_electrum_client(url: &str) -> Result<Client> {
+/// Create a raw Client for callers that need ElectrumApi directly (queries.rs, wif_sweep).
+pub(crate) fn create_raw_electrum_client(url: &str) -> Result<Client> {
     if crate::core::tor_manager::is_tor_enabled() {
         let socks_addr = crate::core::tor_manager::tor_socks_addr()
             .ok_or_else(|| anyhow::anyhow!("Tor is enabled but not connected yet"))?;
@@ -963,6 +963,82 @@ impl APIWallet {
     pub fn delete_hot_key(&self, mfp: String) -> Result<()> {
         let core = self.lock_wallet()?;
         delete_seed_entry(&core.conn, &mfp)
+    }
+
+    /// Derive the WIF-encoded private key for a specific address in this wallet.
+    ///
+    /// Looks up the address in the wallet's SPK index to find its keychain and
+    /// derivation index, then combines that with the account path extracted from
+    /// the wallet descriptor and the stored seed to produce the leaf private key,
+    /// serialized in Wallet Import Format (WIF).
+    ///
+    /// Only valid for single-sig hot wallets. Call only after showing an
+    /// appropriate security disclaimer — WIF exposes a spendable private key.
+    #[frb(sync)]
+    pub fn derive_address_wif(&self, address: String, mfp: String) -> Result<String> {
+        use crate::core::seed::{extract_account_path_for_mfp, seed_entry_to_root_xprv};
+        use bdk_wallet::bitcoin::bip32::DerivationPath;
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::bitcoin::Address;
+        use bdk_wallet::KeychainKind;
+        use std::str::FromStr;
+
+        let core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+        let secp = Secp256k1::new();
+
+        // Resolve address string → script_pubkey.
+        let addr = Address::from_str(&address)
+            .map_err(|e| anyhow::anyhow!("Invalid address '{}': {}", address, e))?
+            .require_network(network)
+            .map_err(|_| anyhow::anyhow!("Address '{}' does not match wallet network", address))?;
+        let spk = addr.script_pubkey();
+
+        // Find (keychain, derivation_index) via the wallet's SPK index.
+        let (keychain, addr_index) = core
+            .wallet
+            .spk_index()
+            .index_of_spk(spk)
+            .ok_or_else(|| anyhow::anyhow!("Address '{}' not found in this wallet", address))?;
+
+        // Load the seed entry for this MFP.
+        let seeds = list_seed_entries(&core.conn)?;
+        let seed = seeds
+            .iter()
+            .find(|s| s.mfp == mfp)
+            .ok_or_else(|| anyhow::anyhow!("No signing key with MFP {} found", mfp))?;
+
+        let root_xprv = seed_entry_to_root_xprv(
+            &seed.seed_type,
+            seed.mnemonic.as_deref(),
+            &seed.passphrase,
+            seed.xprv.as_deref(),
+            network,
+        )?;
+
+        // Extract the account path (e.g. "84'/0'/0'") from the wallet descriptor.
+        let account_path = extract_account_path_for_mfp(&info.descriptor, &mfp)?;
+        let chain_index = match keychain {
+            KeychainKind::External => 0u32,
+            KeychainKind::Internal => 1u32,
+        };
+        let full_path_str = format!("m/{}/{}/{}", account_path, chain_index, addr_index);
+        let full_path = DerivationPath::from_str(&full_path_str)
+            .map_err(|e| anyhow::anyhow!("Invalid derivation path '{}': {}", full_path_str, e))?;
+
+        // Derive the leaf child key and serialize to WIF.
+        let child_xprv = root_xprv.derive_priv(&secp, &full_path).map_err(|e| {
+            anyhow::anyhow!("Derivation failed for path '{}': {}", full_path_str, e)
+        })?;
+
+        let private_key = bdk_wallet::bitcoin::PrivateKey {
+            compressed: true,
+            network: network.into(),
+            inner: child_xprv.private_key,
+        };
+        Ok(private_key.to_wif())
     }
 
     /// Reveal the stored seed phrase or xprv for a hot signing key.

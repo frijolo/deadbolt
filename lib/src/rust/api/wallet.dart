@@ -418,6 +418,17 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Delete a saved PSBT by id.
   void deletePsbt({required PlatformInt64 id});
 
+  /// Derive the WIF-encoded private key for a specific address in this wallet.
+  ///
+  /// Looks up the address in the wallet's SPK index to find its keychain and
+  /// derivation index, then combines that with the account path extracted from
+  /// the wallet descriptor and the stored seed to produce the leaf private key,
+  /// serialized in Wallet Import Format (WIF).
+  ///
+  /// Only valid for single-sig hot wallets. Call only after showing an
+  /// appropriate security disclaimer — WIF exposes a spendable private key.
+  String deriveAddressWif({required String address, required String mfp});
+
   /// Export all explicit (non-auto) labels to BIP-329 JSONL format.
   List<String> exportBip329();
 

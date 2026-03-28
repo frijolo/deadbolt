@@ -15,6 +15,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
+import 'package:deadbolt/screens/wallet_detail/wif_reveal_dialog.dart' show showWifExportFlow;
 import 'package:deadbolt/widgets/outpoint_text.dart';
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
@@ -106,6 +107,10 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
     final descriptor = walletState is WalletDetailLoaded
         ? walletState.walletInfo.descriptor
         : '';
+    // WIF export is only meaningful for single-sig hot wallets.
+    final hotKeys =
+        walletState is WalletDetailLoaded ? walletState.hotKeys : const [];
+    final singleHotMfp = hotKeys.length == 1 ? hotKeys.first.mfp : null;
 
     return AlertDialog(
       titlePadding: kDialogTitlePadding,
@@ -178,6 +183,18 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                         text: address.address,
                         fileName: 'address',
                         copiedMessage: l10n.copiedToClipboard,
+                        extraItems: [
+                          if (singleHotMfp != null)
+                            (
+                              icon: Icons.key_outlined,
+                              label: 'Export private key (WIF)',
+                              onTap: () => showWifExportFlow(
+                                context,
+                                address: address.address,
+                                mfp: singleHotMfp,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -258,33 +275,30 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => showHwVerifyAddressSheet(
-                          context,
-                          descriptor: descriptor,
-                          network: network,
-                          keychain: keychain,
-                          index: address.index,
-                          address: address.address,
-                        ),
-                        icon: const Icon(Icons.memory, size: 16),
-                        label: const Text('Verify on device'),
+                    OutlinedButton.icon(
+                      onPressed: () => showHwVerifyAddressSheet(
+                        context,
+                        descriptor: descriptor,
+                        network: network,
+                        keychain: keychain,
+                        index: address.index,
+                        address: address.address,
                       ),
+                      icon: const Icon(Icons.memory, size: 16),
+                      label: const Text('Verify on device'),
                     ),
                     if (explorerUrl.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => launchUrl(
-                            Uri.parse(explorerUrl),
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: Text(l10n.openInExplorer),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(explorerUrl),
+                          mode: LaunchMode.externalApplication,
                         ),
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: Text(l10n.openInExplorer),
                       ),
                     ],
                   ],
@@ -594,7 +608,8 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
               if (explorerUrl.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () => launchUrl(
                         Uri.parse(explorerUrl),
@@ -880,7 +895,8 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
               if (explorerUrl.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () => launchUrl(
                         Uri.parse(explorerUrl),

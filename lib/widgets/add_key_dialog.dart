@@ -20,6 +20,16 @@ import 'package:deadbolt/widgets/text_import_sheet.dart';
 /// Pattern for parsing keyspec format: [mfp/path]xpub
 final kKeyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
 
+/// Result returned by [showKeyspecSheet].
+/// [keyspec] is always populated; [mnemonic]/[passphrase]/[xprv] are set only
+/// when the user entered the key via seed — allowing callers to store a hot key.
+typedef KeyspecResult = ({
+  String keyspec,
+  String? mnemonic,
+  String? passphrase,
+  String? xprv,
+});
+
 /// Returns the standard BIP derivation path for the given wallet type and network.
 ///
 /// For P2TR, [existingKeyCount] distinguishes single-sig (0 keys → m/86')
@@ -199,16 +209,17 @@ Future<bool> showAddPrivateKeySheet(
 /// Opens the key input sheet to collect a single keyspec string.
 ///
 /// Supports all input methods (manual xpub, mnemonic, xprv, import, hardware
-/// wallet). Does NOT store anything — just returns "[mfp/path]xpub" or null if
-/// the user cancelled.
-Future<String?> showKeyspecSheet(
+/// wallet). Does NOT store anything — returns a [KeyspecResult] with the
+/// keyspec and, if the user entered a seed, the mnemonic/passphrase/xprv so
+/// callers can store a hot key. Returns null if the user cancelled.
+Future<KeyspecResult?> showKeyspecSheet(
   BuildContext context, {
   required APINetwork network,
   required APIWalletType walletType,
   int existingKeyCount = 0,
   Set<String> existingMfps = const {},
 }) {
-  return showModalBottomSheet<String>(
+  return showModalBottomSheet<KeyspecResult>(
     context: context,
     isScrollControlled: true,
     builder: (ctx) => _AddKeySheet(
@@ -659,7 +670,12 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     );
 
     if (widget.keyspecMode) {
-      Navigator.pop(context, '[$mfp/$path]$xpub');
+      Navigator.pop<KeyspecResult>(context, (
+        keyspec: '[$mfp/$path]$xpub',
+        mnemonic: seedMnemonic,
+        passphrase: seedPassphrase,
+        xprv: seedXprv,
+      ));
       return;
     }
 
@@ -815,38 +831,39 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               ),
               const SizedBox(height: 16),
             ],
-            SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_tab == _AddKeyTab.separateFields)
-                    _buildSeparateFields(l10n),
-                  if (_tab == _AddKeyTab.seed) _buildSeedForm(),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_tab == _AddKeyTab.separateFields)
+                      _buildSeparateFields(l10n),
+                    if (_tab == _AddKeyTab.seed) _buildSeedForm(),
+                  ],
+                ),
+              ),
+            ),
 
-                  if (_errorText != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        _errorText!,
-                        style:
-                            const TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    ),
+            if (_errorText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
 
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _submit,
-                      child: Text(
-                        widget.walletMode || _isEditMode
-                            ? 'Add private key'
-                            : l10n.add,
-                      ),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _submit,
+                child: Text(
+                  widget.walletMode || _isEditMode
+                      ? 'Add private key'
+                      : l10n.add,
+                ),
               ),
             ),
           ],

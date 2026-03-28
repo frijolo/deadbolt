@@ -46,6 +46,7 @@ import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeyShee
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 import 'package:deadbolt/screens/wallet_detail/receive_dialog.dart';
+import 'package:deadbolt/screens/sweep_wif_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/transactions_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/addresses_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
@@ -542,14 +543,22 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           title: Text(l10n.importPsbtOption),
           onTap: () => Navigator.of(ctx).pop(_ImportChoice.psbt),
         ),
+        ListTile(
+          leading: const Icon(Icons.vpn_key_outlined),
+          title: const Text('Sweep WIF key'),
+          onTap: () => Navigator.of(ctx).pop(_ImportChoice.sweepWif),
+        ),
         const SizedBox(height: 8),
       ],
     ));
     if (choice == null || !context.mounted) return;
-    if (choice == _ImportChoice.labels) {
-      _importLabels(context, state);
-    } else {
-      _importPsbt(context);
+    switch (choice) {
+      case _ImportChoice.labels:
+        _importLabels(context, state);
+      case _ImportChoice.psbt:
+        _importPsbt(context);
+      case _ImportChoice.sweepWif:
+        _openSweepWif(context, state);
     }
   }
 
@@ -571,6 +580,20 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     } catch (e) {
       if (context.mounted) showErrorToastException(context, e);
     }
+  }
+
+  void _openSweepWif(BuildContext context, WalletDetailLoaded state) {
+    final cubit = context.read<WalletDetailCubit>();
+    final settings = context.read<SettingsCubit>().state;
+    final electrumUrl = settings.electrumUrlForNetwork(state.walletInfo.network);
+    SweepWifScreen.push(
+      context,
+      network: state.walletInfo.network,
+      currentWalletPath: state.walletInfo.walletPath,
+      getNextAddress: () => cubit.getNextReceiveAddress(),
+      getAddressForWallet: (path) => cubit.getNextReceiveAddressFor(path),
+      onSwept: () => cubit.sync(electrumUrl),
+    );
   }
 
   Widget _buildElectrumPrivacyWarning(BuildContext context, WalletDetailLoaded state) {
@@ -1061,7 +1084,7 @@ enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels
 
 enum _ExportChoice { labels, descriptor, wallet }
 
-enum _ImportChoice { labels, psbt }
+enum _ImportChoice { labels, psbt, sweepWif }
 
 // ─────────────────────────────────────────────────────────────
 // Descriptor view (tab 4)

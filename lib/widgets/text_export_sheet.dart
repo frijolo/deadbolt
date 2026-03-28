@@ -61,8 +61,14 @@ const int _kSpeedDefault = 1; // Mid
 // Public API
 // ---------------------------------------------------------------------------
 
+/// An extra action item for [showTextExportSheet].
+typedef ExportSheetAction = ({IconData icon, String label, VoidCallback onTap});
+
 /// Shows a bottom sheet with four export options for any text content:
 /// copy to clipboard, QR, save to Downloads, share.
+///
+/// Pass [extraItems] to append additional actions at the bottom of the sheet.
+/// Each item's [onTap] is called after the sheet is automatically dismissed.
 void showTextExportSheet(
   BuildContext context, {
   required String text,
@@ -70,6 +76,7 @@ void showTextExportSheet(
   required String copiedMessage,
   String fileExtension = 'txt',
   bool bigText = false,
+  List<ExportSheetAction> extraItems = const [],
 }) {
   final l10n = context.l10n;
   showSheet<void>(context, (ctx) => Column(
@@ -121,6 +128,15 @@ void showTextExportSheet(
               _showAsTextDialog(context, text);
             },
           ),
+          for (final item in extraItems)
+            ListTile(
+              leading: Icon(item.icon),
+              title: Text(item.label),
+              onTap: () {
+                Navigator.pop(ctx);
+                item.onTap();
+              },
+            ),
           const SizedBox(height: 8),
         ],
       ),
