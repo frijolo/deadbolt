@@ -1441,6 +1441,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rbfOriginalFee => 'Original fee';
 
   @override
+  String get rbfDescendants => 'Descendants';
+
+  @override
   String get rbfMinFee => 'Minimum fee';
 
   @override
@@ -1459,6 +1462,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String rbfAbsFeeTooLow(int fee) {
     return 'Total fee too low for RBF — minimum is $fee sats';
   }
+
+  @override
+  String get cpfpBannerTitle => 'CPFP acceleration';
+
+  @override
+  String get cpfpParentFee => 'Ancestor fees';
+
+  @override
+  String get cpfpAncestorCount => 'Ancestor txs';
+
+  @override
+  String get cpfpEffectiveRate => 'Package fee rate';
+
+  @override
+  String get cpfpAccelerate => 'Accelerate';
 
   @override
   String get settingsSectionAppearance => 'Appearance';

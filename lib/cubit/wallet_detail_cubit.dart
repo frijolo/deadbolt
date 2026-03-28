@@ -824,6 +824,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
+  /// Returns fee info for the full unconfirmed ancestor package. Null on failure.
+  Future<APICpfpInfo?> getCpfpInfo(List<String> parentTxids) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) return null;
+    try {
+      return await current.walletHandle.getCpfpInfo(parentTxids: parentTxids);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns the next unused external (receive) address that is not already
   /// reserved as the recipient of a pending unsigned PSBT.
   ///

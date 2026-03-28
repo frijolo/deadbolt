@@ -609,14 +609,17 @@ impl APIWallet {
     /// Fetches parent txs from Electrum when fee cannot be determined from the wallet graph.
     pub async fn get_rbf_info(&self, spending_txid: String) -> Result<APIRbfInfo> {
         use bdk_wallet::bitcoin::Txid;
+        use bdk_wallet::chain::ChainPosition;
         use std::collections::{HashMap, HashSet};
+
+        // Parse txid before acquiring any lock.
+        let txid: Txid = spending_txid
+            .parse()
+            .map_err(|e| anyhow::anyhow!("invalid txid: {}", e))?;
 
         // Phase 1: retrieve the tx + attempt fee calculation (brief lock).
         let (tx, fee_opt, electrum_url) = {
             let core = self.lock_wallet()?;
-            let txid: Txid = spending_txid
-                .parse()
-                .map_err(|e| anyhow::anyhow!("invalid txid: {}", e))?;
             let tx = core
                 .wallet
                 .tx_graph()
@@ -705,15 +708,251 @@ impl APIWallet {
         } else {
             1.0
         };
+
+        // Phase 3 (brief lock): BFS over unconfirmed descendants.
+        //
+        // BIP-125 Rule 4 requires the replacement to pay at least:
+        //   sum(fees of ALL evicted txs) + relay_fee(new_vsize)
+        // "All evicted txs" = original tx + every unconfirmed descendant.
+        let (desc_count, desc_fee_opt, desc_vsize) = {
+            let core = self.lock_wallet()?;
+            let wallet = &core.wallet;
+
+            let unconfirmed_txids: HashSet<Txid> = wallet
+                .transactions()
+                .filter(|t| matches!(t.chain_position, ChainPosition::Unconfirmed { .. }))
+                .map(|t| t.tx_node.txid)
+                .collect();
+
+            // walk_descendants does a BFS starting from txid.
+            // Returning None from the closure stops that branch (confirmed tx or not in
+            // mempool → its own children are not explored further either).
+            let desc_txids: Vec<Txid> = wallet
+                .tx_graph()
+                .walk_descendants(txid, |_depth, d| {
+                    if unconfirmed_txids.contains(&d) {
+                        Some(d)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            let mut count = 0u32;
+            let mut fee_total = 0u64;
+            let mut all_known = true;
+            let mut vsize_total = 0u32;
+
+            for d_txid in desc_txids {
+                if let Some(d_arc) = wallet.tx_graph().get_tx(d_txid) {
+                    let d_tx = d_arc.as_ref();
+                    count += 1;
+                    vsize_total += d_tx.weight().to_vbytes_ceil() as u32;
+                    match wallet.tx_graph().calculate_fee(d_tx).ok() {
+                        Some(f) => fee_total += f.to_sat(),
+                        None => all_known = false,
+                    }
+                }
+            }
+
+            (
+                count,
+                if all_known { Some(fee_total) } else { None },
+                vsize_total,
+            )
+        };
+
+        // Total conflict fee = orig + descendants (if all known; otherwise orig is a lower bound).
+        let total_conflict_fee = fee_sat + desc_fee_opt.unwrap_or(0);
+        let total_conflict_vsize = vsize + desc_vsize;
+
+        // ImprovesFeerateDiagram: replacement must exceed the *package* rate of the whole
+        // conflict cluster. Falls back to orig rate when descendant fees are unknown.
+        let package_rate = if total_conflict_vsize > 0 && desc_fee_opt.is_some() {
+            total_conflict_fee as f64 / total_conflict_vsize as f64
+        } else {
+            fee_rate
+        };
+
         Ok(APIRbfInfo {
             orig_fee_sat: fee_sat,
             orig_vsize: vsize,
             orig_fee_rate_sat_per_vb: fee_rate,
-            // BIP-125 Rule 4 approx (orig_vsize proxy for new_vsize; Dart refines).
-            min_fee_sat: fee_sat + vsize as u64,
-            // ImprovesFeerateDiagram constraint: new_rate must strictly exceed orig_rate.
-            // Fixed — independent of new tx size. Dart validates with strict >.
-            min_fee_rate_sat_per_vb: fee_rate,
+            descendant_count: desc_count,
+            descendant_fee_sat: desc_fee_opt,
+            descendant_vsize: desc_vsize,
+            // Rule 4: total conflict fees + relay fee for new tx bandwidth.
+            // orig_vsize used as proxy for new_vsize (Dart refines with actual vsize).
+            min_fee_sat: total_conflict_fee + vsize as u64,
+            // Package rate: the ImprovesFeerateDiagram constraint for the whole cluster.
+            min_fee_rate_sat_per_vb: package_rate,
+        })
+    }
+
+    /// Return the aggregate fee info for the full unconfirmed ancestor package of the given
+    /// parent txids. Performs a BFS through the tx graph to collect all unconfirmed ancestors
+    /// transitively (parents, grandparents, …), summing their fees and vsizes to compute the
+    /// effective package fee rate that miners use when evaluating CPFP.
+    ///
+    /// `parent_txids` should be the txids of the unconfirmed UTXOs being spent as child inputs.
+    pub async fn get_cpfp_info(&self, parent_txids: Vec<String>) -> Result<APICpfpInfo> {
+        use bdk_wallet::bitcoin::Txid;
+        use bdk_wallet::chain::ChainPosition;
+        use std::collections::{HashMap, HashSet, VecDeque};
+
+        // Phase 1 (brief lock): BFS through tx_graph to collect all unconfirmed ancestor txs.
+        // Also collect outpoints whose parent txout is missing from the graph → need Electrum.
+        let (ancestor_txs, missing_txids, electrum_url) = {
+            let core = self.lock_wallet()?;
+            let wallet = &core.wallet;
+
+            // Index unconfirmed txids for O(1) lookup.
+            let unconfirmed_txids: HashSet<Txid> = wallet
+                .transactions()
+                .filter(|t| matches!(t.chain_position, ChainPosition::Unconfirmed { .. }))
+                .map(|t| t.tx_node.txid)
+                .collect();
+
+            let mut visited: HashSet<Txid> = HashSet::new();
+            let mut queue: VecDeque<Txid> = VecDeque::new();
+            let mut ancestor_txs: Vec<bdk_wallet::bitcoin::Transaction> = Vec::new();
+            let mut missing_outpoints: HashSet<Txid> = HashSet::new();
+
+            for txid_str in &parent_txids {
+                let txid: Txid = txid_str
+                    .parse()
+                    .map_err(|e| anyhow::anyhow!("invalid txid: {}", e))?;
+                if visited.insert(txid) {
+                    queue.push_back(txid);
+                }
+            }
+
+            while let Some(txid) = queue.pop_front() {
+                // Only include unconfirmed txs in the ancestor set.
+                if !unconfirmed_txids.contains(&txid) {
+                    continue;
+                }
+                let tx = match wallet.tx_graph().get_tx(txid) {
+                    Some(arc) => arc.as_ref().clone(),
+                    None => continue,
+                };
+                ancestor_txs.push(tx.clone());
+
+                for inp in &tx.input {
+                    if inp.previous_output.is_null() {
+                        continue;
+                    }
+                    // Enqueue ancestor if not yet visited.
+                    if visited.insert(inp.previous_output.txid) {
+                        queue.push_back(inp.previous_output.txid);
+                    }
+                    // Track inputs whose txout is missing (needed for fee calculation).
+                    if wallet.tx_graph().get_txout(inp.previous_output).is_none() {
+                        missing_outpoints.insert(inp.previous_output.txid);
+                    }
+                }
+            }
+
+            let url = self
+                .electrum_url
+                .lock()
+                .map(|u| (*u).clone())
+                .unwrap_or_default();
+
+            (
+                ancestor_txs,
+                missing_outpoints.into_iter().collect::<Vec<_>>(),
+                url,
+            )
+        };
+
+        if ancestor_txs.is_empty() {
+            return Err(anyhow::anyhow!("no unconfirmed ancestor txs found"));
+        }
+
+        // Phase 2: fetch missing parent txs from Electrum (no lock held).
+        let mut fetched_txs: HashMap<Txid, bdk_wallet::bitcoin::Transaction> = HashMap::new();
+        if !missing_txids.is_empty() && !electrum_url.is_empty() {
+            use bdk_electrum::electrum_client::ElectrumApi;
+            if let Ok(client) = create_raw_electrum_client(&electrum_url) {
+                for id in &missing_txids {
+                    if let Ok(t) = client.transaction_get(id) {
+                        fetched_txs.insert(*id, t);
+                    }
+                }
+            }
+        }
+
+        // Phase 3 (brief lock): aggregate fees and vsizes across all ancestor txs.
+        let (total_fee_opt, total_vsize) = {
+            let core = self.lock_wallet()?;
+            let mut total_fee: u64 = 0;
+            let mut all_fees_known = true;
+            let mut total_vsize: u32 = 0;
+
+            for tx in &ancestor_txs {
+                total_vsize += tx.weight().to_vbytes_ceil() as u32;
+
+                // Try BDK's graph-based fee calculation first.
+                if let Ok(fee) = core.wallet.tx_graph().calculate_fee(tx) {
+                    total_fee += fee.to_sat();
+                    continue;
+                }
+
+                // Fallback: sum(inputs) – sum(outputs) using graph + fetched txs.
+                let mut input_sum = 0u64;
+                let mut this_known = true;
+                for inp in &tx.input {
+                    if inp.previous_output.is_null() {
+                        continue;
+                    }
+                    let val = core
+                        .wallet
+                        .tx_graph()
+                        .get_txout(inp.previous_output)
+                        .map(|o| o.value.to_sat())
+                        .or_else(|| {
+                            fetched_txs
+                                .get(&inp.previous_output.txid)
+                                .and_then(|t| t.output.get(inp.previous_output.vout as usize))
+                                .map(|o| o.value.to_sat())
+                        });
+                    match val {
+                        Some(v) => input_sum += v,
+                        None => {
+                            this_known = false;
+                            break;
+                        }
+                    }
+                }
+                if this_known {
+                    let output_sum: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
+                    total_fee += input_sum.saturating_sub(output_sum);
+                } else {
+                    all_fees_known = false;
+                }
+            }
+
+            (
+                if all_fees_known {
+                    Some(total_fee)
+                } else {
+                    None
+                },
+                total_vsize,
+            )
+        };
+
+        let fee_rate = match total_fee_opt {
+            Some(fee) if total_vsize > 0 => fee as f64 / total_vsize as f64,
+            _ => 0.0,
+        };
+
+        Ok(APICpfpInfo {
+            ancestor_fee_sat: total_fee_opt,
+            ancestor_vsize: total_vsize,
+            ancestor_fee_rate_sat_per_vb: fee_rate,
+            ancestor_count: ancestor_txs.len() as u32,
         })
     }
 
@@ -1075,5 +1314,326 @@ impl APIWallet {
     pub fn clear_fiat_prices(&self) -> Result<()> {
         let core = self.lock_wallet()?;
         clear_fiat_prices_db(&core.conn)
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Unit tests for get_cpfp_info
+// ───────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bdk_wallet::bitcoin::{
+        absolute, transaction, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut,
+        Witness,
+    };
+    use tempfile::tempdir;
+
+    // ── Re-use the same descriptor / key from the mod.rs tests ──────────────
+    const MAINNET_DESC: &str = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*,[c61af686/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*))#0wct5td0";
+    const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+
+    fn make_wallet(dir: &tempfile::TempDir) -> APIWallet {
+        let wallets_dir = dir.path().to_string_lossy().to_string();
+        let info = create_wallet(
+            wallets_dir,
+            "CPFP Test Wallet".to_string(),
+            MAINNET_DESC.to_string(),
+            APINetwork::Bitcoin,
+            KEY_HEX.to_string(),
+            APIProtectionType::DeviceKey,
+            None,
+            APISecurityLevel::Standard,
+        )
+        .expect("create_wallet failed");
+        open_wallet(info.wallet_path, KEY_HEX.to_string(), None).expect("open_wallet failed")
+    }
+
+    /// Return the scriptPubKey for external address at index `idx`.
+    fn wallet_spk(wallet: &APIWallet, idx: u32) -> ScriptBuf {
+        let core = wallet.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(bdk_wallet::KeychainKind::External, idx)
+            .address
+            .script_pubkey()
+    }
+
+    /// A P2WPKH scriptPubKey that is NOT in the wallet's SPK set.
+    /// Outputs to this script are invisible to `wallet.transactions()` while
+    /// still being available in `tx_graph.get_txout()` for fee calculation.
+    fn external_spk() -> ScriptBuf {
+        // OP_0 <20 bytes of 0xde> — valid P2WPKH pattern, not in our wallet's SPK set.
+        let mut bytes = vec![0x00u8, 0x14];
+        bytes.extend_from_slice(&[0xde; 20]);
+        ScriptBuf::from_bytes(bytes)
+    }
+
+    /// Build a genesis funding tx: sends `value_sat` to `spk`, no real inputs.
+    /// Insert via `inject_graph_tx` (with `external_spk()` as the spk) so the
+    /// tx is only present in the graph for txout lookups, not in `wallet.transactions()`.
+    fn genesis_tx(spk: ScriptBuf, value_sat: u64) -> Transaction {
+        Transaction {
+            version: transaction::Version::TWO,
+            lock_time: absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::null(), // null → BFS will skip it
+                script_sig: ScriptBuf::default(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(value_sat),
+                script_pubkey: spk,
+            }],
+        }
+    }
+
+    /// Build a spending transaction: one input spending `prev:vout`, one output to `spk`.
+    fn spending_tx(
+        prev_txid: bdk_wallet::bitcoin::Txid,
+        vout: u32,
+        spk: ScriptBuf,
+        value_sat: u64,
+    ) -> Transaction {
+        Transaction {
+            version: transaction::Version::TWO,
+            lock_time: absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: prev_txid,
+                    vout,
+                },
+                script_sig: ScriptBuf::default(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(value_sat),
+                script_pubkey: spk,
+            }],
+        }
+    }
+
+    // ── Error cases ──────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_cpfp_empty_txids_returns_error() {
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+        let result = wallet.get_cpfp_info(vec![]).await;
+        assert!(result.is_err(), "empty txid list should return Err");
+    }
+
+    #[tokio::test]
+    async fn test_cpfp_invalid_txid_returns_error() {
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+        let result = wallet
+            .get_cpfp_info(vec!["not_a_valid_txid".to_string()])
+            .await;
+        assert!(result.is_err(), "invalid txid should return Err");
+    }
+
+    #[tokio::test]
+    async fn test_cpfp_no_unconfirmed_ancestor_returns_error() {
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+        // Valid txid but the tx is not in the wallet graph at all.
+        let fake_txid = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let result = wallet.get_cpfp_info(vec![fake_txid.to_string()]).await;
+        assert!(
+            result.is_err(),
+            "txid not present in wallet should return Err"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("no unconfirmed ancestor"),
+            "error message should mention 'no unconfirmed ancestor', got: {msg}"
+        );
+    }
+
+    // ── Single parent, fee calculable ────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_cpfp_single_parent_fee_known() {
+        // Setup: genesis (graph-only, external output) → parent (unconfirmed, wallet output).
+        // genesis output = 100_000 sats, parent output = 90_000 sats → fee = 10_000 sats.
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+
+        // genesis goes to an external address → not wallet-relevant → not in wallet.transactions()
+        let genesis = genesis_tx(external_spk(), 100_000);
+        let genesis_txid = genesis.compute_txid();
+        wallet.inject_graph_tx(genesis).unwrap();
+
+        // parent spends genesis:0 and sends to our wallet → wallet-relevant → in wallet.transactions()
+        let parent = spending_tx(genesis_txid, 0, wallet_spk(&wallet, 0), 90_000);
+        let parent_txid = parent.compute_txid();
+        wallet.inject_unconfirmed_tx(parent).unwrap();
+
+        let info = wallet
+            .get_cpfp_info(vec![parent_txid.to_string()])
+            .await
+            .expect("get_cpfp_info should succeed");
+
+        assert_eq!(info.ancestor_count, 1, "should find exactly one ancestor");
+        assert!(info.ancestor_vsize > 0, "vsize must be positive");
+        assert_eq!(
+            info.ancestor_fee_sat,
+            Some(10_000),
+            "fee should be 100_000 − 90_000 = 10_000 sats"
+        );
+        let expected_rate = 10_000.0 / info.ancestor_vsize as f64;
+        assert!(
+            (info.ancestor_fee_rate_sat_per_vb - expected_rate).abs() < 0.001,
+            "fee rate should be fee / vsize"
+        );
+    }
+
+    // ── Single parent, fee unknown (parent input not in graph) ───────────────
+
+    #[tokio::test]
+    async fn test_cpfp_single_parent_fee_unknown() {
+        // Parent's input txout is NOT in the graph → fee cannot be calculated.
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+
+        let unknown_txid = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            .parse::<bdk_wallet::bitcoin::Txid>()
+            .unwrap();
+        // Output to our wallet → wallet-relevant → in wallet.transactions()
+        let parent = spending_tx(unknown_txid, 0, wallet_spk(&wallet, 0), 50_000);
+        let parent_txid = parent.compute_txid();
+        wallet.inject_unconfirmed_tx(parent).unwrap();
+
+        let info = wallet
+            .get_cpfp_info(vec![parent_txid.to_string()])
+            .await
+            .expect("get_cpfp_info should succeed even when fee is unknown");
+
+        assert_eq!(info.ancestor_count, 1);
+        assert!(info.ancestor_vsize > 0);
+        assert_eq!(
+            info.ancestor_fee_sat, None,
+            "fee should be None when parent inputs are not in the graph"
+        );
+        assert_eq!(
+            info.ancestor_fee_rate_sat_per_vb, 0.0,
+            "fee rate should be 0.0 when fee is unknown"
+        );
+    }
+
+    // ── Transitive ancestors (grandparent chain) ─────────────────────────────
+
+    #[tokio::test]
+    async fn test_cpfp_transitive_ancestor_chain() {
+        // genesis (graph-only, external) → grandparent (unconfirmed) → parent (unconfirmed)
+        // BFS from parent should count both grandparent and parent: ancestor_count=2, fee=20k.
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+
+        let genesis = genesis_tx(external_spk(), 100_000);
+        let genesis_txid = genesis.compute_txid();
+        wallet.inject_graph_tx(genesis).unwrap();
+
+        // grandparent: spends genesis:0, output to wallet addr #0
+        let grandparent = spending_tx(genesis_txid, 0, wallet_spk(&wallet, 0), 90_000);
+        let grandparent_txid = grandparent.compute_txid();
+        wallet.inject_unconfirmed_tx(grandparent).unwrap();
+
+        // parent: spends grandparent:0, output to wallet addr #1
+        let parent = spending_tx(grandparent_txid, 0, wallet_spk(&wallet, 1), 80_000);
+        let parent_txid = parent.compute_txid();
+        wallet.inject_unconfirmed_tx(parent).unwrap();
+
+        let info = wallet
+            .get_cpfp_info(vec![parent_txid.to_string()])
+            .await
+            .expect("get_cpfp_info should succeed");
+
+        assert_eq!(
+            info.ancestor_count, 2,
+            "should include grandparent and parent"
+        );
+        assert_eq!(
+            info.ancestor_fee_sat,
+            Some(20_000),
+            "total fee: (100k−90k) + (90k−80k) = 20_000 sats"
+        );
+        assert!(info.ancestor_vsize > 0);
+        let expected_rate = 20_000.0 / info.ancestor_vsize as f64;
+        assert!((info.ancestor_fee_rate_sat_per_vb - expected_rate).abs() < 0.001);
+    }
+
+    // ── Multiple roots (multi-parent CPFP) ───────────────────────────────────
+
+    #[tokio::test]
+    async fn test_cpfp_multiple_roots_aggregated() {
+        // Two independent unconfirmed parents (each with a known fee).
+        // Passing both txids should aggregate ancestor_count=2, total_fee=20k.
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+
+        // Parent A: genesis_a (external, 100k) → parent_a (wallet addr #0, 90k), fee=10k
+        let genesis_a = genesis_tx(external_spk(), 100_000);
+        let genesis_a_txid = genesis_a.compute_txid();
+        wallet.inject_graph_tx(genesis_a).unwrap();
+        let parent_a = spending_tx(genesis_a_txid, 0, wallet_spk(&wallet, 0), 90_000);
+        let parent_a_txid = parent_a.compute_txid();
+        wallet.inject_unconfirmed_tx(parent_a).unwrap();
+
+        // Parent B: genesis_b (external, 60k) → parent_b (wallet addr #1, 50k), fee=10k
+        // genesis_b has a different value so it has a distinct txid from genesis_a.
+        let genesis_b = genesis_tx(external_spk(), 60_000);
+        let genesis_b_txid = genesis_b.compute_txid();
+        wallet.inject_graph_tx(genesis_b).unwrap();
+        let parent_b = spending_tx(genesis_b_txid, 0, wallet_spk(&wallet, 1), 50_000);
+        let parent_b_txid = parent_b.compute_txid();
+        wallet.inject_unconfirmed_tx(parent_b).unwrap();
+
+        let info = wallet
+            .get_cpfp_info(vec![parent_a_txid.to_string(), parent_b_txid.to_string()])
+            .await
+            .expect("get_cpfp_info should succeed");
+
+        assert_eq!(
+            info.ancestor_count, 2,
+            "should count both independent parents"
+        );
+        assert_eq!(
+            info.ancestor_fee_sat,
+            Some(20_000),
+            "total fee: (100k−90k) + (60k−50k) = 20_000 sats"
+        );
+        assert!(info.ancestor_vsize > 0);
+    }
+
+    // ── Deduplication: same txid supplied twice ───────────────────────────────
+
+    #[tokio::test]
+    async fn test_cpfp_duplicate_txids_not_counted_twice() {
+        let dir = tempdir().unwrap();
+        let wallet = make_wallet(&dir);
+
+        let genesis = genesis_tx(external_spk(), 100_000);
+        let genesis_txid = genesis.compute_txid();
+        wallet.inject_graph_tx(genesis).unwrap();
+
+        let parent = spending_tx(genesis_txid, 0, wallet_spk(&wallet, 0), 90_000);
+        let parent_txid = parent.compute_txid();
+        wallet.inject_unconfirmed_tx(parent).unwrap();
+
+        // Supply the same txid twice — must count only once.
+        let info = wallet
+            .get_cpfp_info(vec![parent_txid.to_string(), parent_txid.to_string()])
+            .await
+            .expect("get_cpfp_info should succeed");
+
+        assert_eq!(
+            info.ancestor_count, 1,
+            "duplicate txids must not inflate ancestor_count"
+        );
+        assert_eq!(info.ancestor_fee_sat, Some(10_000));
     }
 }

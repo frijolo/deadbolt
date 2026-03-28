@@ -2678,6 +2678,12 @@ abstract class AppLocalizations {
   /// **'Original fee'**
   String get rbfOriginalFee;
 
+  /// No description provided for @rbfDescendants.
+  ///
+  /// In en, this message translates to:
+  /// **'Descendants'**
+  String get rbfDescendants;
+
   /// No description provided for @rbfMinFee.
   ///
   /// In en, this message translates to:
@@ -2707,6 +2713,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total fee too low for RBF — minimum is {fee} sats'**
   String rbfAbsFeeTooLow(int fee);
+
+  /// No description provided for @cpfpBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CPFP acceleration'**
+  String get cpfpBannerTitle;
+
+  /// No description provided for @cpfpParentFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Ancestor fees'**
+  String get cpfpParentFee;
+
+  /// No description provided for @cpfpAncestorCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Ancestor txs'**
+  String get cpfpAncestorCount;
+
+  /// No description provided for @cpfpEffectiveRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Package fee rate'**
+  String get cpfpEffectiveRate;
+
+  /// No description provided for @cpfpAccelerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Accelerate'**
+  String get cpfpAccelerate;
 
   /// No description provided for @settingsSectionAppearance.
   ///

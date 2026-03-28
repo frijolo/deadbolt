@@ -103,6 +103,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICoinControl dco_decode_api_coin_control(dynamic raw);
 
   @protected
+  APICpfpInfo dco_decode_api_cpfp_info(dynamic raw);
+
+  @protected
   APIFiatPrice dco_decode_api_fiat_price(dynamic raw);
 
   @protected
@@ -436,6 +439,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
+
+  @protected
+  APICpfpInfo sse_decode_api_cpfp_info(SseDeserializer deserializer);
 
   @protected
   APIFiatPrice sse_decode_api_fiat_price(SseDeserializer deserializer);
@@ -842,6 +848,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     APICoinControl self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_api_cpfp_info(APICpfpInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_api_fiat_price(APIFiatPrice self, SseSerializer serializer);

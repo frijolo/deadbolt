@@ -12,10 +12,13 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Pinned git fork dependencies** — `bitbox-api-rs` and `async-hwi` forks are now referenced by immutable commit SHA instead of branch name, preventing unintended upstream changes from being pulled on rebuild.
 
 ### New Features
+- **CPFP acceleration** — Unconfirmed transactions and coins show an "Accelerate" button that opens the send screen pre-loaded with the relevant UTXOs and a self-payment address, ready to build a child-pays-for-parent transaction. The ancestor package fee rate is shown in the send screen.
 - **Tor routing** — Optional Tor support in Settings routes all Electrum connections through an embedded Tor client (arti). Persists across restarts.
 - **Fee rate presets** — Three preset buttons (economy / standard / priority) appear above the fee fields in the send screen, fetching live rates from the configured block explorer (mempool.space by default). Selecting a preset updates both fee rate and total fee fields; editing manually deselects the preset.
 
 ### Improvements
+- **RBF descendant tracking** — The RBF send screen now accounts for the full unconfirmed descendant cluster per BIP-125 Rule 4: the minimum absolute fee includes all descendant fees, and the minimum fee rate reflects the package rate of the entire conflict cluster.
+- **Export/Import as bottom sheet** — The export and import choice menus in the wallet detail screen are now bottom sheets consistent with the rest of the app, instead of centered popup dialogs.
 - **Mainnet Electrum privacy warning** — A persistent banner is displayed in the wallet detail screen when using a mainnet wallet with the default public Electrum server, with a direct link to Settings.
 - **Share exports as files** — On mobile, sharing a PSBT, BIP-329 labels, or project now sends an actual file (`.psbt`, `.jsonl`, `.deadbolt.json`) via the native share sheet instead of raw text.
 - **Simplified import/export for large content** — Project import and BIP-329 labels import/export now show only QR and file options, hiding clipboard and manual-paste for content too large for those flows.

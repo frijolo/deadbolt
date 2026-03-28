@@ -16,6 +16,7 @@ import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
 import 'package:deadbolt/widgets/outpoint_text.dart';
+import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
 
 // ─────────────────────────────────────────────────────────────
@@ -28,6 +29,36 @@ void showWalletDialog(BuildContext context, Widget child) {
   showDialog<void>(
     context: context,
     builder: (ctx) => BlocProvider.value(value: cubit, child: child),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// CPFP navigation helper
+// ─────────────────────────────────────────────────────────────
+
+/// Opens [CreateTxScreen] pre-loaded with [utxos] for CPFP acceleration.
+Future<void> openCpfpTx(
+  BuildContext context,
+  WalletDetailLoaded walletState,
+  List<APIUtxo> utxos,
+) async {
+  final l10n = context.l10n;
+  final cubit = context.read<WalletDetailCubit>();
+  final address = await cubit.getNextSelfPaymentAddress();
+  if (!context.mounted) return;
+  if (address == null) {
+    showErrorToast(context, l10n.createTxNoUnusedAddress);
+    return;
+  }
+  await CreateTxScreen.push(
+    context,
+    allUtxos: walletState.utxos,
+    tipHeight: walletState.tipHeight,
+    spendPaths: walletState.descriptorAnalysis?.spendPaths,
+    keyLabels: walletState.keyLabels,
+    pathLabels: walletState.pathLabels,
+    preSelectedUtxos: utxos,
+    preFilledRecipient: address,
   );
 }
 
@@ -1257,23 +1288,50 @@ class _AddressDetailByStringDialogState
 // ─────────────────────────────────────────────────────────────
 
 /// Small colored status badge (confirmation state, keychain type, etc.)
+///
+/// When [onTap] is provided the entire badge is tappable. Optionally show a
+/// leading [icon] inside the pill and a [tooltip] on hover / long-press.
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final String? tooltip;
 
-  const StatusBadge({super.key, required this.label, required this.color});
+  const StatusBadge({
+    super.key,
+    required this.label,
+    required this.color,
+    this.icon,
+    this.onTap,
+    this.tooltip,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    Widget badge = Container(
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: color.withAlpha(AppAlpha.dim),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(label, style: TextStyle(fontSize: 10, color: color)),
+        ],
+      ),
     );
+    if (onTap == null) return badge;
+    final tappable = GestureDetector(onTap: onTap, child: badge);
+    return tooltip != null
+        ? Tooltip(message: tooltip, child: tappable)
+        : tappable;
   }
 }
 

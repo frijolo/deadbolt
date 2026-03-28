@@ -4,8 +4,8 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APIFiatPrice, APIHotKeyInfo,
-    APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
+    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APICpfpInfo, APIFiatPrice,
+    APIHotKeyInfo, APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
     APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx,
     APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage, APITxDetails,
     APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
@@ -1543,6 +1543,48 @@ pub fn strip_psbt_for_hw(psbt_base64: String) -> Result<String> {
     }
 
     Ok(psbt_to_base64(&psbt))
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Test-only helpers on APIWallet
+// ───────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+impl APIWallet {
+    /// Inject a transaction into the wallet graph as **unconfirmed** (seen_at=1).
+    /// Used by unit tests to set up wallet state without a real Electrum sync.
+    pub(crate) fn inject_unconfirmed_tx(&self, tx: bdk_wallet::bitcoin::Transaction) -> Result<()> {
+        use bdk_wallet::chain::TxUpdate;
+        use bdk_wallet::Update;
+        use std::sync::Arc;
+        let txid = tx.compute_txid();
+        let mut core = self.lock_wallet()?;
+        let mut tx_update = TxUpdate::default();
+        tx_update.txs = vec![Arc::new(tx)];
+        tx_update.seen_ats = [(txid, 1_000_000_u64)].into();
+        core.wallet.apply_update(Update {
+            tx_update,
+            ..Default::default()
+        })?;
+        Ok(())
+    }
+
+    /// Inject a transaction into the wallet graph with **no chain position**
+    /// (not confirmed, not seen as unconfirmed). The tx is only present in the
+    /// graph for txout lookups — it does NOT appear in `wallet.transactions()`.
+    pub(crate) fn inject_graph_tx(&self, tx: bdk_wallet::bitcoin::Transaction) -> Result<()> {
+        use bdk_wallet::chain::TxUpdate;
+        use bdk_wallet::Update;
+        use std::sync::Arc;
+        let mut core = self.lock_wallet()?;
+        let mut tx_update = TxUpdate::default();
+        tx_update.txs = vec![Arc::new(tx)];
+        core.wallet.apply_update(Update {
+            tx_update,
+            ..Default::default()
+        })?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -597,16 +597,38 @@ pub struct APIRbfInfo {
     pub orig_vsize: u32,
     /// Fee rate of the original spending tx (sat/vB).
     pub orig_fee_rate_sat_per_vb: f64,
-    /// Approximate minimum fee for a replacement tx.
-    /// Two constraints apply (Dart takes the max):
-    ///   Rule 4 (PaysForRBF):        orig_fee + new_vsize × 1 sat/vB
-    ///   ImprovesFeerateDiagram:     orig_fee_rate × new_vsize  (rate must not decrease)
-    /// Computed here with orig_vsize as a proxy for new_vsize (unknown at query time).
-    /// The Dart layer refines both constraints with the actual new tx vsize.
+    /// Number of unconfirmed descendants that would also be evicted by the replacement.
+    /// BIP-125 Rule 4 requires covering their fees too.
+    pub descendant_count: u32,
+    /// Sum of fees of all unconfirmed descendants (sats).
+    /// None if any descendant's input values are unknown (Electrum fetch was not attempted
+    /// for descendants — the UI should treat the minimum as a lower bound in that case).
+    pub descendant_fee_sat: Option<u64>,
+    /// Total virtual size of all unconfirmed descendants (vbytes).
+    pub descendant_vsize: u32,
+    /// Minimum absolute fee for a replacement tx (BIP-125 Rule 4 / PaysForRBF).
+    /// = sum(orig_fee + descendant_fees) + orig_vsize × 1 sat/vB
+    /// orig_vsize is used as a proxy for new_vsize (unknown at query time).
+    /// The Dart layer refines this with the actual new tx vsize.
     pub min_fee_sat: u64,
     /// Minimum fee rate the replacement must strictly exceed (ImprovesFeerateDiagram).
-    /// Equal to orig_fee_rate_sat_per_vb — fixed, independent of the new tx's size.
+    /// = package_rate(orig + descendants) when descendants are known; orig_rate otherwise.
     pub min_fee_rate_sat_per_vb: f64,
+}
+
+//////////////////
+// APICpfpInfo  //
+//////////////////
+#[derive(Clone, Debug)]
+pub struct APICpfpInfo {
+    /// Total fee of all unconfirmed ancestor txs (sats). None if any ancestor fee is unknown.
+    pub ancestor_fee_sat: Option<u64>,
+    /// Total virtual size of all unconfirmed ancestor txs (vbytes).
+    pub ancestor_vsize: u32,
+    /// Ancestor fee rate (sat/vB): ancestor_fee / ancestor_vsize. 0.0 if fee unknown.
+    pub ancestor_fee_rate_sat_per_vb: f64,
+    /// Number of unconfirmed ancestor txs in the package (including direct parents).
+    pub ancestor_count: u32,
 }
 
 //////////////////////////

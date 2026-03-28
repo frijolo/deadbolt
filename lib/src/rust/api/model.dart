@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -175,6 +175,44 @@ class APICoinControl {
           runtimeType == other.runtimeType &&
           txid == other.txid &&
           vout == other.vout;
+}
+
+class APICpfpInfo {
+  /// Total fee of all unconfirmed ancestor txs (sats). None if any ancestor fee is unknown.
+  final BigInt? ancestorFeeSat;
+
+  /// Total virtual size of all unconfirmed ancestor txs (vbytes).
+  final int ancestorVsize;
+
+  /// Ancestor fee rate (sat/vB): ancestor_fee / ancestor_vsize. 0.0 if fee unknown.
+  final double ancestorFeeRateSatPerVb;
+
+  /// Number of unconfirmed ancestor txs in the package (including direct parents).
+  final int ancestorCount;
+
+  const APICpfpInfo({
+    this.ancestorFeeSat,
+    required this.ancestorVsize,
+    required this.ancestorFeeRateSatPerVb,
+    required this.ancestorCount,
+  });
+
+  @override
+  int get hashCode =>
+      ancestorFeeSat.hashCode ^
+      ancestorVsize.hashCode ^
+      ancestorFeeRateSatPerVb.hashCode ^
+      ancestorCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APICpfpInfo &&
+          runtimeType == other.runtimeType &&
+          ancestorFeeSat == other.ancestorFeeSat &&
+          ancestorVsize == other.ancestorVsize &&
+          ancestorFeeRateSatPerVb == other.ancestorFeeRateSatPerVb &&
+          ancestorCount == other.ancestorCount;
 }
 
 class APIFiatPrice {
@@ -565,22 +603,35 @@ class APIRbfInfo {
   /// Fee rate of the original spending tx (sat/vB).
   final double origFeeRateSatPerVb;
 
-  /// Approximate minimum fee for a replacement tx.
-  /// Two constraints apply (Dart takes the max):
-  ///   Rule 4 (PaysForRBF):        orig_fee + new_vsize × 1 sat/vB
-  ///   ImprovesFeerateDiagram:     orig_fee_rate × new_vsize  (rate must not decrease)
-  /// Computed here with orig_vsize as a proxy for new_vsize (unknown at query time).
-  /// The Dart layer refines both constraints with the actual new tx vsize.
+  /// Number of unconfirmed descendants that would also be evicted by the replacement.
+  /// BIP-125 Rule 4 requires covering their fees too.
+  final int descendantCount;
+
+  /// Sum of fees of all unconfirmed descendants (sats).
+  /// None if any descendant's input values are unknown (Electrum fetch was not attempted
+  /// for descendants — the UI should treat the minimum as a lower bound in that case).
+  final BigInt? descendantFeeSat;
+
+  /// Total virtual size of all unconfirmed descendants (vbytes).
+  final int descendantVsize;
+
+  /// Minimum absolute fee for a replacement tx (BIP-125 Rule 4 / PaysForRBF).
+  /// = sum(orig_fee + descendant_fees) + orig_vsize × 1 sat/vB
+  /// orig_vsize is used as a proxy for new_vsize (unknown at query time).
+  /// The Dart layer refines this with the actual new tx vsize.
   final BigInt minFeeSat;
 
   /// Minimum fee rate the replacement must strictly exceed (ImprovesFeerateDiagram).
-  /// Equal to orig_fee_rate_sat_per_vb — fixed, independent of the new tx's size.
+  /// = package_rate(orig + descendants) when descendants are known; orig_rate otherwise.
   final double minFeeRateSatPerVb;
 
   const APIRbfInfo({
     required this.origFeeSat,
     required this.origVsize,
     required this.origFeeRateSatPerVb,
+    required this.descendantCount,
+    this.descendantFeeSat,
+    required this.descendantVsize,
     required this.minFeeSat,
     required this.minFeeRateSatPerVb,
   });
@@ -590,6 +641,9 @@ class APIRbfInfo {
       origFeeSat.hashCode ^
       origVsize.hashCode ^
       origFeeRateSatPerVb.hashCode ^
+      descendantCount.hashCode ^
+      descendantFeeSat.hashCode ^
+      descendantVsize.hashCode ^
       minFeeSat.hashCode ^
       minFeeRateSatPerVb.hashCode;
 
@@ -601,6 +655,9 @@ class APIRbfInfo {
           origFeeSat == other.origFeeSat &&
           origVsize == other.origVsize &&
           origFeeRateSatPerVb == other.origFeeRateSatPerVb &&
+          descendantCount == other.descendantCount &&
+          descendantFeeSat == other.descendantFeeSat &&
+          descendantVsize == other.descendantVsize &&
           minFeeSat == other.minFeeSat &&
           minFeeRateSatPerVb == other.minFeeRateSatPerVb;
 }

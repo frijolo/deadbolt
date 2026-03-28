@@ -63,22 +63,42 @@ class TransactionsView extends StatelessWidget {
             ),
           )
         else ...[
-          ...([...state.transactions]..sort((a, b) {
-                final aConfirmed = a.confirmationHeight != null;
-                final bConfirmed = b.confirmationHeight != null;
-                if (aConfirmed != bConfirmed) return aConfirmed ? 1 : -1;
-                if (!aConfirmed) return a.txid.compareTo(b.txid);
-                final cmp = b.confirmationHeight!
-                    .compareTo(a.confirmationHeight!);
-                if (cmp != 0) return cmp;
-                return a.txid.compareTo(b.txid);
-              }))
-              .map((tx) => _TransactionTile(
-                    tx: tx,
-                    network: network,
-                    fiatPrice: state.fiatPrices[tx.txid],
-                    fiatCurrency: state.fiatCurrency,
-                  )),
+          Builder(builder: (ctx) {
+            // Build a map of unconfirmed UTXOs per parent txid so each tile
+            // can show the "Accelerate" button when it has spendable outputs.
+            // Exclude UTXOs already spent by another mempool tx — spending them
+            // would be an involuntary RBF, not a pure CPFP.
+            final unconfirmedUtxosByTxid = <String, List<APIUtxo>>{};
+            for (final u in state.utxos) {
+              if (!u.isConfirmed && u.mempoolSpendingTxid == null) {
+                unconfirmedUtxosByTxid.putIfAbsent(u.txid, () => []).add(u);
+              }
+            }
+            final sorted = [...state.transactions]..sort((a, b) {
+              final aConfirmed = a.confirmationHeight != null;
+              final bConfirmed = b.confirmationHeight != null;
+              if (aConfirmed != bConfirmed) return aConfirmed ? 1 : -1;
+              if (!aConfirmed) return a.txid.compareTo(b.txid);
+              final cmp = b.confirmationHeight!.compareTo(a.confirmationHeight!);
+              if (cmp != 0) return cmp;
+              return a.txid.compareTo(b.txid);
+            });
+            return Column(
+              children: sorted.map((tx) {
+                final cpfpUtxos = tx.confirmationHeight == null
+                    ? (unconfirmedUtxosByTxid[tx.txid] ?? [])
+                    : <APIUtxo>[];
+                return _TransactionTile(
+                  tx: tx,
+                  network: network,
+                  fiatPrice: state.fiatPrices[tx.txid],
+                  fiatCurrency: state.fiatCurrency,
+                  cpfpUtxos: cpfpUtxos,
+                  walletState: state,
+                );
+              }).toList(),
+            );
+          }),
           if (state.hasMore)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -103,12 +123,16 @@ class _TransactionTile extends StatelessWidget {
   final APINetwork network;
   final double? fiatPrice;
   final String? fiatCurrency;
+  final List<APIUtxo> cpfpUtxos;
+  final WalletDetailLoaded walletState;
 
   const _TransactionTile({
     required this.tx,
     required this.network,
+    required this.walletState,
     this.fiatPrice,
     this.fiatCurrency,
+    this.cpfpUtxos = const [],
   });
 
   @override
@@ -135,6 +159,8 @@ class _TransactionTile extends StatelessWidget {
         : isReceived
         ? Colors.green
         : Colors.orange;
+
+    final canCpfp = cpfpUtxos.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -212,17 +238,12 @@ class _TransactionTile extends StatelessWidget {
                     ),
                   )
                 else
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withAlpha(AppAlpha.dim),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      l10n.txUnconfirmed,
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
+                  StatusBadge(
+                    label: l10n.txUnconfirmed,
+                    color: canCpfp ? AppAccent.color : Colors.grey,
+                    icon: canCpfp ? Icons.trending_up : null,
+                    onTap: canCpfp ? () => _openCpfpTx(context) : null,
+                    tooltip: canCpfp ? l10n.cpfpAccelerate : null,
                   ),
                 if (fiatPrice != null && fiatCurrency != null)
                   Text(
@@ -249,6 +270,9 @@ class _TransactionTile extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openCpfpTx(BuildContext context) =>
+      openCpfpTx(context, walletState, cpfpUtxos);
 
   String _formatTimestamp(BigInt unixSeconds) {
     final dt = DateTime.fromMillisecondsSinceEpoch(

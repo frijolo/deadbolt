@@ -481,44 +481,27 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) async {
     final l10n = context.l10n;
-    final choice = await showDialog<_ExportChoice>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.exportBip329Button),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.labels),
-            child: Row(
-              children: [
-                const Icon(Icons.label_outline, size: 20),
-                const SizedBox(width: 12),
-                Text(l10n.exportLabelsOption),
-              ],
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.descriptor),
-            child: Row(
-              children: [
-                const Icon(Icons.schema_outlined, size: 20),
-                const SizedBox(width: 12),
-                Text(l10n.descriptorTabLabel),
-              ],
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
-            child: const Row(
-              children: [
-                Icon(Icons.save_alt_outlined, size: 20),
-                SizedBox(width: 12),
-                Text('Wallet'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    final choice = await showSheet<_ExportChoice>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.label_outline),
+          title: Text(l10n.exportLabelsOption),
+          onTap: () => Navigator.of(ctx).pop(_ExportChoice.labels),
+        ),
+        ListTile(
+          leading: const Icon(Icons.schema_outlined),
+          title: Text(l10n.descriptorTabLabel),
+          onTap: () => Navigator.of(ctx).pop(_ExportChoice.descriptor),
+        ),
+        ListTile(
+          leading: const Icon(Icons.save_alt_outlined),
+          title: const Text('Wallet'),
+          onTap: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
+        ),
+        const SizedBox(height: 8),
+      ],
+    ));
     if (choice == null || !context.mounted) return;
     if (choice == _ExportChoice.labels) {
       _exportLabels(context, state);
@@ -546,34 +529,22 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     WalletDetailLoaded state,
   ) async {
     final l10n = context.l10n;
-    final choice = await showDialog<_ImportChoice>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.importBip329Button),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(_ImportChoice.labels),
-            child: Row(
-              children: [
-                const Icon(Icons.label_outline, size: 20),
-                const SizedBox(width: 12),
-                Text(l10n.exportLabelsOption),
-              ],
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop(_ImportChoice.psbt),
-            child: Row(
-              children: [
-                const Icon(Icons.receipt_long_outlined, size: 20),
-                const SizedBox(width: 12),
-                Text(l10n.importPsbtOption),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    final choice = await showSheet<_ImportChoice>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.label_outline),
+          title: Text(l10n.exportLabelsOption),
+          onTap: () => Navigator.of(ctx).pop(_ImportChoice.labels),
+        ),
+        ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: Text(l10n.importPsbtOption),
+          onTap: () => Navigator.of(ctx).pop(_ImportChoice.psbt),
+        ),
+        const SizedBox(height: 8),
+      ],
+    ));
     if (choice == null || !context.mounted) return;
     if (choice == _ImportChoice.labels) {
       _importLabels(context, state);

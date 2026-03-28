@@ -654,6 +654,7 @@
 
   "rbfWarningTitle": "Reemplazo Full-RBF",
   "rbfOriginalFee": "Comisión original",
+  "rbfDescendants": "Sucesores",
   "rbfMinFee": "Comisión mínima",
   "rbfMinRate": "Tasa mínima",
   "rbfUnknownFee": "Gastando un UTXO en mempool — usa una tasa de comisión mayor que la transacción original.",
@@ -669,6 +670,12 @@
       "fee": { "type": "int" }
     }
   },
+
+  "cpfpBannerTitle": "Aceleración CPFP",
+  "cpfpParentFee": "Fees de ancestros",
+  "cpfpAncestorCount": "Txs en el paquete",
+  "cpfpEffectiveRate": "Fee rate del paquete",
+  "cpfpAccelerate": "Acelerar",
 
   "settingsSectionAppearance": "Apariencia",
   "settingsSectionDefaults": "Wallet",

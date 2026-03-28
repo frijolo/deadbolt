@@ -477,23 +477,6 @@ impl APIWallet {
         let psbt_label = row.label.clone();
         let mut psbt = psbt_from_base64(&row.psbt)?;
 
-        // Reject broadcast if any input UTXO is unconfirmed (required for relative timelocks,
-        // and generally invalid — unconfirmed inputs cannot be spent by the network).
-        for txin in &psbt.unsigned_tx.input {
-            if let Some(utxo) = core.wallet.get_utxo(txin.previous_output) {
-                if !matches!(
-                    utxo.chain_position,
-                    bdk_wallet::chain::ChainPosition::Confirmed { .. }
-                ) {
-                    return Err(anyhow::anyhow!(
-                        "Cannot broadcast: input {} is not yet confirmed. \
-                         Wait for the funding transaction to confirm first.",
-                        txin.previous_output
-                    ));
-                }
-            }
-        }
-
         // If not already finalized by signer, try to finalize via BDK/miniscript.
         // `finalize_psbt` / `sign` are deprecated in BDK 2.2.0 (signer module moved to
         // bitcoin::psbt), but no replacement exists for miniscript-aware finalization in 2.3.0.

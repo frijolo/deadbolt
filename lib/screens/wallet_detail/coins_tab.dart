@@ -97,6 +97,7 @@ class CoinsView extends StatelessWidget {
               keyLabels: state.keyLabels,
               currentBtcPrice: state.currentBtcPrice,
               fiatCurrency: state.fiatCurrency,
+              walletState: state,
             ),
           ),
       ],
@@ -112,6 +113,7 @@ class _CoinTile extends StatelessWidget {
   final Map<String, String> keyLabels;
   final double? currentBtcPrice;
   final String? fiatCurrency;
+  final WalletDetailLoaded walletState;
 
   const _CoinTile({
     required this.utxo,
@@ -119,6 +121,7 @@ class _CoinTile extends StatelessWidget {
     required this.spendPaths,
     required this.tipHeight,
     required this.keyLabels,
+    required this.walletState,
     this.currentBtcPrice,
     this.fiatCurrency,
   });
@@ -234,16 +237,6 @@ class _CoinTile extends StatelessWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  if (isMempool)
-                    StatusBadge(
-                        label: l10n.coinMempoolSpend, color: Colors.red)
-                  else if (utxo.pendingPsbtIds.isNotEmpty)
-                    StatusBadge(
-                        label: l10n.coinPendingSpend, color: Colors.orange)
-                  else if (!utxo.isConfirmed)
-                    StatusBadge(
-                        label: l10n.txUnconfirmed, color: Colors.grey),
-                  const SizedBox(width: 6),
                   StatusBadge(
                     label: isChange
                         ? l10n.coinKeychainChange
@@ -257,6 +250,25 @@ class _CoinTile extends StatelessWidget {
                       totalCount: spendPaths.length,
                     ),
                   ],
+                  if (isMempool) ...[
+                    const SizedBox(width: 6),
+                    StatusBadge(
+                        label: l10n.coinMempoolSpend, color: Colors.red),
+                  ] else if (utxo.pendingPsbtIds.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    StatusBadge(
+                        label: l10n.coinPendingSpend, color: Colors.orange),
+                  ],
+                  if (!utxo.isConfirmed) ...[
+                    const SizedBox(width: 6),
+                    StatusBadge(
+                      label: l10n.txUnconfirmed,
+                      color: !isMempool ? AppAccent.color : Colors.grey,
+                      icon: !isMempool ? Icons.trending_up : null,
+                      onTap: !isMempool ? () => _openCpfpTx(context) : null,
+                      tooltip: !isMempool ? l10n.cpfpAccelerate : null,
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -266,6 +278,9 @@ class _CoinTile extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openCpfpTx(BuildContext context) =>
+      openCpfpTx(context, walletState, [utxo]);
 
   void _showDetails(
     BuildContext context,

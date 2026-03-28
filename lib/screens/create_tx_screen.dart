@@ -57,6 +57,9 @@ class CreateTxScreen extends StatefulWidget {
   final List<APISpendPath>? spendPaths;
   final Map<String, String> keyLabels;
   final Map<int, String> pathLabels;
+  // CPFP mode: pre-selected UTXOs and recipient address.
+  final List<APIUtxo> preSelectedUtxos;
+  final String? preFilledRecipient;
 
   const CreateTxScreen({
     super.key,
@@ -65,6 +68,8 @@ class CreateTxScreen extends StatefulWidget {
     this.spendPaths,
     this.keyLabels = const {},
     this.pathLabels = const {},
+    this.preSelectedUtxos = const [],
+    this.preFilledRecipient,
   });
 
   static Future<void> push(
@@ -74,6 +79,8 @@ class CreateTxScreen extends StatefulWidget {
     List<APISpendPath>? spendPaths,
     Map<String, String> keyLabels = const {},
     Map<int, String> pathLabels = const {},
+    List<APIUtxo> preSelectedUtxos = const [],
+    String? preFilledRecipient,
   }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -85,6 +92,8 @@ class CreateTxScreen extends StatefulWidget {
             spendPaths: spendPaths,
             keyLabels: keyLabels,
             pathLabels: pathLabels,
+            preSelectedUtxos: preSelectedUtxos,
+            preFilledRecipient: preFilledRecipient,
           ),
         ),
       ),
@@ -114,6 +123,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   // RBF info: mempoolSpendingTxid -> APIRbfInfo (null while loading)
   final Map<String, APIRbfInfo?> _rbfInfos = {};
 
+  // CPFP info: loaded once when unconfirmed UTXOs are selected (null while loading/unavailable).
+  APICpfpInfo? _cpfpInfo;
+  bool _cpfpInfoLoading = false;
+
   FeePresets? _feePresets;
   int? _selectedPresetIndex; // 0=economy, 1=normal, 2=priority; null=none
 
@@ -132,6 +145,18 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     super.initState();
     if (widget.spendPaths != null && widget.spendPaths!.isNotEmpty) {
       _selectedPath = widget.spendPaths!.first;
+    }
+    if (widget.preSelectedUtxos.isNotEmpty) {
+      _selectedUtxos = List.of(widget.preSelectedUtxos);
+      _updateRbfInfos();
+    }
+    if (widget.preFilledRecipient != null) {
+      _recipientCtrl.text = widget.preFilledRecipient!;
+      _recipientEditMode = false;
+      _sendMax = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onRecipientChanged(widget.preFilledRecipient!);
+      });
     }
     _loadFeePresets();
   }
@@ -206,7 +231,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _feeRateCtrl.text = (fee / (wuNoChange / 4.0)).toStringAsFixed(2);
   }
 
-  // ─── RBF helpers ─────────────────────────────────────────────────────────
+  // ─── RBF / CPFP helpers ──────────────────────────────────────────────────
 
   void _updateRbfInfos() {
     final cubit = context.read<WalletDetailCubit>();
@@ -225,6 +250,30 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         });
       }
     }
+    _loadCpfpInfo();
+  }
+
+  int _totalConflictFee(List<APIRbfInfo> infos) => infos.fold<int>(
+        0,
+        (s, i) => s + i.origFeeSat.toInt() + (i.descendantFeeSat?.toInt() ?? 0),
+      );
+
+  /// Loads CPFP ancestor fee info for all unconfirmed UTXOs' parent txids.
+  /// Passes all unique parent txids so Rust can BFS the full ancestor chain.
+  void _loadCpfpInfo() {
+    final parentTxids = _selectedUtxos
+        .where((u) => !u.isConfirmed)
+        .map((u) => u.txid)
+        .toSet()
+        .toList();
+    if (parentTxids.isEmpty) {
+      setState(() { _cpfpInfo = null; _cpfpInfoLoading = false; });
+      return;
+    }
+    setState(() => _cpfpInfoLoading = true);
+    context.read<WalletDetailCubit>().getCpfpInfo(parentTxids).then((info) {
+      if (mounted) setState(() { _cpfpInfo = info; _cpfpInfoLoading = false; });
+    });
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -589,16 +638,17 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final rateTooLow = resolvedInfos.isNotEmpty && currentRate <= maxOrigRate;
 
     // Absolute fee constraint (Rule 4 — depends on new tx size).
+    // Uses total conflict cluster fee: orig + any unconfirmed descendants (BIP-125 Rule 4).
     final summary = _txSummary;
-    final totalOrigFee =
-        resolvedInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
+    final totalConflictFee = _totalConflictFee(resolvedInfos);
     final int? actualNewVsize =
         summary != null ? (summary.totalWu / 4.0).ceil() : null;
     final int minFeeSat = actualNewVsize != null
-        ? totalOrigFee + actualNewVsize
+        ? totalConflictFee + actualNewVsize
         : resolvedInfos.fold<int>(0, (m, i) => max(m, i.minFeeSat.toInt()));
     final bool absFeeTooLow = resolvedInfos.isNotEmpty &&
         summary != null &&
+        !summary.insufficientFunds &&
         summary.feeSats <= minFeeSat;
 
     final bool feeTooLow = rateTooLow || absFeeTooLow;
@@ -649,6 +699,17 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       dimColor,
                       theme,
                     ),
+                    if (info.descendantCount > 0) ...[
+                      const SizedBox(height: 4),
+                      _rbfRow(
+                        l10n.rbfDescendants,
+                        info.descendantFeeSat != null
+                            ? '${info.descendantCount} tx${info.descendantCount > 1 ? 's' : ''}, ${info.descendantFeeSat} sats'
+                            : '${info.descendantCount} tx${info.descendantCount > 1 ? 's' : ''} (fee unknown)',
+                        dimColor,
+                        theme,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     _rbfRow(
                       l10n.rbfMinFee,
@@ -691,6 +752,93 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Banner shown when unconfirmed UTXOs are selected, displaying the CPFP package fee rate.
+  /// Accounts for all ancestor txs transitively (parents, grandparents, …).
+  Widget _buildCpfpBanner(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    const accentColor = AppAccent.color;
+    final cpfp = _cpfpInfo;
+    final summary = _txSummary;
+
+    // Effective package fee rate = (ancestor_fees + child_fee) / (ancestor_vsize + child_vsize).
+    String effectiveRateText = '—';
+    if (cpfp != null && summary != null) {
+      final ancestorFee = cpfp.ancestorFeeSat?.toInt();
+      final ancestorVsize = cpfp.ancestorVsize.toInt();
+      final childFee = summary.feeSats;
+      final childVsize = (summary.totalWu / 4.0).ceil();
+      if (ancestorFee != null && (ancestorVsize + childVsize) > 0) {
+        final effectiveRate = (ancestorFee + childFee) / (ancestorVsize + childVsize);
+        effectiveRateText = '${effectiveRate.toStringAsFixed(1)} sat/vB';
+      }
+    }
+
+    // Ancestor fee summary line.
+    final String ancestorFeeText;
+    if (cpfp != null) {
+      if (cpfp.ancestorFeeSat != null) {
+        ancestorFeeText =
+            '${cpfp.ancestorFeeSat} sats  (${cpfp.ancestorFeeRateSatPerVb.toStringAsFixed(1)} sat/vB, ${cpfp.ancestorVsize} vB)';
+      } else {
+        ancestorFeeText = l10n.rbfUnknownFee;
+      }
+    } else {
+      ancestorFeeText = _cpfpInfoLoading ? '…' : '—';
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      color: accentColor.withAlpha(AppAlpha.faint),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: accentColor.withAlpha(AppAlpha.pale)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.trending_up, size: 16, color: accentColor),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.cpfpBannerTitle,
+                  style: theme.textTheme.labelMedium?.copyWith(color: accentColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _rbfRow(
+              l10n.cpfpParentFee,
+              ancestorFeeText,
+              colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+              theme,
+            ),
+            if (cpfp != null && cpfp.ancestorCount > 1) ...[
+              const SizedBox(height: 4),
+              _rbfRow(
+                l10n.cpfpAncestorCount,
+                '${cpfp.ancestorCount}',
+                colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                theme,
+              ),
+            ],
+            const SizedBox(height: 4),
+            _rbfRow(
+              l10n.cpfpEffectiveRate,
+              effectiveRateText,
+              accentColor,
+              theme,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -880,15 +1028,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         return;
       }
 
-      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must strictly exceed orig_fee + new_vsize × 1.
-      //    Depends on new tx size — checked only when estimate is available.
+      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed total conflict cluster fee + new_vsize.
+      //    Conflict cluster = original tx + all unconfirmed descendants.
       final summary = _txSummary;
       if (summary != null) {
         final newVsize = (summary.totalWu / 4.0).ceil();
-        final totalOrigFee =
-            resolvedRbfInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
-        if (summary.feeSats <= totalOrigFee + newVsize) {
-          showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalOrigFee + newVsize + 1));
+        final totalConflict = _totalConflictFee(resolvedRbfInfos);
+        if (summary.feeSats <= totalConflict + newVsize) {
+          showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
           setState(() => _feeEditMode = _FeeEditMode.total);
           return;
         }
@@ -967,12 +1114,12 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final currentRate = double.tryParse(feeRateDisplay) ?? 0.0;
 
     // RBF absolute fee minimum (Rule 4) — depends on new tx size.
+    // Uses total conflict cluster fee: orig + unconfirmed descendants.
     int rbfMinFeeSats = 0;
     if (resolvedRbfInfos.isNotEmpty && summary != null) {
       final newVsize = (summary.totalWu / 4.0).ceil();
-      final totalOrigFee =
-          resolvedRbfInfos.fold<int>(0, (s, i) => s + i.origFeeSat.toInt());
-      rbfMinFeeSats = totalOrigFee + newVsize;
+      final totalConflict = _totalConflictFee(resolvedRbfInfos);
+      rbfMinFeeSats = totalConflict + newVsize;
     }
 
     final String? rateErrorText =
@@ -1047,6 +1194,12 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   ? _buildRbfCard(context)
                   : const SizedBox.shrink(),
               SizedBox(height: _rbfInfos.isNotEmpty ? 16 : 0),
+
+              // ── CPFP info banner (shown when unconfirmed UTXOs selected) ──
+              if (_selectedUtxos.any((u) => !u.isConfirmed)) ...[
+                _buildCpfpBanner(context),
+                const SizedBox(height: 16),
+              ],
 
               // ── Label ──
               TextField(

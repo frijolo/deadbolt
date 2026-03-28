@@ -1446,6 +1446,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get rbfOriginalFee => 'Comisión original';
 
   @override
+  String get rbfDescendants => 'Sucesores';
+
+  @override
   String get rbfMinFee => 'Comisión mínima';
 
   @override
@@ -1464,6 +1467,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String rbfAbsFeeTooLow(int fee) {
     return 'Comisión total demasiado baja para RBF — el mínimo es $fee sats';
   }
+
+  @override
+  String get cpfpBannerTitle => 'Aceleración CPFP';
+
+  @override
+  String get cpfpParentFee => 'Fees de ancestros';
+
+  @override
+  String get cpfpAncestorCount => 'Txs en el paquete';
+
+  @override
+  String get cpfpEffectiveRate => 'Fee rate del paquete';
+
+  @override
+  String get cpfpAccelerate => 'Acelerar';
 
   @override
   String get settingsSectionAppearance => 'Apariencia';

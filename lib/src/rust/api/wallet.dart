@@ -428,6 +428,14 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Return the cached balance (no network call).
   Future<APIBalance> getBalance();
 
+  /// Return the aggregate fee info for the full unconfirmed ancestor package of the given
+  /// parent txids. Performs a BFS through the tx graph to collect all unconfirmed ancestors
+  /// transitively (parents, grandparents, …), summing their fees and vsizes to compute the
+  /// effective package fee rate that miners use when evaluating CPFP.
+  ///
+  /// `parent_txids` should be the txids of the unconfirmed UTXOs being spent as child inputs.
+  Future<APICpfpInfo> getCpfpInfo({required List<String> parentTxids});
+
   /// Return all stored BTC prices for `currency` as a list of (txid, price) pairs.
   Future<List<APIFiatPrice>> getFiatPrices({required String currency});
 
