@@ -49,6 +49,54 @@ class _TxSummary {
   });
 }
 
+/// Formats a sats integer input with thousands separators (e.g. 1,234,567).
+class _ThousandsSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(',', '');
+    if (digits.isEmpty) return newValue.copyWith(text: '');
+    final n = int.tryParse(digits);
+    if (n == null) return oldValue;
+    final formatted = _fmt(n);
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  static String _fmt(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+}
+
+/// Holds the per-recipient state for the multi-output send form.
+class _RecipientEntry {
+  _RecipientEntry();
+
+  final addressCtrl = TextEditingController();
+  final amountCtrl = TextEditingController();
+  int? wu; // output weight units from addressOutputWu()
+
+  /// Parses the amount field stripping thousands separators.
+  int get rawAmount => int.tryParse(amountCtrl.text.replaceAll(',', '').trim()) ?? 0;
+  bool editMode = true;
+  bool resolvingWu = false;
+  Timer? debounce;
+
+  void dispose() {
+    debounce?.cancel();
+    addressCtrl.dispose();
+    amountCtrl.dispose();
+  }
+}
+
 /// Screen for building an unsigned PSBT. Coin selection happens inside this
 /// screen via [CoinSelectorScreen].
 class CreateTxScreen extends StatefulWidget {
@@ -106,16 +154,19 @@ class CreateTxScreen extends StatefulWidget {
 
 class _CreateTxScreenState extends State<CreateTxScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _recipientCtrl = TextEditingController();
-  final _amountCtrl = TextEditingController();
   final _feeRateCtrl = TextEditingController(text: '1.0');
   final _totalFeeCtrl = TextEditingController();
   final _labelCtrl = TextEditingController();
   bool _creating = false;
-  bool _sendMax = false;
+
+  // Multi-recipient state.
+  final List<_RecipientEntry> _recipients = [_RecipientEntry()];
+  /// Index of the recipient that gets the wallet remainder (send-max semantics).
+  /// null = every recipient has an explicit amount.
+  int? _maxRecipientIndex;
+
   APISpendPath? _selectedPath;
   _FeeEditMode _feeEditMode = _FeeEditMode.none;
-  bool _recipientEditMode = true; // starts in edit mode (empty address)
 
   // Selected UTXOs (chosen via CoinSelectorScreen)
   List<APIUtxo> _selectedUtxos = [];
@@ -135,11 +186,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   final _rateFocusNode = FocusNode();
   final _totalFocusNode = FocusNode();
 
-  // Async resolution of recipient output WU via FFI.
-  int? _recipientWu;
-  bool _resolvingWu = false;
-  Timer? _addrDebounce;
-
   @override
   void initState() {
     super.initState();
@@ -151,11 +197,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       _updateRbfInfos();
     }
     if (widget.preFilledRecipient != null) {
-      _recipientCtrl.text = widget.preFilledRecipient!;
-      _recipientEditMode = false;
-      _sendMax = true;
+      _recipients[0].addressCtrl.text = widget.preFilledRecipient!;
+      _recipients[0].editMode = false;
+      _maxRecipientIndex = 0;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _onRecipientChanged(widget.preFilledRecipient!);
+        if (mounted) _onRecipientChanged(widget.preFilledRecipient!, 0);
       });
     }
     _loadFeePresets();
@@ -176,9 +222,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   @override
   void dispose() {
-    _addrDebounce?.cancel();
-    _recipientCtrl.dispose();
-    _amountCtrl.dispose();
+    for (final entry in _recipients) {
+      entry.dispose();
+    }
     _feeRateCtrl.dispose();
     _totalFeeCtrl.dispose();
     _labelCtrl.dispose();
@@ -193,13 +239,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _selectedPresetIndex = null;
   });
   void _onTotalFeeChanged(String _) => setState(() {});
-  void _onAmountChanged(String _) {
-    if (!_sendMax) setState(() {});
-  }
+  void _onAmountChanged(String _) => setState(() {});
 
-  void _confirmRecipient() {
-    if (_recipientCtrl.text.trim().isEmpty) return;
-    setState(() => _recipientEditMode = false);
+  void _confirmRecipient(int index) {
+    if (_recipients[index].addressCtrl.text.trim().isEmpty) return;
+    setState(() => _recipients[index].editMode = false);
   }
 
   /// Sync totalFee controller from current summary when confirming feeRate edit.
@@ -221,13 +265,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       _feeRateCtrl.text = (fee / (summary.totalWu / 4.0)).toStringAsFixed(2);
       return;
     }
-    // Fallback when summary is unavailable (missing coins / path / recipient).
+    // Fallback when summary is unavailable (missing coins / path / recipients).
     final path = _selectedPath;
-    final wu = _recipientWu;
-    if (path == null || wu == null) return;
+    if (path == null) return;
     final n = _selectedUtxos.length;
     if (n == 0) return;
-    final wuNoChange = path.wuBase + n * path.wuIn + wu;
+    final recipientsWu = _recipients.map((r) => r.wu ?? 0).fold(0, (s, w) => s + w);
+    if (recipientsWu == 0) return;
+    final wuNoChange = path.wuBase + n * path.wuIn + recipientsWu;
     _feeRateCtrl.text = (fee / (wuNoChange / 4.0)).toStringAsFixed(2);
   }
 
@@ -281,30 +326,64 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   int get _selectedSats =>
       _selectedUtxos.fold(0, (sum, u) => sum + u.valueSat.toInt());
 
-  void _onRecipientChanged(String value) {
-    _addrDebounce?.cancel();
+  void _onRecipientChanged(String value, int index) {
+    final entry = _recipients[index];
+    entry.debounce?.cancel();
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
       setState(() {
-        _recipientWu = null;
-        _resolvingWu = false;
+        entry.wu = null;
+        entry.resolvingWu = false;
       });
       return;
     }
-    setState(() => _resolvingWu = true);
-    _addrDebounce = Timer(const Duration(milliseconds: 400), () async {
+    setState(() => entry.resolvingWu = true);
+    entry.debounce = Timer(const Duration(milliseconds: 400), () async {
       if (!mounted) return;
       try {
         final wu = await addressOutputWu(address: trimmed);
         if (mounted) {
           setState(() {
-            _recipientWu = wu.toInt();
-            _resolvingWu = false;
+            entry.wu = wu.toInt();
+            entry.resolvingWu = false;
           });
         }
       } catch (_) {
-        if (mounted) setState(() { _recipientWu = null; _resolvingWu = false; });
+        if (mounted) setState(() { entry.wu = null; entry.resolvingWu = false; });
       }
+    });
+  }
+
+  void _addRecipient() {
+    setState(() {
+      _recipients.add(_RecipientEntry());
+    });
+  }
+
+  void _removeRecipient(int index) {
+    setState(() {
+      _recipients[index].dispose();
+      if (_recipients.length == 1) {
+        // Last entry: reset instead of remove.
+        _recipients[0] = _RecipientEntry();
+        _maxRecipientIndex = null;
+      } else {
+        _recipients.removeAt(index);
+        // Fix MAX index after removal.
+        if (_maxRecipientIndex != null) {
+          if (_maxRecipientIndex == index) {
+            _maxRecipientIndex = null;
+          } else if (_maxRecipientIndex! > index) {
+            _maxRecipientIndex = _maxRecipientIndex! - 1;
+          }
+        }
+      }
+    });
+  }
+
+  void _toggleMaxForEntry(int index) {
+    setState(() {
+      _maxRecipientIndex = (_maxRecipientIndex == index) ? null : index;
     });
   }
 
@@ -313,72 +392,81 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   _TxSummary? get _txSummary {
     final path = _selectedPath;
     if (path == null || _selectedUtxos.isEmpty) return null;
-    final recipientWu = _recipientWu;
-    if (recipientWu == null) return null;
+    // All entries must have WU resolved.
+    if (_recipients.any((r) => r.wu == null)) return null;
 
     final n = _selectedUtxos.length;
     final totalIn = _selectedSats;
-    final wuNoChange = path.wuBase + n * path.wuIn + recipientWu;
+    final recipientsWu = _recipients.fold(0, (s, r) => s + r.wu!);
+    final wuNoChange = path.wuBase + n * path.wuIn + recipientsWu;
     final wuWithChange = wuNoChange + path.wuOut;
+
+    final hasDrain = _maxRecipientIndex != null;
 
     // Determine fee rate — branch by active edit mode.
     double? rate;
     if (_feeEditMode == _FeeEditMode.total) {
       final fee = int.tryParse(_totalFeeCtrl.text);
       if (fee == null || fee <= 0) return null;
-      if (!_sendMax) {
-        // Pick the denominator that matches the tx structure the user will actually get,
-        // so feeSats == fee (no rounding drift when toggling between the two fee fields).
-        final amountHint = int.tryParse(_amountCtrl.text) ?? 0;
-        final remainderIfExactFee = totalIn - amountHint - fee;
+      if (!hasDrain) {
+        // Total explicit outputs. Pick denominator that matches actual tx structure.
+        final totalAmount = _recipients.fold(0, (s, r) => s + r.rawAmount);
+        final remainderIfExactFee = totalIn - totalAmount - fee;
         rate = remainderIfExactFee >= _dustLimit
-            ? fee / (wuWithChange / 4.0) // change output present → exact fee
+            ? fee / (wuWithChange / 4.0) // change output present
             : fee / (wuNoChange / 4.0);  // no change output
       } else {
-        rate = fee / (wuNoChange / 4.0); // sendMax: no change output
+        rate = fee / (wuNoChange / 4.0); // drain: no change output
       }
     } else {
       rate = double.tryParse(_feeRateCtrl.text);
     }
     if (rate == null || rate <= 0) return null;
 
-    if (_sendMax) {
+    if (hasDrain) {
       final fee = (rate * wuNoChange / 4.0).ceil();
-      final send = totalIn - fee;
+      // Non-drain recipients have explicit amounts.
+      final nonDrainAmount = _recipients
+          .asMap()
+          .entries
+          .where((e) => e.key != _maxRecipientIndex)
+          .fold(0, (s, e) => s + e.value.rawAmount);
+      final drainAmount = totalIn - nonDrainAmount - fee;
       return _TxSummary(
         feeSats: fee,
         changeSats: 0,
-        sendSats: send > 0 ? send : 0,
+        sendSats: drainAmount > 0 ? drainAmount : 0,
         feeRate: rate,
         totalWu: wuNoChange,
         hasChange: false,
-        insufficientFunds: send <= 0,
+        insufficientFunds: drainAmount <= 0,
       );
     }
 
-    final amount = int.tryParse(_amountCtrl.text);
-    if (amount == null || amount <= 0) return null;
+    // All amounts explicit.
+    final totalAmount = _recipients.fold(0, (s, r) => s + r.rawAmount);
+    if (totalAmount <= 0) return null;
 
     final feeWithChange = (rate * wuWithChange / 4.0).ceil();
-    final change = totalIn - amount - feeWithChange;
+    final change = totalIn - totalAmount - feeWithChange;
 
     if (change >= _dustLimit) {
       return _TxSummary(
         feeSats: feeWithChange,
         changeSats: change,
-        sendSats: amount,
+        sendSats: totalAmount,
         feeRate: rate,
         totalWu: wuWithChange,
         hasChange: true,
       );
     } else {
       final feeNoChange = (rate * wuNoChange / 4.0).ceil();
-      final leftover = totalIn - amount - feeNoChange;
+      final leftover = totalIn - totalAmount - feeNoChange;
       if (leftover < 0) {
         return _TxSummary(
           feeSats: feeNoChange,
           changeSats: 0,
-          sendSats: amount,
+          sendSats: totalAmount,
           feeRate: rate,
           totalWu: wuNoChange,
           hasChange: false,
@@ -389,7 +477,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       return _TxSummary(
         feeSats: feeNoChange + leftover,
         changeSats: 0,
-        sendSats: amount,
+        sendSats: totalAmount,
         feeRate: (feeNoChange + leftover) / (wuNoChange / 4.0),
         totalWu: wuNoChange,
         hasChange: false,
@@ -399,14 +487,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Actions ─────────────────────────────────────────────────────────────
 
-  void _toggleSendMax() {
-    setState(() {
-      _sendMax = !_sendMax;
-      if (!_sendMax) _amountCtrl.clear();
-    });
-  }
-
-  Future<void> _showWalletPickerSheet() async {
+  Future<void> _showWalletPickerSheet(int recipientIndex) async {
     final l10n = context.l10n;
     final cubit = context.read<WalletDetailCubit>();
     final walletState = cubit.state;
@@ -473,7 +554,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       ? null
                       : () {
                           Navigator.of(sheetCtx).pop();
-                          _fillAddressFromWallet(wallet.walletPath);
+                          _fillAddressFromWallet(wallet.walletPath, recipientIndex);
                         },
                 );
               }),
@@ -483,25 +564,37 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       });
   }
 
-  Future<void> _fillAddressFromWallet(String walletPath) async {
+  Future<void> _fillAddressFromWallet(String walletPath, int recipientIndex) async {
     final l10n = context.l10n;
     final cubit = context.read<WalletDetailCubit>();
     final walletState = cubit.state;
+
+    // Addresses already assigned to other recipients — skip them so each
+    // slot gets a distinct address even within the same wallet.
+    final alreadyUsed = _recipients
+        .asMap()
+        .entries
+        .where((e) => e.key != recipientIndex)
+        .map((e) => e.value.addressCtrl.text.trim())
+        .where((a) => a.isNotEmpty)
+        .toSet();
+
     final String? address;
     if (walletState is WalletDetailLoaded &&
         walletPath == walletState.walletInfo.walletPath) {
-      address = await cubit.getNextSelfPaymentAddress();
+      address = await cubit.getNextSelfPaymentAddress(alreadyUsed: alreadyUsed);
     } else {
-      address = await cubit.getNextReceiveAddressFor(walletPath);
+      address = await cubit.getNextReceiveAddressFor(walletPath, alreadyUsed: alreadyUsed);
     }
     if (!mounted) return;
     if (address == null) {
       showErrorToast(context, l10n.createTxNoUnusedAddress);
       return;
     }
-    _recipientCtrl.text = address;
-    _recipientEditMode = false;
-    _onRecipientChanged(address);
+    final entry = _recipients[recipientIndex];
+    entry.addressCtrl.text = address;
+    setState(() => entry.editMode = false);
+    _onRecipientChanged(address, recipientIndex);
   }
 
   Future<void> _openCoinSelector() async {
@@ -892,6 +985,240 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     );
   }
 
+  // ─── Recipients ──────────────────────────────────────────────────────────
+
+  List<Widget> _buildRecipientList(
+      BuildContext context, ThemeData theme, _TxSummary? summary) {
+    final l10n = context.l10n;
+    final colorScheme = theme.colorScheme;
+    final dimColor = colorScheme.onSurface.withAlpha(AppAlpha.secondary);
+
+    final widgets = <Widget>[];
+    for (int i = 0; i < _recipients.length; i++) {
+      final entry = _recipients[i];
+      final isMax = _maxRecipientIndex == i;
+
+      widgets.add(
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: address field + wallet icon + × button
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: entry.editMode
+                        ? TextFormField(
+                            controller: entry.addressCtrl,
+                            autofocus: i == 0 && _recipients.length == 1,
+                            decoration: InputDecoration(
+                              hintText: l10n.createTxRecipientHint,
+                              isDense: true,
+                              filled: true,
+                              fillColor: colorScheme.surface,
+                            ),
+                            keyboardType: TextInputType.text,
+                            autocorrect: false,
+                            onChanged: (v) => _onRecipientChanged(v, i),
+                            onEditingComplete: () => _confirmRecipient(i),
+                            onTapOutside: (_) => _confirmRecipient(i),
+                          )
+                        : InkWell(
+                            onTap: () => setState(() => entry.editMode = true),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surface,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                    color: colorScheme.outline.withAlpha(180)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: ColoredGroupText(
+                                      text: entry.addressCtrl.text,
+                                      truncate: true,
+                                    ),
+                                  ),
+                                  if (entry.resolvingWu)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 6),
+                                      child: SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                  ),
+                  // Wallet picker icon
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      color: colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                      tooltip: l10n.createTxMyWalletsButton,
+                      onPressed: () => _showWalletPickerSheet(i),
+                    ),
+                  ),
+                  // × button
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      icon: const Icon(Icons.close),
+                      color: colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                      onPressed: () => _removeRecipient(i),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Row 2: amount field + MAX chip
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: isMax
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: colorScheme.primary.withAlpha(180)),
+                            ),
+                            child: Text(
+                              (summary != null && !summary.insufficientFunds)
+                                  ? '${BitcoinFormatter.formatNum(summary.sendSats)} sats'
+                                  : '— sats',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.primary),
+                            ),
+                          )
+                        : TextFormField(
+                            controller: entry.amountCtrl,
+                            autovalidateMode: AutovalidateMode.onUserInteraction,
+                            decoration: InputDecoration(
+                              hintText: l10n.createTxAmount,
+                              suffixText: 'sats',
+                              isDense: true,
+                              filled: true,
+                              fillColor: colorScheme.surface,
+                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              _ThousandsSeparatorFormatter(),
+                            ],
+                            onChanged: _onAmountChanged,
+                            validator: (v) {
+                              if (_maxRecipientIndex == i) return null;
+                              if (v == null || v.trim().isEmpty) return l10n.createTxAmountRequired;
+                              final n = int.tryParse(v.replaceAll(',', '').trim());
+                              if (n == null || n <= 0) return l10n.createTxAmountInvalid;
+                              return null;
+                            },
+                          ),
+                  ),
+                  const SizedBox(width: 6),
+                  // MAX chip
+                  GestureDetector(
+                    onTap: () => _toggleMaxForEntry(i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isMax ? colorScheme.primary : colorScheme.surface,
+                        border: Border.all(
+                          color: isMax ? colorScheme.primary : colorScheme.outline,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        l10n.createTxMaxButton,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isMax
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // "+ Add recipient" button
+    widgets.add(
+      TextButton.icon(
+        onPressed: _addRecipient,
+        icon: const Icon(Icons.add, size: 16),
+        label: Text(l10n.createTxAddRecipient),
+      ),
+    );
+
+    // Fee summary below the list
+    if (summary != null) {
+      final hasMultiple = _recipients.length > 1;
+      widgets.add(const SizedBox(height: 4));
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (summary.insufficientFunds)
+                Text(
+                  l10n.createTxEstInsufficientFunds,
+                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
+                )
+              else ...[
+                if (hasMultiple)
+                  Text(
+                    '${l10n.createTxTotalOut}: ${BitcoinFormatter.formatNum(summary.sendSats)} sats',
+                    style: theme.textTheme.bodySmall?.copyWith(color: dimColor),
+                  ),
+                if (summary.hasChange)
+                  Text(
+                    '${l10n.createTxEstChange}: ${BitcoinFormatter.formatNum(summary.changeSats)} sats',
+                    style: theme.textTheme.bodySmall?.copyWith(color: dimColor),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   // ─── Fee presets ──────────────────────────────────────────────────────────
 
   void _applyPreset(int index) {
@@ -986,38 +1313,35 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
-  Future<void> _submit() async {
-    // Validate coin selection.
+  /// Validates all form inputs. Returns `rate` on success, null if
+  /// validation failed (errors are shown / fields opened inline).
+  ({double rate})? _validateTxParams() {
     if (_selectedUtxos.isEmpty) {
       showErrorToast(context, context.l10n.createTxSelectCoinsFirst);
-      return;
+      return null;
     }
-
-    // Validate recipient.
-    if (_recipientCtrl.text.trim().isEmpty) {
-      setState(() => _recipientEditMode = true);
-      return;
+    // All recipients must have a non-empty address.
+    for (int i = 0; i < _recipients.length; i++) {
+      if (_recipients[i].addressCtrl.text.trim().isEmpty) {
+        setState(() => _recipients[i].editMode = true);
+        return null;
+      }
     }
-
-    // Confirm any pending fee edit before submitting.
     if (_feeEditMode != _FeeEditMode.none) {
       if (_feeEditMode == _FeeEditMode.total) _syncRateFromTotal();
       setState(() => _feeEditMode = _FeeEditMode.none);
-      return;
+      return null;
     }
-
     final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
     final rate = double.tryParse(_feeRateCtrl.text.trim());
     if (rate == null || rate < minFeeRate) {
       setState(() => _feeEditMode = _FeeEditMode.rate);
-      return;
+      return null;
     }
-
     // Two independent RBF checks (Bitcoin Core ReplacementChecks):
     final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
     if (resolvedRbfInfos.isNotEmpty) {
       // 1. ImprovesFeerateDiagram: new_rate must strictly exceed orig_rate.
-      //    Fixed — independent of new tx size.
       final maxOrigRate = resolvedRbfInfos.fold<double>(
         0.0,
         (m, i) => max(m, i.minFeeRateSatPerVb),
@@ -1025,11 +1349,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       if (rate <= maxOrigRate) {
         showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
         setState(() => _feeEditMode = _FeeEditMode.rate);
-        return;
+        return null;
       }
-
-      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed total conflict cluster fee + new_vsize.
-      //    Conflict cluster = original tx + all unconfirmed descendants.
+      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed conflict cluster fee + new_vsize.
       final summary = _txSummary;
       if (summary != null) {
         final newVsize = (summary.totalWu / 4.0).ceil();
@@ -1037,34 +1359,49 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         if (summary.feeSats <= totalConflict + newVsize) {
           showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
           setState(() => _feeEditMode = _FeeEditMode.total);
-          return;
+          return null;
         }
       }
     }
+    if (!_formKey.currentState!.validate()) return null;
+    if (_selectedPath == null) return null;
+    return (rate: rate);
+  }
 
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedPath == null) return;
+  List<APICoinControl> _buildSelectedUtxos() =>
+      _selectedUtxos.map((u) => APICoinControl(txid: u.txid, vout: u.vout)).toList();
+
+  List<APIRecipient> _buildApiRecipients() =>
+      _recipients.asMap().entries.map((e) {
+        final amountSat = e.key == _maxRecipientIndex
+            ? BigInt.zero
+            : BigInt.from(e.value.rawAmount);
+        return APIRecipient(
+          address: e.value.addressCtrl.text.trim(),
+          amountSat: amountSat,
+        );
+      }).toList();
+
+  Future<void> _submit() async {
+    final params = _validateTxParams();
+    if (params == null) return;
+    final rate = params.rate;
 
     final l10n = context.l10n;
-    final amount = _sendMax ? 0 : (int.tryParse(_amountCtrl.text.trim()) ?? 0);
 
     setState(() => _creating = true);
     try {
       final cubit = context.read<WalletDetailCubit>();
-      final selectedUtxos = _selectedUtxos
-          .map((u) => APICoinControl(txid: u.txid, vout: u.vout))
-          .toList();
 
       final psbt = await cubit.createPsbt(
-        recipientAddress: _recipientCtrl.text.trim(),
-        amountSat: amount,
+        recipients: _buildApiRecipients(),
+        maxRecipientIndex: _maxRecipientIndex,
         feeRateSatPerVb: rate,
-        selectedUtxos: selectedUtxos,
+        selectedUtxos: _buildSelectedUtxos(),
         policyPath: _selectedPath!.policyPath,
         spendPathId: _selectedPath!.id,
         threshold: _selectedPath!.threshold,
         mfps: _selectedPath!.mfps,
-        sendMax: _sendMax,
         label: _labelCtrl.text.trim(),
       );
 
@@ -1087,6 +1424,75 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
   }
 
+  // ─── Direct send ─────────────────────────────────────────────────────────
+
+  /// True when the selected path is single-sig, the hot key is available locally,
+  /// and there is only one recipient (multi-recipient requires PSBT flow).
+  bool _isDirectSendAvailable() {
+    final path = _selectedPath;
+    if (path == null || path.threshold != 1 || path.mfps.length != 1) return false;
+    final s = context.read<WalletDetailCubit>().state;
+    if (s is! WalletDetailLoaded) return false;
+    return s.hotKeys.any((k) => k.mfp == path.mfps.first);
+  }
+
+  /// Validates inputs and shows a confirmation sheet before signing + broadcasting.
+  Future<void> _confirmDirectSend() async {
+    final params = _validateTxParams();
+    if (params == null) return;
+    final summary = _txSummary;
+    // Build display recipients (drain recipient shows calculated sendSats).
+    final displayRecipients = _recipients.asMap().entries.map((e) {
+      final amount = (e.key == _maxRecipientIndex && summary != null && !summary.insufficientFunds)
+          ? summary.sendSats
+          : e.value.rawAmount;
+      return (address: e.value.addressCtrl.text.trim(), amountSat: amount);
+    }).toList();
+
+    await showSheet<void>(context, (sheetCtx) {
+      return _DirectSendConfirmSheet(
+        recipients: displayRecipients,
+        feeSat: summary?.feeSats,
+        changeSat: (summary != null && summary.hasChange) ? summary.changeSats : null,
+        feeRateSatPerVb: params.rate,
+        onConfirm: () {
+          Navigator.pop(sheetCtx);
+          _executeDirectSend(params.rate);
+        },
+      );
+    });
+  }
+
+  Future<void> _executeDirectSend(double rate) async {
+    setState(() => _creating = true);
+    try {
+      final cubit = context.read<WalletDetailCubit>();
+      final settings = context.read<SettingsCubit>().state;
+      final electrumUrl = settings.electrumUrlForNetwork(_currentNetwork);
+      final label = _labelCtrl.text.trim();
+      final txid = await cubit.directSend(
+        recipients: _buildApiRecipients(),
+        maxRecipientIndex: _maxRecipientIndex,
+        feeRateSatPerVb: rate,
+        selectedUtxos: _buildSelectedUtxos(),
+        policyPath: _selectedPath!.policyPath,
+        spendPathId: _selectedPath!.id,
+        threshold: _selectedPath!.threshold,
+        mfps: _selectedPath!.mfps,
+        label: label.isEmpty ? null : label,
+        electrumUrl: electrumUrl,
+      );
+      if (mounted) {
+        showSuccessToast(context, context.l10n.directSendSuccess(txid));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) showErrorToastException(context, e);
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -1094,7 +1500,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final summary = _txSummary;
-    final dimColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary);
+    final directSend = _isDirectSendAvailable();
 
     // Fee field inline validation.
     final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
@@ -1213,137 +1619,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Recipient + Self button ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _recipientEditMode
-                        ? TextFormField(
-                            controller: _recipientCtrl,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              labelText: l10n.createTxRecipient,
-                              hintText: l10n.createTxRecipientHint,
-                            ),
-                            keyboardType: TextInputType.text,
-                            autocorrect: false,
-                            onChanged: _onRecipientChanged,
-                            onEditingComplete: _confirmRecipient,
-                            onTapOutside: (_) => _confirmRecipient(),
-                          )
-                        : InkWell(
-                            onTap: () => setState(() => _recipientEditMode = true),
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: l10n.createTxRecipient,
-                                suffixIcon: _resolvingWu
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                              isEmpty: false,
-                              child: ColoredGroupText(
-                                text: _recipientCtrl.text,
-                                truncate: true,
-                              ),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: OutlinedButton(
-                      onPressed: _showWalletPickerSheet,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
-                        side: BorderSide(color: theme.colorScheme.outline),
-                      ),
-                      child: Text(l10n.createTxMyWalletsButton),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── Amount + MAX toggle ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _sendMax
-                        ? InputDecorator(
-                            decoration: InputDecoration(labelText: l10n.createTxSendMax),
-                            isEmpty: false,
-                            child: Text(
-                              (summary != null && !summary.insufficientFunds)
-                                  ? summary.sendSats.toString()
-                                  : '—',
-                              style: theme.textTheme.bodyLarge,
-                            ),
-                          )
-                        : TextFormField(
-                            controller: _amountCtrl,
-                            decoration: InputDecoration(labelText: l10n.createTxAmount),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            onChanged: _onAmountChanged,
-                            validator: (v) {
-                              if (_sendMax) return null;
-                              if (v == null || v.trim().isEmpty) return l10n.createTxAmountRequired;
-                              final n = int.tryParse(v.trim());
-                              if (n == null || n <= 0) return l10n.createTxAmountInvalid;
-                              return null;
-                            },
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: OutlinedButton(
-                      onPressed: _toggleSendMax,
-                      style: _sendMax
-                          ? OutlinedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: theme.colorScheme.onPrimary,
-                              side: BorderSide(color: theme.colorScheme.primary),
-                            )
-                          : OutlinedButton.styleFrom(
-                              foregroundColor: theme.colorScheme.onSurface.withAlpha(AppAlpha.mediumHigh),
-                              side: BorderSide(color: theme.colorScheme.outline),
-                            ),
-                      child: Text(l10n.createTxMaxButton),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Amount sub-info — always present (stable slot prevents ListView index shifts).
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: summary == null
-                    ? const SizedBox.shrink()
-                    : summary.insufficientFunds
-                        ? Text(
-                            l10n.createTxEstInsufficientFunds,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: theme.colorScheme.error),
-                          )
-                        : (!_sendMax && summary.hasChange)
-                            ? Text(
-                                '${l10n.createTxEstChange}: ${BitcoinFormatter.formatNum(summary.changeSats)} sats',
-                                style: theme.textTheme.bodySmall?.copyWith(color: dimColor),
-                              )
-                            : const SizedBox.shrink(),
-              ),
-
+              // ── Recipients ──
+              ..._buildRecipientList(context, theme, summary),
               const SizedBox(height: 16),
 
               _buildFeePresets(),
@@ -1464,21 +1741,175 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
               const SizedBox(height: 24),
 
-              FilledButton.icon(
-                onPressed: (_creating || _selectedPath == null) ? null : _submit,
-                icon: _creating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.receipt_long_outlined),
-                label: Text(l10n.createTxButton),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: (_creating || _selectedPath == null)
+                        ? null
+                        : (directSend ? _confirmDirectSend : _submit),
+                    icon: _creating
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(directSend
+                            ? Icons.send_outlined
+                            : Icons.receipt_long_outlined),
+                    label: Text(
+                        directSend ? l10n.directSendButton : l10n.createTxButton),
+                  ),
+                  if (directSend) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: (_creating || _selectedPath == null) ? null : _submit,
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: Text(l10n.createTxButton),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DirectSendConfirmSheet extends StatelessWidget {
+  const _DirectSendConfirmSheet({
+    required this.recipients,
+    this.feeSat,
+    this.changeSat,
+    required this.feeRateSatPerVb,
+    required this.onConfirm,
+  });
+
+  final List<({String address, int amountSat})> recipients;
+  final int? feeSat;
+  final int? changeSat;
+  final double feeRateSatPerVb;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final feeText = feeSat != null
+        ? '${BitcoinFormatter.formatNum(feeSat!)} sats'
+            ' (${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB)'
+        : '${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB';
+    final totalAmount = recipients.fold(0, (s, r) => s + r.amountSat);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurface.withAlpha(60),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(l10n.directSendConfirmTitle,
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          // One row per recipient (always, for visual consistency).
+          for (int i = 0; i < recipients.length; i++) ...[
+            _ConfirmRow(
+              label: '${l10n.psbtRecipient} ${i + 1}',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ColoredGroupText(text: recipients[i].address),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${BitcoinFormatter.formatNum(recipients[i].amountSat)} sats',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // Total amount row when >1 recipient.
+          if (recipients.length > 1) ...[
+            _ConfirmRow(
+              label: l10n.createTxTotalOut,
+              child: Text(
+                '${BitcoinFormatter.formatNum(totalAmount)} sats',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          _ConfirmRow(
+            label: l10n.psbtFee,
+            child: Text(feeText, style: theme.textTheme.bodySmall),
+          ),
+          if (changeSat != null) ...[
+            const SizedBox(height: 8),
+            _ConfirmRow(
+              label: l10n.createTxEstChange,
+              child: Text(
+                '${BitcoinFormatter.formatNum(changeSat!)} sats',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.cancel),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: onConfirm,
+                icon: const Icon(Icons.send_outlined),
+                label: Text(l10n.directSendConfirmAction),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfirmRow extends StatelessWidget {
+  const _ConfirmRow({required this.label, required this.child});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withAlpha(150))),
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

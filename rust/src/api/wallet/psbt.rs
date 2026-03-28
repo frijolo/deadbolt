@@ -37,6 +37,10 @@ impl APIWallet {
 
     /// Build an unsigned PSBT with optional coin control and spend-path selection.
     ///
+    /// * `recipients`           — one or more outputs; each has an address and amount.
+    /// * `max_recipient_index`  — if `Some(i)`, recipient at index `i` gets the wallet
+    ///   remainder (drain_to); its `amount_sat` field is ignored.
+    ///   Pass `None` when every amount is explicit.
     /// * `selected_utxos` — if non-empty, only those coins are used.
     ///   Empty = BDK automatic coin selection.
     /// * `policy_path`    — spend-path branch selections from [APISpendPath.policyPath].
@@ -47,25 +51,26 @@ impl APIWallet {
     #[allow(clippy::too_many_arguments)]
     pub fn create_psbt(
         &self,
-        recipient_address: String,
-        amount_sat: u64,
+        recipients: Vec<APIRecipient>,
+        max_recipient_index: Option<u32>,
         fee_rate_sat_per_vb: f64,
         selected_utxos: Vec<APICoinControl>,
         policy_path: Vec<APIPolicyPath>,
         spend_path_id: u32,
         threshold: u32,
         mfps: Vec<String>,
-        send_max: bool,
     ) -> Result<APIPsbtInfo> {
         use bdk_wallet::bitcoin::{Address, Amount, FeeRate, OutPoint, Txid};
         use bdk_wallet::KeychainKind;
         use std::collections::BTreeMap;
         use std::str::FromStr;
 
-        let mut core = self.lock_wallet()?;
+        if recipients.is_empty() {
+            return Err(anyhow::anyhow!("At least one recipient is required"));
+        }
 
+        let mut core = self.lock_wallet()?;
         let network = core.wallet.network();
-        let address = Address::from_str(&recipient_address)?.require_network(network)?;
 
         // float sat/vB → sat/kwu (1 sat/vB = 250 sat/kwu). Minimum 1 sat/kwu.
         let sat_per_kwu = ((fee_rate_sat_per_vb * 250.0).ceil() as u64).max(1);
@@ -147,15 +152,37 @@ impl APIWallet {
         let mut builder = core.wallet.build_tx();
         builder.fee_rate(fee_rate);
 
-        if send_max {
-            // Drain all selected (or all wallet) funds to recipient, no change output.
-            builder.drain_to(address.script_pubkey());
-            if resolved.is_empty() {
-                builder.drain_wallet();
+        // Parse recipient addresses into (canonical_address_string, script_pubkey) pairs.
+        use bdk_wallet::bitcoin::ScriptBuf;
+        struct ParsedRecipient {
+            address: String,
+            script: ScriptBuf,
+        }
+        let parsed_recipients: Vec<ParsedRecipient> = recipients
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let addr = Address::from_str(&r.address)
+                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?
+                    .require_network(network)
+                    .map_err(|e| anyhow::anyhow!("Recipient {}: wrong network: {}", i + 1, e))?;
+                Ok(ParsedRecipient {
+                    address: addr.to_string(),
+                    script: addr.script_pubkey(),
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        for (i, (r, pr)) in recipients.iter().zip(parsed_recipients.iter()).enumerate() {
+            if Some(i as u32) == max_recipient_index {
+                // This recipient gets the remainder (send-max semantics).
+                builder.drain_to(pr.script.clone());
+                if resolved.is_empty() {
+                    builder.drain_wallet();
+                }
+            } else {
+                builder.add_recipient(pr.script.clone(), Amount::from_sat(r.amount_sat));
             }
-        } else {
-            let amount = Amount::from_sat(amount_sat);
-            builder.add_recipient(address.script_pubkey(), amount);
         }
         if !resolved.is_empty() {
             for r in &resolved {
@@ -177,20 +204,33 @@ impl APIWallet {
         let fee_sat = psbt.fee()?.to_sat();
         let txid = psbt.unsigned_tx.compute_txid().to_string();
         let psbt_base64 = psbt_to_base64(&psbt);
-        let recipient = address.to_string();
 
-        // When send_max, read actual output amount from the PSBT.
-        let actual_amount_sat = if send_max {
-            let script = address.script_pubkey();
-            psbt.unsigned_tx
-                .output
-                .iter()
-                .find(|o| o.script_pubkey == script)
-                .map(|o| o.value.to_sat())
-                .unwrap_or(0)
-        } else {
-            amount_sat
-        };
+        // Build final recipients list. For the drain recipient, read the actual output value.
+        let final_recipients: Vec<APIRecipient> = recipients
+            .iter()
+            .zip(parsed_recipients.iter())
+            .enumerate()
+            .map(|(i, (r, pr))| {
+                let amount_sat = if Some(i as u32) == max_recipient_index {
+                    psbt.unsigned_tx
+                        .output
+                        .iter()
+                        .find(|o| o.script_pubkey == pr.script)
+                        .map(|o| o.value.to_sat())
+                        .unwrap_or(0)
+                } else {
+                    r.amount_sat
+                };
+                APIRecipient {
+                    address: pr.address.clone(),
+                    amount_sat,
+                }
+            })
+            .collect();
+        let primary_recipient = final_recipients[0].address.clone();
+        let total_amount_sat: u64 = final_recipients.iter().map(|r| r.amount_sat).sum();
+
+        let recipients_json = serde_json::to_string(&final_recipients).ok();
 
         let utxo_max_conf_height = psbt_max_utxo_conf_height(&core.wallet, &psbt);
 
@@ -200,18 +240,20 @@ impl APIWallet {
             &psbt_base64,
             &txid,
             None,
-            &recipient,
-            actual_amount_sat,
+            &primary_recipient,
+            total_amount_sat,
             fee_sat,
             spend_path_id,
             threshold,
             &mfps,
+            recipients_json.as_deref(),
         )?;
 
         let created_at = current_unix_secs()?;
         let addr_labels = get_all_address_labels_with_flag(&core.conn).unwrap_or_default();
-        let (effective_label, is_auto) = psbt_effective_label(&None, &recipient, &addr_labels);
-        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &recipient);
+        let (effective_label, is_auto) =
+            psbt_effective_label(&None, &primary_recipient, &addr_labels);
+        let is_self_transfer = is_psbt_self_transfer(&core.wallet, &primary_recipient);
 
         Ok(APIPsbtInfo {
             id,
@@ -222,8 +264,9 @@ impl APIWallet {
             is_auto,
             is_self_transfer,
             created_at,
-            recipient,
-            amount_sat: actual_amount_sat,
+            recipient: primary_recipient,
+            amount_sat: total_amount_sat,
+            recipients: final_recipients,
             fee_sat,
             spend_path_id,
             threshold,
@@ -330,13 +373,27 @@ impl APIWallet {
         } else {
             external_outputs
         };
-        let recipient = bdk_wallet::bitcoin::Address::from_script(
-            &recipient_outputs[0].script_pubkey,
-            core.wallet.network(),
-        )
-        .map(|a| a.to_string())
-        .unwrap_or_default();
-        let amount_sat: u64 = recipient_outputs.iter().map(|o| o.value.to_sat()).sum();
+        let import_recipients: Vec<APIRecipient> = recipient_outputs
+            .iter()
+            .map(|o| {
+                let address = bdk_wallet::bitcoin::Address::from_script(
+                    &o.script_pubkey,
+                    core.wallet.network(),
+                )
+                .map(|a| a.to_string())
+                .unwrap_or_default();
+                APIRecipient {
+                    address,
+                    amount_sat: o.value.to_sat(),
+                }
+            })
+            .collect();
+        let recipient = import_recipients
+            .first()
+            .map(|r| r.address.clone())
+            .unwrap_or_default();
+        let amount_sat: u64 = import_recipients.iter().map(|r| r.amount_sat).sum();
+        let recipients_json = serde_json::to_string(&import_recipients).ok();
 
         // Fee = witness_utxo input sum − output sum (best-effort).
         let input_sum: u64 = imported
@@ -359,6 +416,7 @@ impl APIWallet {
             0,
             threshold,
             &mfps,
+            recipients_json.as_deref(),
         )?;
 
         let created_at = current_unix_secs()?;
@@ -383,6 +441,7 @@ impl APIWallet {
                 created_at,
                 recipient,
                 amount_sat,
+                recipients: import_recipients,
                 fee_sat,
                 spend_path_id: 0,
                 threshold,

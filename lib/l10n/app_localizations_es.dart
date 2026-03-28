@@ -1338,6 +1338,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createTxEstInsufficientFunds => 'Fondos insuficientes';
 
   @override
+  String get createTxAddRecipient => 'Añadir destinatario';
+
+  @override
+  String get createTxTotalOut => 'Total enviado';
+
+  @override
   String get createTxSelectCoinsFirst =>
       'Selecciona monedas para crear la transacción';
 
@@ -1528,4 +1534,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get goToSettings => 'Ajustes';
+
+  @override
+  String get directSendButton => 'Enviar';
+
+  @override
+  String get directSendConfirmTitle => 'Confirmar envío';
+
+  @override
+  String get directSendConfirmAction => 'Firmar y retransmitir';
+
+  @override
+  String directSendSuccess(String txid) {
+    return 'Enviado: $txid';
+  }
 }

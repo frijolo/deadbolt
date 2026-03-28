@@ -157,6 +157,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRbfInfo dco_decode_api_rbf_info(dynamic raw);
 
   @protected
+  APIRecipient dco_decode_api_recipient(dynamic raw);
+
+  @protected
   APIRelatedAddress dco_decode_api_related_address(dynamic raw);
 
   @protected
@@ -284,6 +287,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> dco_decode_list_api_pub_key(dynamic raw);
+
+  @protected
+  List<APIRecipient> dco_decode_list_api_recipient(dynamic raw);
 
   @protected
   List<APIRelatedAddress> dco_decode_list_api_related_address(dynamic raw);
@@ -503,6 +509,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRbfInfo sse_decode_api_rbf_info(SseDeserializer deserializer);
 
   @protected
+  APIRecipient sse_decode_api_recipient(SseDeserializer deserializer);
+
+  @protected
   APIRelatedAddress sse_decode_api_related_address(
     SseDeserializer deserializer,
   );
@@ -658,6 +667,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> sse_decode_list_api_pub_key(SseDeserializer deserializer);
+
+  @protected
+  List<APIRecipient> sse_decode_list_api_recipient(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<APIRelatedAddress> sse_decode_list_api_related_address(
@@ -925,6 +939,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_rbf_info(APIRbfInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_recipient(APIRecipient self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_related_address(
     APIRelatedAddress self,
     SseSerializer serializer,
@@ -1129,6 +1146,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_pub_key(
     List<APIPubKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_recipient(
+    List<APIRecipient> self,
     SseSerializer serializer,
   );
 

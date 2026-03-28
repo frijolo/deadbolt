@@ -126,15 +126,14 @@ abstract class RustLibApi extends BaseApi {
 
   APIPsbtInfo crateApiWalletApiWalletCreatePsbt({
     required ApiWallet that,
-    required String recipientAddress,
-    required BigInt amountSat,
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
     required double feeRateSatPerVb,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
-    required bool sendMax,
   });
 
   void crateApiWalletApiWalletDeleteHotKey({
@@ -980,15 +979,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   APIPsbtInfo crateApiWalletApiWalletCreatePsbt({
     required ApiWallet that,
-    required String recipientAddress,
-    required BigInt amountSat,
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
     required double feeRateSatPerVb,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
-    required bool sendMax,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -998,15 +996,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          sse_encode_String(recipientAddress, serializer);
-          sse_encode_u_64(amountSat, serializer);
+          sse_encode_list_api_recipient(recipients, serializer);
+          sse_encode_opt_box_autoadd_u_32(maxRecipientIndex, serializer);
           sse_encode_f_64(feeRateSatPerVb, serializer);
           sse_encode_list_api_coin_control(selectedUtxos, serializer);
           sse_encode_list_api_policy_path(policyPath, serializer);
           sse_encode_u_32(spendPathId, serializer);
           sse_encode_u_32(threshold, serializer);
           sse_encode_list_String(mfps, serializer);
-          sse_encode_bool(sendMax, serializer);
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
@@ -1016,15 +1013,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         constMeta: kCrateApiWalletApiWalletCreatePsbtConstMeta,
         argValues: [
           that,
-          recipientAddress,
-          amountSat,
+          recipients,
+          maxRecipientIndex,
           feeRateSatPerVb,
           selectedUtxos,
           policyPath,
           spendPathId,
           threshold,
           mfps,
-          sendMax,
         ],
         apiImpl: this,
       ),
@@ -1036,15 +1032,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "ApiWallet_create_psbt",
         argNames: [
           "that",
-          "recipientAddress",
-          "amountSat",
+          "recipients",
+          "maxRecipientIndex",
           "feeRateSatPerVb",
           "selectedUtxos",
           "policyPath",
           "spendPathId",
           "threshold",
           "mfps",
-          "sendMax",
         ],
       );
 
@@ -5150,8 +5145,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIPsbtInfo dco_decode_api_psbt_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return APIPsbtInfo(
       id: dco_decode_i_64(arr[0]),
       psbtBase64: dco_decode_String(arr[1]),
@@ -5163,12 +5158,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: dco_decode_i_64(arr[7]),
       recipient: dco_decode_String(arr[8]),
       amountSat: dco_decode_u_64(arr[9]),
-      feeSat: dco_decode_u_64(arr[10]),
-      spendPathId: dco_decode_u_32(arr[11]),
-      threshold: dco_decode_u_32(arr[12]),
-      mfps: dco_decode_list_String(arr[13]),
-      utxoMaxConfHeight: dco_decode_opt_box_autoadd_i_64(arr[14]),
-      hasSpentInputs: dco_decode_bool(arr[15]),
+      recipients: dco_decode_list_api_recipient(arr[10]),
+      feeSat: dco_decode_u_64(arr[11]),
+      spendPathId: dco_decode_u_32(arr[12]),
+      threshold: dco_decode_u_32(arr[13]),
+      mfps: dco_decode_list_String(arr[14]),
+      utxoMaxConfHeight: dco_decode_opt_box_autoadd_i_64(arr[15]),
+      hasSpentInputs: dco_decode_bool(arr[16]),
     );
   }
 
@@ -5212,6 +5208,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       descendantVsize: dco_decode_u_32(arr[5]),
       minFeeSat: dco_decode_u_64(arr[6]),
       minFeeRateSatPerVb: dco_decode_f_64(arr[7]),
+    );
+  }
+
+  @protected
+  APIRecipient dco_decode_api_recipient(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return APIRecipient(
+      address: dco_decode_String(arr[0]),
+      amountSat: dco_decode_u_64(arr[1]),
     );
   }
 
@@ -5624,6 +5632,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<APIPubKey> dco_decode_list_api_pub_key(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_api_pub_key).toList();
+  }
+
+  @protected
+  List<APIRecipient> dco_decode_list_api_recipient(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_api_recipient).toList();
   }
 
   @protected
@@ -6145,6 +6159,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_recipient = sse_decode_String(deserializer);
     var var_amountSat = sse_decode_u_64(deserializer);
+    var var_recipients = sse_decode_list_api_recipient(deserializer);
     var var_feeSat = sse_decode_u_64(deserializer);
     var var_spendPathId = sse_decode_u_32(deserializer);
     var var_threshold = sse_decode_u_32(deserializer);
@@ -6162,6 +6177,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: var_createdAt,
       recipient: var_recipient,
       amountSat: var_amountSat,
+      recipients: var_recipients,
       feeSat: var_feeSat,
       spendPathId: var_spendPathId,
       threshold: var_threshold,
@@ -6215,6 +6231,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       minFeeSat: var_minFeeSat,
       minFeeRateSatPerVb: var_minFeeRateSatPerVb,
     );
+  }
+
+  @protected
+  APIRecipient sse_decode_api_recipient(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_amountSat = sse_decode_u_64(deserializer);
+    return APIRecipient(address: var_address, amountSat: var_amountSat);
   }
 
   @protected
@@ -6769,6 +6793,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <APIPubKey>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_api_pub_key(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<APIRecipient> sse_decode_list_api_recipient(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <APIRecipient>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_recipient(deserializer));
     }
     return ans_;
   }
@@ -7360,6 +7398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_String(self.recipient, serializer);
     sse_encode_u_64(self.amountSat, serializer);
+    sse_encode_list_api_recipient(self.recipients, serializer);
     sse_encode_u_64(self.feeSat, serializer);
     sse_encode_u_32(self.spendPathId, serializer);
     sse_encode_u_32(self.threshold, serializer);
@@ -7397,6 +7436,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.descendantVsize, serializer);
     sse_encode_u_64(self.minFeeSat, serializer);
     sse_encode_f_64(self.minFeeRateSatPerVb, serializer);
+  }
+
+  @protected
+  void sse_encode_api_recipient(APIRecipient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_64(self.amountSat, serializer);
   }
 
   @protected
@@ -7851,6 +7897,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_api_recipient(
+    List<APIRecipient> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_recipient(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_api_related_address(
     List<APIRelatedAddress> self,
     SseSerializer serializer,
@@ -8213,6 +8271,10 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
 
   /// Build an unsigned PSBT with optional coin control and spend-path selection.
   ///
+  /// * `recipients`           — one or more outputs; each has an address and amount.
+  /// * `max_recipient_index`  — if `Some(i)`, recipient at index `i` gets the wallet
+  ///   remainder (drain_to); its `amount_sat` field is ignored.
+  ///   Pass `None` when every amount is explicit.
   /// * `selected_utxos` — if non-empty, only those coins are used.
   ///   Empty = BDK automatic coin selection.
   /// * `policy_path`    — spend-path branch selections from [APISpendPath.policyPath].
@@ -8220,26 +8282,24 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
   /// * `threshold`      — required signatures (from the spend path).
   /// * `mfps`           — master fingerprints of keys in the spend path.
   APIPsbtInfo createPsbt({
-    required String recipientAddress,
-    required BigInt amountSat,
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
     required double feeRateSatPerVb,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
-    required bool sendMax,
   }) => RustLib.instance.api.crateApiWalletApiWalletCreatePsbt(
     that: this,
-    recipientAddress: recipientAddress,
-    amountSat: amountSat,
+    recipients: recipients,
+    maxRecipientIndex: maxRecipientIndex,
     feeRateSatPerVb: feeRateSatPerVb,
     selectedUtxos: selectedUtxos,
     policyPath: policyPath,
     spendPathId: spendPathId,
     threshold: threshold,
     mfps: mfps,
-    sendMax: sendMax,
   );
 
   /// Remove a hot signing key by MFP.

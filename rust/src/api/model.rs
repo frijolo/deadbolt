@@ -533,6 +533,15 @@ pub struct APIUtxo {
 }
 
 ////////////////////
+// APIRecipient   //
+////////////////////
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct APIRecipient {
+    pub address: String,
+    pub amount_sat: u64,
+}
+
+////////////////////
 // APIPsbtInfo    //
 ////////////////////
 #[derive(Clone)]
@@ -552,6 +561,7 @@ pub struct APIPsbtInfo {
     pub created_at: i64,
     pub recipient: String,
     pub amount_sat: u64,
+    pub recipients: Vec<APIRecipient>,
     pub fee_sat: u64,
     pub spend_path_id: u32,
     pub threshold: u32,

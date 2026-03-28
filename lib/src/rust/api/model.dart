@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -476,6 +476,7 @@ class APIPsbtInfo {
   final PlatformInt64 createdAt;
   final String recipient;
   final BigInt amountSat;
+  final List<APIRecipient> recipients;
   final BigInt feeSat;
   final int spendPathId;
   final int threshold;
@@ -501,6 +502,7 @@ class APIPsbtInfo {
     required this.createdAt,
     required this.recipient,
     required this.amountSat,
+    required this.recipients,
     required this.feeSat,
     required this.spendPathId,
     required this.threshold,
@@ -521,6 +523,7 @@ class APIPsbtInfo {
       createdAt.hashCode ^
       recipient.hashCode ^
       amountSat.hashCode ^
+      recipients.hashCode ^
       feeSat.hashCode ^
       spendPathId.hashCode ^
       threshold.hashCode ^
@@ -543,6 +546,7 @@ class APIPsbtInfo {
           createdAt == other.createdAt &&
           recipient == other.recipient &&
           amountSat == other.amountSat &&
+          recipients == other.recipients &&
           feeSat == other.feeSat &&
           spendPathId == other.spendPathId &&
           threshold == other.threshold &&
@@ -660,6 +664,24 @@ class APIRbfInfo {
           descendantVsize == other.descendantVsize &&
           minFeeSat == other.minFeeSat &&
           minFeeRateSatPerVb == other.minFeeRateSatPerVb;
+}
+
+class APIRecipient {
+  final String address;
+  final BigInt amountSat;
+
+  const APIRecipient({required this.address, required this.amountSat});
+
+  @override
+  int get hashCode => address.hashCode ^ amountSat.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIRecipient &&
+          runtimeType == other.runtimeType &&
+          address == other.address &&
+          amountSat == other.amountSat;
 }
 
 /// Output address entry shown inside a transaction detail dialog.

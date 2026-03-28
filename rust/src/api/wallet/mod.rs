@@ -6,9 +6,10 @@ use flutter_rust_bridge::frb;
 use crate::api::model::{
     APIAddress, APIAddressDetails, APIBalance, APICoinControl, APICpfpInfo, APIFiatPrice,
     APIHotKeyInfo, APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
-    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRelatedAddress, APIRelatedTx,
-    APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage, APITxDetails,
-    APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
+    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRecipient, APIRelatedAddress,
+    APIRelatedTx, APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage,
+    APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection,
+    APIXpubSlot,
 };
 use crate::core::key_protection::{
     decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
@@ -300,6 +301,17 @@ fn row_to_api_psbt(
     let (effective_label, is_auto) =
         psbt_effective_label(&row.label, &row.recipient, address_labels);
     let is_self_transfer = is_psbt_self_transfer(wallet, &row.recipient);
+    // Deserialize recipients from JSON; fall back to single-recipient for old rows.
+    let recipients: Vec<crate::api::model::APIRecipient> = row
+        .recipients_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str(json).ok())
+        .unwrap_or_else(|| {
+            vec![crate::api::model::APIRecipient {
+                address: row.recipient.clone(),
+                amount_sat: row.amount_sat,
+            }]
+        });
     APIPsbtInfo {
         id: row.id,
         psbt_base64: row.psbt,
@@ -311,6 +323,7 @@ fn row_to_api_psbt(
         created_at: row.created_at,
         recipient: row.recipient,
         amount_sat: row.amount_sat,
+        recipients,
         fee_sat: row.fee_sat,
         spend_path_id: row.spend_path_id,
         threshold: row.threshold,

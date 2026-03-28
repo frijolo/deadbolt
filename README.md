@@ -16,7 +16,9 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Spend Path Analysis**: Identifies all possible spending conditions in complex descriptors
 - **Fee Estimation**: Calculates transaction weight for each spend path
 - **Wallet Management**: Create on-device wallets, sync balances via Electrum, view UTXOs and transactions
-- **PSBT Workflow**: Build PSBTs with optional coin control and RBF support; import and merge partial signatures; broadcast finalized transactions
+- **PSBT Workflow**: Build PSBTs with coin control and RBF support; import and merge partial signatures; broadcast finalized transactions
+- **Multi-Recipient Transactions**: Send to multiple addresses in a single transaction with per-output amounts; one output can be set to "MAX" to receive the wallet remainder
+- **Direct Send**: Single-sig wallets with a local hot key can sign and broadcast in one step — no PSBT round-trip required
 - **Local Signing**: Store encrypted private keys on-device (hot signing keys) and sign PSBTs without any external device
 - **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
 - **Password-Protected Wallets**: Lock individual wallets with a password; the key never leaves the device unencrypted

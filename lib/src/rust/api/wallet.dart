@@ -391,6 +391,10 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Build an unsigned PSBT with optional coin control and spend-path selection.
   ///
+  /// * `recipients`           — one or more outputs; each has an address and amount.
+  /// * `max_recipient_index`  — if `Some(i)`, recipient at index `i` gets the wallet
+  ///   remainder (drain_to); its `amount_sat` field is ignored.
+  ///   Pass `None` when every amount is explicit.
   /// * `selected_utxos` — if non-empty, only those coins are used.
   ///   Empty = BDK automatic coin selection.
   /// * `policy_path`    — spend-path branch selections from [APISpendPath.policyPath].
@@ -398,15 +402,14 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// * `threshold`      — required signatures (from the spend path).
   /// * `mfps`           — master fingerprints of keys in the spend path.
   APIPsbtInfo createPsbt({
-    required String recipientAddress,
-    required BigInt amountSat,
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
     required double feeRateSatPerVb,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
-    required bool sendMax,
   });
 
   /// Remove a hot signing key by MFP.

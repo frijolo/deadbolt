@@ -506,8 +506,9 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
             let api_that = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>,
             >>::sse_decode(&mut deserializer);
-            let api_recipient_address = <String>::sse_decode(&mut deserializer);
-            let api_amount_sat = <u64>::sse_decode(&mut deserializer);
+            let api_recipients =
+                <Vec<crate::api::model::APIRecipient>>::sse_decode(&mut deserializer);
+            let api_max_recipient_index = <Option<u32>>::sse_decode(&mut deserializer);
             let api_fee_rate_sat_per_vb = <f64>::sse_decode(&mut deserializer);
             let api_selected_utxos =
                 <Vec<crate::api::model::APICoinControl>>::sse_decode(&mut deserializer);
@@ -516,7 +517,6 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
             let api_spend_path_id = <u32>::sse_decode(&mut deserializer);
             let api_threshold = <u32>::sse_decode(&mut deserializer);
             let api_mfps = <Vec<String>>::sse_decode(&mut deserializer);
-            let api_send_max = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
@@ -536,15 +536,14 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok = crate::api::wallet::APIWallet::create_psbt(
                         &*api_that_guard,
-                        api_recipient_address,
-                        api_amount_sat,
+                        api_recipients,
+                        api_max_recipient_index,
                         api_fee_rate_sat_per_vb,
                         api_selected_utxos,
                         api_policy_path,
                         api_spend_path_id,
                         api_threshold,
                         api_mfps,
-                        api_send_max,
                     )?;
                     Ok(output_ok)
                 })(),
@@ -5631,6 +5630,7 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
         let mut var_createdAt = <i64>::sse_decode(deserializer);
         let mut var_recipient = <String>::sse_decode(deserializer);
         let mut var_amountSat = <u64>::sse_decode(deserializer);
+        let mut var_recipients = <Vec<crate::api::model::APIRecipient>>::sse_decode(deserializer);
         let mut var_feeSat = <u64>::sse_decode(deserializer);
         let mut var_spendPathId = <u32>::sse_decode(deserializer);
         let mut var_threshold = <u32>::sse_decode(deserializer);
@@ -5648,6 +5648,7 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
             created_at: var_createdAt,
             recipient: var_recipient,
             amount_sat: var_amountSat,
+            recipients: var_recipients,
             fee_sat: var_feeSat,
             spend_path_id: var_spendPathId,
             threshold: var_threshold,
@@ -5704,6 +5705,18 @@ impl SseDecode for crate::api::model::APIRbfInfo {
             descendant_vsize: var_descendantVsize,
             min_fee_sat: var_minFeeSat,
             min_fee_rate_sat_per_vb: var_minFeeRateSatPerVb,
+        };
+    }
+}
+
+impl SseDecode for crate::api::model::APIRecipient {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_address = <String>::sse_decode(deserializer);
+        let mut var_amountSat = <u64>::sse_decode(deserializer);
+        return crate::api::model::APIRecipient {
+            address: var_address,
+            amount_sat: var_amountSat,
         };
     }
 }
@@ -6239,6 +6252,18 @@ impl SseDecode for Vec<crate::api::model::APIPubKey> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::api::model::APIPubKey>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::model::APIRecipient> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::model::APIRecipient>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7415,6 +7440,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIPsbtInfo {
             self.created_at.into_into_dart().into_dart(),
             self.recipient.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
+            self.recipients.into_into_dart().into_dart(),
             self.fee_sat.into_into_dart().into_dart(),
             self.spend_path_id.into_into_dart().into_dart(),
             self.threshold.into_into_dart().into_dart(),
@@ -7497,6 +7523,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIRbfInfo>
     for crate::api::model::APIRbfInfo
 {
     fn into_into_dart(self) -> crate::api::model::APIRbfInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIRecipient {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.address.into_into_dart().into_dart(),
+            self.amount_sat.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIRecipient
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIRecipient>
+    for crate::api::model::APIRecipient
+{
+    fn into_into_dart(self) -> crate::api::model::APIRecipient {
         self
     }
 }
@@ -8220,6 +8267,7 @@ impl SseEncode for crate::api::model::APIPsbtInfo {
         <i64>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.recipient, serializer);
         <u64>::sse_encode(self.amount_sat, serializer);
+        <Vec<crate::api::model::APIRecipient>>::sse_encode(self.recipients, serializer);
         <u64>::sse_encode(self.fee_sat, serializer);
         <u32>::sse_encode(self.spend_path_id, serializer);
         <u32>::sse_encode(self.threshold, serializer);
@@ -8257,6 +8305,14 @@ impl SseEncode for crate::api::model::APIRbfInfo {
         <u32>::sse_encode(self.descendant_vsize, serializer);
         <u64>::sse_encode(self.min_fee_sat, serializer);
         <f64>::sse_encode(self.min_fee_rate_sat_per_vb, serializer);
+    }
+}
+
+impl SseEncode for crate::api::model::APIRecipient {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.address, serializer);
+        <u64>::sse_encode(self.amount_sat, serializer);
     }
 }
 
@@ -8650,6 +8706,16 @@ impl SseEncode for Vec<crate::api::model::APIPubKey> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::model::APIPubKey>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::model::APIRecipient> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::model::APIRecipient>::sse_encode(item, serializer);
         }
     }
 }

@@ -842,12 +842,15 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   /// via BDK's sync. Unsigned PSBTs are checked explicitly via [psbts].
   /// If no unused address is found among revealed ones, new ones are revealed
   /// and the search retries once.
-  Future<String?> getNextSelfPaymentAddress() async {
+  Future<String?> getNextSelfPaymentAddress({Set<String> alreadyUsed = const {}}) async {
     final current = state;
     if (current is! WalletDetailLoaded) return null;
     try {
       final psbtRecipients = current.psbts.map((p) => p.recipient).toSet();
-      final addr = await _nextUnusedAddress(current.walletHandle, exclude: psbtRecipients);
+      final addr = await _nextUnusedAddress(
+        current.walletHandle,
+        exclude: psbtRecipients.union(alreadyUsed),
+      );
       return addr?.address;
     } catch (_) {
       return null;
@@ -858,10 +861,10 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   /// Used when the user picks a different wallet as the send destination.
   /// Unlike [getNextSelfPaymentAddress], does not filter by pending PSBTs —
   /// that wallet's PSBTs are managed separately.
-  Future<String?> getNextReceiveAddressFor(String walletPath) async {
+  Future<String?> getNextReceiveAddressFor(String walletPath, {Set<String> alreadyUsed = const {}}) async {
     try {
       final handle = await _service.openWallet(walletPath);
-      final addr = await _nextUnusedAddress(handle);
+      final addr = await _nextUnusedAddress(handle, exclude: alreadyUsed);
       return addr?.address;
     } catch (_) {
       return null;
@@ -930,30 +933,28 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
 
   /// Create a PSBT and save it. Returns the new [APIPsbtInfo] or null on error.
   Future<APIPsbtInfo?> createPsbt({
-    required String recipientAddress,
-    required int amountSat,
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
     required double feeRateSatPerVb,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
-    bool sendMax = false,
     String? label,
   }) async {
     final current = state;
     if (current is! WalletDetailLoaded) return null;
     try {
       APIPsbtInfo psbt = current.walletHandle.createPsbt(
-        recipientAddress: recipientAddress,
-        amountSat: BigInt.from(amountSat),
+        recipients: recipients,
+        maxRecipientIndex: maxRecipientIndex,
         feeRateSatPerVb: feeRateSatPerVb,
         selectedUtxos: selectedUtxos,
         policyPath: policyPath,
         spendPathId: spendPathId,
         threshold: threshold,
         mfps: mfps,
-        sendMax: sendMax,
       );
       // Apply label synchronously before loadPsbts() dispatches to thread pool,
       // to avoid a race where listPsbts() reads the DB before the label is written.
@@ -966,6 +967,44 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       logError('WalletDetailCubit.createPsbt()', e, st);
       rethrow;
     }
+  }
+
+  /// Create, sign (with the single hot key), and broadcast in one step.
+  /// Only valid for single-sig wallets where [mfps] has exactly one entry that
+  /// matches an available hot key. Returns the txid; throws on any failure.
+  Future<String> directSend({
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
+    required double feeRateSatPerVb,
+    required List<APICoinControl> selectedUtxos,
+    required List<APIPolicyPath> policyPath,
+    required int spendPathId,
+    required int threshold,
+    required List<String> mfps,
+    String? label,
+    required String electrumUrl,
+  }) async {
+    final current = state;
+    if (current is! WalletDetailLoaded) throw StateError('Wallet not loaded');
+    final psbt = await createPsbt(
+      recipients: recipients,
+      maxRecipientIndex: maxRecipientIndex,
+      feeRateSatPerVb: feeRateSatPerVb,
+      selectedUtxos: selectedUtxos,
+      policyPath: policyPath,
+      spendPathId: spendPathId,
+      threshold: threshold,
+      mfps: mfps,
+      label: label,
+    );
+    if (psbt == null) throw StateError('Failed to create transaction');
+    try {
+      current.walletHandle.signPsbtWithKey(psbtId: psbt.id.toInt(), mfp: mfps.first);
+    } catch (e, st) {
+      logError('WalletDetailCubit.directSend() sign', e, st);
+      rethrow;
+    }
+    return broadcastPsbt(psbt.id.toInt(), electrumUrl);
   }
 
   void deletePsbt(int id) {

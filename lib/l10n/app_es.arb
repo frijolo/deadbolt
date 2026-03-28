@@ -610,6 +610,8 @@
   "createTxEstFee": "Comisión",
   "createTxEstChange": "Cambio",
   "createTxEstInsufficientFunds": "Fondos insuficientes",
+  "createTxAddRecipient": "Añadir destinatario",
+  "createTxTotalOut": "Total enviado",
   "createTxSelectCoinsFirst": "Selecciona monedas para crear la transacción",
   "walletSendButton": "Enviar",
   "coinSelectorTitle": "Seleccionar monedas",
@@ -693,5 +695,15 @@
   "disclaimerDontShow7Days": "No mostrar durante 7 días",
 
   "electrumPrivacyWarning": "Usando un servidor Electrum público. Tu IP e historial de transacciones pueden ser visibles para terceros. Configura un servidor propio en Ajustes.",
-  "goToSettings": "Ajustes"
+  "goToSettings": "Ajustes",
+
+  "directSendButton": "Enviar",
+  "directSendConfirmTitle": "Confirmar envío",
+  "directSendConfirmAction": "Firmar y retransmitir",
+  "directSendSuccess": "Enviado: {txid}",
+  "@directSendSuccess": {
+    "placeholders": {
+      "txid": { "type": "String" }
+    }
+  }
 }

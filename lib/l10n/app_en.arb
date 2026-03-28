@@ -616,6 +616,8 @@
   "createTxEstFee": "Fee",
   "createTxEstChange": "Change",
   "createTxEstInsufficientFunds": "Insufficient funds",
+  "createTxAddRecipient": "Add recipient",
+  "createTxTotalOut": "Total out",
   "createTxSelectCoinsFirst": "Select coins to build a transaction",
   "walletSendButton": "Send",
   "coinSelectorTitle": "Select coins",
@@ -699,5 +701,15 @@
   "disclaimerDontShow7Days": "Don't show for 7 days",
 
   "electrumPrivacyWarning": "Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.",
-  "goToSettings": "Settings"
+  "goToSettings": "Settings",
+
+  "directSendButton": "Send",
+  "directSendConfirmTitle": "Confirm send",
+  "directSendConfirmAction": "Sign and broadcast",
+  "directSendSuccess": "Sent: {txid}",
+  "@directSendSuccess": {
+    "placeholders": {
+      "txid": { "type": "String" }
+    }
+  }
 }

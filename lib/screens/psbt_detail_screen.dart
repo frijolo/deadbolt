@@ -470,16 +470,29 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _DetailRow(
-                          label: l10n.psbtRecipient,
-                          value: _psbt.recipient,
-                          isAddress: true,
-                        ),
-                        const SizedBox(height: 8),
-                        _DetailRow(
-                          label: l10n.psbtAmount,
-                          value: '${BitcoinFormatter.formatNum(_psbt.amountSat.toInt())} sats',
-                        ),
+                        for (int i = 0; i < _psbt.recipients.length; i++) ...[
+                          _DetailRow(
+                            label: _psbt.recipients.length == 1
+                                ? l10n.psbtRecipient
+                                : '${l10n.psbtRecipient} ${i + 1}',
+                            value: _psbt.recipients[i].address,
+                            isAddress: true,
+                          ),
+                          const SizedBox(height: 4),
+                          _DetailRow(
+                            label: l10n.psbtAmount,
+                            value:
+                                '${BitcoinFormatter.formatNum(_psbt.recipients[i].amountSat.toInt())} sats',
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        if (_psbt.recipients.length > 1) ...[
+                          _DetailRow(
+                            label: l10n.createTxTotalOut,
+                            value:
+                                '${BitcoinFormatter.formatNum(_psbt.amountSat.toInt())} sats',
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         _DetailRow(
                           label: l10n.psbtFee,

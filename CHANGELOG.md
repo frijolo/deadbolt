@@ -12,6 +12,8 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Pinned git fork dependencies** — `bitbox-api-rs` and `async-hwi` forks are now referenced by immutable commit SHA instead of branch name, preventing unintended upstream changes from being pulled on rebuild.
 
 ### New Features
+- **Multi-recipient transactions** — The send screen now supports multiple outputs in a single transaction. Each recipient slot has its own address and amount field; one slot can be set to "MAX" (drain) to receive the remainder after all explicit outputs and fees. PSBT detail screen shows all outputs itemized with a "Total out" summary.
+- **Direct send for hot single-sig wallets** — When a single-sig wallet has a locally available hot key, the send screen shows a "Send" button that signs and broadcasts the transaction in one step without going through the PSBT flow.
 - **CPFP acceleration** — Unconfirmed transactions and coins show an "Accelerate" button that opens the send screen pre-loaded with the relevant UTXOs and a self-payment address, ready to build a child-pays-for-parent transaction. The ancestor package fee rate is shown in the send screen.
 - **Tor routing** — Optional Tor support in Settings routes all Electrum connections through an embedded Tor client (arti). Persists across restarts.
 - **Fee rate presets** — Three preset buttons (economy / standard / priority) appear above the fee fields in the send screen, fetching live rates from the configured block explorer (mempool.space by default). Selecting a preset updates both fee rate and total fee fields; editing manually deselects the preset.

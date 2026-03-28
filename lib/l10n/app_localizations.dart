@@ -2474,6 +2474,18 @@ abstract class AppLocalizations {
   /// **'Insufficient funds'**
   String get createTxEstInsufficientFunds;
 
+  /// No description provided for @createTxAddRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Add recipient'**
+  String get createTxAddRecipient;
+
+  /// No description provided for @createTxTotalOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Total out'**
+  String get createTxTotalOut;
+
   /// No description provided for @createTxSelectCoinsFirst.
   ///
   /// In en, this message translates to:
@@ -2827,6 +2839,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get goToSettings;
+
+  /// No description provided for @directSendButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get directSendButton;
+
+  /// No description provided for @directSendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm send'**
+  String get directSendConfirmTitle;
+
+  /// No description provided for @directSendConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign and broadcast'**
+  String get directSendConfirmAction;
+
+  /// No description provided for @directSendSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent: {txid}'**
+  String directSendSuccess(String txid);
 }
 
 class _AppLocalizationsDelegate

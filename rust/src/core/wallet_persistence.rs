@@ -497,6 +497,8 @@ pub struct PsbtRow {
     pub spend_path_id: u32,
     pub threshold: u32,
     pub mfps: Vec<String>,
+    /// JSON-serialized `Vec<APIRecipient>`. None for rows created before multi-recipient support.
+    pub recipients_json: Option<String>,
 }
 
 impl PsbtRow {
@@ -528,6 +530,11 @@ pub fn ensure_unsigned_txs_table(conn: &Connection) -> Result<()> {
         "ALTER TABLE unsigned_txs ADD COLUMN txid TEXT NOT NULL DEFAULT ''",
         [],
     );
+    // Migration: add recipients_json column (multi-recipient support).
+    let _ = conn.execute(
+        "ALTER TABLE unsigned_txs ADD COLUMN recipients_json TEXT",
+        [],
+    );
     Ok(())
 }
 
@@ -543,6 +550,7 @@ pub fn insert_psbt(
     spend_path_id: u32,
     threshold: u32,
     mfps: &[String],
+    recipients_json: Option<&str>,
 ) -> Result<i64> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
@@ -550,8 +558,8 @@ pub fn insert_psbt(
     let mfps_str = mfps.join(",");
     conn.execute(
         "INSERT INTO unsigned_txs
-         (psbt, txid, label, created_at, recipient, amount_sat, fee_sat, spend_path_id, threshold, mfps)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+         (psbt, txid, label, created_at, recipient, amount_sat, fee_sat, spend_path_id, threshold, mfps, recipients_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         rusqlite::params![
             psbt,
             txid,
@@ -562,7 +570,8 @@ pub fn insert_psbt(
             fee_sat as i64,
             spend_path_id,
             threshold,
-            mfps_str
+            mfps_str,
+            recipients_json
         ],
     )?;
     Ok(conn.last_insert_rowid())
@@ -605,6 +614,7 @@ fn parse_psbt_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PsbtRow> {
     } else {
         mfps_str.split(',').map(|s| s.to_string()).collect()
     };
+    let recipients_json: Option<String> = row.get(11).ok().flatten();
     Ok(PsbtRow {
         id: row.get(0)?,
         psbt: row.get(1)?,
@@ -617,13 +627,14 @@ fn parse_psbt_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PsbtRow> {
         spend_path_id: row.get::<_, u32>(8)?,
         threshold: row.get::<_, u32>(9)?,
         mfps,
+        recipients_json,
     })
 }
 
 pub fn get_psbt_row(conn: &Connection, id: i64) -> Result<PsbtRow> {
     conn.query_row(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps
+                spend_path_id, threshold, mfps, recipients_json
          FROM unsigned_txs WHERE id = ?1",
         rusqlite::params![id],
         parse_psbt_row,
@@ -634,7 +645,7 @@ pub fn get_psbt_row(conn: &Connection, id: i64) -> Result<PsbtRow> {
 pub fn get_psbt_row_by_txid(conn: &Connection, txid: &str) -> Result<Option<PsbtRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps
+                spend_path_id, threshold, mfps, recipients_json
          FROM unsigned_txs WHERE txid = ?1 LIMIT 1",
     )?;
     let mut rows = stmt.query_map(rusqlite::params![txid], parse_psbt_row)?;
@@ -646,7 +657,7 @@ pub fn get_psbt_row_by_txid(conn: &Connection, txid: &str) -> Result<Option<Psbt
 pub fn list_psbt_rows(conn: &Connection) -> Result<Vec<PsbtRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps
+                spend_path_id, threshold, mfps, recipients_json
          FROM unsigned_txs ORDER BY created_at DESC",
     )?;
     let rows = stmt
