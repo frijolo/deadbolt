@@ -4,6 +4,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [v1.6.1]
+
+### Improvements
+- **Android release** — added `.apk.7z` artifact (7-zip max compression, ~45 MB) as a low-bandwidth alternative to the full APK (~151 MB).
+
 ## [v1.6.0]
 
 ### Security
@@ -247,6 +252,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.6.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.1
 [v1.6.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.0
 [v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
 [v1.4.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.1

@@ -122,11 +122,26 @@ jobs:
         if: matrix.platform == 'android'
         run: cp ${{ matrix.artifact-path }} ${{ matrix.artifact-name }}
 
+      # Compress Android APK with maximum 7z compression for low-bandwidth downloads
+      - name: Compress Android APK (7z)
+        if: matrix.platform == 'android'
+        run: |
+          sudo apt-get install -y --no-install-recommends p7zip-full
+          7z a -mx=9 deadbolt-android.apk.7z deadbolt-android.apk
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-build
           path: ${{ matrix.artifact-name }}
+          retention-days: 1
+
+      - name: Upload Android 7z artifact
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-7z-build
+          path: deadbolt-android.apk.7z
           retention-days: 1
 
   create-release:
@@ -154,7 +169,7 @@ jobs:
       - name: Generate SHA256 checksums
         working-directory: release
         run: |
-          sha256sum *.apk *.tar.gz *.zip > SHA256SUMS
+          sha256sum *.apk *.7z *.tar.gz *.zip > SHA256SUMS
           cat SHA256SUMS
 
       - name: Import GPG key
@@ -215,6 +230,7 @@ jobs:
           prerelease: false
           files: |
             release/deadbolt-android.apk
+            release/deadbolt-android.apk.7z
             release/deadbolt-linux-x64.tar.gz
             release/deadbolt-windows-x64.zip
             release/SHA256SUMS
