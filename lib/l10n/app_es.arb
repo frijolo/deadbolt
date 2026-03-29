@@ -80,6 +80,7 @@
   "moreOptionsTooltip": "Más opciones",
   "buildFabLabel": "Construir",
   "descriptorOutdatedBanner": "Descriptor desactualizado · toca Construir para regenerar",
+  "keySectionLabel": "Clave",
   "keysSection": "Claves ({count})",
   "@keysSection": {
     "placeholders": {
@@ -115,7 +116,6 @@
       "mfp": { "type": "String" }
     }
   },
-  "descriptorSectionTitle": "Descriptor",
   "copyDescriptorTooltip": "Exportar descriptor",
   "descriptorCopied": "Descriptor copiado",
   "copyToClipboard": "Copiar al portapapeles",
@@ -399,9 +399,6 @@
   "openInExplorer": "Abrir en explorador",
 
   "txLabelTitle": "Etiqueta",
-  "txLabelHint": "Añadir etiqueta...",
-  "txLabelRemove": "Eliminar etiqueta",
-
   "txDetailsTitle": "Detalles de la transacción",
   "txDetailsNet": "Importe neto",
   "txDetailsGrossReceived": "Recibido (bruto)",
@@ -443,8 +440,6 @@
   "noCoins": "Sin monedas. Sincroniza para descubrir UTXOs.",
   "coinDetailsTitle": "Detalles de la moneda",
   "coinLabelTitle": "Etiqueta",
-  "coinLabelHint": "Añadir etiqueta...",
-  "coinLabelRemove": "Eliminar etiqueta",
   "coinOutpoint": "Punto de salida",
   "coinValue": "Valor",
   "coinAddress": "Dirección",
@@ -464,8 +459,6 @@
     }
   },
 
-  "descriptorTabLabel": "Descriptor",
-
   "spendPathsAvailable": "Rutas de gasto",
   "spendPathsNotSynced": "Sincroniza para ver las rutas de gasto disponibles",
   "spendPathUnlocked": "Desbloqueada",
@@ -483,7 +476,7 @@
     }
   },
   "spendPathNeedsConfirmation": "Necesita confirmación",
-  "spendPathUnconfirmed": "Sin confirmar",
+  "spendPathUnconfirmed": "No confirmado",
   "spendPathNeedsSync": "Sincronización requerida",
 
   "psbtStatusUnsigned": "SIN FIRMAR",
@@ -588,7 +581,6 @@
       "error": { "type": "String" }
     }
   },
-  "psbtLabelHint": "Añadir etiqueta...",
   "psbtDeleteTitle": "Eliminar PSBT",
   "psbtDeleteConfirm": "¿Eliminar esta transacción sin firmar?",
   "psbtExportedCopied": "PSBT copiado",
@@ -695,9 +687,145 @@
   "disclaimerDontShow7Days": "No mostrar durante 7 días",
 
   "electrumPrivacyWarning": "Usando un servidor Electrum público. Tu IP e historial de transacciones pueden ser visibles para terceros. Configura un servidor propio en Ajustes.",
-  "goToSettings": "Ajustes",
+  "goToSettings": "Configuración",
 
-  "directSendButton": "Enviar",
+  "wifExportTitle": "Exportar clave privada (WIF)",
+  "wifExportWarning": "Esto exporta la clave privada de una sola dirección, pero si el XPUB de tu wallet es conocido por alguien — un coordinador, exchange, o cualquier servicio con el que lo hayas compartido — pueden usar este WIF para derivar las claves privadas de todas las direcciones de tu wallet.\n\nProcede solo si tu XPUB es privado, o si aceptas completamente este riesgo.",
+  "wifExportTypeToConfirm": "Escribe para confirmar:",
+  "wifExportConfirmPhrase": "mi wallet completo está en riesgo",
+  "wifExportShowButton": "Mostrar WIF",
+  "wifDisplayWarning": "Nunca compartas esta clave. Si tu XPUB es conocido por otros, este WIF expone todo tu wallet.",
+
+  "protectionLabel": "Protección",
+  "protectionNone": "Ninguna",
+  "protectionPassword": "Contraseña",
+  "protectionXpub": "XPub",
+  "protectionUnprotected": "Sin protección",
+  "protectionXpubInfo": "Cualquier xpub del wallet puede desbloquearlo. No compartas esos xpubs con terceros.",
+  "securityLevelLabel": "Nivel anti-fuerza bruta",
+  "securityLevelStandard": "Estándar",
+  "securityLevelHigh": "Alto",
+  "securityLevelExtreme": "Extremo",
+  "newPasswordLabel": "Nueva contraseña",
+  "confirmPasswordLabel": "Confirmar contraseña",
+  "backupPasswordLabel": "Contraseña de la copia",
+  "validatorPasswordEmpty": "La contraseña no puede estar vacía",
+  "validatorPasswordRequired": "Contraseña requerida",
+  "validatorPasswordsNoMatch": "Las contraseñas no coinciden",
+  "validatorNameRequired": "El nombre es obligatorio",
+  "changeButton": "Cambiar",
+  "exportButton": "Exportar",
+  "backButton": "Volver",
+  "feeRateLabel": "Comisión",
+  "verifyOnDeviceButton": "Verificar en dispositivo",
+
+  "changeProtectionTitle": "Cambiar protección del wallet",
+  "changeProtectionCurrent": "Actual: {protection}",
+  "@changeProtectionCurrent": {
+    "placeholders": { "protection": { "type": "String" } }
+  },
+  "protectionChangedToast": "Protección cambiada a {protection}",
+  "@protectionChangedToast": {
+    "placeholders": { "protection": { "type": "String" } }
+  },
+
+  "exportBackupTitle": "Exportar copia de seguridad",
+
+  "sweepWifTitle": "Barrer clave WIF",
+  "sweepWifPrivateKeySection": "Clave privada (WIF)",
+  "sweepWifHint": "Pega o escanea una clave WIF...",
+  "sweepWifSearching": "Buscando...",
+  "sweepWifFindUtxos": "Buscar UTXOs",
+  "sweepWifControlledAddresses": "Direcciones controladas",
+  "sweepWifTotal": "Total: {amount} sat",
+  "@sweepWifTotal": {
+    "placeholders": { "amount": { "type": "int" } }
+  },
+  "sweepWifNoFunds": "No se encontraron fondos para esta clave en la red actual.",
+  "sweepWifDestination": "Destino",
+  "sweepWifAddressHint": "Dirección Bitcoin...",
+  "sweepWifSweeping": "Barriendo...",
+  "sweepWifButton": "Barrer {amount} sat",
+  "@sweepWifButton": {
+    "placeholders": { "amount": { "type": "int" } }
+  },
+  "sweepWifEnterKeyFirst": "Introduce primero una clave WIF",
+  "sweepWifFillFields": "Completa todos los campos con valores válidos",
+  "sweepWifSweptToast": "Barrido: {txid}",
+  "@sweepWifSweptToast": {
+    "placeholders": { "txid": { "type": "String" } }
+  },
+  "sweepWifEmpty": "vacía",
+
+  "walletCreateGuided": "Creación guiada",
+  "walletCreateGuidedSub": "Wallet estándar desde tus claves",
+  "walletCreateFromDescriptor": "Desde descriptor",
+  "walletCreateFromDescriptorSub": "Introduce un descriptor Bitcoin directamente",
+  "walletCreateFromProject": "Desde proyecto",
+  "walletCreateFromProjectSub": "Usa un descriptor del diseñador",
+  "walletCreateFromBackup": "Desde copia de seguridad",
+  "walletCreateFromBackupSub": "Restaura un wallet desde un archivo .deadbolt",
+
+  "projectCreateFromScratch": "Desde cero",
+  "projectCreateFromScratchSub": "Elige red y tipo de wallet, luego añade claves",
+  "projectCreateFromDescriptorSub": "Pega, escanea o importa un descriptor Bitcoin",
+  "projectCreateImport": "Importar proyecto",
+  "projectCreateImportSub": "Restaura un proyecto desde una exportación .json",
+
+  "newWalletTitle": "Nuevo Wallet",
+  "walletNameLabel": "Nombre del wallet",
+  "walletExportLabel": "Wallet",
+  "walletTypeLabel": "Tipo de wallet",
+  "walletTypeSinglesig": "Clave única",
+  "walletTypeMultisig": "Multifirma",
+  "walletTypeSinglesigDesc": "Una sola clave controla el wallet. Ideal para uso personal.",
+  "walletTypeMultisigDesc": "Se requieren varias claves para firmar. Ideal para control compartido o seguridad adicional.",
+  "scriptTypeLabel": "Tipo de script",
+  "scriptTypeLegacy": "Legacy",
+  "scriptTypeNested": "Anidado",
+  "scriptTypeSegwit": "SegWit",
+  "scriptTypeTaproot": "Taproot",
+  "scriptDescP2pkh": "P2PKH — Estándar más antiguo. Comisiones más altas. Máxima compatibilidad.",
+  "scriptDescP2sh": "P2SH — Estándar multifirma más antiguo. Comisiones más altas.",
+  "scriptDescP2shWpkh": "P2SH-P2WPKH — SegWit envuelto para compatibilidad retroactiva.",
+  "scriptDescP2shWsh": "P2SH-P2WSH — Multifirma SegWit con compatibilidad retroactiva.",
+  "scriptDescP2wpkh": "P2WPKH — Estándar moderno más común. Menores comisiones.",
+  "scriptDescP2wsh": "P2WSH — Multifirma SegWit nativo. Menores comisiones, amplio soporte.",
+  "scriptDescP2trSinglesig": "P2TR — Taproot. Mejor privacidad y menores comisiones.",
+  "scriptDescP2trMultisig": "P2TR — Taproot multifirma. Mejor privacidad. Requiere wallets compatibles.",
+  "requiredSignatures": "Firmas requeridas: {m} de {n}",
+  "@requiredSignatures": {
+    "placeholders": {
+      "m": { "type": "int" },
+      "n": { "type": "int" }
+    }
+  },
+  "decreaseThresholdTooltip": "Reducir umbral",
+  "increaseThresholdTooltip": "Aumentar umbral",
+  "replaceKeyTooltip": "Reemplazar clave",
+  "removeKeyTooltip": "Eliminar clave",
+  "creatingWalletLabel": "Creando wallet\u2026",
+  "createWalletButton": "Crear wallet",
+  "addAtLeastOneKey": "Añade al menos una clave",
+  "multisigNeedsMinKeys": "Los wallets multifirma necesitan al menos 2 claves",
+
+  "hwWalletTitle": "Hardware wallet",
+  "hwWalletScanning": "Buscando dispositivos\u2026",
+  "hwWalletConnecting": "Conectando\u2026",
+  "hwRegisterWallet": "Registrar wallet",
+  "hwRegisterWalletSub": "Registrar esta política en el dispositivo",
+  "hwNotRequired": "No requerido para wallets de clave única",
+  "hwCheckRegistration": "Verificar registro",
+  "hwCheckRegistrationSub": "Verificar si esta política está registrada",
+  "hwWalletRegistered": "Wallet registrado en el dispositivo.",
+  "hwWalletIsRegistered": "El wallet está registrado en este dispositivo.",
+  "hwWalletNotRegistered": "El wallet NO está registrado en este dispositivo.",
+  "hwNoDevice": "Ningún dispositivo conectado",
+  "hwScanButton": "Buscar",
+  "hwDisconnectButton": "Desconectar",
+  "hwSelectDevice": "Selecciona un dispositivo:",
+  "hwPairingCompare": "Compara con la pantalla del dispositivo y confirma:",
+
   "directSendConfirmTitle": "Confirmar envío",
   "directSendConfirmAction": "Firmar y retransmitir",
   "directSendSuccess": "Enviado: {txid}",

@@ -470,6 +470,12 @@ abstract class AppLocalizations {
   /// **'Descriptor outdated · tap Build to regenerate'**
   String get descriptorOutdatedBanner;
 
+  /// No description provided for @keySectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get keySectionLabel;
+
   /// No description provided for @keysSection.
   ///
   /// In en, this message translates to:
@@ -589,12 +595,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A key with MFP {mfp} already exists'**
   String duplicateMfp(String mfp);
-
-  /// No description provided for @descriptorSectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Descriptor'**
-  String get descriptorSectionTitle;
 
   /// No description provided for @copyDescriptorTooltip.
   ///
@@ -1439,7 +1439,7 @@ abstract class AppLocalizations {
   /// No description provided for @createWalletButton.
   ///
   /// In en, this message translates to:
-  /// **'Create Wallet'**
+  /// **'Create wallet'**
   String get createWalletButton;
 
   /// No description provided for @creatingWallet.
@@ -1760,18 +1760,6 @@ abstract class AppLocalizations {
   /// **'Label'**
   String get txLabelTitle;
 
-  /// No description provided for @txLabelHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a label...'**
-  String get txLabelHint;
-
-  /// No description provided for @txLabelRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove label'**
-  String get txLabelRemove;
-
   /// No description provided for @txDetailsTitle.
   ///
   /// In en, this message translates to:
@@ -1916,18 +1904,6 @@ abstract class AppLocalizations {
   /// **'Label'**
   String get coinLabelTitle;
 
-  /// No description provided for @coinLabelHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a label...'**
-  String get coinLabelHint;
-
-  /// No description provided for @coinLabelRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove label'**
-  String get coinLabelRemove;
-
   /// No description provided for @coinOutpoint.
   ///
   /// In en, this message translates to:
@@ -1975,12 +1951,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total: {sats} sats'**
   String coinTotalValue(int sats);
-
-  /// No description provided for @descriptorTabLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Descriptor'**
-  String get descriptorTabLabel;
 
   /// No description provided for @spendPathsAvailable.
   ///
@@ -2371,12 +2341,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import failed: {error}'**
   String psbtMergeFailed(String error);
-
-  /// No description provided for @psbtLabelHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a label...'**
-  String get psbtLabelHint;
 
   /// No description provided for @psbtDeleteTitle.
   ///
@@ -2840,11 +2804,623 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get goToSettings;
 
-  /// No description provided for @directSendButton.
+  /// No description provided for @wifExportTitle.
   ///
   /// In en, this message translates to:
-  /// **'Send'**
-  String get directSendButton;
+  /// **'Export private key (WIF)'**
+  String get wifExportTitle;
+
+  /// No description provided for @wifExportWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This exports the private key of a single address, but if your wallet\'\'s XPUB is known to anyone — a coordinator, exchange, or any service you\'\'ve shared it with — they can use this WIF to derive the private keys of every address in your wallet.\n\nOnly proceed if your XPUB is private, or if you fully accept this risk.'**
+  String get wifExportWarning;
+
+  /// No description provided for @wifExportTypeToConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Type to confirm:'**
+  String get wifExportTypeToConfirm;
+
+  /// No description provided for @wifExportConfirmPhrase.
+  ///
+  /// In en, this message translates to:
+  /// **'my full wallet is at risk'**
+  String get wifExportConfirmPhrase;
+
+  /// No description provided for @wifExportShowButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Show WIF'**
+  String get wifExportShowButton;
+
+  /// No description provided for @wifDisplayWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Never share this key. If your XPUB is known to others, this WIF exposes your entire wallet.'**
+  String get wifDisplayWarning;
+
+  /// No description provided for @protectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Protection'**
+  String get protectionLabel;
+
+  /// No description provided for @protectionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get protectionNone;
+
+  /// No description provided for @protectionPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get protectionPassword;
+
+  /// No description provided for @protectionXpub.
+  ///
+  /// In en, this message translates to:
+  /// **'XPub'**
+  String get protectionXpub;
+
+  /// No description provided for @protectionUnprotected.
+  ///
+  /// In en, this message translates to:
+  /// **'Unprotected'**
+  String get protectionUnprotected;
+
+  /// No description provided for @protectionXpubInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Any xpub from the wallet can unlock it. Do not share those xpubs with third parties.'**
+  String get protectionXpubInfo;
+
+  /// No description provided for @securityLevelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Anti-brute-force level'**
+  String get securityLevelLabel;
+
+  /// No description provided for @securityLevelStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get securityLevelStandard;
+
+  /// No description provided for @securityLevelHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get securityLevelHigh;
+
+  /// No description provided for @securityLevelExtreme.
+  ///
+  /// In en, this message translates to:
+  /// **'Extreme'**
+  String get securityLevelExtreme;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @backupPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup password'**
+  String get backupPasswordLabel;
+
+  /// No description provided for @validatorPasswordEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Password cannot be empty'**
+  String get validatorPasswordEmpty;
+
+  /// No description provided for @validatorPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Password required'**
+  String get validatorPasswordRequired;
+
+  /// No description provided for @validatorPasswordsNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get validatorPasswordsNoMatch;
+
+  /// No description provided for @validatorNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get validatorNameRequired;
+
+  /// No description provided for @changeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get changeButton;
+
+  /// No description provided for @exportButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get exportButton;
+
+  /// No description provided for @backButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get backButton;
+
+  /// No description provided for @feeRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate'**
+  String get feeRateLabel;
+
+  /// No description provided for @verifyOnDeviceButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify on device'**
+  String get verifyOnDeviceButton;
+
+  /// No description provided for @changeProtectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change wallet protection'**
+  String get changeProtectionTitle;
+
+  /// No description provided for @changeProtectionCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {protection}'**
+  String changeProtectionCurrent(String protection);
+
+  /// No description provided for @protectionChangedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Protection changed to {protection}'**
+  String protectionChangedToast(String protection);
+
+  /// No description provided for @exportBackupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export backup'**
+  String get exportBackupTitle;
+
+  /// No description provided for @sweepWifTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweep WIF key'**
+  String get sweepWifTitle;
+
+  /// No description provided for @sweepWifPrivateKeySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Private key (WIF)'**
+  String get sweepWifPrivateKeySection;
+
+  /// No description provided for @sweepWifHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste or scan WIF key...'**
+  String get sweepWifHint;
+
+  /// No description provided for @sweepWifSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching...'**
+  String get sweepWifSearching;
+
+  /// No description provided for @sweepWifFindUtxos.
+  ///
+  /// In en, this message translates to:
+  /// **'Find UTXOs'**
+  String get sweepWifFindUtxos;
+
+  /// No description provided for @sweepWifControlledAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Controlled addresses'**
+  String get sweepWifControlledAddresses;
+
+  /// No description provided for @sweepWifTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total: {amount} sat'**
+  String sweepWifTotal(int amount);
+
+  /// No description provided for @sweepWifNoFunds.
+  ///
+  /// In en, this message translates to:
+  /// **'No funds found for this key on the current network.'**
+  String get sweepWifNoFunds;
+
+  /// No description provided for @sweepWifDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination'**
+  String get sweepWifDestination;
+
+  /// No description provided for @sweepWifAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitcoin address...'**
+  String get sweepWifAddressHint;
+
+  /// No description provided for @sweepWifSweeping.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweeping...'**
+  String get sweepWifSweeping;
+
+  /// No description provided for @sweepWifButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweep {amount} sat'**
+  String sweepWifButton(int amount);
+
+  /// No description provided for @sweepWifEnterKeyFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a WIF key first'**
+  String get sweepWifEnterKeyFirst;
+
+  /// No description provided for @sweepWifFillFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill all fields with valid values'**
+  String get sweepWifFillFields;
+
+  /// No description provided for @sweepWifSweptToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Swept: {txid}'**
+  String sweepWifSweptToast(String txid);
+
+  /// No description provided for @sweepWifEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'empty'**
+  String get sweepWifEmpty;
+
+  /// No description provided for @walletCreateGuided.
+  ///
+  /// In en, this message translates to:
+  /// **'Guided creation'**
+  String get walletCreateGuided;
+
+  /// No description provided for @walletCreateGuidedSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard wallet from your keys'**
+  String get walletCreateGuidedSub;
+
+  /// No description provided for @walletCreateFromDescriptor.
+  ///
+  /// In en, this message translates to:
+  /// **'From descriptor'**
+  String get walletCreateFromDescriptor;
+
+  /// No description provided for @walletCreateFromDescriptorSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a Bitcoin descriptor directly'**
+  String get walletCreateFromDescriptorSub;
+
+  /// No description provided for @walletCreateFromProject.
+  ///
+  /// In en, this message translates to:
+  /// **'From project'**
+  String get walletCreateFromProject;
+
+  /// No description provided for @walletCreateFromProjectSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a descriptor from the designer'**
+  String get walletCreateFromProjectSub;
+
+  /// No description provided for @walletCreateFromBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'From backup'**
+  String get walletCreateFromBackup;
+
+  /// No description provided for @walletCreateFromBackupSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore a wallet from a .deadbolt file'**
+  String get walletCreateFromBackupSub;
+
+  /// No description provided for @projectCreateFromScratch.
+  ///
+  /// In en, this message translates to:
+  /// **'From scratch'**
+  String get projectCreateFromScratch;
+
+  /// No description provided for @projectCreateFromScratchSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick network and wallet type, then add keys'**
+  String get projectCreateFromScratchSub;
+
+  /// No description provided for @projectCreateFromDescriptorSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste, scan or import a Bitcoin descriptor'**
+  String get projectCreateFromDescriptorSub;
+
+  /// No description provided for @projectCreateImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import project'**
+  String get projectCreateImport;
+
+  /// No description provided for @projectCreateImportSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore a project from a .json export'**
+  String get projectCreateImportSub;
+
+  /// No description provided for @newWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Wallet'**
+  String get newWalletTitle;
+
+  /// No description provided for @walletExportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get walletExportLabel;
+
+  /// No description provided for @walletTypeSinglesig.
+  ///
+  /// In en, this message translates to:
+  /// **'Singlesig'**
+  String get walletTypeSinglesig;
+
+  /// No description provided for @walletTypeMultisig.
+  ///
+  /// In en, this message translates to:
+  /// **'Multisig'**
+  String get walletTypeMultisig;
+
+  /// No description provided for @walletTypeSinglesigDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'One key controls the wallet. Best for personal use.'**
+  String get walletTypeSinglesigDesc;
+
+  /// No description provided for @walletTypeMultisigDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple keys required to sign. Ideal for shared control or extra security.'**
+  String get walletTypeMultisigDesc;
+
+  /// No description provided for @scriptTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Script type'**
+  String get scriptTypeLabel;
+
+  /// No description provided for @scriptTypeLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy'**
+  String get scriptTypeLegacy;
+
+  /// No description provided for @scriptTypeNested.
+  ///
+  /// In en, this message translates to:
+  /// **'Nested'**
+  String get scriptTypeNested;
+
+  /// No description provided for @scriptTypeSegwit.
+  ///
+  /// In en, this message translates to:
+  /// **'SegWit'**
+  String get scriptTypeSegwit;
+
+  /// No description provided for @scriptTypeTaproot.
+  ///
+  /// In en, this message translates to:
+  /// **'Taproot'**
+  String get scriptTypeTaproot;
+
+  /// No description provided for @scriptDescP2pkh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2PKH — Oldest standard. Highest fees. Maximum compatibility.'**
+  String get scriptDescP2pkh;
+
+  /// No description provided for @scriptDescP2sh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2SH — Oldest multisig standard. Highest fees.'**
+  String get scriptDescP2sh;
+
+  /// No description provided for @scriptDescP2shWpkh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2SH-P2WPKH — SegWit wrapped for backward compatibility.'**
+  String get scriptDescP2shWpkh;
+
+  /// No description provided for @scriptDescP2shWsh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2SH-P2WSH — SegWit multisig with backward compatibility.'**
+  String get scriptDescP2shWsh;
+
+  /// No description provided for @scriptDescP2wpkh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2WPKH — Most common modern standard. Lower fees.'**
+  String get scriptDescP2wpkh;
+
+  /// No description provided for @scriptDescP2wsh.
+  ///
+  /// In en, this message translates to:
+  /// **'P2WSH — Native SegWit multisig. Lower fees, widely supported.'**
+  String get scriptDescP2wsh;
+
+  /// No description provided for @scriptDescP2trSinglesig.
+  ///
+  /// In en, this message translates to:
+  /// **'P2TR — Taproot. Best privacy and lowest fees.'**
+  String get scriptDescP2trSinglesig;
+
+  /// No description provided for @scriptDescP2trMultisig.
+  ///
+  /// In en, this message translates to:
+  /// **'P2TR — Taproot multisig. Best privacy. Requires compatible wallets.'**
+  String get scriptDescP2trMultisig;
+
+  /// No description provided for @requiredSignatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Required signatures: {m} of {n}'**
+  String requiredSignatures(int m, int n);
+
+  /// No description provided for @decreaseThresholdTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease threshold'**
+  String get decreaseThresholdTooltip;
+
+  /// No description provided for @increaseThresholdTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase threshold'**
+  String get increaseThresholdTooltip;
+
+  /// No description provided for @replaceKeyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace key'**
+  String get replaceKeyTooltip;
+
+  /// No description provided for @creatingWalletLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating wallet…'**
+  String get creatingWalletLabel;
+
+  /// No description provided for @addAtLeastOneKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one key'**
+  String get addAtLeastOneKey;
+
+  /// No description provided for @multisigNeedsMinKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi key wallets need at least 2 keys'**
+  String get multisigNeedsMinKeys;
+
+  /// No description provided for @hwWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware wallet'**
+  String get hwWalletTitle;
+
+  /// No description provided for @hwWalletScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for devices…'**
+  String get hwWalletScanning;
+
+  /// No description provided for @hwWalletConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get hwWalletConnecting;
+
+  /// No description provided for @hwRegisterWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Register wallet'**
+  String get hwRegisterWallet;
+
+  /// No description provided for @hwRegisterWalletSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Register this policy on the device'**
+  String get hwRegisterWalletSub;
+
+  /// No description provided for @hwNotRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Not required for single-key wallets'**
+  String get hwNotRequired;
+
+  /// No description provided for @hwCheckRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Check registration'**
+  String get hwCheckRegistration;
+
+  /// No description provided for @hwCheckRegistrationSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify if this policy is registered'**
+  String get hwCheckRegistrationSub;
+
+  /// No description provided for @hwWalletRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet registered on device.'**
+  String get hwWalletRegistered;
+
+  /// No description provided for @hwWalletIsRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet is registered on this device.'**
+  String get hwWalletIsRegistered;
+
+  /// No description provided for @hwWalletNotRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet is NOT registered on this device.'**
+  String get hwWalletNotRegistered;
+
+  /// No description provided for @hwNoDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'No device connected'**
+  String get hwNoDevice;
+
+  /// No description provided for @hwScanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get hwScanButton;
+
+  /// No description provided for @hwDisconnectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get hwDisconnectButton;
+
+  /// No description provided for @hwSelectDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a device:'**
+  String get hwSelectDevice;
+
+  /// No description provided for @hwPairingCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with device screen and confirm:'**
+  String get hwPairingCompare;
 
   /// No description provided for @directSendConfirmTitle.
   ///

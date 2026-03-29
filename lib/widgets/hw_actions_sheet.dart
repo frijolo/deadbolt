@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
@@ -71,7 +72,7 @@ class _HwActionsSheet extends StatelessWidget {
               children: [
                 const SheetHandle(),
                 Text(
-                  'Hardware wallet',
+                  context.l10n.hwWalletTitle,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
@@ -110,9 +111,9 @@ class _HwActionsSheet extends StatelessWidget {
           },
         ),
       HwWalletScanning() =>
-        const _StatusRow(icon: Icons.search, label: 'Scanning for devices…'),
+        _StatusRow(icon: Icons.search, label: context.l10n.hwWalletScanning),
       HwWalletConnecting() =>
-        const _StatusRow(icon: Icons.usb, label: 'Connecting…'),
+        _StatusRow(icon: Icons.usb, label: context.l10n.hwWalletConnecting),
       HwWalletPairing(pairingCode: final code) => _PairingView(code: code),
       HwWalletConfirming(pairingCode: final code) => _PairingView(code: code),
       HwWalletOperating(operationLabel: final label) =>
@@ -135,21 +136,21 @@ class _HwActionsSheet extends StatelessWidget {
     final isPolicy = _isPolicyDescriptor(descriptor);
 
     final policySubtitle = isPolicy
-        ? 'Register this policy on the device'
-        : 'Not required for single-key wallets';
+        ? context.l10n.hwRegisterWalletSub
+        : context.l10n.hwNotRequired;
 
     if (!isPolicy) {
       return Column(
         children: [
           ListTile(
             leading: const Icon(Icons.memory),
-            title: const Text('Register wallet'),
+            title: Text(context.l10n.hwRegisterWallet),
             subtitle: Text(policySubtitle),
             enabled: false,
           ),
           ListTile(
             leading: const Icon(Icons.fact_check_outlined),
-            title: const Text('Check registration'),
+            title: Text(context.l10n.hwCheckRegistration),
             subtitle: Text(policySubtitle),
             enabled: false,
           ),
@@ -162,12 +163,12 @@ class _HwActionsSheet extends StatelessWidget {
     if (state is HwWalletDone) {
       final result = state.result;
       final (String message, bool isSuccess) = switch (result) {
-        HwRegisteredResult() => ('Wallet registered on device.', true),
+        HwRegisteredResult() => (context.l10n.hwWalletRegistered, true),
         HwCheckRegistrationResult(isRegistered: true) =>
-          ('Wallet is registered on this device.', true),
+          (context.l10n.hwWalletIsRegistered, true),
         HwCheckRegistrationResult(isRegistered: false) =>
-          ('Wallet is NOT registered on this device.', false),
-        _ => ('Done.', true),
+          (context.l10n.hwWalletNotRegistered, false),
+        _ => (context.l10n.hwWalletRegistered, true),
       };
       return _ResultPanel(
         message: message,
@@ -186,8 +187,8 @@ class _HwActionsSheet extends StatelessWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.memory),
-          title: const Text('Register wallet'),
-          subtitle: const Text('Register this policy on the device'),
+          title: Text(context.l10n.hwRegisterWallet),
+          subtitle: Text(context.l10n.hwRegisterWalletSub),
           enabled: isReady,
           onTap: isReady
               ? () => cubit.registerDescriptor(
@@ -202,8 +203,8 @@ class _HwActionsSheet extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.fact_check_outlined),
-          title: const Text('Check registration'),
-          subtitle: const Text('Verify if this policy is registered'),
+          title: Text(context.l10n.hwCheckRegistration),
+          subtitle: Text(context.l10n.hwCheckRegistrationSub),
           enabled: isReady,
           onTap: isReady
               ? () => cubit.checkRegistration(
@@ -260,7 +261,7 @@ class _ConnectedHeader extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onDisconnect,
           icon: const Icon(Icons.usb_off, size: 16),
-          label: const Text('Disconnect'),
+          label: Text(context.l10n.hwDisconnectButton),
           style: OutlinedButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.error,
             side: BorderSide(
@@ -313,10 +314,10 @@ class _NoDevicesRow extends StatelessWidget {
         Icon(Icons.usb_off,
             color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
         const SizedBox(width: 12),
-        const Expanded(child: Text('No device connected')),
+        Expanded(child: Text(context.l10n.hwNoDevice)),
         TextButton.icon(
           icon: const Icon(Icons.refresh, size: 16),
-          label: const Text('Scan'),
+          label: Text(context.l10n.hwScanButton),
           onPressed: onRefresh,
         ),
       ],
@@ -336,7 +337,7 @@ class _DeviceListSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Select a device:',
+        Text(context.l10n.hwSelectDevice,
             style: Theme.of(context).textTheme.bodySmall),
         for (final d in devices)
           ListTile(
@@ -363,7 +364,7 @@ class _PairingView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Compare with device screen and confirm:',
+          context.l10n.hwPairingCompare,
           style: Theme.of(context).textTheme.bodySmall,
           textAlign: TextAlign.center,
         ),
@@ -427,7 +428,7 @@ class _ResultPanel extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: onBack,
-              child: const Text('Back'),
+              child: Text(context.l10n.backButton),
             ),
           ),
         ],

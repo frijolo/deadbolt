@@ -187,7 +187,7 @@ class _ProjectDetailView extends StatelessWidget {
                 tabs: [
                   Tab(text: l10n.spendPathsSection(state.displayPathCount)),
                   Tab(text: l10n.keysSection(state.displayKeyCount)),
-                  Tab(text: l10n.descriptorSectionTitle),
+                  Tab(text: l10n.descriptorLabel),
                 ],
               ),
               // Tab content

@@ -16,27 +16,9 @@ Future<void> showWifExportFlow(
   required String address,
   required String mfp,
 }) async {
-  final l10n = context.l10n;
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Export private key (WIF)'),
-      content: const Text(
-        'Make sure no one can see your screen. '
-        'The WIF key gives full spending access to this address. '
-        'Never share it with anyone.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Show WIF'),
-        ),
-      ],
-    ),
+    builder: (ctx) => const _WifConfirmDialog(),
   );
 
   if (confirmed != true || !context.mounted) return;
@@ -49,6 +31,129 @@ Future<void> showWifExportFlow(
     context: context,
     builder: (ctx) => _WifDisplayDialog(address: address, wif: wif),
   );
+}
+
+// ---------------------------------------------------------------------------
+
+class _WifConfirmDialog extends StatefulWidget {
+  const _WifConfirmDialog();
+
+  @override
+  State<_WifConfirmDialog> createState() => _WifConfirmDialogState();
+}
+
+class _WifConfirmDialogState extends State<_WifConfirmDialog> {
+  final _controller = TextEditingController();
+  bool _confirmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    final phrase = context.l10n.wifExportConfirmPhrase;
+    final ok = _controller.text.trim().toLowerCase() == phrase.toLowerCase();
+    if (ok != _confirmed) setState(() => _confirmed = ok);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final phrase = l10n.wifExportConfirmPhrase;
+
+    return AlertDialog(
+      title: Text(l10n.wifExportTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 20, color: scheme.onErrorContainer),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      l10n.wifExportWarning,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: scheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              l10n.wifExportTypeToConfirm,
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.onSurface.withAlpha(153),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              phrase,
+              style: TextStyle(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: scheme.onSurface.withAlpha(180),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                hintText: phrase,
+                isDense: true,
+                border: const OutlineInputBorder(),
+                suffixIcon: _confirmed
+                    ? Icon(Icons.check_circle,
+                        color: scheme.primary, size: 18)
+                    : null,
+              ),
+              style: const TextStyle(fontSize: 13),
+              onSubmitted: _confirmed
+                  ? (_) => Navigator.pop(context, true)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed:
+              _confirmed ? () => Navigator.pop(context, true) : null,
+          child: Text(l10n.wifExportShowButton),
+        ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +194,7 @@ class _WifDisplayDialog extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Never share this key. Anyone with it can spend these funds.',
+                      l10n.wifDisplayWarning,
                       style: TextStyle(
                         fontSize: 12,
                         color: scheme.onErrorContainer,

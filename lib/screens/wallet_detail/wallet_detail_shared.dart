@@ -288,7 +288,7 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                         address: address.address,
                       ),
                       icon: const Icon(Icons.memory, size: 16),
-                      label: const Text('Verify on device'),
+                      label: Text(context.l10n.verifyOnDeviceButton),
                     ),
                     if (explorerUrl.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -396,9 +396,9 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                           context,
                           _LabelDialog(
                             title: l10n.coinLabelTitle,
-                            hintText: l10n.coinLabelHint,
+                            hintText: l10n.addressLabelHint,
                             currentLabel: utxo.label ?? '',
-                            removeLabel: l10n.coinLabelRemove,
+                            removeLabel: l10n.addressLabelRemove,
                             onSave: (label) =>
                                 cubit.setCoinLabel(utxo.txid, utxo.vout, label),
                             onRemove: () =>
@@ -726,9 +726,9 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                           context,
                           _LabelDialog(
                             title: l10n.txLabelTitle,
-                            hintText: l10n.txLabelHint,
+                            hintText: l10n.addressLabelHint,
                             currentLabel: tx.label ?? '',
-                            removeLabel: l10n.txLabelRemove,
+                            removeLabel: l10n.addressLabelRemove,
                             onSave: (label) =>
                                 cubit.setTxLabel(tx.txid, label),
                             onRemove: () => cubit.setTxLabel(tx.txid, ''),

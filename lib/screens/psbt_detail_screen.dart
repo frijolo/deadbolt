@@ -458,7 +458,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                                 controller: _labelController,
                                 decoration: InputDecoration(
                                   labelText: l10n.txLabelTitle,
-                                  hintText: l10n.psbtLabelHint,
+                                  hintText: l10n.addressLabelHint,
                                   isDense: true,
                                   border: const OutlineInputBorder(),
                                 ),

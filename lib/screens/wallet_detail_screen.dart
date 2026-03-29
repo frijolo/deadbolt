@@ -492,12 +492,12 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         ),
         ListTile(
           leading: const Icon(Icons.schema_outlined),
-          title: Text(l10n.descriptorTabLabel),
+          title: Text(l10n.descriptorLabel),
           onTap: () => Navigator.of(ctx).pop(_ExportChoice.descriptor),
         ),
         ListTile(
           leading: const Icon(Icons.save_alt_outlined),
-          title: const Text('Wallet'),
+          title: Text(l10n.walletExportLabel),
           onTap: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
         ),
         const SizedBox(height: 8),
@@ -545,7 +545,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         ),
         ListTile(
           leading: const Icon(Icons.vpn_key_outlined),
-          title: const Text('Sweep WIF key'),
+          title: Text(ctx.l10n.sweepWifTitle),
           onTap: () => Navigator.of(ctx).pop(_ImportChoice.sweepWif),
         ),
         const SizedBox(height: 8),
@@ -754,7 +754,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           NavigationDestination(
             icon: const Icon(Icons.schema_outlined),
             selectedIcon: const Icon(Icons.schema),
-            label: l10n.descriptorTabLabel,
+            label: l10n.descriptorLabel,
           ),
         ],
       ),
@@ -1110,7 +1110,7 @@ class _DescriptorView extends StatelessWidget {
     if (analysis == null) {
       return Center(
         child: Text(
-          context.l10n.descriptorSectionTitle,
+          context.l10n.descriptorLabel,
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
           ),
@@ -1129,7 +1129,7 @@ class _DescriptorView extends StatelessWidget {
             tabs: [
               Tab(text: l10n.spendPathsSection(analysis.spendPaths.length)),
               Tab(text: l10n.keysSection(analysis.keys.length)),
-              Tab(text: l10n.descriptorSectionTitle),
+              Tab(text: l10n.descriptorLabel),
             ],
           ),
           Expanded(

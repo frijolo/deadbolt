@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
 /// Result returned by [showExportBackupDialog].
@@ -69,9 +70,10 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Export backup'),
+      title: Text(l10n.exportBackupTitle),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -79,18 +81,18 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Protection', style: theme.textTheme.labelMedium),
+              Text(l10n.protectionLabel, style: theme.textTheme.labelMedium),
               const SizedBox(height: 8),
               SegmentedButton<APIProtectionType>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: APIProtectionType.userPassword,
-                    label: Text('Password'),
+                    label: Text(l10n.protectionPassword),
                   ),
                   ButtonSegment(
                     value: APIProtectionType.xpubKey,
-                    label: Text('XPub'),
+                    label: Text(l10n.protectionXpub),
                   ),
                 ],
                 selected: {_protection},
@@ -103,7 +105,7 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
                   controller: _passwordCtrl,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: 'Backup password',
+                    labelText: l10n.backupPasswordLabel,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -115,7 +117,7 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
                     if (_protection != APIProtectionType.userPassword) {
                       return null;
                     }
-                    if (v == null || v.isEmpty) return 'Password required';
+                    if (v == null || v.isEmpty) return l10n.validatorPasswordRequired;
                     return null;
                   },
                 ),
@@ -124,7 +126,7 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
                   controller: _confirmCtrl,
                   obscureText: _obscureConfirm,
                   decoration: InputDecoration(
-                    labelText: 'Confirm password',
+                    labelText: l10n.confirmPasswordLabel,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(_obscureConfirm
@@ -138,28 +140,28 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
                     if (_protection != APIProtectionType.userPassword) {
                       return null;
                     }
-                    if (v != _passwordCtrl.text) return 'Passwords do not match';
+                    if (v != _passwordCtrl.text) return l10n.validatorPasswordsNoMatch;
                     return null;
                   },
                 ),
               ],
               const SizedBox(height: 16),
-              Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
+              Text(l10n.securityLevelLabel, style: theme.textTheme.labelMedium),
               const SizedBox(height: 8),
               SegmentedButton<APISecurityLevel>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: APISecurityLevel.standard,
-                    label: Text('Standard'),
+                    label: Text(l10n.securityLevelStandard),
                   ),
                   ButtonSegment(
                     value: APISecurityLevel.high,
-                    label: Text('High'),
+                    label: Text(l10n.securityLevelHigh),
                   ),
                   ButtonSegment(
                     value: APISecurityLevel.extreme,
-                    label: Text('Extreme'),
+                    label: Text(l10n.securityLevelExtreme),
                   ),
                 ],
                 selected: {_level},
@@ -172,11 +174,11 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: _confirm,
-          child: const Text('Export'),
+          child: Text(l10n.exportButton),
         ),
       ],
     );

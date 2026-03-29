@@ -1583,7 +1583,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 controller: _labelCtrl,
                 decoration: InputDecoration(
                   labelText: l10n.txLabelTitle,
-                  hintText: l10n.psbtLabelHint,
+                  hintText: l10n.addressLabelHint,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -1729,7 +1729,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                             ? Icons.send_outlined
                             : Icons.receipt_long_outlined),
                     label: Text(
-                        directSend ? l10n.directSendButton : l10n.createTxButton),
+                        directSend ? l10n.walletSendButton : l10n.createTxButton),
                   ),
                   if (directSend) ...[
                     const SizedBox(height: 8),

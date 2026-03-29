@@ -131,7 +131,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
   Future<void> _queryUtxos() async {
     final wif = _wifCtrl.text.trim();
     if (wif.isEmpty) {
-      showErrorToast(context, 'Enter a WIF key first');
+      showErrorToast(context, context.l10n.sweepWifEnterKeyFirst);
       return;
     }
 
@@ -183,7 +183,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     final feeRate = double.tryParse(_feeRateCtrl.text.trim());
 
     if (wif.isEmpty || dest.isEmpty || feeRate == null || feeRate <= 0) {
-      showErrorToast(context, 'Fill all fields with valid values');
+      showErrorToast(context, context.l10n.sweepWifFillFields);
       return;
     }
 
@@ -197,7 +197,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
         network: _network,
       );
       if (mounted) {
-        showSuccessToast(context, 'Swept: $txid');
+        showSuccessToast(context, context.l10n.sweepWifSweptToast(txid));
         widget.onSwept?.call();
         Navigator.of(context).pop();
       }
@@ -322,12 +322,13 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
 
 
   Widget _buildFeeRateField(BuildContext context) {
+    final feeRateLabel = context.l10n.feeRateLabel;
     if (_feeEditing) {
       return TextFormField(
         controller: _feeRateCtrl,
         focusNode: _rateFocusNode,
-        decoration: const InputDecoration(
-          labelText: 'Fee rate',
+        decoration: InputDecoration(
+          labelText: feeRateLabel,
           suffixText: 'sat/vB',
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -344,8 +345,8 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
         });
       },
       child: InputDecorator(
-        decoration: const InputDecoration(
-          labelText: 'Fee rate',
+        decoration: InputDecoration(
+          labelText: feeRateLabel,
           suffixText: 'sat/vB',
         ),
         isEmpty: false,
@@ -378,21 +379,21 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sweep WIF key')),
+      appBar: AppBar(title: Text(l10n.sweepWifTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── WIF input ──────────────────────────────────────────────────
-            Text('Private key (WIF)',
+            Text(l10n.sweepWifPrivateKeySection,
                 style: TextStyle(
                     fontWeight: FontWeight.w600, color: scheme.onSurface)),
             const SizedBox(height: 8),
             TextField(
               controller: _wifCtrl,
               decoration: InputDecoration(
-                hintText: 'Paste or scan WIF key...',
+                hintText: l10n.sweepWifHint,
                 border: const OutlineInputBorder(),
                 isDense: true,
                 suffixIcon: Row(
@@ -429,7 +430,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                           strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.search, size: 18),
-              label: Text(_querying ? 'Searching...' : 'Find UTXOs'),
+              label: Text(_querying ? l10n.sweepWifSearching : l10n.sweepWifFindUtxos),
               onPressed: _querying ? null : _queryUtxos,
             ),
 
@@ -454,7 +455,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 8),
-              Text('Controlled addresses',
+              Text(l10n.sweepWifControlledAddresses,
                   style: TextStyle(
                       fontWeight: FontWeight.w600, color: scheme.onSurface)),
               const SizedBox(height: 8),
@@ -493,7 +494,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                       Text(
                         utxoCount > 0
                             ? '$utxoSat sat ($utxoCount UTXO${utxoCount > 1 ? 's' : ''})'
-                            : 'empty',
+                            : l10n.sweepWifEmpty,
                         style: TextStyle(
                           fontSize: 11,
                           color: utxoCount > 0
@@ -511,7 +512,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text('Total: $totalSat sat',
+                    Text(l10n.sweepWifTotal(totalSat),
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
@@ -523,7 +524,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
             if (utxos != null && !hasUtxos) ...[
               const SizedBox(height: 12),
               Text(
-                'No funds found for this key on the current network.',
+                l10n.sweepWifNoFunds,
                 style: TextStyle(color: scheme.onSurface.withAlpha(153)),
               ),
             ],
@@ -535,7 +536,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
               const SizedBox(height: 8),
 
               // Destination address.
-              Text('Destination',
+              Text(l10n.sweepWifDestination,
                   style: TextStyle(
                       fontWeight: FontWeight.w600, color: scheme.onSurface)),
               const SizedBox(height: 8),
@@ -553,7 +554,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                           ? TextField(
                               controller: _destCtrl,
                               decoration: InputDecoration(
-                                hintText: 'Bitcoin address...',
+                                hintText: l10n.sweepWifAddressHint,
                                 isDense: true,
                                 filled: true,
                                 fillColor: scheme.surface,
@@ -638,8 +639,9 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.send_outlined, size: 18),
-                label:
-                    Text(_sweeping ? 'Sweeping...' : 'Sweep $totalSat sat'),
+                label: Text(_sweeping
+                    ? l10n.sweepWifSweeping
+                    : l10n.sweepWifButton(totalSat)),
                 onPressed: _sweeping ? null : _sweep,
               ),
             ],

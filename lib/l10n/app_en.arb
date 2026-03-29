@@ -80,6 +80,7 @@
   "moreOptionsTooltip": "More options",
   "buildFabLabel": "Build",
   "descriptorOutdatedBanner": "Descriptor outdated · tap Build to regenerate",
+  "keySectionLabel": "Key",
   "keysSection": "Keys ({count})",
   "@keysSection": {
     "placeholders": {
@@ -115,7 +116,6 @@
       "mfp": { "type": "String" }
     }
   },
-  "descriptorSectionTitle": "Descriptor",
   "copyDescriptorTooltip": "Export descriptor",
   "descriptorCopied": "Descriptor copied",
   "copyToClipboard": "Copy to clipboard",
@@ -405,9 +405,6 @@
   "openInExplorer": "Open in explorer",
 
   "txLabelTitle": "Label",
-  "txLabelHint": "Add a label...",
-  "txLabelRemove": "Remove label",
-
   "txDetailsTitle": "Transaction details",
   "txDetailsNet": "Net amount",
   "txDetailsGrossReceived": "Received (gross)",
@@ -449,8 +446,6 @@
   "noCoins": "No coins. Sync to discover UTXOs.",
   "coinDetailsTitle": "Coin details",
   "coinLabelTitle": "Label",
-  "coinLabelHint": "Add a label...",
-  "coinLabelRemove": "Remove label",
   "coinOutpoint": "Outpoint",
   "coinValue": "Value",
   "coinAddress": "Address",
@@ -470,7 +465,6 @@
     }
   },
 
-  "descriptorTabLabel": "Descriptor",
 
   "spendPathsAvailable": "Spend paths",
   "spendPathsNotSynced": "Sync to see available spend paths",
@@ -594,7 +588,6 @@
       "error": { "type": "String" }
     }
   },
-  "psbtLabelHint": "Add a label...",
   "psbtDeleteTitle": "Delete PSBT",
   "psbtDeleteConfirm": "Delete this unsigned transaction?",
   "psbtExportedCopied": "PSBT copied",
@@ -703,7 +696,143 @@
   "electrumPrivacyWarning": "Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.",
   "goToSettings": "Settings",
 
-  "directSendButton": "Send",
+  "wifExportTitle": "Export private key (WIF)",
+  "wifExportWarning": "This exports the private key of a single address, but if your wallet''s XPUB is known to anyone — a coordinator, exchange, or any service you''ve shared it with — they can use this WIF to derive the private keys of every address in your wallet.\n\nOnly proceed if your XPUB is private, or if you fully accept this risk.",
+  "wifExportTypeToConfirm": "Type to confirm:",
+  "wifExportConfirmPhrase": "my full wallet is at risk",
+  "wifExportShowButton": "Show WIF",
+  "wifDisplayWarning": "Never share this key. If your XPUB is known to others, this WIF exposes your entire wallet.",
+
+  "protectionLabel": "Protection",
+  "protectionNone": "None",
+  "protectionPassword": "Password",
+  "protectionXpub": "XPub",
+  "protectionUnprotected": "Unprotected",
+  "protectionXpubInfo": "Any xpub from the wallet can unlock it. Do not share those xpubs with third parties.",
+  "securityLevelLabel": "Anti-brute-force level",
+  "securityLevelStandard": "Standard",
+  "securityLevelHigh": "High",
+  "securityLevelExtreme": "Extreme",
+  "newPasswordLabel": "New password",
+  "confirmPasswordLabel": "Confirm password",
+  "backupPasswordLabel": "Backup password",
+  "validatorPasswordEmpty": "Password cannot be empty",
+  "validatorPasswordRequired": "Password required",
+  "validatorPasswordsNoMatch": "Passwords do not match",
+  "validatorNameRequired": "Name is required",
+  "changeButton": "Change",
+  "exportButton": "Export",
+  "backButton": "Back",
+  "feeRateLabel": "Fee rate",
+  "verifyOnDeviceButton": "Verify on device",
+
+  "changeProtectionTitle": "Change wallet protection",
+  "changeProtectionCurrent": "Current: {protection}",
+  "@changeProtectionCurrent": {
+    "placeholders": { "protection": { "type": "String" } }
+  },
+  "protectionChangedToast": "Protection changed to {protection}",
+  "@protectionChangedToast": {
+    "placeholders": { "protection": { "type": "String" } }
+  },
+
+  "exportBackupTitle": "Export backup",
+
+  "sweepWifTitle": "Sweep WIF key",
+  "sweepWifPrivateKeySection": "Private key (WIF)",
+  "sweepWifHint": "Paste or scan WIF key...",
+  "sweepWifSearching": "Searching...",
+  "sweepWifFindUtxos": "Find UTXOs",
+  "sweepWifControlledAddresses": "Controlled addresses",
+  "sweepWifTotal": "Total: {amount} sat",
+  "@sweepWifTotal": {
+    "placeholders": { "amount": { "type": "int" } }
+  },
+  "sweepWifNoFunds": "No funds found for this key on the current network.",
+  "sweepWifDestination": "Destination",
+  "sweepWifAddressHint": "Bitcoin address...",
+  "sweepWifSweeping": "Sweeping...",
+  "sweepWifButton": "Sweep {amount} sat",
+  "@sweepWifButton": {
+    "placeholders": { "amount": { "type": "int" } }
+  },
+  "sweepWifEnterKeyFirst": "Enter a WIF key first",
+  "sweepWifFillFields": "Fill all fields with valid values",
+  "sweepWifSweptToast": "Swept: {txid}",
+  "@sweepWifSweptToast": {
+    "placeholders": { "txid": { "type": "String" } }
+  },
+  "sweepWifEmpty": "empty",
+
+  "walletCreateGuided": "Guided creation",
+  "walletCreateGuidedSub": "Standard wallet from your keys",
+  "walletCreateFromDescriptor": "From descriptor",
+  "walletCreateFromDescriptorSub": "Enter a Bitcoin descriptor directly",
+  "walletCreateFromProject": "From project",
+  "walletCreateFromProjectSub": "Use a descriptor from the designer",
+  "walletCreateFromBackup": "From backup",
+  "walletCreateFromBackupSub": "Restore a wallet from a .deadbolt file",
+
+  "projectCreateFromScratch": "From scratch",
+  "projectCreateFromScratchSub": "Pick network and wallet type, then add keys",
+  "projectCreateFromDescriptorSub": "Paste, scan or import a Bitcoin descriptor",
+  "projectCreateImport": "Import project",
+  "projectCreateImportSub": "Restore a project from a .json export",
+
+  "newWalletTitle": "New Wallet",
+  "walletNameLabel": "Wallet name",
+  "walletExportLabel": "Wallet",
+  "walletTypeLabel": "Wallet type",
+  "walletTypeSinglesig": "Singlesig",
+  "walletTypeMultisig": "Multisig",
+  "walletTypeSinglesigDesc": "One key controls the wallet. Best for personal use.",
+  "walletTypeMultisigDesc": "Multiple keys required to sign. Ideal for shared control or extra security.",
+  "scriptTypeLabel": "Script type",
+  "scriptTypeLegacy": "Legacy",
+  "scriptTypeNested": "Nested",
+  "scriptTypeSegwit": "SegWit",
+  "scriptTypeTaproot": "Taproot",
+  "scriptDescP2pkh": "P2PKH — Oldest standard. Highest fees. Maximum compatibility.",
+  "scriptDescP2sh": "P2SH — Oldest multisig standard. Highest fees.",
+  "scriptDescP2shWpkh": "P2SH-P2WPKH — SegWit wrapped for backward compatibility.",
+  "scriptDescP2shWsh": "P2SH-P2WSH — SegWit multisig with backward compatibility.",
+  "scriptDescP2wpkh": "P2WPKH — Most common modern standard. Lower fees.",
+  "scriptDescP2wsh": "P2WSH — Native SegWit multisig. Lower fees, widely supported.",
+  "scriptDescP2trSinglesig": "P2TR — Taproot. Best privacy and lowest fees.",
+  "scriptDescP2trMultisig": "P2TR — Taproot multisig. Best privacy. Requires compatible wallets.",
+  "requiredSignatures": "Required signatures: {m} of {n}",
+  "@requiredSignatures": {
+    "placeholders": {
+      "m": { "type": "int" },
+      "n": { "type": "int" }
+    }
+  },
+  "decreaseThresholdTooltip": "Decrease threshold",
+  "increaseThresholdTooltip": "Increase threshold",
+  "replaceKeyTooltip": "Replace key",
+  "removeKeyTooltip": "Remove key",
+  "creatingWalletLabel": "Creating wallet\u2026",
+  "createWalletButton": "Create wallet",
+  "addAtLeastOneKey": "Add at least one key",
+  "multisigNeedsMinKeys": "Multi key wallets need at least 2 keys",
+
+  "hwWalletTitle": "Hardware wallet",
+  "hwWalletScanning": "Scanning for devices\u2026",
+  "hwWalletConnecting": "Connecting\u2026",
+  "hwRegisterWallet": "Register wallet",
+  "hwRegisterWalletSub": "Register this policy on the device",
+  "hwNotRequired": "Not required for single-key wallets",
+  "hwCheckRegistration": "Check registration",
+  "hwCheckRegistrationSub": "Verify if this policy is registered",
+  "hwWalletRegistered": "Wallet registered on device.",
+  "hwWalletIsRegistered": "Wallet is registered on this device.",
+  "hwWalletNotRegistered": "Wallet is NOT registered on this device.",
+  "hwNoDevice": "No device connected",
+  "hwScanButton": "Scan",
+  "hwDisconnectButton": "Disconnect",
+  "hwSelectDevice": "Select a device:",
+  "hwPairingCompare": "Compare with device screen and confirm:",
+
   "directSendConfirmTitle": "Confirm send",
   "directSendConfirmAction": "Sign and broadcast",
   "directSendSuccess": "Sent: {txid}",

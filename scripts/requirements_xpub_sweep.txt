@@ -1,0 +1,4 @@
+# Dependencias para xpub_wif_sweep.py
+# Solo se necesita si quieres firma ECDSA más rápida vía libsecp256k1.
+# Si no está instalado, el script usa la implementación pura en Python (más lenta pero funcional).
+coincurve>=13.0.0

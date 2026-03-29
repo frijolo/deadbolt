@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
@@ -46,20 +47,12 @@ APIWalletType _mapWalletType(_ScriptChoice script, bool isMultisig) {
   };
 }
 
-String _scriptDescription(_ScriptChoice script, bool isMultisig) {
+String _scriptDescription(AppLocalizations l10n, _ScriptChoice script, bool isMultisig) {
   return switch (script) {
-    _ScriptChoice.legacy => isMultisig
-        ? 'P2SH — Oldest multisig standard. Highest fees.'
-        : 'P2PKH — Oldest standard. Highest fees. Maximum compatibility.',
-    _ScriptChoice.nestedSegwit => isMultisig
-        ? 'P2SH-P2WSH — SegWit multisig with backward compatibility.'
-        : 'P2SH-P2WPKH — SegWit wrapped for backward compatibility.',
-    _ScriptChoice.nativeSegwit => isMultisig
-        ? 'P2WSH — Native SegWit multisig. Lower fees, widely supported.'
-        : 'P2WPKH — Most common modern standard. Lower fees.',
-    _ScriptChoice.taproot => isMultisig
-        ? 'P2TR — Taproot multisig. Best privacy. Requires compatible wallets.'
-        : 'P2TR — Taproot. Best privacy and lowest fees.',
+    _ScriptChoice.legacy => isMultisig ? l10n.scriptDescP2sh : l10n.scriptDescP2pkh,
+    _ScriptChoice.nestedSegwit => isMultisig ? l10n.scriptDescP2shWsh : l10n.scriptDescP2shWpkh,
+    _ScriptChoice.nativeSegwit => isMultisig ? l10n.scriptDescP2wsh : l10n.scriptDescP2wpkh,
+    _ScriptChoice.taproot => isMultisig ? l10n.scriptDescP2trMultisig : l10n.scriptDescP2trSinglesig,
   };
 }
 
@@ -150,11 +143,11 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_keyspecs.isEmpty) {
-      showErrorToast(context, 'Add at least one key');
+      showErrorToast(context, context.l10n.addAtLeastOneKey);
       return;
     }
     if (_isMultisig && _keyspecs.length < 2) {
-      showErrorToast(context, 'Multi key wallets need at least 2 keys');
+      showErrorToast(context, context.l10n.multisigNeedsMinKeys);
       return;
     }
 
@@ -237,9 +230,10 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Wallet'),
+        title: Text(l10n.newWalletTitle),
       ),
       body: SafeArea(
         child: Form(
@@ -250,25 +244,25 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               // Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Wallet name',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.walletNameLabel,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                    (v == null || v.trim().isEmpty) ? l10n.validatorNameRequired : null,
               ),
               const SizedBox(height: 20),
 
               // Wallet type (single / multi)
-              _buildSectionLabel(context, 'Wallet type'),
+              _buildSectionLabel(context, l10n.walletTypeLabel),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<bool>(
                   showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Singlesig')),
-                    ButtonSegment(value: true, label: Text('Multisig')),
+                  segments: [
+                    ButtonSegment(value: false, label: Text(l10n.walletTypeSinglesig)),
+                    ButtonSegment(value: true, label: Text(l10n.walletTypeMultisig)),
                   ],
                   selected: {_isMultisig},
                   onSelectionChanged: (v) => setState(() {
@@ -279,9 +273,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                _isMultisig
-                    ? 'Multiple keys required to sign. Ideal for shared control or extra security.'
-                    : 'One key controls the wallet. Best for personal use.',
+                _isMultisig ? l10n.walletTypeMultisigDesc : l10n.walletTypeSinglesigDesc,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -289,23 +281,17 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               const SizedBox(height: 20),
 
               // Script type
-              _buildSectionLabel(context, 'Script type'),
+              _buildSectionLabel(context, l10n.scriptTypeLabel),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<_ScriptChoice>(
                   showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                        value: _ScriptChoice.legacy, label: Text('Legacy')),
-                    ButtonSegment(
-                        value: _ScriptChoice.nestedSegwit,
-                        label: Text('Nested')),
-                    ButtonSegment(
-                        value: _ScriptChoice.nativeSegwit,
-                        label: Text('SegWit')),
-                    ButtonSegment(
-                        value: _ScriptChoice.taproot, label: Text('Taproot')),
+                  segments: [
+                    ButtonSegment(value: _ScriptChoice.legacy, label: Text(l10n.scriptTypeLegacy)),
+                    ButtonSegment(value: _ScriptChoice.nestedSegwit, label: Text(l10n.scriptTypeNested)),
+                    ButtonSegment(value: _ScriptChoice.nativeSegwit, label: Text(l10n.scriptTypeSegwit)),
+                    ButtonSegment(value: _ScriptChoice.taproot, label: Text(l10n.scriptTypeTaproot)),
                   ],
                   selected: {_scriptChoice},
                   onSelectionChanged: (v) =>
@@ -314,7 +300,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                _scriptDescription(_scriptChoice, _isMultisig),
+                _scriptDescription(l10n, _scriptChoice, _isMultisig),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -347,11 +333,11 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
 
               // Create / loading
               if (_isCreating)
-                const LoadingIndicator(message: 'Creating wallet…')
+                LoadingIndicator(message: l10n.creatingWalletLabel)
               else
                 FilledButton(
                   onPressed: _onCreate,
-                  child: const Text('Create wallet'),
+                  child: Text(l10n.createWalletButton),
                 ),
             ],
           ),
@@ -364,6 +350,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       Text(label, style: Theme.of(context).textTheme.labelMedium);
 
   Widget _buildKeysSection(BuildContext context) {
+    final l10n = context.l10n;
     final ext = Theme.of(context).extension<KeyColorExtension>()!;
     final hasKeys = _keyspecs.isNotEmpty;
 
@@ -375,15 +362,15 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
             _buildSectionLabel(
               context,
               _isMultisig
-                  ? 'Keys${hasKeys ? ' (${_keyspecs.length})' : ''}'
-                  : 'Key',
+                  ? l10n.keysSection(hasKeys ? _keyspecs.length : 0)
+                  : l10n.keySectionLabel,
             ),
             const Spacer(),
             if (_isMultisig || !hasKeys)
               TextButton.icon(
                 onPressed: _addKey,
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add key'),
+                label: Text(l10n.addKeyButton),
                 style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact),
               ),
@@ -397,7 +384,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
             children: [
               Expanded(
                 child: Text(
-                  'Required signatures: $_threshold of ${_keyspecs.length}',
+                  l10n.requiredSignatures(_threshold, _keyspecs.length),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -405,7 +392,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 onPressed: _threshold > 1
                     ? () => setState(() => _threshold--)
                     : null,
-                tooltip: 'Decrease threshold',
+                tooltip: l10n.decreaseThresholdTooltip,
                 icon: const Icon(Icons.remove_circle_outline, size: 20),
                 visualDensity: VisualDensity.compact,
               ),
@@ -415,7 +402,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 onPressed: _threshold < _keyspecs.length
                     ? () => setState(() => _threshold++)
                     : null,
-                tooltip: 'Increase threshold',
+                tooltip: l10n.increaseThresholdTooltip,
                 icon: const Icon(Icons.add_circle_outline, size: 20),
                 visualDensity: VisualDensity.compact,
               ),
@@ -455,7 +442,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 18),
               visualDensity: VisualDensity.compact,
-              tooltip: 'Replace key',
+              tooltip: context.l10n.replaceKeyTooltip,
               onPressed: () => _replaceKey(index),
             ),
             IconButton(
@@ -463,7 +450,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                   size: 18,
                   color: Colors.red.withAlpha(AppAlpha.deleteAction)),
               visualDensity: VisualDensity.compact,
-              tooltip: 'Remove key',
+              tooltip: context.l10n.removeKeyTooltip,
               onPressed: () => _removeKey(index),
             ),
           ],

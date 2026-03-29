@@ -103,7 +103,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get selectNetworkTooltip => 'Seleccionar red';
 
   @override
-  String get walletTypeLabel => 'Tipo de billetera';
+  String get walletTypeLabel => 'Tipo de wallet';
 
   @override
   String get selectWalletTypeTooltip => 'Seleccionar tipo de billetera';
@@ -201,6 +201,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Descriptor desactualizado · toca Construir para regenerar';
 
   @override
+  String get keySectionLabel => 'Clave';
+
+  @override
   String keysSection(int count) {
     return 'Claves ($count)';
   }
@@ -266,9 +269,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String duplicateMfp(String mfp) {
     return 'Ya existe una clave con MFP $mfp';
   }
-
-  @override
-  String get descriptorSectionTitle => 'Descriptor';
 
   @override
   String get copyDescriptorTooltip => 'Exportar descriptor';
@@ -707,7 +707,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createWalletTitle => 'Nueva Billetera';
 
   @override
-  String get walletNameLabel => 'Nombre de billetera';
+  String get walletNameLabel => 'Nombre del wallet';
 
   @override
   String get walletNameRequired => 'El nombre es obligatorio';
@@ -720,7 +720,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fromProjectAction => 'Desde proyecto';
 
   @override
-  String get createWalletButton => 'Crear Billetera';
+  String get createWalletButton => 'Crear wallet';
 
   @override
   String get creatingWallet => 'Creando billetera...';
@@ -909,12 +909,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get txLabelTitle => 'Etiqueta';
 
   @override
-  String get txLabelHint => 'Añadir etiqueta...';
-
-  @override
-  String get txLabelRemove => 'Eliminar etiqueta';
-
-  @override
   String get txDetailsTitle => 'Detalles de la transacción';
 
   @override
@@ -1003,12 +997,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get coinLabelTitle => 'Etiqueta';
 
   @override
-  String get coinLabelHint => 'Añadir etiqueta...';
-
-  @override
-  String get coinLabelRemove => 'Eliminar etiqueta';
-
-  @override
   String get coinOutpoint => 'Punto de salida';
 
   @override
@@ -1046,9 +1034,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get descriptorTabLabel => 'Descriptor';
-
-  @override
   String get spendPathsAvailable => 'Rutas de gasto';
 
   @override
@@ -1083,7 +1068,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spendPathNeedsConfirmation => 'Necesita confirmación';
 
   @override
-  String get spendPathUnconfirmed => 'Sin confirmar';
+  String get spendPathUnconfirmed => 'No confirmado';
 
   @override
   String get spendPathNeedsSync => 'Sincronización requerida';
@@ -1283,9 +1268,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String psbtMergeFailed(String error) {
     return 'Error al importar: $error';
   }
-
-  @override
-  String get psbtLabelHint => 'Añadir etiqueta...';
 
   @override
   String get psbtDeleteTitle => 'Eliminar PSBT';
@@ -1533,10 +1515,353 @@ class AppLocalizationsEs extends AppLocalizations {
       'Usando un servidor Electrum público. Tu IP e historial de transacciones pueden ser visibles para terceros. Configura un servidor propio en Ajustes.';
 
   @override
-  String get goToSettings => 'Ajustes';
+  String get goToSettings => 'Configuración';
 
   @override
-  String get directSendButton => 'Enviar';
+  String get wifExportTitle => 'Exportar clave privada (WIF)';
+
+  @override
+  String get wifExportWarning =>
+      'Esto exporta la clave privada de una sola dirección, pero si el XPUB de tu wallet es conocido por alguien — un coordinador, exchange, o cualquier servicio con el que lo hayas compartido — pueden usar este WIF para derivar las claves privadas de todas las direcciones de tu wallet.\n\nProcede solo si tu XPUB es privado, o si aceptas completamente este riesgo.';
+
+  @override
+  String get wifExportTypeToConfirm => 'Escribe para confirmar:';
+
+  @override
+  String get wifExportConfirmPhrase => 'mi wallet completo está en riesgo';
+
+  @override
+  String get wifExportShowButton => 'Mostrar WIF';
+
+  @override
+  String get wifDisplayWarning =>
+      'Nunca compartas esta clave. Si tu XPUB es conocido por otros, este WIF expone todo tu wallet.';
+
+  @override
+  String get protectionLabel => 'Protección';
+
+  @override
+  String get protectionNone => 'Ninguna';
+
+  @override
+  String get protectionPassword => 'Contraseña';
+
+  @override
+  String get protectionXpub => 'XPub';
+
+  @override
+  String get protectionUnprotected => 'Sin protección';
+
+  @override
+  String get protectionXpubInfo =>
+      'Cualquier xpub del wallet puede desbloquearlo. No compartas esos xpubs con terceros.';
+
+  @override
+  String get securityLevelLabel => 'Nivel anti-fuerza bruta';
+
+  @override
+  String get securityLevelStandard => 'Estándar';
+
+  @override
+  String get securityLevelHigh => 'Alto';
+
+  @override
+  String get securityLevelExtreme => 'Extremo';
+
+  @override
+  String get newPasswordLabel => 'Nueva contraseña';
+
+  @override
+  String get confirmPasswordLabel => 'Confirmar contraseña';
+
+  @override
+  String get backupPasswordLabel => 'Contraseña de la copia';
+
+  @override
+  String get validatorPasswordEmpty => 'La contraseña no puede estar vacía';
+
+  @override
+  String get validatorPasswordRequired => 'Contraseña requerida';
+
+  @override
+  String get validatorPasswordsNoMatch => 'Las contraseñas no coinciden';
+
+  @override
+  String get validatorNameRequired => 'El nombre es obligatorio';
+
+  @override
+  String get changeButton => 'Cambiar';
+
+  @override
+  String get exportButton => 'Exportar';
+
+  @override
+  String get backButton => 'Volver';
+
+  @override
+  String get feeRateLabel => 'Comisión';
+
+  @override
+  String get verifyOnDeviceButton => 'Verificar en dispositivo';
+
+  @override
+  String get changeProtectionTitle => 'Cambiar protección del wallet';
+
+  @override
+  String changeProtectionCurrent(String protection) {
+    return 'Actual: $protection';
+  }
+
+  @override
+  String protectionChangedToast(String protection) {
+    return 'Protección cambiada a $protection';
+  }
+
+  @override
+  String get exportBackupTitle => 'Exportar copia de seguridad';
+
+  @override
+  String get sweepWifTitle => 'Barrer clave WIF';
+
+  @override
+  String get sweepWifPrivateKeySection => 'Clave privada (WIF)';
+
+  @override
+  String get sweepWifHint => 'Pega o escanea una clave WIF...';
+
+  @override
+  String get sweepWifSearching => 'Buscando...';
+
+  @override
+  String get sweepWifFindUtxos => 'Buscar UTXOs';
+
+  @override
+  String get sweepWifControlledAddresses => 'Direcciones controladas';
+
+  @override
+  String sweepWifTotal(int amount) {
+    return 'Total: $amount sat';
+  }
+
+  @override
+  String get sweepWifNoFunds =>
+      'No se encontraron fondos para esta clave en la red actual.';
+
+  @override
+  String get sweepWifDestination => 'Destino';
+
+  @override
+  String get sweepWifAddressHint => 'Dirección Bitcoin...';
+
+  @override
+  String get sweepWifSweeping => 'Barriendo...';
+
+  @override
+  String sweepWifButton(int amount) {
+    return 'Barrer $amount sat';
+  }
+
+  @override
+  String get sweepWifEnterKeyFirst => 'Introduce primero una clave WIF';
+
+  @override
+  String get sweepWifFillFields =>
+      'Completa todos los campos con valores válidos';
+
+  @override
+  String sweepWifSweptToast(String txid) {
+    return 'Barrido: $txid';
+  }
+
+  @override
+  String get sweepWifEmpty => 'vacía';
+
+  @override
+  String get walletCreateGuided => 'Creación guiada';
+
+  @override
+  String get walletCreateGuidedSub => 'Wallet estándar desde tus claves';
+
+  @override
+  String get walletCreateFromDescriptor => 'Desde descriptor';
+
+  @override
+  String get walletCreateFromDescriptorSub =>
+      'Introduce un descriptor Bitcoin directamente';
+
+  @override
+  String get walletCreateFromProject => 'Desde proyecto';
+
+  @override
+  String get walletCreateFromProjectSub => 'Usa un descriptor del diseñador';
+
+  @override
+  String get walletCreateFromBackup => 'Desde copia de seguridad';
+
+  @override
+  String get walletCreateFromBackupSub =>
+      'Restaura un wallet desde un archivo .deadbolt';
+
+  @override
+  String get projectCreateFromScratch => 'Desde cero';
+
+  @override
+  String get projectCreateFromScratchSub =>
+      'Elige red y tipo de wallet, luego añade claves';
+
+  @override
+  String get projectCreateFromDescriptorSub =>
+      'Pega, escanea o importa un descriptor Bitcoin';
+
+  @override
+  String get projectCreateImport => 'Importar proyecto';
+
+  @override
+  String get projectCreateImportSub =>
+      'Restaura un proyecto desde una exportación .json';
+
+  @override
+  String get newWalletTitle => 'Nuevo Wallet';
+
+  @override
+  String get walletExportLabel => 'Wallet';
+
+  @override
+  String get walletTypeSinglesig => 'Clave única';
+
+  @override
+  String get walletTypeMultisig => 'Multifirma';
+
+  @override
+  String get walletTypeSinglesigDesc =>
+      'Una sola clave controla el wallet. Ideal para uso personal.';
+
+  @override
+  String get walletTypeMultisigDesc =>
+      'Se requieren varias claves para firmar. Ideal para control compartido o seguridad adicional.';
+
+  @override
+  String get scriptTypeLabel => 'Tipo de script';
+
+  @override
+  String get scriptTypeLegacy => 'Legacy';
+
+  @override
+  String get scriptTypeNested => 'Anidado';
+
+  @override
+  String get scriptTypeSegwit => 'SegWit';
+
+  @override
+  String get scriptTypeTaproot => 'Taproot';
+
+  @override
+  String get scriptDescP2pkh =>
+      'P2PKH — Estándar más antiguo. Comisiones más altas. Máxima compatibilidad.';
+
+  @override
+  String get scriptDescP2sh =>
+      'P2SH — Estándar multifirma más antiguo. Comisiones más altas.';
+
+  @override
+  String get scriptDescP2shWpkh =>
+      'P2SH-P2WPKH — SegWit envuelto para compatibilidad retroactiva.';
+
+  @override
+  String get scriptDescP2shWsh =>
+      'P2SH-P2WSH — Multifirma SegWit con compatibilidad retroactiva.';
+
+  @override
+  String get scriptDescP2wpkh =>
+      'P2WPKH — Estándar moderno más común. Menores comisiones.';
+
+  @override
+  String get scriptDescP2wsh =>
+      'P2WSH — Multifirma SegWit nativo. Menores comisiones, amplio soporte.';
+
+  @override
+  String get scriptDescP2trSinglesig =>
+      'P2TR — Taproot. Mejor privacidad y menores comisiones.';
+
+  @override
+  String get scriptDescP2trMultisig =>
+      'P2TR — Taproot multifirma. Mejor privacidad. Requiere wallets compatibles.';
+
+  @override
+  String requiredSignatures(int m, int n) {
+    return 'Firmas requeridas: $m de $n';
+  }
+
+  @override
+  String get decreaseThresholdTooltip => 'Reducir umbral';
+
+  @override
+  String get increaseThresholdTooltip => 'Aumentar umbral';
+
+  @override
+  String get replaceKeyTooltip => 'Reemplazar clave';
+
+  @override
+  String get creatingWalletLabel => 'Creando wallet…';
+
+  @override
+  String get addAtLeastOneKey => 'Añade al menos una clave';
+
+  @override
+  String get multisigNeedsMinKeys =>
+      'Los wallets multifirma necesitan al menos 2 claves';
+
+  @override
+  String get hwWalletTitle => 'Hardware wallet';
+
+  @override
+  String get hwWalletScanning => 'Buscando dispositivos…';
+
+  @override
+  String get hwWalletConnecting => 'Conectando…';
+
+  @override
+  String get hwRegisterWallet => 'Registrar wallet';
+
+  @override
+  String get hwRegisterWalletSub => 'Registrar esta política en el dispositivo';
+
+  @override
+  String get hwNotRequired => 'No requerido para wallets de clave única';
+
+  @override
+  String get hwCheckRegistration => 'Verificar registro';
+
+  @override
+  String get hwCheckRegistrationSub =>
+      'Verificar si esta política está registrada';
+
+  @override
+  String get hwWalletRegistered => 'Wallet registrado en el dispositivo.';
+
+  @override
+  String get hwWalletIsRegistered =>
+      'El wallet está registrado en este dispositivo.';
+
+  @override
+  String get hwWalletNotRegistered =>
+      'El wallet NO está registrado en este dispositivo.';
+
+  @override
+  String get hwNoDevice => 'Ningún dispositivo conectado';
+
+  @override
+  String get hwScanButton => 'Buscar';
+
+  @override
+  String get hwDisconnectButton => 'Desconectar';
+
+  @override
+  String get hwSelectDevice => 'Selecciona un dispositivo:';
+
+  @override
+  String get hwPairingCompare =>
+      'Compara con la pantalla del dispositivo y confirma:';
 
   @override
   String get directSendConfirmTitle => 'Confirmar envío';

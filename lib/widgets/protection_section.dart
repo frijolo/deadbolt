@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
 /// Callback fired whenever protection type or security level changes.
@@ -58,20 +59,21 @@ class _ProtectionSectionState extends State<ProtectionSection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Protection', style: theme.textTheme.labelMedium),
+        Text(l10n.protectionLabel, style: theme.textTheme.labelMedium),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<APIProtectionType>(
             showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: APIProtectionType.deviceKey, label: Text('None')),
-              ButtonSegment(value: APIProtectionType.userPassword, label: Text('Password')),
-              ButtonSegment(value: APIProtectionType.xpubKey, label: Text('XPub')),
+            segments: [
+              ButtonSegment(value: APIProtectionType.deviceKey, label: Text(l10n.protectionNone)),
+              ButtonSegment(value: APIProtectionType.userPassword, label: Text(l10n.protectionPassword)),
+              ButtonSegment(value: APIProtectionType.xpubKey, label: Text(l10n.protectionXpub)),
             ],
             selected: {_protectionType},
             onSelectionChanged: (v) => _setProtection(v.first),
@@ -79,16 +81,16 @@ class _ProtectionSectionState extends State<ProtectionSection> {
         ),
         if (_protectionType != APIProtectionType.deviceKey) ...[
           const SizedBox(height: 16),
-          Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
+          Text(l10n.securityLevelLabel, style: theme.textTheme.labelMedium),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<APISecurityLevel>(
               showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: APISecurityLevel.standard, label: Text('Standard')),
-                ButtonSegment(value: APISecurityLevel.high, label: Text('High')),
-                ButtonSegment(value: APISecurityLevel.extreme, label: Text('Extreme')),
+              segments: [
+                ButtonSegment(value: APISecurityLevel.standard, label: Text(l10n.securityLevelStandard)),
+                ButtonSegment(value: APISecurityLevel.high, label: Text(l10n.securityLevelHigh)),
+                ButtonSegment(value: APISecurityLevel.extreme, label: Text(l10n.securityLevelExtreme)),
               ],
               selected: {_securityLevel},
               onSelectionChanged: (v) => _setLevel(v.first),
@@ -110,8 +112,7 @@ class _ProtectionSectionState extends State<ProtectionSection> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Any xpub from the wallet can unlock it. '
-                    'Do not share those xpubs with third parties.',
+                    l10n.protectionXpubInfo,
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
@@ -126,7 +127,7 @@ class _ProtectionSectionState extends State<ProtectionSection> {
             controller: widget.passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'New password',
+              labelText: l10n.newPasswordLabel,
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword
@@ -138,7 +139,7 @@ class _ProtectionSectionState extends State<ProtectionSection> {
             ),
             validator: (v) {
               if (_protectionType != APIProtectionType.userPassword) return null;
-              if (v == null || v.isEmpty) return 'Password cannot be empty';
+              if (v == null || v.isEmpty) return l10n.validatorPasswordEmpty;
               return null;
             },
           ),
@@ -147,7 +148,7 @@ class _ProtectionSectionState extends State<ProtectionSection> {
             controller: widget.passwordConfirmController,
             obscureText: _obscurePasswordConfirm,
             decoration: InputDecoration(
-              labelText: 'Confirm password',
+              labelText: l10n.confirmPasswordLabel,
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePasswordConfirm
@@ -160,7 +161,7 @@ class _ProtectionSectionState extends State<ProtectionSection> {
             validator: (v) {
               if (_protectionType != APIProtectionType.userPassword) return null;
               if (v != widget.passwordController.text) {
-                return 'Passwords do not match';
+                return l10n.validatorPasswordsNoMatch;
               }
               return null;
             },

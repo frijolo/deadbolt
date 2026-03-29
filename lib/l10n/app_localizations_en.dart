@@ -201,6 +201,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Descriptor outdated · tap Build to regenerate';
 
   @override
+  String get keySectionLabel => 'Key';
+
+  @override
   String keysSection(int count) {
     return 'Keys ($count)';
   }
@@ -266,9 +269,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String duplicateMfp(String mfp) {
     return 'A key with MFP $mfp already exists';
   }
-
-  @override
-  String get descriptorSectionTitle => 'Descriptor';
 
   @override
   String get copyDescriptorTooltip => 'Export descriptor';
@@ -719,7 +719,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fromProjectAction => 'From project';
 
   @override
-  String get createWalletButton => 'Create Wallet';
+  String get createWalletButton => 'Create wallet';
 
   @override
   String get creatingWallet => 'Creating wallet...';
@@ -908,12 +908,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txLabelTitle => 'Label';
 
   @override
-  String get txLabelHint => 'Add a label...';
-
-  @override
-  String get txLabelRemove => 'Remove label';
-
-  @override
   String get txDetailsTitle => 'Transaction details';
 
   @override
@@ -1001,12 +995,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coinLabelTitle => 'Label';
 
   @override
-  String get coinLabelHint => 'Add a label...';
-
-  @override
-  String get coinLabelRemove => 'Remove label';
-
-  @override
   String get coinOutpoint => 'Outpoint';
 
   @override
@@ -1042,9 +1030,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
     return 'Total: $satsString sats';
   }
-
-  @override
-  String get descriptorTabLabel => 'Descriptor';
 
   @override
   String get spendPathsAvailable => 'Spend paths';
@@ -1279,9 +1264,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String psbtMergeFailed(String error) {
     return 'Import failed: $error';
   }
-
-  @override
-  String get psbtLabelHint => 'Add a label...';
 
   @override
   String get psbtDeleteTitle => 'Delete PSBT';
@@ -1529,7 +1511,343 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goToSettings => 'Settings';
 
   @override
-  String get directSendButton => 'Send';
+  String get wifExportTitle => 'Export private key (WIF)';
+
+  @override
+  String get wifExportWarning =>
+      'This exports the private key of a single address, but if your wallet\'\'s XPUB is known to anyone — a coordinator, exchange, or any service you\'\'ve shared it with — they can use this WIF to derive the private keys of every address in your wallet.\n\nOnly proceed if your XPUB is private, or if you fully accept this risk.';
+
+  @override
+  String get wifExportTypeToConfirm => 'Type to confirm:';
+
+  @override
+  String get wifExportConfirmPhrase => 'my full wallet is at risk';
+
+  @override
+  String get wifExportShowButton => 'Show WIF';
+
+  @override
+  String get wifDisplayWarning =>
+      'Never share this key. If your XPUB is known to others, this WIF exposes your entire wallet.';
+
+  @override
+  String get protectionLabel => 'Protection';
+
+  @override
+  String get protectionNone => 'None';
+
+  @override
+  String get protectionPassword => 'Password';
+
+  @override
+  String get protectionXpub => 'XPub';
+
+  @override
+  String get protectionUnprotected => 'Unprotected';
+
+  @override
+  String get protectionXpubInfo =>
+      'Any xpub from the wallet can unlock it. Do not share those xpubs with third parties.';
+
+  @override
+  String get securityLevelLabel => 'Anti-brute-force level';
+
+  @override
+  String get securityLevelStandard => 'Standard';
+
+  @override
+  String get securityLevelHigh => 'High';
+
+  @override
+  String get securityLevelExtreme => 'Extreme';
+
+  @override
+  String get newPasswordLabel => 'New password';
+
+  @override
+  String get confirmPasswordLabel => 'Confirm password';
+
+  @override
+  String get backupPasswordLabel => 'Backup password';
+
+  @override
+  String get validatorPasswordEmpty => 'Password cannot be empty';
+
+  @override
+  String get validatorPasswordRequired => 'Password required';
+
+  @override
+  String get validatorPasswordsNoMatch => 'Passwords do not match';
+
+  @override
+  String get validatorNameRequired => 'Name is required';
+
+  @override
+  String get changeButton => 'Change';
+
+  @override
+  String get exportButton => 'Export';
+
+  @override
+  String get backButton => 'Back';
+
+  @override
+  String get feeRateLabel => 'Fee rate';
+
+  @override
+  String get verifyOnDeviceButton => 'Verify on device';
+
+  @override
+  String get changeProtectionTitle => 'Change wallet protection';
+
+  @override
+  String changeProtectionCurrent(String protection) {
+    return 'Current: $protection';
+  }
+
+  @override
+  String protectionChangedToast(String protection) {
+    return 'Protection changed to $protection';
+  }
+
+  @override
+  String get exportBackupTitle => 'Export backup';
+
+  @override
+  String get sweepWifTitle => 'Sweep WIF key';
+
+  @override
+  String get sweepWifPrivateKeySection => 'Private key (WIF)';
+
+  @override
+  String get sweepWifHint => 'Paste or scan WIF key...';
+
+  @override
+  String get sweepWifSearching => 'Searching...';
+
+  @override
+  String get sweepWifFindUtxos => 'Find UTXOs';
+
+  @override
+  String get sweepWifControlledAddresses => 'Controlled addresses';
+
+  @override
+  String sweepWifTotal(int amount) {
+    return 'Total: $amount sat';
+  }
+
+  @override
+  String get sweepWifNoFunds =>
+      'No funds found for this key on the current network.';
+
+  @override
+  String get sweepWifDestination => 'Destination';
+
+  @override
+  String get sweepWifAddressHint => 'Bitcoin address...';
+
+  @override
+  String get sweepWifSweeping => 'Sweeping...';
+
+  @override
+  String sweepWifButton(int amount) {
+    return 'Sweep $amount sat';
+  }
+
+  @override
+  String get sweepWifEnterKeyFirst => 'Enter a WIF key first';
+
+  @override
+  String get sweepWifFillFields => 'Fill all fields with valid values';
+
+  @override
+  String sweepWifSweptToast(String txid) {
+    return 'Swept: $txid';
+  }
+
+  @override
+  String get sweepWifEmpty => 'empty';
+
+  @override
+  String get walletCreateGuided => 'Guided creation';
+
+  @override
+  String get walletCreateGuidedSub => 'Standard wallet from your keys';
+
+  @override
+  String get walletCreateFromDescriptor => 'From descriptor';
+
+  @override
+  String get walletCreateFromDescriptorSub =>
+      'Enter a Bitcoin descriptor directly';
+
+  @override
+  String get walletCreateFromProject => 'From project';
+
+  @override
+  String get walletCreateFromProjectSub => 'Use a descriptor from the designer';
+
+  @override
+  String get walletCreateFromBackup => 'From backup';
+
+  @override
+  String get walletCreateFromBackupSub =>
+      'Restore a wallet from a .deadbolt file';
+
+  @override
+  String get projectCreateFromScratch => 'From scratch';
+
+  @override
+  String get projectCreateFromScratchSub =>
+      'Pick network and wallet type, then add keys';
+
+  @override
+  String get projectCreateFromDescriptorSub =>
+      'Paste, scan or import a Bitcoin descriptor';
+
+  @override
+  String get projectCreateImport => 'Import project';
+
+  @override
+  String get projectCreateImportSub => 'Restore a project from a .json export';
+
+  @override
+  String get newWalletTitle => 'New Wallet';
+
+  @override
+  String get walletExportLabel => 'Wallet';
+
+  @override
+  String get walletTypeSinglesig => 'Singlesig';
+
+  @override
+  String get walletTypeMultisig => 'Multisig';
+
+  @override
+  String get walletTypeSinglesigDesc =>
+      'One key controls the wallet. Best for personal use.';
+
+  @override
+  String get walletTypeMultisigDesc =>
+      'Multiple keys required to sign. Ideal for shared control or extra security.';
+
+  @override
+  String get scriptTypeLabel => 'Script type';
+
+  @override
+  String get scriptTypeLegacy => 'Legacy';
+
+  @override
+  String get scriptTypeNested => 'Nested';
+
+  @override
+  String get scriptTypeSegwit => 'SegWit';
+
+  @override
+  String get scriptTypeTaproot => 'Taproot';
+
+  @override
+  String get scriptDescP2pkh =>
+      'P2PKH — Oldest standard. Highest fees. Maximum compatibility.';
+
+  @override
+  String get scriptDescP2sh => 'P2SH — Oldest multisig standard. Highest fees.';
+
+  @override
+  String get scriptDescP2shWpkh =>
+      'P2SH-P2WPKH — SegWit wrapped for backward compatibility.';
+
+  @override
+  String get scriptDescP2shWsh =>
+      'P2SH-P2WSH — SegWit multisig with backward compatibility.';
+
+  @override
+  String get scriptDescP2wpkh =>
+      'P2WPKH — Most common modern standard. Lower fees.';
+
+  @override
+  String get scriptDescP2wsh =>
+      'P2WSH — Native SegWit multisig. Lower fees, widely supported.';
+
+  @override
+  String get scriptDescP2trSinglesig =>
+      'P2TR — Taproot. Best privacy and lowest fees.';
+
+  @override
+  String get scriptDescP2trMultisig =>
+      'P2TR — Taproot multisig. Best privacy. Requires compatible wallets.';
+
+  @override
+  String requiredSignatures(int m, int n) {
+    return 'Required signatures: $m of $n';
+  }
+
+  @override
+  String get decreaseThresholdTooltip => 'Decrease threshold';
+
+  @override
+  String get increaseThresholdTooltip => 'Increase threshold';
+
+  @override
+  String get replaceKeyTooltip => 'Replace key';
+
+  @override
+  String get creatingWalletLabel => 'Creating wallet…';
+
+  @override
+  String get addAtLeastOneKey => 'Add at least one key';
+
+  @override
+  String get multisigNeedsMinKeys => 'Multi key wallets need at least 2 keys';
+
+  @override
+  String get hwWalletTitle => 'Hardware wallet';
+
+  @override
+  String get hwWalletScanning => 'Scanning for devices…';
+
+  @override
+  String get hwWalletConnecting => 'Connecting…';
+
+  @override
+  String get hwRegisterWallet => 'Register wallet';
+
+  @override
+  String get hwRegisterWalletSub => 'Register this policy on the device';
+
+  @override
+  String get hwNotRequired => 'Not required for single-key wallets';
+
+  @override
+  String get hwCheckRegistration => 'Check registration';
+
+  @override
+  String get hwCheckRegistrationSub => 'Verify if this policy is registered';
+
+  @override
+  String get hwWalletRegistered => 'Wallet registered on device.';
+
+  @override
+  String get hwWalletIsRegistered => 'Wallet is registered on this device.';
+
+  @override
+  String get hwWalletNotRegistered =>
+      'Wallet is NOT registered on this device.';
+
+  @override
+  String get hwNoDevice => 'No device connected';
+
+  @override
+  String get hwScanButton => 'Scan';
+
+  @override
+  String get hwDisconnectButton => 'Disconnect';
+
+  @override
+  String get hwSelectDevice => 'Select a device:';
+
+  @override
+  String get hwPairingCompare => 'Compare with device screen and confirm:';
 
   @override
   String get directSendConfirmTitle => 'Confirm send';

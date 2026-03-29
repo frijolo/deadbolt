@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 
@@ -63,10 +64,11 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
     super.dispose();
   }
 
-  String _protectionLabel(APIProtectionType type) => switch (type) {
-        APIProtectionType.deviceKey => 'Unprotected',
-        APIProtectionType.userPassword => 'Password',
-        APIProtectionType.xpubKey => 'XPub',
+  String _protectionLabel(AppLocalizations l10n, APIProtectionType type) =>
+      switch (type) {
+        APIProtectionType.deviceKey => l10n.protectionUnprotected,
+        APIProtectionType.userPassword => l10n.protectionPassword,
+        APIProtectionType.xpubKey => l10n.protectionXpub,
       };
 
   bool get _hasChanges =>
@@ -92,9 +94,10 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
 
     if (!context.mounted) return;
     if (ok) {
+      final l10n = context.l10n;
       Navigator.of(context).pop();
       showSuccessToast(context,
-          'Protection changed to ${_protectionLabel(_selected)}');
+          l10n.protectionChangedToast(_protectionLabel(l10n, _selected)));
     } else {
       setState(() => _isChanging = false);
     }
@@ -102,10 +105,11 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: const Text('Change wallet protection'),
+      title: Text(l10n.changeProtectionTitle),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -114,28 +118,29 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Current: ${_protectionLabel(widget.currentProtection)}',
+                l10n.changeProtectionCurrent(
+                    _protectionLabel(l10n, widget.currentProtection)),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Protection', style: theme.textTheme.labelMedium),
+              Text(l10n.protectionLabel, style: theme.textTheme.labelMedium),
               const SizedBox(height: 8),
               SegmentedButton<APIProtectionType>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: APIProtectionType.deviceKey,
-                    label: Text('None'),
+                    label: Text(l10n.protectionNone),
                   ),
                   ButtonSegment(
                     value: APIProtectionType.userPassword,
-                    label: Text('Password'),
+                    label: Text(l10n.protectionPassword),
                   ),
                   ButtonSegment(
                     value: APIProtectionType.xpubKey,
-                    label: Text('XPub'),
+                    label: Text(l10n.protectionXpub),
                   ),
                 ],
                 selected: {_selected},
@@ -145,23 +150,23 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
               ),
               if (_selected != APIProtectionType.deviceKey) ...[
                 const SizedBox(height: 16),
-                Text('Anti-brute-force level',
+                Text(l10n.securityLevelLabel,
                     style: theme.textTheme.labelMedium),
                 const SizedBox(height: 8),
                 SegmentedButton<APISecurityLevel>(
                   showSelectedIcon: false,
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: APISecurityLevel.standard,
-                      label: Text('Standard'),
+                      label: Text(l10n.securityLevelStandard),
                     ),
                     ButtonSegment(
                       value: APISecurityLevel.high,
-                      label: Text('High'),
+                      label: Text(l10n.securityLevelHigh),
                     ),
                     ButtonSegment(
                       value: APISecurityLevel.extreme,
-                      label: Text('Extreme'),
+                      label: Text(l10n.securityLevelExtreme),
                     ),
                   ],
                   selected: {_level},
@@ -177,7 +182,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   obscureText: _obscure,
                   enabled: !_isChanging,
                   decoration: InputDecoration(
-                    labelText: 'New password',
+                    labelText: l10n.newPasswordLabel,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -187,7 +192,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   ),
                   validator: (v) {
                     if (_selected != APIProtectionType.userPassword) return null;
-                    if (v == null || v.isEmpty) return 'Password cannot be empty';
+                    if (v == null || v.isEmpty) return l10n.validatorPasswordEmpty;
                     return null;
                   },
                 ),
@@ -197,7 +202,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   obscureText: _obscureConfirm,
                   enabled: !_isChanging,
                   decoration: InputDecoration(
-                    labelText: 'Confirm password',
+                    labelText: l10n.confirmPasswordLabel,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(_obscureConfirm
@@ -209,7 +214,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   ),
                   validator: (v) {
                     if (_selected != APIProtectionType.userPassword) return null;
-                    if (v != _passwordCtrl.text) return 'Passwords do not match';
+                    if (v != _passwordCtrl.text) return l10n.validatorPasswordsNoMatch;
                     return null;
                   },
                 ),
@@ -221,7 +226,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
       actions: [
         TextButton(
           onPressed: _isChanging ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: _isChanging || !_hasChanges ? null : () => _confirm(context),
@@ -231,7 +236,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Change'),
+              : Text(l10n.changeButton),
         ),
       ],
     );
