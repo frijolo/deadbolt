@@ -11,7 +11,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLiana;
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
 /// Shows the Liana/Standard format dialog when the descriptor has a NUMS
@@ -34,8 +34,9 @@ Future<void> showDescriptorExportSheet(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SheetHandle(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
           child: Text(
             l10n.exportDescriptorFormatTitle,
             style: Theme.of(ctx).textTheme.titleMedium,
@@ -81,6 +82,7 @@ void showProjectExportSheet(
   showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SheetHandle(),
           ListTile(
             leading: const Icon(Icons.qr_code),
             title: Text(l10n.showQrCode),
@@ -145,6 +147,7 @@ void showProjectExportSheet(
                 }
               },
             ),
+          const SizedBox(height: 8),
       ],
     ),
   );

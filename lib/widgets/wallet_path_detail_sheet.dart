@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
@@ -18,20 +19,14 @@ void showWalletPathSheet(
   required String Function(String mfp) keyLabelProvider,
   required void Function(String? name) onLabelSave,
 }) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    useSafeArea: true,
-    builder: (_) => _WalletPathSheetContent(
-      path: path,
-      initialLabel: initialLabel,
-      isTaproot: isTaproot,
-      mfpColorProvider: mfpColorProvider,
-      keyLabelProvider: keyLabelProvider,
-      onLabelSave: onLabelSave,
-    ),
-  );
+  showSheet<void>(context, (_) => _WalletPathSheetContent(
+    path: path,
+    initialLabel: initialLabel,
+    isTaproot: isTaproot,
+    mfpColorProvider: mfpColorProvider,
+    keyLabelProvider: keyLabelProvider,
+    onLabelSave: onLabelSave,
+  ));
 }
 
 class _WalletPathSheetContent extends StatefulWidget {
@@ -94,33 +89,19 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
         : BitcoinFormatter.formatAbsoluteTimelock(
             absType, path.absTimelock.value);
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.85,
-      expand: false,
-      builder: (_, scrollController) => Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 4),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withAlpha(AppAlpha.dim),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SheetHandle(),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Label ──────────────────────────────────────────────
                   _buildLabelSection(context, cs, l10n),
@@ -208,8 +189,8 @@ class _WalletPathSheetContentState extends State<_WalletPathSheetContent> {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -262,17 +262,20 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               // Wallet type (single / multi)
               _buildSectionLabel(context, 'Wallet type'),
               const SizedBox(height: 8),
-              SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Singlesig')),
-                  ButtonSegment(value: true, label: Text('Multisig')),
-                ],
-                selected: {_isMultisig},
-                onSelectionChanged: (v) => setState(() {
-                  _isMultisig = v.first;
-                  _threshold = 1;
-                }),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Singlesig')),
+                    ButtonSegment(value: true, label: Text('Multisig')),
+                  ],
+                  selected: {_isMultisig},
+                  onSelectionChanged: (v) => setState(() {
+                    _isMultisig = v.first;
+                    _threshold = 1;
+                  }),
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -288,23 +291,26 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               // Script type
               _buildSectionLabel(context, 'Script type'),
               const SizedBox(height: 8),
-              SegmentedButton<_ScriptChoice>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                      value: _ScriptChoice.legacy, label: Text('Legacy')),
-                  ButtonSegment(
-                      value: _ScriptChoice.nestedSegwit,
-                      label: Text('Nested')),
-                  ButtonSegment(
-                      value: _ScriptChoice.nativeSegwit,
-                      label: Text('SegWit')),
-                  ButtonSegment(
-                      value: _ScriptChoice.taproot, label: Text('Taproot')),
-                ],
-                selected: {_scriptChoice},
-                onSelectionChanged: (v) =>
-                    setState(() => _scriptChoice = v.first),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_ScriptChoice>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                        value: _ScriptChoice.legacy, label: Text('Legacy')),
+                    ButtonSegment(
+                        value: _ScriptChoice.nestedSegwit,
+                        label: Text('Nested')),
+                    ButtonSegment(
+                        value: _ScriptChoice.nativeSegwit,
+                        label: Text('SegWit')),
+                    ButtonSegment(
+                        value: _ScriptChoice.taproot, label: Text('Taproot')),
+                  ],
+                  selected: {_scriptChoice},
+                  onSelectionChanged: (v) =>
+                      setState(() => _scriptChoice = v.first),
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -379,8 +385,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add key'),
                 style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero),
+                    visualDensity: VisualDensity.compact),
               ),
           ],
         ),

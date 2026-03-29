@@ -5,6 +5,7 @@ import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 
 // re-export for callers that need the APIXpubSlot type
 export 'package:deadbolt/src/rust/api/model.dart' show APIXpubSlot;
@@ -147,27 +148,22 @@ Future<T?> _showHwWalletSheet<T>(
   String? address,
   List<APIXpubSlot>? slots,
 }) {
-  return showModalBottomSheet<T>(
-    context: context,
-    isScrollControlled: true,
-    isDismissible: true,
-    builder: (_) => BlocProvider(
-      create: (_) => HwWalletCubit()..scanDevices(),
-      child: _HwWalletSheet<T>(
-        mode: mode,
-        psbtBase64: psbtBase64,
-        derivationPath: derivationPath,
-        network: network,
-        walletName: walletName,
-        policy: policy,
-        descriptor: descriptor,
-        keychain: keychain,
-        index: index,
-        address: address,
-        slots: slots,
-      ),
+  return showSheet<T>(context, (_) => BlocProvider(
+    create: (_) => HwWalletCubit()..scanDevices(),
+    child: _HwWalletSheet<T>(
+      mode: mode,
+      psbtBase64: psbtBase64,
+      derivationPath: derivationPath,
+      network: network,
+      walletName: walletName,
+      policy: policy,
+      descriptor: descriptor,
+      keychain: keychain,
+      index: index,
+      address: address,
+      slots: slots,
     ),
-  );
+  ));
 }
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
@@ -227,30 +223,18 @@ class _HwWalletSheet<T> extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        return SafeArea(
-          child: Padding(
+        return Padding(
             padding: EdgeInsets.fromLTRB(
               16,
-              8,
+              0,
               16,
-              MediaQuery.of(context).viewInsets.bottom + 16,
+              MediaQuery.viewInsetsOf(context).bottom + 16,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+                const SheetHandle(),
                 Text(
                   _sheetTitle(),
                   style: Theme.of(context).textTheme.titleMedium,
@@ -259,8 +243,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
                 _buildBody(context, state),
               ],
             ),
-          ),
-        );
+          );
       },
     );
   }

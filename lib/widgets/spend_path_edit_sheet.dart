@@ -8,6 +8,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/widgets/timelock_dialog.dart';
 
@@ -24,15 +25,10 @@ void showSpendPathEditSheet(
   required int index,
   required bool isTaproot,
 }) {
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (_) => BlocProvider.value(
-      value: cubit,
-      child: _SpendPathEditSheetContent(index: index, isTaproot: isTaproot),
-    ),
-  );
+  showSheet<void>(context, (_) => BlocProvider.value(
+    value: cubit,
+    child: _SpendPathEditSheetContent(index: index, isTaproot: isTaproot),
+  ));
 }
 
 class _SpendPathEditSheetContent extends StatelessWidget {
@@ -46,57 +42,43 @@ class _SpendPathEditSheetContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, scrollController) {
-        return BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
-          builder: (context, state) {
-            if (state is! ProjectDetailLoaded ||
-                state.editedPaths == null ||
-                index >= state.editedPaths!.length) {
-              return const SizedBox.shrink();
-            }
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
+      ),
+      child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
+        builder: (context, state) {
+          if (state is! ProjectDetailLoaded ||
+              state.editedPaths == null ||
+              index >= state.editedPaths!.length) {
+            return const SizedBox.shrink();
+          }
 
-            final cubit = context.read<ProjectDetailCubit>();
-            final path = state.editedPaths![index];
-            final availableKeys = state.editedKeys!
-                .map((k) => k.toProjectKey(state.project.id))
-                .toList();
+          final cubit = context.read<ProjectDetailCubit>();
+          final path = state.editedPaths![index];
+          final availableKeys = state.editedKeys!
+              .map((k) => k.toProjectKey(state.project.id))
+              .toList();
 
-            // Look up computed stats from the last-saved DB path (may be null
-            // for newly added paths that haven't been built yet).
-            final dbPath = path.originalDbId != null
-                ? state.spendPaths
-                    .where((p) => p.id == path.originalDbId)
-                    .firstOrNull
-                : null;
+          // Look up computed stats from the last-saved DB path (may be null
+          // for newly added paths that haven't been built yet).
+          final dbPath = path.originalDbId != null
+              ? state.spendPaths
+                  .where((p) => p.id == path.originalDbId)
+                  .firstOrNull
+              : null;
 
-            final validationError = _getValidationError(context, path);
+          final validationError = _getValidationError(context, path);
 
-            return Column(
-              children: [
-                // Drag handle
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 4),
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withAlpha(AppAlpha.dim),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Label ─────────────────────────────────────────
                       _buildLabelSection(context, cubit, path, availableKeys),
@@ -127,11 +109,11 @@ class _SpendPathEditSheetContent extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
-            );
-          },
-        );
-      },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

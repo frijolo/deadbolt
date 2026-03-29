@@ -13,6 +13,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart'
     show deriveKeyspec, deriveKeyspecFromXprv, validateMnemonic;
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
 import 'package:deadbolt/widgets/mnemonic_entry_field.dart';
 import 'package:deadbolt/widgets/text_import_sheet.dart';
@@ -144,26 +145,22 @@ Future<void> showAddKeySheet(
       state.editedKeys!.map((k) => k.mfp.toLowerCase()).toSet();
   final existingKeyCount = state.editedKeys!.length;
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AddKeySheet(
-      network: network,
-      walletType: walletType,
-      existingKeyCount: existingKeyCount,
-      existingMfps: existingMfps,
-      editingKey: editingKey,
-      onKeyAdded: onKeyAdded,
-      onAddKey: (key) => cubit.addKey(key),
-      onUpdateKey: (key) => cubit.updateKey(key),
-      onSeedAdded: (mnemonic, passphrase) async {
-        await cubit.addProjectMnemonicHotKey(mnemonic, passphrase);
-      },
-      onXprvSeedAdded: (xprv) async {
-        await cubit.addProjectXprvHotKey(xprv);
-      },
-    ),
-  );
+  await showSheet<void>(context, (ctx) => _AddKeySheet(
+    network: network,
+    walletType: walletType,
+    existingKeyCount: existingKeyCount,
+    existingMfps: existingMfps,
+    editingKey: editingKey,
+    onKeyAdded: onKeyAdded,
+    onAddKey: (key) => cubit.addKey(key),
+    onUpdateKey: (key) => cubit.updateKey(key),
+    onSeedAdded: (mnemonic, passphrase) async {
+      await cubit.addProjectMnemonicHotKey(mnemonic, passphrase);
+    },
+    onXprvSeedAdded: (xprv) async {
+      await cubit.addProjectXprvHotKey(xprv);
+    },
+  ));
 }
 
 // Backward-compat alias used by spend_path_edit_sheet.
@@ -190,19 +187,15 @@ Future<bool> showAddPrivateKeySheet(
       ? state.walletInfo.network
       : APINetwork.testnet;
 
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AddKeySheet(
-      network: network,
-      walletMode: true,
-      expectedMfp: expectedMfp,
-      keyLabel: keyLabel,
-      onAddMnemonic: (mnemonic, passphrase) =>
-          cubit.addMnemonicKey(mnemonic, passphrase),
-      onAddXprv: (xprv) => cubit.addXprvKey(xprv),
-    ),
-  );
+  final result = await showSheet<bool>(context, (ctx) => _AddKeySheet(
+    network: network,
+    walletMode: true,
+    expectedMfp: expectedMfp,
+    keyLabel: keyLabel,
+    onAddMnemonic: (mnemonic, passphrase) =>
+        cubit.addMnemonicKey(mnemonic, passphrase),
+    onAddXprv: (xprv) => cubit.addXprvKey(xprv),
+  ));
   return result ?? false;
 }
 
@@ -219,17 +212,13 @@ Future<KeyspecResult?> showKeyspecSheet(
   int existingKeyCount = 0,
   Set<String> existingMfps = const {},
 }) {
-  return showModalBottomSheet<KeyspecResult>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AddKeySheet(
-      network: network,
-      walletType: walletType,
-      existingKeyCount: existingKeyCount,
-      existingMfps: existingMfps,
-      keyspecMode: true,
-    ),
-  );
+  return showSheet<KeyspecResult>(context, (ctx) => _AddKeySheet(
+    network: network,
+    walletType: walletType,
+    existingKeyCount: existingKeyCount,
+    existingMfps: existingMfps,
+    keyspecMode: true,
+  ));
 }
 
 /// Opens the "Add private key" bottom sheet for a **project** context.
@@ -245,19 +234,15 @@ Future<bool> showAddProjectPrivateKeySheet(
   final state = cubit.state as ProjectDetailLoaded;
   final network = APINetwork.values.byName(state.project.network);
 
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AddKeySheet(
-      network: network,
-      walletMode: true,
-      expectedMfp: expectedMfp,
-      keyLabel: keyLabel,
-      onAddMnemonic: (mnemonic, passphrase) =>
-          cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
-      onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
-    ),
-  );
+  final result = await showSheet<bool>(context, (ctx) => _AddKeySheet(
+    network: network,
+    walletMode: true,
+    expectedMfp: expectedMfp,
+    keyLabel: keyLabel,
+    onAddMnemonic: (mnemonic, passphrase) =>
+        cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
+    onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
+  ));
   return result ?? false;
 }
 
@@ -753,65 +738,64 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final mq = MediaQuery.of(context);
-    final bottom = mq.viewInsets.bottom + mq.padding.bottom;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottom),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SheetHandle(),
+          Flexible(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                  16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
           // Title row
-          Row(children: [
-            Expanded(
-              child: _isEditMode || widget.walletMode
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.walletMode
-                              ? (widget.expectedMfp != null
-                                  ? 'Add private key'
-                                  : 'Add signing key')
-                              : 'Edit key',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        if (widget.walletMode && widget.expectedMfp != null)
-                          Text(
-                            widget.keyLabel != null &&
-                                    widget.keyLabel!.isNotEmpty
-                                ? '${widget.keyLabel} · ${widget.expectedMfp}'
-                                : 'Key: ${widget.expectedMfp}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                              color:
-                                  Theme.of(context).colorScheme.secondary,
-                            ),
-                          )
-                        else if (_isEditMode)
-                          Text(
-                            widget.editingKey!.mfp.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                              color:
-                                  Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                      ],
-                    )
-                  : Text(
-                      l10n.addKeyDialogTitle,
+          _isEditMode || widget.walletMode
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.walletMode
+                          ? (widget.expectedMfp != null
+                              ? 'Add private key'
+                              : 'Add signing key')
+                          : 'Edit key',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ]),
+                    if (widget.walletMode && widget.expectedMfp != null)
+                      Text(
+                        widget.keyLabel != null &&
+                                widget.keyLabel!.isNotEmpty
+                            ? '${widget.keyLabel} · ${widget.expectedMfp}'
+                            : 'Key: ${widget.expectedMfp}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      )
+                    else if (_isEditMode)
+                      Text(
+                        widget.editingKey!.mfp.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                  ],
+                )
+              : Text(
+                  l10n.addKeyDialogTitle,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
           const SizedBox(height: 12),
 
           if (_showMethodPicker)
@@ -819,15 +803,30 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           else ...[
             // Manual mode: chips + form
             if (!_isEditMode && !widget.walletMode) ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  _tabChip(_AddKeyTab.separateFields,
-                      Icons.visibility_outlined, 'Watch Only'),
-                  _tabChip(_AddKeyTab.seed,
-                      Icons.local_fire_department_outlined, 'Hot Key'),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_AddKeyTab>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: _AddKeyTab.separateFields,
+                      label: Text('Watch Only'),
+                      icon: Icon(Icons.visibility_outlined, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _AddKeyTab.seed,
+                      label: Text('Hot Key'),
+                      icon: Icon(Icons.local_fire_department_outlined, size: 16),
+                    ),
+                  ],
+                  selected: {_tab},
+                  onSelectionChanged: (v) => setState(() {
+                    _tab = v.first;
+                    _errorText = null;
+                    _derivedKeyspec = null;
+                    _deriveError = null;
+                  }),
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -867,23 +866,12 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               ),
             ),
           ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _tabChip(_AddKeyTab tab, IconData icon, String label) {
-    return ChoiceChip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      selected: _tab == tab,
-      visualDensity: VisualDensity.compact,
-      onSelected: (_) => setState(() {
-        _tab = tab;
-        _errorText = null;
-        _derivedKeyspec = null;
-        _deriveError = null;
-      }),
     );
   }
 
@@ -946,7 +934,10 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           const SizedBox(height: 8),
         ],
         // Mnemonic / xprv toggle
-        SegmentedButton<_SeedType>(
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_SeedType>(
+          showSelectedIcon: false,
           segments: const [
             ButtonSegment(
                 value: _SeedType.mnemonic,
@@ -964,6 +955,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             _deriveError = null;
           }),
           style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        ),
         ),
         const SizedBox(height: 12),
         if (_seedType == _SeedType.mnemonic) ...[
@@ -1007,7 +999,10 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SegmentedButton<_SeedType>(
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_SeedType>(
+          showSelectedIcon: false,
           segments: const [
             ButtonSegment(
                 value: _SeedType.mnemonic,
@@ -1025,6 +1020,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             _walletMfpError = null;
           }),
           style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        ),
         ),
         const SizedBox(height: 12),
         if (_seedType == _SeedType.mnemonic) ...[
@@ -1231,7 +1227,6 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                 label: const Text('Copy'),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
                 ),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: _derivedKeyspec!));

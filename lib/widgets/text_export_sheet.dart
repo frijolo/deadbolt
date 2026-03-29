@@ -15,7 +15,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 
 /// True on Android and iOS — platforms where [share_plus] is the right way to
 /// export a file (via the native share sheet → "Save to Files" / "Drive" …).
@@ -82,6 +82,7 @@ void showTextExportSheet(
   showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SheetHandle(),
           if (!bigText) ListTile(
             leading: const Icon(Icons.copy_outlined),
             title: Text(l10n.copyToClipboard),
@@ -152,6 +153,7 @@ void showPsbtExportSheet(
   showSheet<void>(context, (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SheetHandle(),
           ListTile(
             leading: const Icon(Icons.qr_code),
             title: Text(l10n.showQrCode),
@@ -229,8 +231,9 @@ void _showAsTextDialog(BuildContext context, String text) {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      const SheetHandle(),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: Text(l10n.showAsText,
             style: Theme.of(ctx).textTheme.titleMedium),
       ),

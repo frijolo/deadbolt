@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart' show showErrorToast;
 
@@ -21,19 +22,14 @@ Future<void> showHwActionsSheet(
   required String descriptor,
   required APINetwork network,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    isDismissible: true,
-    builder: (_) => BlocProvider(
-      create: (_) => HwWalletCubit()..restoreOrScan(),
-      child: _HwActionsSheet(
-        walletName: walletName,
-        descriptor: descriptor,
-        network: network,
-      ),
+  return showSheet<void>(context, (_) => BlocProvider(
+    create: (_) => HwWalletCubit()..restoreOrScan(),
+    child: _HwActionsSheet(
+      walletName: walletName,
+      descriptor: descriptor,
+      network: network,
     ),
-  );
+  ));
 }
 
 // ─── Sheet widget ──────────────────────────────────────────────────────────────
@@ -62,31 +58,18 @@ class _HwActionsSheet extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        return SafeArea(
-          top: false,
-          child: Padding(
+        return Padding(
             padding: EdgeInsets.fromLTRB(
               16,
-              8,
+              0,
               16,
-              MediaQuery.of(context).viewInsets.bottom + 16,
+              MediaQuery.viewInsetsOf(context).bottom + 16,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+                const SheetHandle(),
                 Text(
                   'Hardware wallet',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -97,8 +80,7 @@ class _HwActionsSheet extends StatelessWidget {
                 _buildActions(context, state),
               ],
             ),
-          ),
-        );
+          );
       },
     );
   }

@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 
 enum _ImportAction { clipboard, qr, file, text }
 
@@ -19,6 +19,7 @@ Future<String?> showTextImportSheet(BuildContext context, {bool bigText = false}
   final action = await showSheet<_ImportAction>(context, (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const SheetHandle(),
         if (!bigText) ListTile(
           leading: const Icon(Icons.paste_outlined),
           title: Text(l10n.pasteFromClipboard),
@@ -129,6 +130,7 @@ Future<String?> showPsbtImportSheet(BuildContext context) async {
   final action = await showSheet<_ImportAction>(context, (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const SheetHandle(),
         ListTile(
           leading: const Icon(Icons.paste_outlined),
           title: Text(l10n.pasteFromClipboard),

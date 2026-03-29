@@ -4,6 +4,16 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Unified bottom sheet drag handle** — All bottom sheets now show a consistent `SheetHandle` pill at the top (40 × 4 px, theme-tinted). Inline one-off handle implementations removed.
+- **Full-width `SegmentedButton`** — Every `SegmentedButton` (wallet type, script type, key tab, seed type, word count, protection type) is now wrapped in `SizedBox(width: double.infinity)` so it stretches to the sheet width instead of centering.
+- **Simplified sheet layouts** — Sheets previously backed by `DraggableScrollableSheet` (`key_edit_sheet`, `spend_path_edit_sheet`, `wallet_path_detail_sheet`) are replaced by `ConstrainedBox(maxHeight: 90%)` + `Flexible(SingleChildScrollView)` for a simpler, more predictable layout.
+- **`showSheet` helper updated** — `isScrollControlled: true` is now always set so tall sheets (key entry, spend path editor) can use the full screen height without clipping.
+
+---
+
 ## [v1.6.2]
 
 ### New Features

@@ -179,34 +179,25 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Word count selector
-        Row(
-          children: [
-            Text(
-              'Words:',
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 4,
-              children: [
-                for (final count in bip39ValidWordCounts)
-                  ChoiceChip(
-                    label: Text(
-                      '$count',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    selected: _targetCount == count,
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    onSelected: (_) {
-                      setState(() => _targetCount = count);
-                      widget.onTargetWordCountChanged?.call(count);
-                      _updateSuggestions();
-                    },
-                  ),
-              ],
-            ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<int>(
+            showSelectedIcon: false,
+            segments: [
+              for (final count in bip39ValidWordCounts)
+                ButtonSegment(
+                  value: count,
+                  label: Text('$count', style: const TextStyle(fontSize: 11)),
+                ),
+            ],
+            selected: {_targetCount},
+            onSelectionChanged: (v) {
+              setState(() => _targetCount = v.first);
+              widget.onTargetWordCountChanged?.call(v.first);
+              _updateSuggestions();
+            },
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+          ),
         ),
         const SizedBox(height: 8),
         // Label + progress

@@ -64,29 +64,35 @@ class _ProtectionSectionState extends State<ProtectionSection> {
       children: [
         Text('Protection', style: theme.textTheme.labelMedium),
         const SizedBox(height: 8),
-        SegmentedButton<APIProtectionType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: APIProtectionType.deviceKey, label: Text('None')),
-            ButtonSegment(value: APIProtectionType.userPassword, label: Text('Password')),
-            ButtonSegment(value: APIProtectionType.xpubKey, label: Text('XPub')),
-          ],
-          selected: {_protectionType},
-          onSelectionChanged: (v) => _setProtection(v.first),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<APIProtectionType>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: APIProtectionType.deviceKey, label: Text('None')),
+              ButtonSegment(value: APIProtectionType.userPassword, label: Text('Password')),
+              ButtonSegment(value: APIProtectionType.xpubKey, label: Text('XPub')),
+            ],
+            selected: {_protectionType},
+            onSelectionChanged: (v) => _setProtection(v.first),
+          ),
         ),
         if (_protectionType != APIProtectionType.deviceKey) ...[
           const SizedBox(height: 16),
           Text('Anti-brute-force level', style: theme.textTheme.labelMedium),
           const SizedBox(height: 8),
-          SegmentedButton<APISecurityLevel>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: APISecurityLevel.standard, label: Text('Standard')),
-              ButtonSegment(value: APISecurityLevel.high, label: Text('High')),
-              ButtonSegment(value: APISecurityLevel.extreme, label: Text('Extreme')),
-            ],
-            selected: {_securityLevel},
-            onSelectionChanged: (v) => _setLevel(v.first),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<APISecurityLevel>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: APISecurityLevel.standard, label: Text('Standard')),
+                ButtonSegment(value: APISecurityLevel.high, label: Text('High')),
+                ButtonSegment(value: APISecurityLevel.extreme, label: Text('Extreme')),
+              ],
+              selected: {_securityLevel},
+              onSelectionChanged: (v) => _setLevel(v.first),
+            ),
           ),
         ],
         if (_protectionType == APIProtectionType.xpubKey) ...[
