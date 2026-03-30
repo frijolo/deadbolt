@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.7.0]
 
 ### New Features
 - **Restore wallet from seed** — New screen that scans the blockchain for all accounts derived from a mnemonic phrase (BIP44/49/84/86, configurable gap limits). Found accounts are listed with balance and tx count; already-imported wallets are matched and linked. Tapping an account opens the guided wizard pre-filled with the keyspec and seed.
@@ -15,14 +15,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Key tile layout in guided wizard** — Tiles now show `[MFP badge] / derivation path` on the first line and the coloured xpub on the second line, replacing the previous single-line xpub-only layout.
-
----
-
-### Improvements
 - **Unified bottom sheet drag handle** — All bottom sheets now show a consistent `SheetHandle` pill at the top (40 × 4 px, theme-tinted). Inline one-off handle implementations removed.
 - **Full-width `SegmentedButton`** — Every `SegmentedButton` (wallet type, script type, key tab, seed type, word count, protection type) is now wrapped in `SizedBox(width: double.infinity)` so it stretches to the sheet width instead of centering.
 - **Simplified sheet layouts** — Sheets previously backed by `DraggableScrollableSheet` (`key_edit_sheet`, `spend_path_edit_sheet`, `wallet_path_detail_sheet`) are replaced by `ConstrainedBox(maxHeight: 90%)` + `Flexible(SingleChildScrollView)` for a simpler, more predictable layout.
 - **`showSheet` helper updated** — `isScrollControlled: true` is now always set so tall sheets (key entry, spend path editor) can use the full screen height without clipping.
+- **Localization audit** — Full l10n pass across the app; all hardcoded strings localized, WIF export warning added.
 
 ---
 
@@ -292,6 +289,8 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.7.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.0
+[v1.6.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.2
 [v1.6.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.1
 [v1.6.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.0
 [v1.5.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.0
