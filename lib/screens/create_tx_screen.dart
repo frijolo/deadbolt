@@ -17,6 +17,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
 import 'package:deadbolt/widgets/fee_presets_widget.dart';
@@ -26,6 +27,8 @@ import 'package:deadbolt/screens/psbt_detail_screen.dart';
 
 // Outputs below this threshold are not created (absorbed into fee).
 const _dustLimit = 546;
+
+final _bitcoinUriPrefixRe = RegExp(r'^bitcoin:', caseSensitive: false);
 
 enum _FeeEditMode { none, rate, total }
 
@@ -598,6 +601,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _onRecipientChanged(address, recipientIndex);
   }
 
+  Future<void> _scanAddressForRecipient(int index) async {
+    final scanned = await QrScannerScreen.push(context);
+    if (scanned == null || !mounted) return;
+    final address = scanned.trim().replaceFirst(_bitcoinUriPrefixRe, '');
+    final entry = _recipients[index];
+    entry.addressCtrl.text = address;
+    entry.editMode = false;
+    _onRecipientChanged(address, index);
+  }
+
   Future<void> _openCoinSelector() async {
     final network = _currentNetwork;
     final result = await CoinSelectorScreen.push(
@@ -1078,6 +1091,18 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       color: colorScheme.onSurface.withAlpha(AppAlpha.secondary),
                       tooltip: l10n.createTxMyWalletsButton,
                       onPressed: () => _showWalletPickerSheet(i),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      icon: const Icon(Icons.qr_code_scanner_outlined),
+                      color: colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                      tooltip: l10n.scanQrCode,
+                      onPressed: () => _scanAddressForRecipient(i),
                     ),
                   ),
                   // × button

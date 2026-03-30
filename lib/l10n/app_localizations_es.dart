@@ -1802,6 +1802,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get replaceKeyTooltip => 'Reemplazar clave';
 
   @override
+  String get keyDetailsTooltip => 'Detalles de la clave';
+
+  @override
   String get creatingWalletLabel => 'Creando wallet…';
 
   @override
@@ -1873,4 +1876,73 @@ class AppLocalizationsEs extends AppLocalizations {
   String directSendSuccess(String txid) {
     return 'Enviado: $txid';
   }
+
+  @override
+  String get accountIndexLabel => 'Account';
+
+  @override
+  String get restoreFromSeedMenuLabel => 'Recuperar desde semilla';
+
+  @override
+  String get restoreFromSeedTitle => 'Recuperar desde semilla';
+
+  @override
+  String get scanAccountsAction => 'Escanear accounts';
+
+  @override
+  String get scanAccountsScanning => 'Escaneando accounts…';
+
+  @override
+  String scanAccountsScanningHint(int accountGap, int addrGap) {
+    return 'Verificando direcciones en Electrum (accounts: $accountGap, dir.: $addrGap)…';
+  }
+
+  @override
+  String get accountGapLimitLabel => 'Límite de accounts vacías';
+
+  @override
+  String get addressGapLimitLabel => 'Límite de direcciones';
+
+  @override
+  String get advancedScanOptions => 'Avanzado';
+
+  @override
+  String get scanAccountsNoActivity =>
+      'No se encontraron accounts con actividad previa.';
+
+  @override
+  String scanAccountsScannedCount(int count) {
+    return 'Se escanearon $count accounts';
+  }
+
+  @override
+  String scanAccountsFoundActivity(int count) {
+    return '$count account(s) con actividad';
+  }
+
+  @override
+  String scanAccountsNewAccount(int index) {
+    return 'Usar nuevo account ($index)';
+  }
+
+  @override
+  String get scanAccountsNoActivitySubtitle =>
+      'Recupera cuentas a partir de una frase semilla';
+
+  @override
+  String scanAccountsActivitySummary(int txCount) {
+    return '$txCount tx';
+  }
+
+  @override
+  String get scanAccountsCreateWallet => 'Crear wallet';
+
+  @override
+  String get scanAccountsRetry => 'Reintentar';
+
+  @override
+  String get scanTypeAll => 'Todos';
+
+  @override
+  String get bip39PassphraseLabel => 'Frase BIP39 (opcional)';
 }

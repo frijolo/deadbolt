@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
+import 'package:deadbolt/screens/restore_from_seed_screen.dart';
 import 'package:deadbolt/screens/simple_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
@@ -18,7 +19,7 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
-enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup }
+enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, fromSeed }
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -276,6 +277,12 @@ class WalletListScreen extends StatelessWidget {
               subtitle: Text(ctx.l10n.walletCreateFromBackupSub),
               onTap: () => Navigator.pop(ctx, _CreateMode.fromBackup),
             ),
+            ListTile(
+              leading: const Icon(Icons.manage_search_outlined),
+              title: Text(ctx.l10n.restoreFromSeedMenuLabel),
+              subtitle: Text(ctx.l10n.scanAccountsNoActivitySubtitle),
+              onTap: () => Navigator.pop(ctx, _CreateMode.fromSeed),
+            ),
             const SizedBox(height: 8),
           ],
         ));
@@ -307,6 +314,10 @@ class WalletListScreen extends StatelessWidget {
         return;
       case _CreateMode.fromBackup:
         await _importBackup(context);
+        return;
+      case _CreateMode.fromSeed:
+        await RestoreFromSeedScreen.push(context);
+        if (context.mounted) context.read<WalletListCubit>().refresh();
         return;
     }
 

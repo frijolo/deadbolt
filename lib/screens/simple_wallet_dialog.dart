@@ -12,6 +12,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart'
     show KeyspecResult, kKeyspecPattern, showKeyspecSheet;
+import 'package:deadbolt/widgets/key_edit_sheet.dart' show showKeySheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -35,6 +36,21 @@ APIPubKey _parseKeyspec(KeyspecResult result) {
 
 String _mfpOf(KeyspecResult result) =>
     kKeyspecPattern.firstMatch(result.keyspec)!.group(1)!;
+
+/// Infer script type from the BIP44 purpose field in a keyspec path.
+_ScriptChoice _inferScriptFromKeyspec(String keyspec) {
+  final m = kKeyspecPattern.firstMatch(keyspec);
+  if (m == null) return _ScriptChoice.nativeSegwit;
+  final path = m.group(2)!; // e.g. "84'/0'/0'"
+  final purpose = path.split('/').first.replaceAll("'", '');
+  return switch (purpose) {
+    '44' => _ScriptChoice.legacy,
+    '49' => _ScriptChoice.nestedSegwit,
+    '84' => _ScriptChoice.nativeSegwit,
+    '86' => _ScriptChoice.taproot,
+    _ => _ScriptChoice.nativeSegwit,
+  };
+}
 
 APIWalletType _mapWalletType(_ScriptChoice script, bool isMultisig) {
   return switch (script) {
@@ -62,8 +78,17 @@ String _scriptDescription(AppLocalizations l10n, _ScriptChoice script, bool isMu
 
 class SimpleWalletDialog extends StatefulWidget {
   final WalletListCubit cubit;
+  /// Pre-filled keyspecs from a restore-from-seed flow (singlesig only).
+  final List<KeyspecResult> initialKeyspecs;
+  /// Network pre-selected from the scan (null → use SettingsCubit default).
+  final APINetwork? initialNetwork;
 
-  const SimpleWalletDialog({super.key, required this.cubit});
+  const SimpleWalletDialog({
+    super.key,
+    required this.cubit,
+    this.initialKeyspecs = const [],
+    this.initialNetwork,
+  });
 
   @override
   State<SimpleWalletDialog> createState() => _SimpleWalletDialogState();
@@ -78,6 +103,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
   bool _isMultisig = false;
   _ScriptChoice _scriptChoice = _ScriptChoice.nativeSegwit;
   final List<KeyspecResult> _keyspecs = []; // each: "[mfp/path]xpub" + optional seed
+  final Map<String, String?> _keyNamesByMfp = {};
   int _threshold = 1;
 
   late APINetwork _selectedNetwork;
@@ -88,7 +114,14 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedNetwork = context.read<SettingsCubit>().state.network;
+    _selectedNetwork =
+        widget.initialNetwork ?? context.read<SettingsCubit>().state.network;
+
+    if (widget.initialKeyspecs.isNotEmpty) {
+      _keyspecs.addAll(widget.initialKeyspecs);
+      _isMultisig = false;
+      _scriptChoice = _inferScriptFromKeyspec(widget.initialKeyspecs.first.keyspec);
+    }
   }
 
   @override
@@ -119,24 +152,38 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     }
   }
 
-  Future<void> _replaceKey(int index) async {
-    final excludeMfps = {
-      for (final (i, k) in _keyspecs.indexed)
-        if (i != index) _mfpOf(k),
-    };
-    final result = await _collectKeyspec(excludeMfps: excludeMfps);
-    if (result != null && mounted) {
-      setState(() => _keyspecs[index] = result);
-    }
-  }
-
   void _removeKey(int index) {
+    final mfp = _mfpOf(_keyspecs[index]);
     setState(() {
       _keyspecs.removeAt(index);
+      _keyNamesByMfp.remove(mfp);
       if (_threshold > _keyspecs.length && _keyspecs.isNotEmpty) {
         _threshold = _keyspecs.length;
       }
     });
+  }
+
+  void _showKeyInfo(int index) {
+    final result = _keyspecs[index];
+    final match = kKeyspecPattern.firstMatch(result.keyspec)!;
+    final mfp = match.group(1)!;
+    final derivationPath = match.group(2)!;
+    final xpub = match.group(3)!;
+    final ext = Theme.of(context).extension<KeyColorExtension>()!;
+    final color = ext.keyColors[index % ext.keyColors.length];
+    final isHot = result.mnemonic != null || result.xprv != null;
+
+    showKeySheet(
+      context,
+      mfp: mfp,
+      initialName: _keyNamesByMfp[mfp],
+      derivationPath: derivationPath,
+      xpub: xpub,
+      mfpColor: color,
+      onNameSave: (name) => setState(() => _keyNamesByMfp[mfp] = name),
+      isHot: isHot,
+      onRevealSeed: isHot ? () async => result.mnemonic ?? result.xprv : null,
+    );
   }
 
   Future<void> _onCreate() async {
@@ -204,11 +251,13 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         securityLevel: _securityLevel,
       );
 
-      // If any key was entered via seed, persist it as a hot key now.
+      // Persist seed keys (hot) and any custom key labels.
       final seedKeys = _keyspecs
           .where((r) => r.mnemonic != null || r.xprv != null)
           .toList();
-      if (seedKeys.isNotEmpty && mounted) {
+      final namedKeys = _keyNamesByMfp.entries
+          .where((e) => e.value != null && e.value!.isNotEmpty);
+      if ((seedKeys.isNotEmpty || namedKeys.isNotEmpty) && mounted) {
         final service = context.read<WalletService>();
         final handle = await service.openWallet(walletPath, password: password);
         for (final r in seedKeys) {
@@ -218,6 +267,9 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
           } else if (r.xprv != null) {
             handle.addXprvKey(xprv: r.xprv!);
           }
+        }
+        for (final e in namedKeys) {
+          handle.setKeyLabel(mfp: e.key, label: e.value!);
         }
       }
 
@@ -427,35 +479,60 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     final result = _keyspecs[index];
     final match = kKeyspecPattern.firstMatch(result.keyspec)!;
     final mfp = match.group(1)!;
+    final derivationPath = match.group(2)!;
     final xpub = match.group(3)!;
     final color = ext.keyColors[index % ext.keyColors.length];
 
     return Card(
       margin: EdgeInsets.zero,
-      child: ListTile(
-        dense: true,
-        leading: MfpBadge(label: mfp, color: color),
-        title: ColoredGroupText(text: xpub, fontSize: 12, truncate: true, monospace: true),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              visualDensity: VisualDensity.compact,
-              tooltip: context.l10n.replaceKeyTooltip,
-              onPressed: () => _replaceKey(index),
-            ),
-            IconButton(
-              icon: Icon(Icons.delete_outline,
-                  size: 18,
-                  color: Colors.red.withAlpha(AppAlpha.deleteAction)),
-              visualDensity: VisualDensity.compact,
-              tooltip: context.l10n.removeKeyTooltip,
-              onPressed: () => _removeKey(index),
-            ),
-          ],
+      child: InkWell(
+        onTap: () => _showKeyInfo(index),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        MfpBadge(label: mfp, color: color),
+                        const SizedBox(width: 8),
+                        Text(
+                          '/ $derivationPath',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.high),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ColoredGroupText(text: xpub, fontSize: 13, truncate: true, monospace: true),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.info_outline, size: 18),
+                visualDensity: VisualDensity.compact,
+                tooltip: context.l10n.keyDetailsTooltip,
+                onPressed: () => _showKeyInfo(index),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline,
+                    size: 18,
+                    color: Colors.red.withAlpha(AppAlpha.deleteAction)),
+                visualDensity: VisualDensity.compact,
+                tooltip: context.l10n.removeKeyTooltip,
+                onPressed: () => _removeKey(index),
+              ),
+            ],
+          ),
         ),
-        onTap: () => _replaceKey(index),
       ),
     );
   }

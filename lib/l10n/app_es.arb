@@ -804,6 +804,7 @@
   "increaseThresholdTooltip": "Aumentar umbral",
   "replaceKeyTooltip": "Reemplazar clave",
   "removeKeyTooltip": "Eliminar clave",
+  "keyDetailsTooltip": "Detalles de la clave",
   "creatingWalletLabel": "Creando wallet\u2026",
   "createWalletButton": "Crear wallet",
   "addAtLeastOneKey": "Añade al menos una clave",
@@ -833,5 +834,51 @@
     "placeholders": {
       "txid": { "type": "String" }
     }
-  }
+  },
+
+  "accountIndexLabel": "Account",
+  "restoreFromSeedMenuLabel": "Recuperar desde semilla",
+  "restoreFromSeedTitle": "Recuperar desde semilla",
+  "scanAccountsAction": "Escanear accounts",
+  "scanAccountsScanning": "Escaneando accounts…",
+  "scanAccountsScanningHint": "Verificando direcciones en Electrum (accounts: {accountGap}, dir.: {addrGap})…",
+  "@scanAccountsScanningHint": {
+    "placeholders": {
+      "accountGap": { "type": "int" },
+      "addrGap": { "type": "int" }
+    }
+  },
+  "accountGapLimitLabel": "Límite de accounts vacías",
+  "addressGapLimitLabel": "Límite de direcciones",
+  "advancedScanOptions": "Avanzado",
+  "scanAccountsNoActivity": "No se encontraron accounts con actividad previa.",
+  "scanAccountsScannedCount": "Se escanearon {count} accounts",
+  "@scanAccountsScannedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanAccountsFoundActivity": "{count} account(s) con actividad",
+  "@scanAccountsFoundActivity": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanAccountsNewAccount": "Usar nuevo account ({index})",
+  "@scanAccountsNewAccount": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "scanAccountsNoActivitySubtitle": "Recupera cuentas a partir de una frase semilla",
+  "scanAccountsActivitySummary": "{txCount} tx",
+  "@scanAccountsActivitySummary": {
+    "placeholders": {
+      "txCount": { "type": "int" }
+    }
+  },
+  "scanAccountsCreateWallet": "Crear wallet",
+  "scanAccountsRetry": "Reintentar",
+  "scanTypeAll": "Todos",
+  "bip39PassphraseLabel": "Frase BIP39 (opcional)"
 }

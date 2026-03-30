@@ -3308,6 +3308,12 @@ abstract class AppLocalizations {
   /// **'Replace key'**
   String get replaceKeyTooltip;
 
+  /// No description provided for @keyDetailsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Key details'**
+  String get keyDetailsTooltip;
+
   /// No description provided for @creatingWalletLabel.
   ///
   /// In en, this message translates to:
@@ -3439,6 +3445,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sent: {txid}'**
   String directSendSuccess(String txid);
+
+  /// No description provided for @accountIndexLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountIndexLabel;
+
+  /// No description provided for @restoreFromSeedMenuLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover from seed'**
+  String get restoreFromSeedMenuLabel;
+
+  /// No description provided for @restoreFromSeedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover from seed'**
+  String get restoreFromSeedTitle;
+
+  /// No description provided for @scanAccountsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan accounts'**
+  String get scanAccountsAction;
+
+  /// No description provided for @scanAccountsScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning accounts…'**
+  String get scanAccountsScanning;
+
+  /// No description provided for @scanAccountsScanningHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking addresses on Electrum (accounts gap: {accountGap}, addresses gap: {addrGap})…'**
+  String scanAccountsScanningHint(int accountGap, int addrGap);
+
+  /// No description provided for @accountGapLimitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account gap limit'**
+  String get accountGapLimitLabel;
+
+  /// No description provided for @addressGapLimitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address gap limit'**
+  String get addressGapLimitLabel;
+
+  /// No description provided for @advancedScanOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get advancedScanOptions;
+
+  /// No description provided for @scanAccountsNoActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts with prior activity found.'**
+  String get scanAccountsNoActivity;
+
+  /// No description provided for @scanAccountsScannedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanned {count} accounts'**
+  String scanAccountsScannedCount(int count);
+
+  /// No description provided for @scanAccountsFoundActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} account(s) with activity'**
+  String scanAccountsFoundActivity(int count);
+
+  /// No description provided for @scanAccountsNewAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Use new account ({index})'**
+  String scanAccountsNewAccount(int index);
+
+  /// No description provided for @scanAccountsNoActivitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover accounts from a mnemonic phrase'**
+  String get scanAccountsNoActivitySubtitle;
+
+  /// No description provided for @scanAccountsActivitySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{txCount} tx'**
+  String scanAccountsActivitySummary(int txCount);
+
+  /// No description provided for @scanAccountsCreateWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Create wallet'**
+  String get scanAccountsCreateWallet;
+
+  /// No description provided for @scanAccountsRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get scanAccountsRetry;
+
+  /// No description provided for @scanTypeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All types'**
+  String get scanTypeAll;
+
+  /// No description provided for @bip39PassphraseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'BIP39 passphrase (optional)'**
+  String get bip39PassphraseLabel;
 }
 
 class _AppLocalizationsDelegate

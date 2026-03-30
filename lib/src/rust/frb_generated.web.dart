@@ -89,6 +89,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAbsoluteTimelockType dco_decode_api_absolute_timelock_type(dynamic raw);
 
   @protected
+  APIAccountInfo dco_decode_api_account_info(dynamic raw);
+
+  @protected
   APIAddress dco_decode_api_address(dynamic raw);
 
   @protected
@@ -105,6 +108,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APICpfpInfo dco_decode_api_cpfp_info(dynamic raw);
+
+  @protected
+  APIDiscoveredAccounts dco_decode_api_discovered_accounts(dynamic raw);
 
   @protected
   APIFiatPrice dco_decode_api_fiat_price(dynamic raw);
@@ -261,6 +267,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<APIAccountInfo> dco_decode_list_api_account_info(dynamic raw);
 
   @protected
   List<APIAddress> dco_decode_list_api_address(dynamic raw);
@@ -441,6 +450,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIAccountInfo sse_decode_api_account_info(SseDeserializer deserializer);
+
+  @protected
   APIAddress sse_decode_api_address(SseDeserializer deserializer);
 
   @protected
@@ -461,6 +473,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APICpfpInfo sse_decode_api_cpfp_info(SseDeserializer deserializer);
+
+  @protected
+  APIDiscoveredAccounts sse_decode_api_discovered_accounts(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIFiatPrice sse_decode_api_fiat_price(SseDeserializer deserializer);
@@ -641,6 +658,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<APIAccountInfo> sse_decode_list_api_account_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<APIAddress> sse_decode_list_api_address(SseDeserializer deserializer);
@@ -867,6 +889,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_account_info(
+    APIAccountInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_address(APIAddress self, SseSerializer serializer);
 
   @protected
@@ -892,6 +920,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_cpfp_info(APICpfpInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_discovered_accounts(
+    APIDiscoveredAccounts self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_fiat_price(APIFiatPrice self, SseSerializer serializer);
@@ -1115,6 +1149,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_api_account_info(
+    List<APIAccountInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_api_address(

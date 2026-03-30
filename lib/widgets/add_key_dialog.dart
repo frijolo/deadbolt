@@ -35,20 +35,23 @@ typedef KeyspecResult = ({
 ///
 /// For P2TR, [existingKeyCount] distinguishes single-sig (0 keys → m/86')
 /// from multisig (1+ keys already present → m/48'/.../2').
+/// [accountIndex] selects the BIP44 account level (default 0).
 String _defaultDerivationPath(
   APIWalletType walletType,
   APINetwork network,
-  int existingKeyCount,
-) {
+  int existingKeyCount, [
+  int accountIndex = 0,
+]) {
   final coin = network == APINetwork.bitcoin ? '0' : '1';
+  final a = "$accountIndex'";
   return switch (walletType) {
-    APIWalletType.p2Pkh => "m/44'/$coin'/0'",
-    APIWalletType.p2Wpkh => "m/84'/$coin'/0'",
-    APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/0'",
-    APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/0'/1'",
+    APIWalletType.p2Pkh => "m/44'/$coin'/$a",
+    APIWalletType.p2Wpkh => "m/84'/$coin'/$a",
+    APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/$a",
+    APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/$a/1'",
     APIWalletType.p2Tr =>
-      existingKeyCount > 0 ? "m/48'/$coin'/0'/2'" : "m/86'/$coin'/0'",
-    APIWalletType.unknown => "m/86'/$coin'/0'",
+      existingKeyCount > 0 ? "m/48'/$coin'/$a/2'" : "m/86'/$coin'/$a",
+    APIWalletType.unknown => "m/86'/$coin'/$a",
   };
 }
 
@@ -318,6 +321,9 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   // --- xprv ---
   final _xprvController = TextEditingController();
 
+  // --- Account index (keyspec mode only, for seed tab) ---
+  int _accountIndex = 0;
+
   // --- Shared: derivation path for mnemonic/xprv tabs (project mode only) ---
   late final TextEditingController _derivPathController;
 
@@ -389,6 +395,21 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     _xprvController.dispose();
     _derivPathController.dispose();
     super.dispose();
+  }
+
+  // --- Account index stepper ---
+
+  void _setAccountIndex(int i) {
+    if (!widget.keyspecMode) return;
+    setState(() => _accountIndex = i);
+    if (widget.walletType != null) {
+      _derivPathController.text = _defaultDerivationPath(
+        widget.walletType!,
+        widget.network,
+        widget.existingKeyCount,
+        _accountIndex,
+      ).replaceFirst('m/', '');
+    }
   }
 
   // --- Project mode: live derive full keyspec ---
@@ -708,6 +729,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             widget.walletType!,
             widget.network,
             widget.existingKeyCount,
+            _accountIndex,
           )
         : "m/86'/0'/0'";
     final path = await _showDerivationPathPicker(context, suggested);
@@ -987,9 +1009,44 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           ),
         ],
         const SizedBox(height: 12),
+        if (widget.keyspecMode && widget.walletType != null)
+          _buildAccountIndexStepper(),
         ..._buildDerivPathField(quickPaths),
         ..._buildDeriveResult(),
       ],
+    );
+  }
+
+  Widget _buildAccountIndexStepper() {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Text(l10n.accountIndexLabel, style: theme.textTheme.labelMedium),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            onPressed: _accountIndex > 0
+                ? () => _setAccountIndex(_accountIndex - 1)
+                : null,
+            visualDensity: VisualDensity.compact,
+          ),
+          SizedBox(
+            width: 32,
+            child: Center(
+              child: Text('$_accountIndex',
+                  style: theme.textTheme.titleSmall),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, size: 20),
+            onPressed: () => _setAccountIndex(_accountIndex + 1),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
     );
   }
 

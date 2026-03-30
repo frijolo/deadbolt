@@ -1792,6 +1792,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get replaceKeyTooltip => 'Replace key';
 
   @override
+  String get keyDetailsTooltip => 'Key details';
+
+  @override
   String get creatingWalletLabel => 'Creating wallet…';
 
   @override
@@ -1859,4 +1862,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String directSendSuccess(String txid) {
     return 'Sent: $txid';
   }
+
+  @override
+  String get accountIndexLabel => 'Account';
+
+  @override
+  String get restoreFromSeedMenuLabel => 'Recover from seed';
+
+  @override
+  String get restoreFromSeedTitle => 'Recover from seed';
+
+  @override
+  String get scanAccountsAction => 'Scan accounts';
+
+  @override
+  String get scanAccountsScanning => 'Scanning accounts…';
+
+  @override
+  String scanAccountsScanningHint(int accountGap, int addrGap) {
+    return 'Checking addresses on Electrum (accounts gap: $accountGap, addresses gap: $addrGap)…';
+  }
+
+  @override
+  String get accountGapLimitLabel => 'Account gap limit';
+
+  @override
+  String get addressGapLimitLabel => 'Address gap limit';
+
+  @override
+  String get advancedScanOptions => 'Advanced';
+
+  @override
+  String get scanAccountsNoActivity => 'No accounts with prior activity found.';
+
+  @override
+  String scanAccountsScannedCount(int count) {
+    return 'Scanned $count accounts';
+  }
+
+  @override
+  String scanAccountsFoundActivity(int count) {
+    return '$count account(s) with activity';
+  }
+
+  @override
+  String scanAccountsNewAccount(int index) {
+    return 'Use new account ($index)';
+  }
+
+  @override
+  String get scanAccountsNoActivitySubtitle =>
+      'Recover accounts from a mnemonic phrase';
+
+  @override
+  String scanAccountsActivitySummary(int txCount) {
+    return '$txCount tx';
+  }
+
+  @override
+  String get scanAccountsCreateWallet => 'Create wallet';
+
+  @override
+  String get scanAccountsRetry => 'Retry';
+
+  @override
+  String get scanTypeAll => 'All types';
+
+  @override
+  String get bip39PassphraseLabel => 'BIP39 passphrase (optional)';
 }

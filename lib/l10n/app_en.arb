@@ -811,6 +811,7 @@
   "increaseThresholdTooltip": "Increase threshold",
   "replaceKeyTooltip": "Replace key",
   "removeKeyTooltip": "Remove key",
+  "keyDetailsTooltip": "Key details",
   "creatingWalletLabel": "Creating wallet\u2026",
   "createWalletButton": "Create wallet",
   "addAtLeastOneKey": "Add at least one key",
@@ -840,5 +841,51 @@
     "placeholders": {
       "txid": { "type": "String" }
     }
-  }
+  },
+
+  "accountIndexLabel": "Account",
+  "restoreFromSeedMenuLabel": "Recover from seed",
+  "restoreFromSeedTitle": "Recover from seed",
+  "scanAccountsAction": "Scan accounts",
+  "scanAccountsScanning": "Scanning accounts…",
+  "scanAccountsScanningHint": "Checking addresses on Electrum (accounts gap: {accountGap}, addresses gap: {addrGap})…",
+  "@scanAccountsScanningHint": {
+    "placeholders": {
+      "accountGap": { "type": "int" },
+      "addrGap": { "type": "int" }
+    }
+  },
+  "accountGapLimitLabel": "Account gap limit",
+  "addressGapLimitLabel": "Address gap limit",
+  "advancedScanOptions": "Advanced",
+  "scanAccountsNoActivity": "No accounts with prior activity found.",
+  "scanAccountsScannedCount": "Scanned {count} accounts",
+  "@scanAccountsScannedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanAccountsFoundActivity": "{count} account(s) with activity",
+  "@scanAccountsFoundActivity": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanAccountsNewAccount": "Use new account ({index})",
+  "@scanAccountsNewAccount": {
+    "placeholders": {
+      "index": { "type": "int" }
+    }
+  },
+  "scanAccountsNoActivitySubtitle": "Recover accounts from a mnemonic phrase",
+  "scanAccountsActivitySummary": "{txCount} tx",
+  "@scanAccountsActivitySummary": {
+    "placeholders": {
+      "txCount": { "type": "int" }
+    }
+  },
+  "scanAccountsCreateWallet": "Create wallet",
+  "scanAccountsRetry": "Retry",
+  "scanTypeAll": "All types",
+  "bip39PassphraseLabel": "BIP39 passphrase (optional)"
 }

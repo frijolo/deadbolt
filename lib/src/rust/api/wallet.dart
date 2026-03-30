@@ -338,6 +338,43 @@ List<String> bip39ValidLastWords({
 Future<String> stripPsbtForHw({required String psbtBase64}) =>
     RustLib.instance.api.crateApiWalletStripPsbtForHw(psbtBase64: psbtBase64);
 
+/// Scan a mnemonic's BIP44-family accounts and return those with on-chain activity.
+///
+/// Iterates accounts starting at index 0. Stops after `account_gap_limit`
+/// consecutive accounts with no transactions and no balance. For each
+/// account it checks the first `address_gap_limit` receive addresses (chain 0)
+/// using Electrum batch queries.
+///
+/// Only singlesig wallet types are supported. Passing `P2WSH` or `P2SH_WSH`
+/// returns an error.
+Future<APIDiscoveredAccounts> discoverAccounts({
+  required String mnemonic,
+  String? passphrase,
+  required APIWalletType walletType,
+  required APINetwork network,
+  required String electrumUrl,
+  required int accountGapLimit,
+  required int addressGapLimit,
+}) => RustLib.instance.api.crateApiWalletDiscoverAccounts(
+  mnemonic: mnemonic,
+  passphrase: passphrase,
+  walletType: walletType,
+  network: network,
+  electrumUrl: electrumUrl,
+  accountGapLimit: accountGapLimit,
+  addressGapLimit: addressGapLimit,
+);
+
+/// Returns the first external receive address (index 0) for a wallet descriptor.
+/// Used to match discovered seed accounts against wallets already on the device.
+Future<String> firstAddressFromDescriptor({
+  required String descriptor,
+  required APINetwork network,
+}) => RustLib.instance.api.crateApiWalletFirstAddressFromDescriptor(
+  descriptor: descriptor,
+  network: network,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>>
 abstract class ApiWallet implements RustOpaqueInterface {
   /// Import a mnemonic phrase as a signing key. Validates the words, computes

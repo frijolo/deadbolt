@@ -130,7 +130,7 @@ pub struct APIWalletInfo {
 ///////////////////
 // APIWalletType //
 ///////////////////
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum APIWalletType {
     P2PKH,
     P2WPKH,
@@ -844,6 +844,31 @@ pub struct APIHotKeyInfo {
     pub seed_type: String,
     /// Unix timestamp (seconds) when this key was added.
     pub created_at: i64,
+}
+
+///////////////////////
+// APIAccountInfo    //
+///////////////////////
+
+/// One BIP44-style account discovered during a seed scan.
+pub struct APIAccountInfo {
+    pub account_index: u32,
+    /// e.g. "84'/0'/3'"
+    pub derivation_path: String,
+    /// "[mfp/84'/0'/3']xpub…"
+    pub keyspec: String,
+    pub wallet_type: APIWalletType,
+    /// First external receive address (m/0/0). Used for wallet matching.
+    pub first_address: String,
+    pub tx_count: u32,
+    pub balance_sat: u64,
+}
+
+/// Result of [discover_accounts].
+pub struct APIDiscoveredAccounts {
+    pub accounts: Vec<APIAccountInfo>,
+    /// Total number of accounts scanned (including empty ones).
+    pub scanned_count: u32,
 }
 
 #[cfg(test)]

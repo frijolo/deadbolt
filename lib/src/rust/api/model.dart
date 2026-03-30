@@ -37,6 +37,56 @@ class APIAbsoluteTimelock {
 
 enum APIAbsoluteTimelockType { blocks, timestamp }
 
+/// One BIP44-style account discovered during a seed scan.
+class APIAccountInfo {
+  final int accountIndex;
+
+  /// e.g. "84'/0'/3'"
+  final String derivationPath;
+
+  /// "[mfp/84'/0'/3']xpub…"
+  final String keyspec;
+  final APIWalletType walletType;
+
+  /// First external receive address (m/0/0). Used for wallet matching.
+  final String firstAddress;
+  final int txCount;
+  final BigInt balanceSat;
+
+  const APIAccountInfo({
+    required this.accountIndex,
+    required this.derivationPath,
+    required this.keyspec,
+    required this.walletType,
+    required this.firstAddress,
+    required this.txCount,
+    required this.balanceSat,
+  });
+
+  @override
+  int get hashCode =>
+      accountIndex.hashCode ^
+      derivationPath.hashCode ^
+      keyspec.hashCode ^
+      walletType.hashCode ^
+      firstAddress.hashCode ^
+      txCount.hashCode ^
+      balanceSat.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAccountInfo &&
+          runtimeType == other.runtimeType &&
+          accountIndex == other.accountIndex &&
+          derivationPath == other.derivationPath &&
+          keyspec == other.keyspec &&
+          walletType == other.walletType &&
+          firstAddress == other.firstAddress &&
+          txCount == other.txCount &&
+          balanceSat == other.balanceSat;
+}
+
 class APIAddress {
   final String address;
   final int index;
@@ -213,6 +263,30 @@ class APICpfpInfo {
           ancestorVsize == other.ancestorVsize &&
           ancestorFeeRateSatPerVb == other.ancestorFeeRateSatPerVb &&
           ancestorCount == other.ancestorCount;
+}
+
+/// Result of [discover_accounts].
+class APIDiscoveredAccounts {
+  final List<APIAccountInfo> accounts;
+
+  /// Total number of accounts scanned (including empty ones).
+  final int scannedCount;
+
+  const APIDiscoveredAccounts({
+    required this.accounts,
+    required this.scannedCount,
+  });
+
+  @override
+  int get hashCode => accounts.hashCode ^ scannedCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIDiscoveredAccounts &&
+          runtimeType == other.runtimeType &&
+          accounts == other.accounts &&
+          scannedCount == other.scannedCount;
 }
 
 class APIFiatPrice {

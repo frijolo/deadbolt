@@ -6,6 +6,18 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### New Features
+- **Restore wallet from seed** — New screen that scans the blockchain for all accounts derived from a mnemonic phrase (BIP44/49/84/86, configurable gap limits). Found accounts are listed with balance and tx count; already-imported wallets are matched and linked. Tapping an account opens the guided wizard pre-filled with the keyspec and seed.
+- **Key info sheet in guided wizard** — The edit icon on key tiles is replaced by an info (ℹ) icon. Tapping it opens the existing key detail sheet showing MFP, derivation path, and full xpub with share. If the key was entered via seed, the sheet also shows the private seed reveal option. Custom names set here are persisted to the wallet on creation.
+
+### Fixes
+- **Restore-from-seed stale state** — After creating a wallet through the restore wizard, the account list now immediately reflects the newly created wallet (name badge + open arrow) instead of showing a stale "create" button.
+
+### Improvements
+- **Key tile layout in guided wizard** — Tiles now show `[MFP badge] / derivation path` on the first line and the coloured xpub on the second line, replacing the previous single-line xpub-only layout.
+
+---
+
 ### Improvements
 - **Unified bottom sheet drag handle** — All bottom sheets now show a consistent `SheetHandle` pill at the top (40 × 4 px, theme-tinted). Inline one-off handle implementations removed.
 - **Full-width `SegmentedButton`** — Every `SegmentedButton` (wallet type, script type, key tab, seed type, word count, protection type) is now wrapped in `SizedBox(width: double.infinity)` so it stretches to the sheet width instead of centering.
