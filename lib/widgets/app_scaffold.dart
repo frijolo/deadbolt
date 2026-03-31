@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/about_screen.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/disclaimer_dialog.dart';
 import 'package:deadbolt/screens/project_list_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
@@ -16,8 +18,24 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   int _selectedIndex = 0;
+  DateTime? _lastBackPress;
 
   void _navigate(int i) => setState(() => _selectedIndex = i);
+
+  void _onBackPressed() {
+    if (_selectedIndex != 0) {
+      setState(() => _selectedIndex = 0);
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastBackPress != null &&
+        now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
+      SystemNavigator.pop();
+      return;
+    }
+    _lastBackPress = now;
+    showInfoToast(context, context.l10n.pressBackAgainToExit);
+  }
 
   @override
   void initState() {
@@ -49,45 +67,53 @@ class _AppScaffoldState extends State<AppScaffold> {
     ];
 
     if (isWide) {
-      return Scaffold(
-        body: Row(
-          children: [
-            NavigationRail(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _navigate,
-              labelType: NavigationRailLabelType.all,
-              destinations: destinations
-                  .map((d) => NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        label: Text(d.label),
-                      ))
-                  .toList(),
-            ),
-            const VerticalDivider(thickness: 1, width: 1),
-            Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  WalletListScreen(onNavigate: _navigate),
-                  ProjectListScreen(onNavigate: _navigate),
-                  const SettingsScreen(),
-                  const AboutScreen(),
-                ],
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (_, r) => _onBackPressed(),
+        child: Scaffold(
+          body: Row(
+            children: [
+              NavigationRail(
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: _navigate,
+                labelType: NavigationRailLabelType.all,
+                destinations: destinations
+                    .map((d) => NavigationRailDestination(
+                          icon: Icon(d.icon),
+                          label: Text(d.label),
+                        ))
+                    .toList(),
               ),
-            ),
-          ],
+              const VerticalDivider(thickness: 1, width: 1),
+              Expanded(
+                child: IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    WalletListScreen(onNavigate: _navigate),
+                    ProjectListScreen(onNavigate: _navigate),
+                    const SettingsScreen(),
+                    const AboutScreen(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return IndexedStack(
-      index: _selectedIndex,
-      children: [
-        WalletListScreen(navIndex: 0, onNavigate: _navigate),
-        ProjectListScreen(navIndex: 1, onNavigate: _navigate),
-        SettingsScreen(navIndex: 2, onNavigate: _navigate),
-        AboutScreen(navIndex: 3, onNavigate: _navigate),
-      ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, r) => _onBackPressed(),
+      child: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          WalletListScreen(navIndex: 0, onNavigate: _navigate),
+          ProjectListScreen(navIndex: 1, onNavigate: _navigate),
+          SettingsScreen(navIndex: 2, onNavigate: _navigate),
+          AboutScreen(navIndex: 3, onNavigate: _navigate),
+        ],
+      ),
     );
   }
 }

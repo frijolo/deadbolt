@@ -1647,6 +1647,7 @@ pub fn strip_psbt_for_hw(psbt_base64: String) -> Result<String> {
 ///
 /// Only singlesig wallet types are supported. Passing `P2WSH` or `P2SH_WSH`
 /// returns an error.
+#[allow(clippy::too_many_arguments)]
 pub async fn discover_accounts(
     mnemonic: String,
     passphrase: Option<String>,
@@ -1655,6 +1656,7 @@ pub async fn discover_accounts(
     electrum_url: String,
     account_gap_limit: u32,
     address_gap_limit: u32,
+    non_standard_paths: bool,
 ) -> Result<crate::api::model::APIDiscoveredAccounts> {
     use crate::api::model::{APIAccountInfo, APIDiscoveredAccounts, APIWalletType};
     use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
@@ -1686,7 +1688,7 @@ pub async fn discover_accounts(
         _ => "1",
     };
 
-    let purpose = match wallet_type {
+    let standard_purpose = match wallet_type {
         APIWalletType::P2PKH => "44",
         APIWalletType::P2WPKH => "84",
         APIWalletType::P2SH | APIWalletType::P2SH_WPKH => "49",
@@ -1699,95 +1701,109 @@ pub async fn discover_accounts(
         }
     };
 
-    let mut accounts: Vec<APIAccountInfo> = Vec::new();
-    let mut consecutive_empty: u32 = 0;
-    let mut account_index: u32 = 0;
+    // non_standard_paths covers wallets created with a purpose that does not
+    // match the script type (e.g. Taproot keys stored under purpose 44).
+    let purposes: Vec<&str> = if non_standard_paths {
+        vec!["44", "49", "84", "86"]
+    } else {
+        vec![standard_purpose]
+    };
 
-    loop {
-        if consecutive_empty >= account_gap_limit {
-            break;
-        }
+    let mut all_accounts: Vec<APIAccountInfo> = Vec::new();
+    let mut total_scanned: u32 = 0;
 
-        let path_str = format!("m/{purpose}'/{coin}'/{account_index}'");
-        let path = DerivationPath::from_str(&path_str)
-            .map_err(|e| anyhow::anyhow!("Invalid path '{}': {}", path_str, e))?;
+    for purpose in purposes {
+        let mut consecutive_empty: u32 = 0;
+        let mut account_index: u32 = 0;
 
-        let account_xprv = root
-            .derive_priv(&secp, &path)
-            .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
-        let account_xpub = Xpub::from_priv(&secp, &account_xprv);
+        loop {
+            if consecutive_empty >= account_gap_limit {
+                break;
+            }
 
-        // Derive receive addresses (chain 0).
-        let scripts: Vec<_> = (0..address_gap_limit)
-            .map(|i| {
-                let child_path = DerivationPath::from_str(&format!("m/0/{i}")).unwrap();
-                let child_xpub = account_xpub.derive_pub(&secp, &child_path).unwrap();
-                let compressed = CompressedPublicKey(child_xpub.public_key);
-                match wallet_type {
-                    APIWalletType::P2PKH => {
-                        use bdk_wallet::bitcoin::PublicKey;
-                        Address::p2pkh(PublicKey::new(child_xpub.public_key), net).script_pubkey()
+            let path_str = format!("m/{purpose}'/{coin}'/{account_index}'");
+            let path = DerivationPath::from_str(&path_str)
+                .map_err(|e| anyhow::anyhow!("Invalid path '{}': {}", path_str, e))?;
+
+            let account_xprv = root
+                .derive_priv(&secp, &path)
+                .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
+            let account_xpub = Xpub::from_priv(&secp, &account_xprv);
+
+            let scripts: Vec<_> = (0..address_gap_limit)
+                .map(|i| {
+                    let child_path = DerivationPath::from_str(&format!("m/0/{i}")).unwrap();
+                    let child_xpub = account_xpub.derive_pub(&secp, &child_path).unwrap();
+                    let compressed = CompressedPublicKey(child_xpub.public_key);
+                    match wallet_type {
+                        APIWalletType::P2PKH => {
+                            use bdk_wallet::bitcoin::PublicKey;
+                            Address::p2pkh(PublicKey::new(child_xpub.public_key), net)
+                                .script_pubkey()
+                        }
+                        APIWalletType::P2WPKH => Address::p2wpkh(&compressed, net).script_pubkey(),
+                        APIWalletType::P2SH | APIWalletType::P2SH_WPKH => {
+                            Address::p2shwpkh(&compressed, net).script_pubkey()
+                        }
+                        APIWalletType::P2TR => {
+                            use bdk_wallet::bitcoin::key::UntweakedPublicKey;
+                            let internal = UntweakedPublicKey::from(child_xpub.public_key);
+                            Address::p2tr(&secp, internal, None, net).script_pubkey()
+                        }
+                        _ => unreachable!(),
                     }
-                    APIWalletType::P2WPKH => Address::p2wpkh(&compressed, net).script_pubkey(),
-                    APIWalletType::P2SH | APIWalletType::P2SH_WPKH => {
-                        Address::p2shwpkh(&compressed, net).script_pubkey()
-                    }
-                    APIWalletType::P2TR => {
-                        use bdk_wallet::bitcoin::key::UntweakedPublicKey;
-                        let internal = UntweakedPublicKey::from(child_xpub.public_key);
-                        Address::p2tr(&secp, internal, None, net).script_pubkey()
-                    }
-                    _ => unreachable!(),
-                }
-            })
-            .collect();
+                })
+                .collect();
 
-        let script_refs: Vec<&bdk_wallet::bitcoin::Script> =
-            scripts.iter().map(|s| s.as_script()).collect();
+            let script_refs: Vec<&bdk_wallet::bitcoin::Script> =
+                scripts.iter().map(|s| s.as_script()).collect();
 
-        let histories = client
-            .batch_script_get_history(script_refs.iter().copied())
-            .unwrap_or_default();
-
-        let tx_count: u32 = histories.iter().map(|h| h.len() as u32).sum();
-
-        let balance_sat: u64 = if tx_count > 0 {
-            client
-                .batch_script_get_balance(script_refs.iter().copied())
-                .unwrap_or_default()
-                .iter()
-                .map(|b| b.confirmed + b.unconfirmed.max(0) as u64)
-                .sum()
-        } else {
-            0
-        };
-
-        if tx_count > 0 || balance_sat > 0 {
-            let display_path = path_str.trim_start_matches("m/").to_string();
-            let keyspec = format!("[{mfp}/{display_path}]{account_xpub}");
-            let first_address = Address::from_script(scripts[0].as_script(), net)
-                .map(|a| a.to_string())
+            let histories = client
+                .batch_script_get_history(script_refs.iter().copied())
                 .unwrap_or_default();
-            accounts.push(APIAccountInfo {
-                account_index,
-                derivation_path: display_path,
-                keyspec,
-                wallet_type,
-                first_address,
-                tx_count,
-                balance_sat,
-            });
-            consecutive_empty = 0;
-        } else {
-            consecutive_empty += 1;
+
+            let tx_count: u32 = histories.iter().map(|h| h.len() as u32).sum();
+
+            let balance_sat: u64 = if tx_count > 0 {
+                client
+                    .batch_script_get_balance(script_refs.iter().copied())
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|b| b.confirmed + b.unconfirmed.max(0) as u64)
+                    .sum()
+            } else {
+                0
+            };
+
+            if tx_count > 0 || balance_sat > 0 {
+                let display_path = path_str.trim_start_matches("m/").to_string();
+                let keyspec = format!("[{mfp}/{display_path}]{account_xpub}");
+                let first_address = Address::from_script(scripts[0].as_script(), net)
+                    .map(|a| a.to_string())
+                    .unwrap_or_default();
+                all_accounts.push(APIAccountInfo {
+                    account_index,
+                    derivation_path: display_path,
+                    keyspec,
+                    wallet_type,
+                    first_address,
+                    tx_count,
+                    balance_sat,
+                });
+                consecutive_empty = 0;
+            } else {
+                consecutive_empty += 1;
+            }
+
+            account_index += 1;
         }
 
-        account_index += 1;
+        total_scanned += account_index;
     }
 
     Ok(APIDiscoveredAccounts {
-        accounts,
-        scanned_count: account_index,
+        accounts: all_accounts,
+        scanned_count: total_scanned,
     })
 }
 

@@ -629,10 +629,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletTypeP2tr => 'Taproot (P2TR)';
 
   @override
-  String get walletTypeP2shWpkh => 'Segwit Anidado (P2SH-WPKH)';
+  String get walletTypeP2shWpkh => 'Nested Segwit (P2SH-WPKH)';
 
   @override
-  String get walletTypeP2shWsh => 'Segwit Anidado (P2SH-WSH)';
+  String get walletTypeP2shWsh => 'Nested Segwit (P2SH-WSH)';
 
   @override
   String get walletTypeUnknown => 'Desconocido';
@@ -650,7 +650,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletAddressSegwit => 'SegWit';
 
   @override
-  String get walletAddressNested => 'Anidado';
+  String get walletAddressNested => 'Nested';
 
   @override
   String get walletAddressTaproot => 'Taproot';
@@ -1734,7 +1734,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletTypeSinglesigDesc =>
-      'Una sola clave controla el wallet. Ideal para uso personal.';
+      'Una sola clave controla el wallet. Más simple y rápido de configurar.';
 
   @override
   String get walletTypeMultisigDesc =>
@@ -1747,7 +1747,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scriptTypeLegacy => 'Legacy';
 
   @override
-  String get scriptTypeNested => 'Anidado';
+  String get scriptTypeNested => 'Nested';
 
   @override
   String get scriptTypeSegwit => 'SegWit';
@@ -1757,7 +1757,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get scriptDescP2pkh =>
-      'P2PKH — Estándar más antiguo. Comisiones más altas. Máxima compatibilidad.';
+      'P2PKH — Estándar más antiguo. Comisiones más altas.';
 
   @override
   String get scriptDescP2sh =>
@@ -1765,11 +1765,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get scriptDescP2shWpkh =>
-      'P2SH-P2WPKH — SegWit envuelto para compatibilidad retroactiva.';
+      'P2SH-P2WPKH — SegWit envuelto para compatibilidad retroactiva. Rara vez necesario hoy.';
 
   @override
   String get scriptDescP2shWsh =>
-      'P2SH-P2WSH — Multifirma SegWit con compatibilidad retroactiva.';
+      'P2SH-P2WSH — Multifirma SegWit con compatibilidad retroactiva. Rara vez necesario hoy.';
 
   @override
   String get scriptDescP2wpkh =>
@@ -1907,6 +1907,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get advancedScanOptions => 'Avanzado';
 
   @override
+  String get scanNonStandardPathsLabel => 'Rutas de derivación no estándar';
+
+  @override
+  String get scanNonStandardPathsHint =>
+      'Busca también rutas BIP alternativas para cada tipo de script (44/49/84/86)';
+
+  @override
   String get scanAccountsNoActivity =>
       'No se encontraron accounts con actividad previa.';
 
@@ -1945,4 +1952,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bip39PassphraseLabel => 'Frase BIP39 (opcional)';
+
+  @override
+  String get pressBackAgainToExit => 'Pulsa atrás otra vez para salir';
 }

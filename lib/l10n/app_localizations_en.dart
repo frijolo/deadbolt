@@ -1725,7 +1725,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletTypeSinglesigDesc =>
-      'One key controls the wallet. Best for personal use.';
+      'One key controls the wallet. Simpler and faster to set up.';
 
   @override
   String get walletTypeMultisigDesc =>
@@ -1747,19 +1747,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scriptTypeTaproot => 'Taproot';
 
   @override
-  String get scriptDescP2pkh =>
-      'P2PKH — Oldest standard. Highest fees. Maximum compatibility.';
+  String get scriptDescP2pkh => 'P2PKH — Oldest standard. Highest fees.';
 
   @override
   String get scriptDescP2sh => 'P2SH — Oldest multisig standard. Highest fees.';
 
   @override
   String get scriptDescP2shWpkh =>
-      'P2SH-P2WPKH — SegWit wrapped for backward compatibility.';
+      'P2SH-P2WPKH — SegWit wrapped for backward compatibility. Rarely needed today.';
 
   @override
   String get scriptDescP2shWsh =>
-      'P2SH-P2WSH — SegWit multisig with backward compatibility.';
+      'P2SH-P2WSH — SegWit multisig with backward compatibility. Rarely needed today.';
 
   @override
   String get scriptDescP2wpkh =>
@@ -1893,6 +1892,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get advancedScanOptions => 'Advanced';
 
   @override
+  String get scanNonStandardPathsLabel => 'Non-standard derivation paths';
+
+  @override
+  String get scanNonStandardPathsHint =>
+      'Also scan alternative BIP purpose paths for each script type (44/49/84/86)';
+
+  @override
   String get scanAccountsNoActivity => 'No accounts with prior activity found.';
 
   @override
@@ -1930,4 +1936,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bip39PassphraseLabel => 'BIP39 passphrase (optional)';
+
+  @override
+  String get pressBackAgainToExit => 'Press back again to exit';
 }

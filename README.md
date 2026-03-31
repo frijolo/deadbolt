@@ -20,13 +20,16 @@ Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descri
 - **Multi-Recipient Transactions**: Send to multiple addresses in a single transaction with per-output amounts; one output can be set to "MAX" to receive the wallet remainder
 - **Direct Send**: Single-sig wallets with a local hot key can sign and broadcast in one step — no PSBT round-trip required
 - **Local Signing**: Store encrypted private keys on-device (hot signing keys) and sign PSBTs without any external device
+- **WIF Export**: Reveal a hot signing key as WIF for use in external wallets
+- **WIF Sweep**: Sweep funds from an external WIF private key directly into a wallet or custom address
 - **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
 - **Password-Protected Wallets**: Lock individual wallets with a password; the key never leaves the device unencrypted
 - **XPub Key Protection**: Protect wallets with any xpub from the descriptor — any registered key can unlock, including via hardware wallet (no password to remember or lose)
 - **Change Protection In-Place**: Switch between DeviceKey, Password, and XPub protection at any time from the wallet overview, without export or import
 - **Encrypted Backup & Restore**: Export a wallet as an encrypted `.deadbolt` backup file and restore it on any device
+- **Restore from Seed**: Recover wallets from a BIP-39 mnemonic with optional passphrase; auto-discovers existing accounts via BIP-44 gap-limit scanning across single-sig script types
 - **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
-- **Liana Format Export**: Export any descriptor in the format expected by the Liana wallet
+- **Liana Format Export**: Export descriptors in the format expected by the Liana wallet (adds the required `[00000000]` origin fingerprint to NUMS-key Taproot descriptors; descriptors with a real key-path are compatible as-is)
 - **QR Support**: Import/export descriptors and PSBTs via QR codes (including animated BC-UR)
 - **Project Import/Export**: Save and load descriptor projects as JSON files
 - **Theme Support**: Light, Dark, and System default themes
@@ -57,10 +60,7 @@ Or install directly on your device.
 Download and extract the tarball:
 
 ```bash
-# Extract
 tar -xzf deadbolt-linux-x64.tar.gz
-
-# Run
 cd deadbolt
 ./deadbolt
 ```
@@ -82,15 +82,12 @@ Always verify releases before installation. See [SECURITY.md](SECURITY.md) for i
 ### Basic Workflow
 
 1. **Enter or paste a Bitcoin descriptor** into the input field
-2. **Analyze** - Deadbolt will parse and extract:
+2. **Analyze** — Deadbolt extracts:
    - Network type (mainnet/testnet/signet/regtest)
    - Wallet type (single-sig, multisig, taproot, etc.)
    - Public keys with derivation paths
    - Spend paths with fee weights
-3. **Review** - Examine the extracted information:
-   - Verify public keys match your expectations
-   - Understand spending conditions
-   - Estimate transaction fees
+3. **Review** — Verify public keys match your expectations, understand spending conditions, estimate fees
 
 ### Example Descriptors
 
@@ -111,119 +108,27 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 
 ### Signing Options
 
-Deadbolt supports two signing workflows:
-
-- **Hot signing keys** - Store an encrypted private key on-device and sign PSBTs locally without any external hardware
-- **BitBox02 hardware wallet** - Connect a BitBox02 via USB to keep private keys off the device entirely
+- **Hot signing keys** — Store an encrypted private key on-device and sign PSBTs locally without any external hardware
+- **BitBox02 hardware wallet** — Connect a BitBox02 via USB to keep private keys off the device entirely
 
 Both workflows produce a signed PSBT that can be broadcast directly from the app.
 
 ### What Deadbolt Does NOT Do
 
-- **Does NOT send data to third parties** - Wallet sync connects only to the Electrum server you configure (and optionally through Tor)
-- **Does NOT collect telemetry** - No analytics, tracking, or usage data of any kind
+- **Does NOT send data to third parties** — Wallet sync connects only to the Electrum server you configure (and optionally through Tor)
+- **Does NOT collect telemetry** — No analytics, tracking, or usage data of any kind
 
 ## Building from Source
 
-### Prerequisites
-
-- **Flutter SDK** (3.10.7 or later): [Install Flutter](https://docs.flutter.dev/get-started/install)
-- **Rust toolchain** (latest stable): [Install Rust](https://rustup.rs/)
-- **flutter_rust_bridge_codegen**: `cargo install flutter_rust_bridge_codegen --version 2.11.1`
-- Platform-specific dependencies:
-  - **Android**: Android SDK, NDK r26d
-  - **Linux**: `libgtk-3-dev`, `clang`, `cmake`, `ninja-build`
-  - **Windows**: Visual Studio 2022 with C++ tools
-
-### Build Steps
-
-```bash
-# Clone repository
-git clone https://github.com/frijolo/deadbolt.git
-cd deadbolt
-
-# Get Flutter dependencies
-flutter pub get
-
-# Build for your platform
-flutter build apk --release       # Android
-flutter build linux --release     # Linux
-flutter build windows --release   # Windows
-
-# Binaries will be in build/<platform>/release/
-```
-
-### Running Tests
-
-```bash
-# Dart/Flutter tests
-flutter test
-
-# Rust tests
-cd rust
-cargo test
-
-# Linting
-flutter analyze
-cd rust && cargo clippy
-```
+See [docs/BUILDING.md](docs/BUILDING.md) for prerequisites, build steps, and how to run tests.
 
 ## Development
 
-### Project Structure
-
-```
-deadbolt/
-├── lib/                    # Dart/Flutter code
-│   ├── main.dart          # App entry point
-│   ├── screens/           # UI screens (+ screens/wallet_detail/ sub-screens)
-│   ├── cubit/             # BLoC state management (6 cubits)
-│   ├── services/          # WalletService, ProjectDescriptorService, PriceService
-│   ├── data/              # Drift database (projects only)
-│   ├── models/            # Shared data models
-│   ├── widgets/           # Reusable widgets
-│   ├── utils/             # Formatters, helpers, toast
-│   ├── theme/             # Material 3 theme
-│   └── src/rust/          # Auto-generated FFI bindings (DO NOT EDIT)
-├── rust/                  # Rust core logic
-│   ├── src/
-│   │   ├── api/          # FFI boundary (exposed to Dart)
-│   │   │   └── wallet/   # Wallet API (directory)
-│   │   └── core/         # Internal logic (BDK, descriptors, Tor, etc.)
-│   └── Cargo.toml
-├── docs/                  # Documentation
-├── .github/workflows/     # CI/CD pipelines
-└── flutter_rust_bridge.yaml  # FFI configuration
-```
-
-### Architecture
-
-- **UI Layer** (Dart/Flutter): Material 3 UI, BLoC state management, responsive layout
-- **FFI Bridge** (flutter_rust_bridge): Type-safe Dart ↔ Rust communication
-- **Core Layer** (Rust): Bitcoin descriptor parsing via BDK, wallet analysis, fee calculation
-
-### Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes with **signed commits** (`git commit -S -m "Add amazing feature"`)
-4. Push to your fork (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-**Note**: All commits must be GPG-signed. See [docs/GPG_SETUP.md](docs/GPG_SETUP.md) for setup instructions.
-
-### Code Style
-
-- **Dart**: Follow [Effective Dart](https://dart.dev/guides/language/effective-dart) guidelines
-- **Rust**: Use `cargo fmt` and `cargo clippy`
-- **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/) format
-- **Comments**: English only
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for project structure, architecture overview, and contribution guidelines.
 
 ## Security
 
-Deadbolt is Bitcoin-related software - security is critical. See [SECURITY.md](SECURITY.md) for:
+Deadbolt is Bitcoin-related software — security is critical. See [SECURITY.md](SECURITY.md) for:
 
 - Release verification instructions
 - Vulnerability reporting process
@@ -234,46 +139,42 @@ Deadbolt is Bitcoin-related software - security is critical. See [SECURITY.md](S
 
 ## Privacy
 
-Deadbolt is designed with privacy in mind:
+- **No telemetry** — No analytics, tracking, or data collection
+- **No built-in servers** — Wallet sync connects only to the Electrum server you configure
+- **Optional Tor routing** — Enable the built-in Tor client to hide your wallet's IP address from the Electrum server
+- **Local storage only** — Data stays on your device
+- **Descriptor analysis is fully offline** — No network access needed to parse and analyze descriptors
 
-- **No telemetry** - No analytics, tracking, or data collection
-- **No built-in servers** - Wallet sync connects only to the Electrum server you configure
-- **Optional Tor routing** - Enable the built-in Tor client to hide your wallet's IP address from the Electrum server
-- **Local storage only** - Data stays on your device
-- **Descriptor analysis is fully offline** - No network access needed to parse and analyze descriptors
-
-However, be aware:
-- Descriptors contain public keys and reveal wallet structure
-- Avoid sharing descriptors with untrusted parties
-- Use on trusted devices only
+Be aware: descriptors contain public keys and reveal wallet structure. Avoid sharing descriptors with untrusted parties.
 
 ## Dependencies
 
 ### Rust
 
-- **bdk_wallet** (2.3.0) - Bitcoin Development Kit for descriptor parsing and wallet management
-- **arti-client** + **tor-rtcompat** (0.22) - Embedded Tor client
-- **bitbox-api** (0.9) - BitBox02 hardware wallet integration
-- **flutter_rust_bridge** (2.11.1) - Dart ↔ Rust FFI
-- **anyhow** / **thiserror** - Error handling
+- **bdk_wallet** (2.3.0) — Bitcoin descriptor parsing and wallet management
+- **arti-client** + **tor-rtcompat** (0.22) — Embedded Tor client
+- **bitbox-api** (0.9) + **async-hwi** (0.0.30) — BitBox02 hardware wallet integration
+- **flutter_rust_bridge** (2.11.1) — Dart ↔ Rust FFI
+- **rusqlite** (0.31, bundled-sqlcipher) — Encrypted SQLite storage
+- **anyhow** / **thiserror** — Error handling
 
 ### Dart/Flutter
 
-- **flutter_rust_bridge** (2.11.1) - FFI bindings
-- **flutter_bloc** (9.1.1) - State management
-- **drift** (2.31.0) - SQLite database for project persistence
+- **flutter_rust_bridge** (2.11.1) — FFI bindings
+- **flutter_bloc** (9.1.1) — State management
+- **drift** (2.31.0) — SQLite database for project persistence
 
 See [pubspec.yaml](pubspec.yaml) and [rust/Cargo.toml](rust/Cargo.toml) for full dependency lists.
 
 ## License
 
-This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-- **Bitcoin Development Kit (BDK)** - For excellent Bitcoin descriptor libraries
-- **Flutter** and **Rust** communities - For amazing tools and documentation
-- Bitcoin Core developers - For descriptor specification and best practices
+- **Bitcoin Development Kit (BDK)** — For excellent Bitcoin descriptor libraries
+- **Flutter** and **Rust** communities — For amazing tools and documentation
+- Bitcoin Core developers — For descriptor specification and best practices
 
 ## Support
 
@@ -283,15 +184,10 @@ This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file
 
 ## Disclaimer
 
-Deadbolt is provided "as is" without warranty of any kind. While we strive for correctness and security, users should:
-
-- Verify descriptors against multiple sources
-- Test thoroughly before using in production
-- Understand that software bugs may exist
-- Not rely solely on Deadbolt for critical decisions
+Deadbolt is provided "as is" without warranty of any kind. While we strive for correctness and security, users should verify descriptors against multiple sources, test thoroughly before using in production, and not rely solely on Deadbolt for critical decisions.
 
 **Use at your own risk.**
 
 ---
 
-Made with ❤️ for the Bitcoin community. Not your keys, not your coins.
+Made with love for the Bitcoin community. Not your keys, not your coins.

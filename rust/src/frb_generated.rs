@@ -3932,6 +3932,7 @@ fn wire__crate__api__wallet__discover_accounts_impl(
             let api_electrum_url = <String>::sse_decode(&mut deserializer);
             let api_account_gap_limit = <u32>::sse_decode(&mut deserializer);
             let api_address_gap_limit = <u32>::sse_decode(&mut deserializer);
+            let api_non_standard_paths = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -3944,6 +3945,7 @@ fn wire__crate__api__wallet__discover_accounts_impl(
                             api_electrum_url,
                             api_account_gap_limit,
                             api_address_gap_limit,
+                            api_non_standard_paths,
                         )
                         .await?;
                         Ok(output_ok)

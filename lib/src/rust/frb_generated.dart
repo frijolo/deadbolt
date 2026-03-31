@@ -498,6 +498,7 @@ abstract class RustLibApi extends BaseApi {
     required String electrumUrl,
     required int accountGapLimit,
     required int addressGapLimit,
+    required bool nonStandardPaths,
   });
 
   Future<Uint8List> crateApiWalletExportWalletBackup({
@@ -3646,6 +3647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String electrumUrl,
     required int accountGapLimit,
     required int addressGapLimit,
+    required bool nonStandardPaths,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3658,6 +3660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(electrumUrl, serializer);
           sse_encode_u_32(accountGapLimit, serializer);
           sse_encode_u_32(addressGapLimit, serializer);
+          sse_encode_bool(nonStandardPaths, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3678,6 +3681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           electrumUrl,
           accountGapLimit,
           addressGapLimit,
+          nonStandardPaths,
         ],
         apiImpl: this,
       ),
@@ -3695,6 +3699,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "electrumUrl",
           "accountGapLimit",
           "addressGapLimit",
+          "nonStandardPaths",
         ],
       );
 

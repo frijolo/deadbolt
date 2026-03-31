@@ -40,6 +40,7 @@ class _RestoreFromSeedScreenState extends State<RestoreFromSeedScreen> {
 
   int _accountGapLimit = 20;
   int _addressGapLimit = 20;
+  bool _nonStandardPaths = false;
 
   _ScanState _scanState = _ScanState.idle;
   String? _errorMessage;
@@ -97,6 +98,7 @@ class _RestoreFromSeedScreenState extends State<RestoreFromSeedScreen> {
             electrumUrl: url,
             accountGapLimit: _accountGapLimit,
             addressGapLimit: _addressGapLimit,
+            nonStandardPaths: _nonStandardPaths,
           ));
 
       final (results, walletByFirstAddress) = await (
@@ -286,6 +288,15 @@ class _RestoreFromSeedScreenState extends State<RestoreFromSeedScreen> {
               onIncrement: _addressGapLimit < 100
                   ? () => setState(() => _addressGapLimit++)
                   : null,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.scanNonStandardPathsLabel,
+                  style: Theme.of(context).textTheme.bodyMedium),
+              subtitle: Text(l10n.scanNonStandardPathsHint,
+                  style: Theme.of(context).textTheme.bodySmall),
+              value: _nonStandardPaths,
+              onChanged: (v) => setState(() => _nonStandardPaths = v),
             ),
           ],
         ),

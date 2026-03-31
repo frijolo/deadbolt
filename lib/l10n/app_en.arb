@@ -785,17 +785,17 @@
   "walletTypeLabel": "Wallet type",
   "walletTypeSinglesig": "Singlesig",
   "walletTypeMultisig": "Multisig",
-  "walletTypeSinglesigDesc": "One key controls the wallet. Best for personal use.",
+  "walletTypeSinglesigDesc": "One key controls the wallet. Simpler and faster to set up.",
   "walletTypeMultisigDesc": "Multiple keys required to sign. Ideal for shared control or extra security.",
   "scriptTypeLabel": "Script type",
   "scriptTypeLegacy": "Legacy",
   "scriptTypeNested": "Nested",
   "scriptTypeSegwit": "SegWit",
   "scriptTypeTaproot": "Taproot",
-  "scriptDescP2pkh": "P2PKH — Oldest standard. Highest fees. Maximum compatibility.",
+  "scriptDescP2pkh": "P2PKH — Oldest standard. Highest fees.",
   "scriptDescP2sh": "P2SH — Oldest multisig standard. Highest fees.",
-  "scriptDescP2shWpkh": "P2SH-P2WPKH — SegWit wrapped for backward compatibility.",
-  "scriptDescP2shWsh": "P2SH-P2WSH — SegWit multisig with backward compatibility.",
+  "scriptDescP2shWpkh": "P2SH-P2WPKH — SegWit wrapped for backward compatibility. Rarely needed today.",
+  "scriptDescP2shWsh": "P2SH-P2WSH — SegWit multisig with backward compatibility. Rarely needed today.",
   "scriptDescP2wpkh": "P2WPKH — Most common modern standard. Lower fees.",
   "scriptDescP2wsh": "P2WSH — Native SegWit multisig. Lower fees, widely supported.",
   "scriptDescP2trSinglesig": "P2TR — Taproot. Best privacy and lowest fees.",
@@ -858,6 +858,8 @@
   "accountGapLimitLabel": "Account gap limit",
   "addressGapLimitLabel": "Address gap limit",
   "advancedScanOptions": "Advanced",
+  "scanNonStandardPathsLabel": "Non-standard derivation paths",
+  "scanNonStandardPathsHint": "Also scan alternative BIP purpose paths for each script type (44/49/84/86)",
   "scanAccountsNoActivity": "No accounts with prior activity found.",
   "scanAccountsScannedCount": "Scanned {count} accounts",
   "@scanAccountsScannedCount": {
@@ -887,5 +889,6 @@
   "scanAccountsCreateWallet": "Create wallet",
   "scanAccountsRetry": "Retry",
   "scanTypeAll": "All types",
-  "bip39PassphraseLabel": "BIP39 passphrase (optional)"
+  "bip39PassphraseLabel": "BIP39 passphrase (optional)",
+  "pressBackAgainToExit": "Press back again to exit"
 }

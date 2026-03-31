@@ -355,6 +355,7 @@ Future<APIDiscoveredAccounts> discoverAccounts({
   required String electrumUrl,
   required int accountGapLimit,
   required int addressGapLimit,
+  required bool nonStandardPaths,
 }) => RustLib.instance.api.crateApiWalletDiscoverAccounts(
   mnemonic: mnemonic,
   passphrase: passphrase,
@@ -363,6 +364,7 @@ Future<APIDiscoveredAccounts> discoverAccounts({
   electrumUrl: electrumUrl,
   accountGapLimit: accountGapLimit,
   addressGapLimit: addressGapLimit,
+  nonStandardPaths: nonStandardPaths,
 );
 
 /// Returns the first external receive address (index 0) for a wallet descriptor.

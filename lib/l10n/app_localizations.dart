@@ -3197,7 +3197,7 @@ abstract class AppLocalizations {
   /// No description provided for @walletTypeSinglesigDesc.
   ///
   /// In en, this message translates to:
-  /// **'One key controls the wallet. Best for personal use.'**
+  /// **'One key controls the wallet. Simpler and faster to set up.'**
   String get walletTypeSinglesigDesc;
 
   /// No description provided for @walletTypeMultisigDesc.
@@ -3239,7 +3239,7 @@ abstract class AppLocalizations {
   /// No description provided for @scriptDescP2pkh.
   ///
   /// In en, this message translates to:
-  /// **'P2PKH — Oldest standard. Highest fees. Maximum compatibility.'**
+  /// **'P2PKH — Oldest standard. Highest fees.'**
   String get scriptDescP2pkh;
 
   /// No description provided for @scriptDescP2sh.
@@ -3251,13 +3251,13 @@ abstract class AppLocalizations {
   /// No description provided for @scriptDescP2shWpkh.
   ///
   /// In en, this message translates to:
-  /// **'P2SH-P2WPKH — SegWit wrapped for backward compatibility.'**
+  /// **'P2SH-P2WPKH — SegWit wrapped for backward compatibility. Rarely needed today.'**
   String get scriptDescP2shWpkh;
 
   /// No description provided for @scriptDescP2shWsh.
   ///
   /// In en, this message translates to:
-  /// **'P2SH-P2WSH — SegWit multisig with backward compatibility.'**
+  /// **'P2SH-P2WSH — SegWit multisig with backward compatibility. Rarely needed today.'**
   String get scriptDescP2shWsh;
 
   /// No description provided for @scriptDescP2wpkh.
@@ -3500,6 +3500,18 @@ abstract class AppLocalizations {
   /// **'Advanced'**
   String get advancedScanOptions;
 
+  /// No description provided for @scanNonStandardPathsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-standard derivation paths'**
+  String get scanNonStandardPathsLabel;
+
+  /// No description provided for @scanNonStandardPathsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also scan alternative BIP purpose paths for each script type (44/49/84/86)'**
+  String get scanNonStandardPathsHint;
+
   /// No description provided for @scanAccountsNoActivity.
   ///
   /// In en, this message translates to:
@@ -3559,6 +3571,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'BIP39 passphrase (optional)'**
   String get bip39PassphraseLabel;
+
+  /// No description provided for @pressBackAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get pressBackAgainToExit;
 }
 
 class _AppLocalizationsDelegate
