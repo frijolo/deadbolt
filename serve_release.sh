@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Sirve el contenido de releases/ por HTTP local.
-# Ctrl+C cierra el servidor automáticamente.
+# Serves the contents of releases/ over a local HTTP server.
+# Ctrl+C stops the server automatically.
 
 set -e
 
@@ -13,15 +13,15 @@ NC='\033[0m'
 PORT=8080
 
 cleanup() {
-    echo -e "\n${YELLOW}Cerrando servidor...${NC}"
+    echo -e "\n${YELLOW}Stopping server...${NC}"
     kill "$SERVER_PID" 2>/dev/null || true
-    echo -e "${GREEN}Servidor cerrado.${NC}"
+    echo -e "${GREEN}Server stopped.${NC}"
     exit 0
 }
 trap cleanup SIGINT SIGTERM
 
 if [ ! -d releases ] || [ -z "$(ls -A releases 2>/dev/null)" ]; then
-    echo -e "${YELLOW}No hay archivos en releases/. Ejecuta build_release.sh primero.${NC}"
+    echo -e "${YELLOW}No files in releases/. Run build_release.sh first.${NC}"
     exit 1
 fi
 
@@ -34,11 +34,11 @@ SERVER_PID=$!
 
 sleep 1
 
-echo -e "${GREEN}✓ Servidor iniciado${NC}\n"
+echo -e "${GREEN}✓ Server started${NC}\n"
 echo -e "  ${GREEN}http://${HOSTNAME}:${PORT}/${NC}\n"
 echo -e "${BLUE}────────────────────────────────────────${NC}"
 echo -e "Puerto: ${GREEN}$PORT${NC}   PID: ${GREEN}$SERVER_PID${NC}"
 echo -e "${BLUE}────────────────────────────────────────${NC}\n"
-echo -e "${YELLOW}Presiona Ctrl+C para detener${NC}\n"
+echo -e "${YELLOW}Press Ctrl+C to stop${NC}\n"
 
 wait "$SERVER_PID"

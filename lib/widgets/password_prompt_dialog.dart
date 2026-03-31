@@ -227,37 +227,45 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
           children: [
             Row(
               children: [
-                TextButton.icon(
-                  onPressed: _hwBusy ? null : _onImport,
-                  icon: const Icon(Icons.file_open_outlined),
-                  label: const Text('Import'),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: _hwBusy ? null : _onImport,
+                    icon: const Icon(Icons.file_open_outlined),
+                    label: const Text('Import'),
+                  ),
                 ),
                 if (_hwAvailable) ...[
                   const SizedBox(width: 4),
-                  TextButton.icon(
-                    onPressed: _hwBusy ? null : () => _onHwUnlock(context),
-                    icon: _hwBusy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.usb_outlined),
-                    label: const Text('Hardware wallet'),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: _hwBusy ? null : () => _onHwUnlock(context),
+                      icon: _hwBusy
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.usb_outlined),
+                      label: const Text('Hardware wallet'),
+                    ),
                   ),
                 ],
               ],
             ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton(
-                  onPressed: _hwBusy ? null : () => Navigator.of(context).pop(null),
-                  child: const Text('Cancel'),
+                Expanded(
+                  child: TextButton(
+                    onPressed: _hwBusy ? null : () => Navigator.of(context).pop(null),
+                    child: const Text('Cancel'),
+                  ),
                 ),
-                FilledButton(
-                  onPressed: _hwBusy ? null : _submit,
-                  child: const Text('Unlock'),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _hwBusy ? null : _submit,
+                    child: const Text('Unlock'),
+                  ),
                 ),
               ],
             ),

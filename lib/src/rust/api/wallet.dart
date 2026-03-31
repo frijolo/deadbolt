@@ -367,8 +367,9 @@ Future<APIDiscoveredAccounts> discoverAccounts({
   nonStandardPaths: nonStandardPaths,
 );
 
-/// Returns the first external receive address (index 0) for a wallet descriptor.
-/// Used to match discovered seed accounts against wallets already on the device.
+/// Returns the first external receive address (index 0) for a stored wallet
+/// descriptor. Used to match discovered accounts against wallets already on
+/// the device without relying on fragile descriptor string comparisons.
 Future<String> firstAddressFromDescriptor({
   required String descriptor,
   required APINetwork network,
@@ -624,6 +625,16 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required PlatformInt64 psbtId,
     required String mfp,
   });
+
+  /// Open a reactive Electrum subscription for this wallet.
+  ///
+  /// Subscribes to block headers + all revealed SPKs of the wallet.
+  /// Emits `true` whenever a notification arrives (new block or scriptpubkey
+  /// activity). The caller should trigger a sync on each event.
+  ///
+  /// Returns immediately; the listener runs on a blocking thread.
+  /// The loop exits when the Dart sink is closed (StreamSubscription.cancel).
+  Stream<bool> startSubscription({required String electrumUrl});
 
   /// Store (or replace) the BTC price in `currency` at the time of a transaction.
   Future<void> storeFiatPrice({

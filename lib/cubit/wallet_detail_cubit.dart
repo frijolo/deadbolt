@@ -211,6 +211,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
 
   Timer? _syncTimer;
   Timer? _retryTimer;
+  StreamSubscription<bool>? _syncSubscription;
   String? _electrumUrl;
 
   bool _fiatEnabled = false;
@@ -231,12 +232,39 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   void startAutoSync(String electrumUrl) {
     _electrumUrl = electrumUrl;
     _syncTimer?.cancel();
+    _syncSubscription?.cancel();
+    _syncSubscription = null;
     // Store URL immediately so detail queries can use it before sync completes.
     if (state is WalletDetailLoaded) {
       (state as WalletDetailLoaded).walletHandle.setElectrumUrl(url: electrumUrl);
     }
     if (_syncNeededOnOpen()) sync(electrumUrl);
     _syncTimer = Timer.periodic(_autoSyncInterval, (_) => sync(electrumUrl));
+    _startReactiveSync(electrumUrl);
+  }
+
+  /// Starts the reactive Electrum subscription.
+  /// If the wallet is not loaded or the subscription fails, the 5-min timer acts as a fallback.
+  void _startReactiveSync(String electrumUrl) {
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+    if (_syncSubscription != null) return;
+
+    _syncSubscription = s.walletHandle
+        .startSubscription(electrumUrl: electrumUrl)
+        .listen(
+      (_) {
+        final current = state;
+        if (current is WalletDetailLoaded && !current.isSyncing) {
+          sync(electrumUrl);
+        }
+      },
+      onError: (_) {
+        _syncSubscription?.cancel();
+        _syncSubscription = null;
+      },
+      onDone: () => _syncSubscription = null,
+    );
   }
 
   bool _syncNeededOnOpen() {
@@ -252,6 +280,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<void> close() {
     _syncTimer?.cancel();
     _retryTimer?.cancel();
+    _syncSubscription?.cancel();
     return super.close();
   }
 
@@ -443,6 +472,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         fiatCurrency: atEmit.fiatCurrency,
       ));
       unawaited(_fetchMissingFiatPrices());
+      // Start reactive subscription if not yet active (covers the case where
+      // startAutoSync was called before the wallet finished loading).
+      if (_electrumUrl != null) _startReactiveSync(_electrumUrl!);
     } catch (e, stackTrace) {
       if (e.toString().contains('No such mempool or blockchain transaction')) {
         // Race condition: tx was just broadcast but the Electrum server hasn't
