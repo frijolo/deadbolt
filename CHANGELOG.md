@@ -4,6 +4,14 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Fixes
+- **Fee rate back-computation drift** — When switching to "edit total fee" mode, the fee rate field now shows a floored 8-decimal value that round-trips exactly through `ceil(rate × vbytes)` instead of a 2-decimal rounded value that could produce a ±1 sat mismatch.
+- **Fee field focus loss** — Clearing the fee rate field no longer causes the input to lose focus (Flutter element identity was broken when the fee summary row disappeared from the ListView).
+
+---
+
 ## [v1.7.0]
 
 ### New Features

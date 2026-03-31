@@ -266,7 +266,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     // Prefer the actual weight from the current summary — prevents upward drift.
     final summary = _txSummary;
     if (summary != null) {
-      _feeRateCtrl.text = (fee / (summary.totalWu / 4.0)).toStringAsFixed(2);
+      _feeRateCtrl.text = _rateForExactSats(fee, summary.totalWu);
       return;
     }
     // Fallback when summary is unavailable (missing coins / path / recipients).
@@ -277,7 +277,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final recipientsWu = _recipients.map((r) => r.wu ?? 0).fold(0, (s, w) => s + w);
     if (recipientsWu == 0) return;
     final wuNoChange = path.wuBase + n * path.wuIn + recipientsWu;
-    _feeRateCtrl.text = (fee / (wuNoChange / 4.0)).toStringAsFixed(2);
+    _feeRateCtrl.text = _rateForExactSats(fee, wuNoChange);
+  }
+
+  /// Returns a sat/vB rate string floored at 8 decimal places such that
+  /// ceil(rate × totalWu / 4) == feeSats exactly, avoiding the +1 sat drift
+  /// that standard rounding causes when the 3rd decimal rounds up.
+  static String _rateForExactSats(int feeSats, int totalWu) {
+    final vbytes = totalWu / 4.0;
+    final floored = (feeSats / vbytes * 1e8).floor() / 1e8;
+    return floored.toStringAsFixed(8);
   }
 
   // ─── RBF / CPFP helpers ──────────────────────────────────────────────────
@@ -1212,7 +1221,12 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       ),
     );
 
-    // Fee summary below the list
+    // Fee summary below the list.
+    // Always add exactly 2 widget slots so that the fee Row further down the
+    // ListView stays at a stable position regardless of whether a summary is
+    // available. Without this, emptying the fee-rate field makes summary go
+    // null, the slots disappear, the Row shifts index, Flutter creates a new
+    // element for it, and the TextFormField loses focus.
     if (summary != null) {
       final hasMultiple = _recipients.length > 1;
       widgets.add(const SizedBox(height: 4));
@@ -1243,6 +1257,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           ),
         ),
       );
+    } else {
+      widgets.add(const SizedBox.shrink());
+      widgets.add(const SizedBox.shrink());
     }
 
     return widgets;
@@ -1509,12 +1526,21 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         resolvedRbfInfos.isNotEmpty ? max(minFeeRate.toDouble(), maxOrigRate) : minFeeRate.toDouble();
     // Live display value for fee rate field — when editing total fee, show the
     // live back-computed rate from summary so the display and error check agree.
-    final feeRateDisplay = _feeEditMode == _FeeEditMode.total
-        ? (summary != null
-            ? summary.feeRate.toStringAsFixed(2)
-            : _feeRateCtrl.text)
-        : _feeRateCtrl.text;
-    final currentRate = double.tryParse(feeRateDisplay) ?? 0.0;
+    // When the controller holds a high-precision internal value (stored by
+    // _rateForExactSats), round to 2 dp for display so the user doesn't see
+    // "0.91810345" instead of "0.92". Parse once to avoid a double round-trip.
+    final double? parsedCtrlRate;
+    final String feeRateDisplay;
+    if (_feeEditMode == _FeeEditMode.total) {
+      feeRateDisplay = summary != null
+          ? summary.feeRate.toStringAsFixed(2)
+          : _feeRateCtrl.text;
+      parsedCtrlRate = double.tryParse(feeRateDisplay);
+    } else {
+      parsedCtrlRate = double.tryParse(_feeRateCtrl.text);
+      feeRateDisplay = parsedCtrlRate?.toStringAsFixed(2) ?? _feeRateCtrl.text;
+    }
+    final currentRate = parsedCtrlRate ?? 0.0;
 
     // RBF absolute fee minimum (Rule 4) — depends on new tx size.
     // Uses total conflict cluster fee: orig + unconfirmed descendants.
