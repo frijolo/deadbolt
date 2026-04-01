@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
@@ -9,6 +10,7 @@ import 'package:deadbolt/screens/restore_from_seed_screen.dart';
 import 'package:deadbolt/screens/simple_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/theme/app_theme.dart';
@@ -46,7 +48,17 @@ class WalletListScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: BlocBuilder<WalletListCubit, WalletListState>(
+        child: BlocConsumer<WalletListCubit, WalletListState>(
+          listenWhen: (prev, curr) {
+            if (curr is! WalletListLoaded) return false;
+            if (prev is! WalletListLoaded) return true;
+            return !identical(prev.wallets, curr.wallets);
+          },
+          listener: (context, state) {
+            if (state is! WalletListLoaded) return;
+            final settings = context.read<SettingsCubit>().state;
+            context.read<WalletSyncService>().initFromList(state.wallets, settings);
+          },
           builder: (context, state) {
             return switch (state) {
               WalletListLoading() => Center(
@@ -76,7 +88,7 @@ class WalletListScreen extends StatelessWidget {
                       itemCount: wallets.length,
                       itemBuilder: (context, index) => KeyedSubtree(
                         key: ValueKey(wallets[index].walletPath),
-                        child: _buildWalletCard(context, wallets[index]),
+                        child: _buildWalletCard(context, wallets[index], state),
                       ),
                     ),
             };
@@ -110,7 +122,8 @@ class WalletListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWalletCard(BuildContext context, APIWalletInfo wallet) {
+  Widget _buildWalletCard(
+      BuildContext context, APIWalletInfo wallet, WalletListLoaded state) {
     final l10n = context.l10n;
     final service = context.read<WalletService>();
     final isLocked = wallet.protection.needsPassword &&
@@ -118,18 +131,75 @@ class WalletListScreen extends StatelessWidget {
     final lastSynced = wallet.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(wallet.lastSyncedAt! * 1000)
         : null;
+    final balance = state.balances[wallet.walletPath];
+    final isSyncing = state.syncing.contains(wallet.walletPath);
+    final totalSats = balance != null
+        ? (balance.confirmed + balance.trustedPending + balance.untrustedPending)
+            .toInt()
+        : null;
 
     final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        title: Text(
-          wallet.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                wallet.name,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (isSyncing) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+            const SizedBox(width: 8),
+            if (totalSats != null)
+              Text(
+                l10n.balanceSats(totalSats),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+              )
+            else
+              Text(
+                l10n.walletBalanceUnknown,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(AppAlpha.secondary),
+                ),
+              ),
+          ],
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: [
+              Expanded(
+                child: Text(
+                  lastSynced != null
+                      ? l10n.lastSynced(_formatDate(lastSynced))
+                      : isLocked
+                      ? l10n.walletPasswordProtected
+                      : l10n.notYetSynced,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withAlpha(AppAlpha.secondary),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               MfpBadge(
                 label: localizedNetworkDisplayName(
                   context,
@@ -138,74 +208,11 @@ class WalletListScreen extends StatelessWidget {
                 color: AppAccent.color,
                 letterSpacing: 0.0,
               ),
-              const SizedBox(width: 8),
-              Text(
-                lastSynced != null
-                    ? l10n.lastSynced(_formatDate(lastSynced))
-                    : isLocked
-                    ? l10n.walletPasswordProtected
-                    : l10n.notYetSynced,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withAlpha(AppAlpha.secondary),
-                ),
-              ),
             ],
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (wallet.protection.needsPassword)
-              IconButton(
-                icon: Icon(
-                  isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
-                  size: 20,
-                  color: isLocked
-                      ? Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.inactive)
-                      : null,
-                ),
-                tooltip: isLocked ? null : l10n.lockWallet,
-                onPressed: isLocked
-                    ? null
-                    : () {
-                        service.evictPassword(wallet.walletPath);
-                        context.read<WalletListCubit>().refresh();
-                      },
-              ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, size: 20),
-              tooltip: l10n.moreOptionsTooltip,
-              onSelected: (value) {
-                if (value == 'delete') {
-                  _confirmDelete(context, wallet);
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.red.withAlpha(AppAlpha.deleteAction),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        l10n.delete,
-                        style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        trailing: _buildCardActions(
+            context, wallet, isLocked, isSyncing),
         onTap: () async {
           await Navigator.push(
             context,
@@ -228,6 +235,71 @@ class WalletListScreen extends StatelessWidget {
       return Opacity(opacity: 0.65, child: card);
     }
     return card;
+  }
+
+  Widget _buildCardActions(BuildContext context, APIWalletInfo wallet,
+      bool isLocked, bool isSyncing) {
+    final l10n = context.l10n;
+    final service = context.read<WalletService>();
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      tooltip: l10n.moreOptionsTooltip,
+      onSelected: (value) {
+        switch (value) {
+          case 'sync':
+            context.read<WalletListCubit>().syncWallet(wallet.walletPath);
+          case 'lock':
+            service.evictPassword(wallet.walletPath);
+            context.read<WalletSyncService>().untrack(wallet.walletPath);
+            context.read<WalletListCubit>().refresh();
+          case 'delete':
+            _confirmDelete(context, wallet);
+        }
+      },
+      itemBuilder: (context) => [
+        if (!isLocked && !isSyncing)
+          PopupMenuItem(
+            value: 'sync',
+            child: Row(
+              children: [
+                const Icon(Icons.sync, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.syncTooltip),
+              ],
+            ),
+          ),
+        if (wallet.protection.needsPassword && !isLocked)
+          PopupMenuItem(
+            value: 'lock',
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline, size: 20),
+                const SizedBox(width: 12),
+                Text(l10n.lockWallet),
+              ],
+            ),
+          ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: Colors.red.withAlpha(AppAlpha.deleteAction),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.delete,
+                style:
+                    TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   String _formatDate(DateTime dt) {

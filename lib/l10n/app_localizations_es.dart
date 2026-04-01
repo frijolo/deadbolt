@@ -756,6 +756,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get lockWallet => 'Bloquear cartera';
 
   @override
+  String get walletBalanceUnknown => '–';
+
+  @override
   String get notYetSynced => 'No sincronizado aún';
 
   @override

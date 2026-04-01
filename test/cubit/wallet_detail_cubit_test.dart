@@ -4,14 +4,19 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 
 class MockWalletService extends Mock implements WalletService {}
 
+class MockWalletSyncService extends Mock implements WalletSyncService {}
+
 void main() {
   late MockWalletService mockService;
+  late MockWalletSyncService mockSyncService;
 
   setUp(() {
     mockService = MockWalletService();
+    mockSyncService = MockWalletSyncService();
   });
 
   group('WalletDetailCubit.load()', () {
@@ -25,7 +30,8 @@ void main() {
       when(() => mockService.walletRequiresXpub(walletPath))
           .thenAnswer((_) async => false);
 
-      final cubit = WalletDetailCubit(service: mockService);
+      final cubit =
+          WalletDetailCubit(service: mockService, syncService: mockSyncService);
       await cubit.load(walletPath);
 
       expect(cubit.state, isA<WalletDetailNeedsPassword>());
@@ -43,10 +49,12 @@ void main() {
           .thenAnswer((_) async => false);
       when(() => mockService.walletRequiresXpub(walletPath))
           .thenAnswer((_) async => false);
-      when(() => mockService.openWallet(walletPath, password: any(named: 'password')))
+      when(() => mockService.openWallet(walletPath,
+              password: any(named: 'password')))
           .thenThrow(Exception('wallet not found'));
 
-      final cubit = WalletDetailCubit(service: mockService);
+      final cubit =
+          WalletDetailCubit(service: mockService, syncService: mockSyncService);
       await cubit.load(walletPath);
 
       expect(cubit.state, isA<WalletDetailError>());
@@ -66,7 +74,8 @@ void main() {
             .thenAnswer((_) async => true);
         when(() => mockService.walletRequiresXpub(walletPath))
             .thenAnswer((_) async => false);
-        return WalletDetailCubit(service: mockService);
+        return WalletDetailCubit(
+            service: mockService, syncService: mockSyncService);
       },
       act: (cubit) => cubit.load(walletPath),
       expect: () => [
@@ -86,7 +95,8 @@ void main() {
         when(() => mockService.openWallet(walletPath,
                 password: any(named: 'password')))
             .thenThrow(Exception('disk error'));
-        return WalletDetailCubit(service: mockService);
+        return WalletDetailCubit(
+            service: mockService, syncService: mockSyncService);
       },
       act: (cubit) => cubit.load(walletPath),
       expect: () => [
@@ -103,7 +113,8 @@ void main() {
         when(() => mockService.openWallet(walletPath,
                 password: any(named: 'password')))
             .thenThrow(Exception('open failed'));
-        return WalletDetailCubit(service: mockService);
+        return WalletDetailCubit(
+            service: mockService, syncService: mockSyncService);
       },
       act: (cubit) => cubit.load(walletPath),
       verify: (_) {
@@ -126,7 +137,8 @@ void main() {
         when(() => mockService.openWallet(walletPath,
                 password: any(named: 'password')))
             .thenThrow(Exception('open failed'));
-        return WalletDetailCubit(service: mockService);
+        return WalletDetailCubit(
+            service: mockService, syncService: mockSyncService);
       },
       act: (cubit) => cubit.load(walletPath, password: 'my_pass'),
       verify: (_) {
@@ -140,18 +152,21 @@ void main() {
     );
   });
 
-  group('WalletDetailCubit.startAutoSync()', () {
+  group('WalletDetailCubit.registerWithSyncService()', () {
     test('does not crash when state is Initial', () {
-      final cubit = WalletDetailCubit(service: mockService);
+      final cubit =
+          WalletDetailCubit(service: mockService, syncService: mockSyncService);
       // Should not throw even though there is no loaded state
-      expect(() => cubit.startAutoSync('tcp://localhost:50001'), returnsNormally);
+      expect(() => cubit.registerWithSyncService('tcp://localhost:50001'),
+          returnsNormally);
       cubit.close();
     });
   });
 
   group('WalletDetailCubit initial state', () {
     test('starts in WalletDetailInitial', () {
-      final cubit = WalletDetailCubit(service: mockService);
+      final cubit =
+          WalletDetailCubit(service: mockService, syncService: mockSyncService);
       expect(cubit.state, isA<WalletDetailInitial>());
       cubit.close();
     });

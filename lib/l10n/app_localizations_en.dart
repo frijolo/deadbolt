@@ -755,6 +755,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockWallet => 'Lock wallet';
 
   @override
+  String get walletBalanceUnknown => '–';
+
+  @override
   String get notYetSynced => 'Not yet synced';
 
   @override

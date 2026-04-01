@@ -9,6 +9,7 @@ import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/frb_generated.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/app_scaffold.dart';
@@ -56,12 +57,18 @@ class DeadboltApp extends StatelessWidget {
       providers: [
         RepositoryProvider<AppDatabase>.value(value: db),
         RepositoryProvider<WalletService>(create: (_) => WalletService()),
+        RepositoryProvider<WalletSyncService>(
+          create: (c) => WalletSyncService(c.read<WalletService>()),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => SettingsCubit()),
           BlocProvider(create: (_) => ProjectListCubit(db)),
-          BlocProvider(create: (c) => WalletListCubit(service: c.read<WalletService>())),
+          BlocProvider(create: (c) => WalletListCubit(
+            service: c.read<WalletService>(),
+            syncService: c.read<WalletSyncService>(),
+          )),
         ],
         child: BlocBuilder<SettingsCubit, AppSettings>(
           builder: (context, settings) => MaterialApp(

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
 // --- States ---
@@ -12,7 +15,25 @@ class WalletListLoading extends WalletListState {}
 
 class WalletListLoaded extends WalletListState {
   final List<APIWalletInfo> wallets;
-  WalletListLoaded(this.wallets);
+  final Map<String, APIBalance?> balances; // null = not yet known
+  final Set<String> syncing;               // walletPaths currently syncing
+
+  WalletListLoaded(
+    this.wallets, {
+    this.balances = const {},
+    this.syncing = const {},
+  });
+
+  WalletListLoaded copyWith({
+    List<APIWalletInfo>? wallets,
+    Map<String, APIBalance?>? balances,
+    Set<String>? syncing,
+  }) =>
+      WalletListLoaded(
+        wallets ?? this.wallets,
+        balances: balances ?? this.balances,
+        syncing: syncing ?? this.syncing,
+      );
 }
 
 class WalletListError extends WalletListState {
@@ -24,17 +45,62 @@ class WalletListError extends WalletListState {
 
 class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
   final WalletService _service;
+  final WalletSyncService? _syncService;
 
-  WalletListCubit({WalletService? service})
+  StreamSubscription<WalletSyncEvent>? _syncEventSub;
+
+  WalletListCubit({WalletService? service, WalletSyncService? syncService})
       : _service = service ?? WalletService(),
+        _syncService = syncService,
         super(WalletListLoading()) {
+    _subscribeToSyncService();
     refresh();
   }
+
+  void _subscribeToSyncService() {
+    _syncEventSub = _syncService?.events.listen((event) {
+      final s = state;
+      if (s is! WalletListLoaded) return;
+
+      if (event.isSyncing) {
+        emit(s.copyWith(syncing: {...s.syncing, event.walletPath}));
+        return;
+      }
+
+      final newSyncing = Set<String>.from(s.syncing)..remove(event.walletPath);
+      final newBalances = event.balance != null
+          ? {...s.balances, event.walletPath: event.balance}
+          : s.balances;
+      final newWallets = event.walletInfo != null
+          ? s.wallets
+              .map((w) =>
+                  w.walletPath == event.walletPath ? event.walletInfo! : w)
+              .toList()
+          : s.wallets;
+
+      emit(s.copyWith(
+        wallets: newWallets,
+        balances: newBalances,
+        syncing: newSyncing,
+      ));
+    });
+  }
+
+  /// Delegate a manual sync request to the service.
+  void syncWallet(String walletPath) => _syncService?.syncWallet(walletPath);
 
   Future<void> refresh() async {
     try {
       final wallets = await _service.listWallets();
-      emit(WalletListLoaded(wallets));
+      // Preserve cached balances for wallets still present in the list.
+      final prev = state is WalletListLoaded
+          ? (state as WalletListLoaded).balances
+          : const <String, APIBalance?>{};
+      final preserved = {
+        for (final w in wallets)
+          if (prev.containsKey(w.walletPath)) w.walletPath: prev[w.walletPath],
+      };
+      emit(WalletListLoaded(wallets, balances: preserved));
     } catch (e, stackTrace) {
       logError('WalletListCubit.refresh()', e, stackTrace);
       emit(WalletListError(e.toString()));
@@ -71,11 +137,20 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
 
   Future<void> deleteWallet(String walletPath) async {
     try {
+      // Untrack before deleting so the Rust handle is dropped before the
+      // SQLite files are removed (avoids file-in-use issues on some platforms).
+      _syncService?.untrack(walletPath);
       await _service.deleteWallet(walletPath);
       await refresh();
     } catch (e, stackTrace) {
       logError('WalletListCubit.deleteWallet()', e, stackTrace);
       rethrow;
     }
+  }
+
+  @override
+  Future<void> close() {
+    _syncEventSub?.cancel();
+    return super.close();
   }
 }

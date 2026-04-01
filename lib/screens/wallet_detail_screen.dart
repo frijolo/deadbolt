@@ -19,6 +19,7 @@ import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/change_protection_dialog.dart';
@@ -63,10 +64,12 @@ class WalletDetailScreen extends StatelessWidget {
     final l10n = context.l10n;
     return BlocProvider(
       create: (ctx) {
-        return WalletDetailCubit(service: ctx.read<WalletService>())
-          ..load(walletPath,
-              openingMessage: l10n.openingWallet,
-              loadingDataMessage: l10n.loadingWalletData);
+        return WalletDetailCubit(
+          service: ctx.read<WalletService>(),
+          syncService: ctx.read<WalletSyncService>(),
+        )..load(walletPath,
+            openingMessage: l10n.openingWallet,
+            loadingDataMessage: l10n.loadingWalletData);
       },
       child: _WalletDetailView(onNavigate: onNavigate),
     );
@@ -98,7 +101,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       settings.fiatCurrency,
       settings.fiatProvider,
     );
-    cubit.startAutoSync(electrumUrl);
+    cubit.registerWithSyncService(electrumUrl);
   }
 
   @override
@@ -211,11 +214,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       case _WalletMenuAction.receive:
         _openReceiveFlow(context, state);
       case _WalletMenuAction.sync:
-        final electrumUrl = context
-            .read<SettingsCubit>()
-            .state
-            .electrumUrlForNetwork(state.walletInfo.network);
-        context.read<WalletDetailCubit>().sync(electrumUrl);
+        context.read<WalletDetailCubit>().sync();
       case _WalletMenuAction.rescan:
         _confirmRescan(context, state);
       case _WalletMenuAction.exportLabels:
@@ -584,15 +583,13 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 
   void _openSweepWif(BuildContext context, WalletDetailLoaded state) {
     final cubit = context.read<WalletDetailCubit>();
-    final settings = context.read<SettingsCubit>().state;
-    final electrumUrl = settings.electrumUrlForNetwork(state.walletInfo.network);
     SweepWifScreen.push(
       context,
       network: state.walletInfo.network,
       currentWalletPath: state.walletInfo.walletPath,
       getNextAddress: () => cubit.getNextReceiveAddress(),
       getAddressForWallet: (path) => cubit.getNextReceiveAddressFor(path),
-      onSwept: () => cubit.sync(electrumUrl),
+      onSwept: () => cubit.sync(),
     );
   }
 

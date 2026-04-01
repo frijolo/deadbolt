@@ -1490,6 +1490,12 @@ abstract class AppLocalizations {
   /// **'Lock wallet'**
   String get lockWallet;
 
+  /// No description provided for @walletBalanceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'–'**
+  String get walletBalanceUnknown;
+
   /// No description provided for @notYetSynced.
   ///
   /// In en, this message translates to:

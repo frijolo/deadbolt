@@ -328,6 +328,7 @@
   },
   "walletPasswordProtected": "Protegida con contraseña",
   "lockWallet": "Bloquear cartera",
+  "walletBalanceUnknown": "–",
   "notYetSynced": "No sincronizado aún",
   "lastSynced": "Última sincronización: {time}",
   "@lastSynced": {

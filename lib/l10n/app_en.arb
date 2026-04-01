@@ -334,6 +334,7 @@
   },
   "walletPasswordProtected": "Password protected",
   "lockWallet": "Lock wallet",
+  "walletBalanceUnknown": "–",
   "notYetSynced": "Not yet synced",
   "lastSynced": "Last synced: {time}",
   "@lastSynced": {

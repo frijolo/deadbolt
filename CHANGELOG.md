@@ -7,6 +7,8 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Live balances on wallet list** — Each wallet card now shows its balance and a syncing spinner in real time. All unlocked wallets sync automatically in the background; no need to open a wallet to see its balance.
+- **Sync and Lock from wallet list** — The wallet card context menu now includes Sync and Lock actions.
 - **Next-block fee histogram** — The send screen now shows a collapsible histogram of the next 6 projected mempool blocks (from mempool.space). Tapping a bar sets the fee rate instantly. Refreshes every 5 s and routes through Tor when active.
 
 ### Fixes

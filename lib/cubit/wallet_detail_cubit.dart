@@ -6,6 +6,7 @@ import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
+import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/hot_key_helpers.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor, APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -205,14 +206,12 @@ class WalletDetailError extends WalletDetailState {
 
 class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   final WalletService _service;
+  final WalletSyncService _syncService;
   static const _pageSize = 25;
   static const _revealCount = 20;
-  static const _autoSyncInterval = Duration(minutes: 5);
 
-  Timer? _syncTimer;
   Timer? _retryTimer;
-  StreamSubscription<bool>? _syncSubscription;
-  String? _electrumUrl;
+  StreamSubscription<WalletSyncEvent>? _syncEventSub;
 
   bool _fiatEnabled = false;
   String _fiatCurrency = 'usd';
@@ -222,65 +221,122 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   // re-fetch after the current one completes (e.g. currency changed mid-fetch).
   bool _needsFiatRefetch = false;
 
-  WalletDetailCubit({WalletService? service})
+  WalletDetailCubit({WalletService? service, required WalletSyncService syncService})
       : _service = service ?? WalletService(),
+        _syncService = syncService,
         super(WalletDetailInitial());
 
-  /// Starts a periodic 5-minute auto-sync timer. Only syncs immediately on
-  /// open if the wallet has never synced or last sync was more than 1 hour ago.
-  /// Safe to call multiple times (restarts the timer).
-  void startAutoSync(String electrumUrl) {
-    _electrumUrl = electrumUrl;
-    _syncTimer?.cancel();
-    _syncSubscription?.cancel();
-    _syncSubscription = null;
-    // Store URL immediately so detail queries can use it before sync completes.
-    if (state is WalletDetailLoaded) {
-      (state as WalletDetailLoaded).walletHandle.setElectrumUrl(url: electrumUrl);
-    }
-    if (_syncNeededOnOpen()) sync(electrumUrl);
-    _syncTimer = Timer.periodic(_autoSyncInterval, (_) => sync(electrumUrl));
-    _startReactiveSync(electrumUrl);
-  }
-
-  /// Starts the reactive Electrum subscription.
-  /// If the wallet is not loaded or the subscription fails, the 5-min timer acts as a fallback.
-  void _startReactiveSync(String electrumUrl) {
+  /// Register the wallet handle with the global WalletSyncService and start
+  /// listening to sync events for this wallet. Replaces startAutoSync.
+  /// Called from _WalletDetailViewState._maybeStartAutoSync once the wallet loads.
+  void registerWithSyncService(String electrumUrl) {
     final s = state;
     if (s is! WalletDetailLoaded) return;
-    if (_syncSubscription != null) return;
-
-    _syncSubscription = s.walletHandle
-        .startSubscription(electrumUrl: electrumUrl)
-        .listen(
-      (_) {
-        final current = state;
-        if (current is WalletDetailLoaded && !current.isSyncing) {
-          sync(electrumUrl);
-        }
-      },
-      onError: (_) {
-        _syncSubscription?.cancel();
-        _syncSubscription = null;
-      },
-      onDone: () => _syncSubscription = null,
+    // Donate the handle to the service (replaces any handle from initFromList).
+    // The service starts the subscription and emits an initial balance event.
+    unawaited(
+      _syncService.registerHandle(
+        s.walletInfo.walletPath,
+        s.walletHandle,
+        electrumUrl,
+      ),
     );
+
+    // Listen to sync events for this specific wallet.
+    _syncEventSub?.cancel();
+    _syncEventSub = _syncService.events
+        .where((e) => e.walletPath == s.walletInfo.walletPath)
+        .listen(_onSyncEvent);
   }
 
-  bool _syncNeededOnOpen() {
+  /// Handle a sync event from WalletSyncService.
+  /// On completion: reloads transactions, addresses, UTXOs, PSBTs from the
+  /// shared handle and updates the state. On error: emits an error toast.
+  Future<void> _onSyncEvent(WalletSyncEvent event) async {
     final s = state;
-    if (s is! WalletDetailLoaded) return true;
-    final ts = s.walletInfo.lastSyncedAt;
-    if (ts == null) return true;
-    final lastSynced = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
-    return DateTime.now().difference(lastSynced) > const Duration(hours: 1);
+    if (s is! WalletDetailLoaded) return;
+
+    if (event.isSyncing) {
+      emit(s.copyWith(isSyncing: true));
+      return;
+    }
+
+    // Retry logic for broadcast race (tx not yet seen by Electrum server).
+    if (event.error != null) {
+      if (event.error!.contains('No such mempool or blockchain transaction')) {
+        emit(s.copyWith(isSyncing: false));
+        _retryTimer?.cancel();
+        _retryTimer = Timer(const Duration(seconds: 15), sync);
+        return;
+      }
+      emit(s.copyWith(isSyncing: false, errorMessage: event.error));
+      return;
+    }
+
+    // Sync completed: reload all detail data from the (now-updated) handle.
+    try {
+      final handle = s.walletHandle;
+      final (page, tipHeight) = await (
+        handle.getTransactions(page: 0, pageSize: _pageSize),
+        handle.getTipHeight(),
+      ).wait;
+
+      final receiveAddrs = s.receiveAddressesLoaded
+          ? await handle.getAddresses(keychain: APIKeychain.external_)
+          : null;
+      final changeAddrs = s.changeAddressesLoaded
+          ? await handle.getAddresses(keychain: APIKeychain.internal)
+          : null;
+      final utxos = s.utxosLoaded ? await handle.getUtxos() : null;
+
+      List<APIPsbtInfo> psbts = s.psbts;
+      Map<int, APIPsbtAnalysis> psbtAnalyses = s.psbtAnalyses;
+      if (s.psbtsLoaded) {
+        try {
+          psbts = await handle.listPsbts();
+          psbtAnalyses = await _analyzePsbts(handle, psbts);
+        } catch (e, st) {
+          logError('WalletDetailCubit._onSyncEvent() PSBTs', e, st);
+        }
+      }
+
+      // Read latest state to avoid overwriting concurrent updates
+      // (e.g. descriptor analysis loaded concurrently).
+      final atEmit =
+          state is WalletDetailLoaded ? state as WalletDetailLoaded : s;
+
+      emit(atEmit.copyWith(
+        walletHandle: handle,
+        walletInfo: event.walletInfo,
+        balance: event.balance,
+        transactions: page.transactions,
+        totalTransactions: page.totalCount,
+        hasMore: page.hasMore,
+        isSyncing: false,
+        currentPage: 0,
+        tipHeight: tipHeight,
+        receiveAddresses: receiveAddrs,
+        changeAddresses: changeAddrs,
+        receiveAddressesLoaded: receiveAddrs != null || atEmit.receiveAddressesLoaded,
+        changeAddressesLoaded: changeAddrs != null || atEmit.changeAddressesLoaded,
+        utxos: utxos,
+        utxosLoaded: utxos != null || atEmit.utxosLoaded,
+        psbts: psbts,
+        psbtAnalyses: psbtAnalyses,
+        psbtsLoaded: atEmit.psbtsLoaded,
+        errorMessage: null,
+      ));
+      unawaited(_fetchMissingFiatPrices());
+    } catch (e, st) {
+      _emitError('WalletDetailCubit._onSyncEvent()', e, st);
+    }
   }
 
   @override
   Future<void> close() {
-    _syncTimer?.cancel();
     _retryTimer?.cancel();
-    _syncSubscription?.cancel();
+    _syncEventSub?.cancel();
+    // WalletSyncService keeps the handle and subscription alive after close.
     return super.close();
   }
 
@@ -302,7 +358,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   void lockWallet() {
     final current = state;
     if (current is! WalletDetailLoaded) return;
-    _service.evictPassword(current.walletInfo.walletPath);
+    final path = current.walletInfo.walletPath;
+    _service.evictPassword(path);
+    _syncService.untrack(path);
   }
 
   Future<void> load(
@@ -399,104 +457,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  Future<void> sync(String electrumUrl) async {
-    final current = state;
-    if (current is! WalletDetailLoaded) return;
-
-    emit(current.copyWith(isSyncing: true));
-    try {
-      final handle = current.walletHandle;
-
-      await handle.sync_(electrumUrl: electrumUrl);
-
-      final (walletInfo, balance, page, tipHeight) = await (
-        handle.getInfo(),
-        handle.getBalance(),
-        handle.getTransactions(page: 0, pageSize: _pageSize),
-        handle.getTipHeight(),
-      ).wait;
-
-      // Reload addresses/UTXOs too if they were already loaded (sync may reveal new ones)
-      final receiveAddrs = current.receiveAddressesLoaded
-          ? await handle.getAddresses(keychain: APIKeychain.external_)
-          : null;
-      final changeAddrs = current.changeAddressesLoaded
-          ? await handle.getAddresses(keychain: APIKeychain.internal)
-          : null;
-      final utxos = current.utxosLoaded ? await handle.getUtxos() : null;
-
-      // Reload PSBTs so utxoMaxConfHeight is recomputed from the updated chain state.
-      List<APIPsbtInfo> psbts = current.psbts;
-      Map<int, APIPsbtAnalysis> psbtAnalyses = current.psbtAnalyses;
-      if (current.psbtsLoaded) {
-        try {
-          psbts = await handle.listPsbts();
-          psbtAnalyses = await _analyzePsbts(handle, psbts);
-        } catch (e, st) {
-          logError('WalletDetailCubit.sync() PSBTs', e, st);
-        }
-      }
-
-      // Read descriptor fields from the state at emit time, not from `current`
-      // captured at sync start — _loadDescriptorAnalysis() may have finished
-      // concurrently and we must not overwrite its result.
-      final atEmit = state is WalletDetailLoaded ? state as WalletDetailLoaded : current;
-
-      emit(WalletDetailLoaded(
-        walletHandle: handle,
-        walletInfo: walletInfo,
-        balance: balance,
-        transactions: page.transactions,
-        totalTransactions: page.totalCount,
-        hasMore: page.hasMore,
-        isSyncing: false,
-        currentPage: 0,
-        tipHeight: tipHeight,
-        selectedTab: atEmit.selectedTab,
-        selectedAddressKeychain: atEmit.selectedAddressKeychain,
-        receiveAddresses: receiveAddrs ?? atEmit.receiveAddresses,
-        changeAddresses: changeAddrs ?? atEmit.changeAddresses,
-        receiveAddressesLoaded: receiveAddrs != null || atEmit.receiveAddressesLoaded,
-        changeAddressesLoaded: changeAddrs != null || atEmit.changeAddressesLoaded,
-        utxos: utxos ?? atEmit.utxos,
-        utxosLoaded: utxos != null || atEmit.utxosLoaded,
-        descriptorAnalysis: atEmit.descriptorAnalysis,
-        keyLabels: atEmit.keyLabels,
-        pathLabels: atEmit.pathLabels,
-        descriptorLoaded: atEmit.descriptorLoaded,
-        psbts: psbts,
-        psbtAnalyses: psbtAnalyses,
-        psbtsLoaded: current.psbtsLoaded,
-        hotKeys: atEmit.hotKeys,
-        fiatPrices: atEmit.fiatPrices,
-        fiatCurrency: atEmit.fiatCurrency,
-      ));
-      unawaited(_fetchMissingFiatPrices());
-      // Start reactive subscription if not yet active (covers the case where
-      // startAutoSync was called before the wallet finished loading).
-      if (_electrumUrl != null) _startReactiveSync(_electrumUrl!);
-    } catch (e, stackTrace) {
-      if (e.toString().contains('No such mempool or blockchain transaction')) {
-        // Race condition: tx was just broadcast but the Electrum server hasn't
-        // seen it yet. Silently schedule a retry in 15 seconds.
-        if (state is WalletDetailLoaded) {
-          emit((state as WalletDetailLoaded).copyWith(isSyncing: false));
-        }
-        _retryTimer?.cancel();
-        _retryTimer = Timer(
-          const Duration(seconds: 15),
-          () => sync(electrumUrl),
-        );
-        return;
-      }
-      logError('WalletDetailCubit.sync()', e, stackTrace);
-      if (state is WalletDetailLoaded) {
-        emit((state as WalletDetailLoaded).copyWith(
-          isSyncing: false,
-          errorMessage: formatRustError(e),
-        ));
-      }
-    }
+  /// Trigger an immediate sync via the global WalletSyncService.
+  /// The actual data reload happens in [_onSyncEvent] when the service emits.
+  void sync() {
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+    _syncService.syncWallet(s.walletInfo.walletPath);
   }
 
   Future<void> setTxLabel(String txid, String label) async {
@@ -625,10 +591,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Fresh wallet — no addresses revealed yet. Reveal a first batch and
       // kick off a background sync so we can confirm they are unused on-chain.
       await revealMoreAddresses(APIKeychain.external_);
-      if (_electrumUrl != null) {
-        // Fire-and-forget: don't block the receive dialog on network I/O.
-        unawaited(sync(_electrumUrl!));
-      }
+      // Fire-and-forget: don't block the receive dialog on network I/O.
+      sync();
     }
   }
 
@@ -1165,8 +1129,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     ));
     // Sync immediately after broadcast — sync reloads UTXOs when utxosLoaded
     // is true, so coins will reflect the mempool spending status correctly.
-    final url = _electrumUrl ?? electrumUrl;
-    unawaited(sync(url));
+    unawaited(_syncService.syncWallet(current.walletInfo.walletPath));
     return txid;
   }
 
