@@ -4,11 +4,12 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.7.1]
 
 ### New Features
 - **Live balances on wallet list** — Each wallet card now shows its balance and a syncing spinner in real time. All unlocked wallets sync automatically in the background; no need to open a wallet to see its balance.
 - **Sync and Lock from wallet list** — The wallet card context menu now includes Sync and Lock actions.
+- **Reactive Electrum sync** — Wallet balance and transaction list update instantly when a new block or relevant transaction is detected, without waiting for a polling interval.
 - **Next-block fee histogram** — The send screen now shows a collapsible histogram of the next 6 projected mempool blocks (from mempool.space). Tapping a bar sets the fee rate instantly. Refreshes every 5 s and routes through Tor when active.
 
 ### Fixes
@@ -313,6 +314,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.7.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.1
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
 [v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0
 [v1.1.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.1.3
