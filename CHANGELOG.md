@@ -12,6 +12,7 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Next-block fee histogram** — The send screen now shows a collapsible histogram of the next 6 projected mempool blocks (from mempool.space). Tapping a bar sets the fee rate instantly. Refreshes every 5 s and routes through Tor when active.
 
 ### Fixes
+- **Fast navigation crash** — Navigating away from a wallet screen while it was still loading no longer produces "Cannot emit new states after calling close" errors.
 - **Fee rate back-computation drift** — When switching to "edit total fee" mode, the fee rate field now shows a floored 8-decimal value that round-trips exactly through `ceil(rate × vbytes)` instead of a 2-decimal rounded value that could produce a ±1 sat mismatch.
 - **Fee field focus loss** — Clearing the fee rate field no longer causes the input to lose focus (Flutter element identity was broken when the fee summary row disappeared from the ListView).
 - **RBF minimum fee boundary** — BIP-125 Rule 3 and Rule 4 minimums now use strict `<` comparisons instead of `≤`, matching the protocol spec exactly.

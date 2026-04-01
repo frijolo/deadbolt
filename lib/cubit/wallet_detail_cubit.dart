@@ -226,6 +226,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         _syncService = syncService,
         super(WalletDetailInitial());
 
+  @override
+  void emit(WalletDetailState state) {
+    if (!isClosed) super.emit(state);
+  }
+
   /// Register the wallet handle with the global WalletSyncService and start
   /// listening to sync events for this wallet. Replaces startAutoSync.
   /// Called from _WalletDetailViewState._maybeStartAutoSync once the wallet loads.
@@ -526,6 +531,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         pageSize: _pageSize,
       );
 
+      if (state is! WalletDetailLoaded) return;
       emit(current.copyWith(
         transactions: [...current.transactions, ...page.transactions],
         totalTransactions: page.totalCount,
@@ -1119,14 +1125,16 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(current.psbtAnalyses)
       ..remove(id);
     final page = await current.walletHandle.getTransactions(page: 0, pageSize: _pageSize);
-    emit(current.copyWith(
-      psbts: updatedPsbts,
-      psbtAnalyses: updatedAnalyses,
-      transactions: page.transactions,
-      totalTransactions: page.totalCount,
-      hasMore: page.hasMore,
-      currentPage: 0,
-    ));
+    if (state is WalletDetailLoaded) {
+      emit(current.copyWith(
+        psbts: updatedPsbts,
+        psbtAnalyses: updatedAnalyses,
+        transactions: page.transactions,
+        totalTransactions: page.totalCount,
+        hasMore: page.hasMore,
+        currentPage: 0,
+      ));
+    }
     // Sync immediately after broadcast — sync reloads UTXOs when utxosLoaded
     // is true, so coins will reflect the mempool spending status correctly.
     unawaited(_syncService.syncWallet(current.walletInfo.walletPath));
