@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -446,7 +447,7 @@ class _EmptyDevices extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onRefresh,
           icon: const Icon(Icons.refresh),
-          label: const Text('Scan again'),
+          label: Text(context.l10n.scanAgain),
         ),
         const SizedBox(height: 8),
       ],
@@ -482,7 +483,7 @@ class _DeviceList extends StatelessWidget {
         TextButton.icon(
           onPressed: onRefresh,
           icon: const Icon(Icons.refresh, size: 18),
-          label: const Text('Refresh'),
+          label: Text(context.l10n.refresh),
         ),
       ],
     );
@@ -637,13 +638,13 @@ class _ErrorPanel extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
+              label: Text(context.l10n.tryAgain),
             ),
             if (onDisconnect != null) ...[
               const SizedBox(width: 8),
               TextButton(
                 onPressed: onDisconnect,
-                child: const Text('Disconnect'),
+                child: Text(context.l10n.hwDisconnectButton),
               ),
             ],
           ],

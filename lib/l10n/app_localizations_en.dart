@@ -755,6 +755,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockWallet => 'Lock wallet';
 
   @override
+  String get backupSaved => 'Backup saved';
+
+  @override
+  String get changeProtectionMenu => 'Change protection';
+
+  @override
+  String get encryptionLabel => 'Encryption';
+
+  @override
   String get walletBalanceUnknown => '–';
 
   @override
@@ -1948,4 +1957,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get feeHistogramNext => 'Next';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get tryAgain => 'Try again';
+
+  @override
+  String get scanAgain => 'Scan again';
+
+  @override
+  String get signButton => 'Sign';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get addPrivateKeyLabel => 'Add private key';
+
+  @override
+  String get addSigningKeyLabel => 'Add signing key';
+
+  @override
+  String get editKeyTitle => 'Edit key';
+
+  @override
+  String get addKeyClipboardSubtitle => 'Clipboard, file or QR code';
+
+  @override
+  String get addKeyHwSubtitle => 'USB or Bluetooth device';
+
+  @override
+  String get addKeyManualTitle => 'Enter manually';
+
+  @override
+  String get addKeyManualSubtitle => 'Watch Only (xpub) or Hot Key (seed)';
+
+  @override
+  String get validating => 'Validating...';
+
+  @override
+  String get registeredKeys => 'Registered keys';
+
+  @override
+  String get showRegisteredKeys => 'Show registered keys';
+
+  @override
+  String get enterXpubToUnlock => 'Enter xpub to unlock';
+
+  @override
+  String get xpubUnlockHint =>
+      'Paste any xpub registered for this wallet. Keyspec format ([mfp/path]xpub) is also accepted.';
+
+  @override
+  String get required => 'Required';
+
+  @override
+  String get invalidXpubOrKeyspec => 'Invalid xpub or keyspec';
+
+  @override
+  String get signWithHwWallet => 'Sign with hardware wallet';
+
+  @override
+  String get enterWalletPassword => 'Enter wallet password';
+
+  @override
+  String get walletPasswordSubtitle =>
+      'This wallet is protected with a password.';
+
+  @override
+  String get enterBackupPassword => 'Enter backup password';
+
+  @override
+  String get backupPasswordSubtitle => 'This backup is password-protected.';
+
+  @override
+  String get wifPrivateKeyLabel => 'WIF private key';
+
+  @override
+  String get verifyButton => 'Verify';
+
+  @override
+  String get derivPathWithoutLeading => 'Without leading m/';
 }

@@ -26,7 +26,8 @@ import 'package:deadbolt/widgets/protection_section.dart';
 enum _ScriptChoice { legacy, nestedSegwit, nativeSegwit, taproot }
 
 APIPubKey _parseKeyspec(KeyspecResult result) {
-  final m = kKeyspecPattern.firstMatch(result.keyspec)!;
+  final m = kKeyspecPattern.firstMatch(result.keyspec);
+  if (m == null) throw ArgumentError('Invalid keyspec: ${result.keyspec}');
   return APIPubKey(
     mfp: m.group(1)!,
     derivationPath: m.group(2)!,
@@ -35,7 +36,7 @@ APIPubKey _parseKeyspec(KeyspecResult result) {
 }
 
 String _mfpOf(KeyspecResult result) =>
-    kKeyspecPattern.firstMatch(result.keyspec)!.group(1)!;
+    kKeyspecPattern.firstMatch(result.keyspec)?.group(1) ?? '';
 
 /// Infer script type from the BIP44 purpose field in a keyspec path.
 _ScriptChoice _inferScriptFromKeyspec(String keyspec) {
@@ -165,7 +166,8 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
 
   void _showKeyInfo(int index) {
     final result = _keyspecs[index];
-    final match = kKeyspecPattern.firstMatch(result.keyspec)!;
+    final match = kKeyspecPattern.firstMatch(result.keyspec);
+    if (match == null) return;
     final mfp = match.group(1)!;
     final derivationPath = match.group(2)!;
     final xpub = match.group(3)!;
@@ -305,6 +307,13 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               ),
               const SizedBox(height: 20),
 
+              // Network
+              NetworkDropdownField(
+                value: _selectedNetwork,
+                onChanged: (n) => setState(() => _selectedNetwork = n),
+              ),
+              const SizedBox(height: 20),
+
               // Wallet type (single / multi)
               _buildSectionLabel(context, l10n.walletTypeLabel),
               const SizedBox(height: 8),
@@ -362,13 +371,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
               // Keys section
               _buildKeysSection(context),
               const SizedBox(height: 20),
-
-              // Network
-              NetworkDropdownField(
-                value: _selectedNetwork,
-                onChanged: (n) => setState(() => _selectedNetwork = n),
-              ),
-              const SizedBox(height: 16),
 
               // Protection
               ProtectionSection(
@@ -477,7 +479,8 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
   Widget _buildKeyTile(
       BuildContext context, int index, KeyColorExtension ext) {
     final result = _keyspecs[index];
-    final match = kKeyspecPattern.firstMatch(result.keyspec)!;
+    final match = kKeyspecPattern.firstMatch(result.keyspec);
+    if (match == null) return const SizedBox.shrink();
     final mfp = match.group(1)!;
     final derivationPath = match.group(2)!;
     final xpub = match.group(3)!;

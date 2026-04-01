@@ -206,7 +206,7 @@ class _WifDisplayDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            Text('Address',
+            Text(l10n.coinAddress,
                 style: TextStyle(
                     fontSize: 11,
                     color: scheme.onSurface.withAlpha(153))),
@@ -236,7 +236,7 @@ class _WifDisplayDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            Text('WIF private key',
+            Text(l10n.wifPrivateKeyLabel,
                 style: TextStyle(
                     fontSize: 11,
                     color: scheme.onSurface.withAlpha(153))),

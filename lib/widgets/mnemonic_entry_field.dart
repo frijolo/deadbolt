@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart'
     show bip39ValidLastWords, bip39Wordlist;
 
@@ -204,7 +205,7 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Seed phrase'),
+            Text(context.l10n.seedPhraseDialogTitle),
             Text(
               '$wordCount / $_targetCount',
               style: TextStyle(

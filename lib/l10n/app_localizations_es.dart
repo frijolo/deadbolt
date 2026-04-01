@@ -756,6 +756,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get lockWallet => 'Bloquear cartera';
 
   @override
+  String get backupSaved => 'Copia de seguridad guardada';
+
+  @override
+  String get changeProtectionMenu => 'Cambiar protección';
+
+  @override
+  String get encryptionLabel => 'Cifrado';
+
+  @override
   String get walletBalanceUnknown => '–';
 
   @override
@@ -1964,4 +1973,97 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get feeHistogramNext => 'Siguiente';
+
+  @override
+  String get confirm => 'Confirmar';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get copy => 'Copiar';
+
+  @override
+  String get refresh => 'Actualizar';
+
+  @override
+  String get tryAgain => 'Intentar de nuevo';
+
+  @override
+  String get scanAgain => 'Escanear de nuevo';
+
+  @override
+  String get signButton => 'Firmar';
+
+  @override
+  String get unlock => 'Desbloquear';
+
+  @override
+  String get addPrivateKeyLabel => 'Agregar clave privada';
+
+  @override
+  String get addSigningKeyLabel => 'Agregar clave de firma';
+
+  @override
+  String get editKeyTitle => 'Editar clave';
+
+  @override
+  String get addKeyClipboardSubtitle => 'Portapapeles, archivo o código QR';
+
+  @override
+  String get addKeyHwSubtitle => 'Dispositivo USB o Bluetooth';
+
+  @override
+  String get addKeyManualTitle => 'Ingresar manualmente';
+
+  @override
+  String get addKeyManualSubtitle => 'Watch Only (xpub) o Hot Key (semilla)';
+
+  @override
+  String get validating => 'Validando...';
+
+  @override
+  String get registeredKeys => 'Claves registradas';
+
+  @override
+  String get showRegisteredKeys => 'Mostrar claves registradas';
+
+  @override
+  String get enterXpubToUnlock => 'Ingrese xpub para desbloquear';
+
+  @override
+  String get xpubUnlockHint =>
+      'Pegue cualquier xpub registrado para esta billetera. También se acepta el formato keyspec ([mfp/path]xpub).';
+
+  @override
+  String get required => 'Requerido';
+
+  @override
+  String get invalidXpubOrKeyspec => 'xpub o keyspec inválido';
+
+  @override
+  String get signWithHwWallet => 'Firmar con billetera hardware';
+
+  @override
+  String get enterWalletPassword => 'Ingresar contraseña de billetera';
+
+  @override
+  String get walletPasswordSubtitle =>
+      'Esta billetera está protegida con contraseña.';
+
+  @override
+  String get enterBackupPassword => 'Ingresar contraseña de respaldo';
+
+  @override
+  String get backupPasswordSubtitle =>
+      'Este respaldo está protegido con contraseña.';
+
+  @override
+  String get wifPrivateKeyLabel => 'Clave privada WIF';
+
+  @override
+  String get verifyButton => 'Verificar';
+
+  @override
+  String get derivPathWithoutLeading => 'Sin el prefijo m/';
 }

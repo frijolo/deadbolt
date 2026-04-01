@@ -291,7 +291,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
         widget.onMakeHot!();
       },
       icon: const Icon(Icons.local_fire_department_outlined, size: 18),
-      label: const Text('Add private key'),
+      label: Text(context.l10n.addPrivateKeyLabel),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppAccent.color,
         side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.half)),

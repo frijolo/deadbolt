@@ -1490,6 +1490,24 @@ abstract class AppLocalizations {
   /// **'Lock wallet'**
   String get lockWallet;
 
+  /// No description provided for @backupSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup saved'**
+  String get backupSaved;
+
+  /// No description provided for @changeProtectionMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Change protection'**
+  String get changeProtectionMenu;
+
+  /// No description provided for @encryptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Encryption'**
+  String get encryptionLabel;
+
   /// No description provided for @walletBalanceUnknown.
   ///
   /// In en, this message translates to:
@@ -3595,6 +3613,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next'**
   String get feeHistogramNext;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tryAgain;
+
+  /// No description provided for @scanAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan again'**
+  String get scanAgain;
+
+  /// No description provided for @signButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign'**
+  String get signButton;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @addPrivateKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add private key'**
+  String get addPrivateKeyLabel;
+
+  /// No description provided for @addSigningKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add signing key'**
+  String get addSigningKeyLabel;
+
+  /// No description provided for @editKeyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit key'**
+  String get editKeyTitle;
+
+  /// No description provided for @addKeyClipboardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard, file or QR code'**
+  String get addKeyClipboardSubtitle;
+
+  /// No description provided for @addKeyHwSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'USB or Bluetooth device'**
+  String get addKeyHwSubtitle;
+
+  /// No description provided for @addKeyManualTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter manually'**
+  String get addKeyManualTitle;
+
+  /// No description provided for @addKeyManualSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Only (xpub) or Hot Key (seed)'**
+  String get addKeyManualSubtitle;
+
+  /// No description provided for @validating.
+  ///
+  /// In en, this message translates to:
+  /// **'Validating...'**
+  String get validating;
+
+  /// No description provided for @registeredKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered keys'**
+  String get registeredKeys;
+
+  /// No description provided for @showRegisteredKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Show registered keys'**
+  String get showRegisteredKeys;
+
+  /// No description provided for @enterXpubToUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter xpub to unlock'**
+  String get enterXpubToUnlock;
+
+  /// No description provided for @xpubUnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste any xpub registered for this wallet. Keyspec format ([mfp/path]xpub) is also accepted.'**
+  String get xpubUnlockHint;
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @invalidXpubOrKeyspec.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid xpub or keyspec'**
+  String get invalidXpubOrKeyspec;
+
+  /// No description provided for @signWithHwWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign with hardware wallet'**
+  String get signWithHwWallet;
+
+  /// No description provided for @enterWalletPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter wallet password'**
+  String get enterWalletPassword;
+
+  /// No description provided for @walletPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet is protected with a password.'**
+  String get walletPasswordSubtitle;
+
+  /// No description provided for @enterBackupPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter backup password'**
+  String get enterBackupPassword;
+
+  /// No description provided for @backupPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup is password-protected.'**
+  String get backupPasswordSubtitle;
+
+  /// No description provided for @wifPrivateKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'WIF private key'**
+  String get wifPrivateKeyLabel;
+
+  /// No description provided for @verifyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get verifyButton;
+
+  /// No description provided for @derivPathWithoutLeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Without leading m/'**
+  String get derivPathWithoutLeading;
 }
 
 class _AppLocalizationsDelegate

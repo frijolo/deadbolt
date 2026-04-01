@@ -44,26 +44,53 @@ async def dismiss_startup_dialogs(d):
     # Buttons: "Don't show for 7 days" | "Close"
     if "Beta Software" in sem or "disclaimerTitle" in sem:
         print("    [startup] Beta disclaimer visible — closing")
-        # Click "Close" button (always dismisses without changing prefs)
-        await click_label(d, "Close", delay=0.8)
-        # Alternatively try "Don't show for 7 days" to suppress it longer
+        # Prefer "Don't show for 7 days" so the dialog stays suppressed for the
+        # rest of the test run (avoids re-appearing between sub-tests).
+        await click_label(d, "Don't show for 7 days", delay=0.8)
         sem2 = await d.semantics_tree()
         if "Beta Software" in sem2:
-            # Fallback: click anywhere outside the dialog
-            d.flutter_click(*d.window_center())
-            await asyncio.sleep(0.5)
+            # Fallback: try the plain Close button
+            await click_label(d, "Close", delay=0.8)
+            sem2 = await d.semantics_tree()
+        if "Beta Software" in sem2:
+            raise AssertionError("[startup] Beta disclaimer could not be dismissed")
 
     print("    [startup] ready")
 
 
+_DRAWER_LABELS = ["Wallet", "Designer", "Settings", "About"]
+
+
 async def navigate_drawer(d, tab_index: int, expected_title: str):
-    """Open the hamburger drawer and tap the item at `tab_index`."""
+    """Open the hamburger drawer and tap the item at `tab_index`.
+
+    Tries to click by semantic label first (robust against layout shifts).
+    Falls back to fixed coordinates if the label is not found within the
+    drawer open animation window.
+    """
     await d.click_semantic("", tooltip="Open navigation menu")
+    # Wait for the drawer open animation to complete.
     await asyncio.sleep(1.5)
-    fx = _DRAWER_FX
-    fy = _DRAWER_FY0 + tab_index * _DRAWER_FH
-    print(f"    [drawer] item {tab_index} at flutter ({fx},{fy})")
-    d.flutter_click(fx, fy)
+
+    label = _DRAWER_LABELS[tab_index] if tab_index < len(_DRAWER_LABELS) else None
+    if label:
+        rect = await d.find_semantic_rect(label)
+        if rect:
+            cx = (rect[0] + rect[2]) // 2
+            cy = (rect[1] + rect[3]) // 2
+            print(f"    [drawer] item {tab_index} '{label}' flutter ({cx},{cy})")
+            d.flutter_click(cx, cy)
+        else:
+            fx = _DRAWER_FX
+            fy = _DRAWER_FY0 + tab_index * _DRAWER_FH
+            print(f"    [drawer] item {tab_index} (fallback coords) flutter ({fx},{fy})")
+            d.flutter_click(fx, fy)
+    else:
+        fx = _DRAWER_FX
+        fy = _DRAWER_FY0 + tab_index * _DRAWER_FH
+        print(f"    [drawer] item {tab_index} at flutter ({fx},{fy})")
+        d.flutter_click(fx, fy)
+
     await asyncio.sleep(0.8)
     await wait_for(d, f'"{expected_title}"', f"AppBar shows '{expected_title}'")
 
@@ -371,7 +398,7 @@ async def create_wallet_from_project(
         await fill_field(d, "Confirm password", password)
 
     # Create Wallet — BDK init takes 2–5 s (fast with Rust release)
-    await click_label(d, "Create Wallet", delay=0.5)
+    await click_label(d, "Create wallet", delay=0.5)
 
     # Handle immediate password prompt (can appear right after creation)
     await asyncio.sleep(3.0)

@@ -379,10 +379,14 @@ class UIDriver:
             print(f"[calib] No .calib file — using defaults CSD_X={self.csd_x}, CSD_Y={self.csd_y}")
             print("[calib]   Run 'python3 scripts/calibrate.py' to generate it.")
 
-        # Auto-calibrate on every launch to adapt to the current window position.
-        # The calibration click lands at the window center; any resulting UI
-        # interaction (e.g. dismissing a dialog) is handled by the test setup.
-        await self.calibrate()
+        # Auto-calibrate only when no .calib file is present.
+        # The .calib file stores the GTK CSD decoration offset (title bar height,
+        # border width) which is stable per desktop theme.  Auto-calibrating while
+        # the beta disclaimer dialog is open produces wrong values because the
+        # pointer event's localPosition is relative to the dialog widget, not the
+        # window root.  Trust .calib when it exists; run calibrate.py to regenerate.
+        if not _CALIB_FILE.exists():
+            await self.calibrate()
 
     async def calibrate(self):
         """Auto-calibrate CSD_X/CSD_Y by clicking at the window center and
@@ -804,6 +808,13 @@ class UIDriver:
         """
         Click the center of a semantic node identified by label or tooltip.
         Coordinates are Flutter logical pixels → converted to xdotool via CSD offset.
+
+        If the target rect's bottom edge is beyond (window_height - _SCROLL_MARGIN),
+        scroll the page down first so the target is fully visible before clicking.
+        Flutter semantics positions for ListView children are in document space; they
+        don't reflect the current scroll offset, so items near the bottom of long forms
+        can appear at a valid y coordinate while still being off-screen.
+
         Falls back to a warning if the node is not found.
         """
         rect = None
@@ -816,6 +827,27 @@ class UIDriver:
             return
         cx = (rect[0] + rect[2]) // 2
         cy = (rect[1] + rect[3]) // 2
+
+        # Scroll into view if the bottom of the target is in the lower margin.
+        g = self.window_geometry()
+        if g:
+            margin = 120  # px — scroll if target bottom is within this from window edge
+            if rect[3] > g["h"] - margin:
+                clicks = max(3, (rect[3] - (g["h"] - margin)) // 20 + 3)
+                print(f"[click_semantic] scrolling down {clicks}× to expose '{label or tooltip}'")
+                self.scroll_down(clicks, fx=cx, fy=g["h"] // 2)
+                time.sleep(0.4)
+                # Re-read rect after scroll — position in viewport may have changed.
+                rect2 = None
+                if label:
+                    rect2 = await self.find_semantic_rect(label)
+                if rect2 is None and tooltip:
+                    rect2 = await self.find_semantic_rect_by_tooltip(tooltip)
+                if rect2 is not None:
+                    rect = rect2
+                    cx = (rect[0] + rect[2]) // 2
+                    cy = (rect[1] + rect[3]) // 2
+
         print(f"[click_semantic] '{label or tooltip}' flutter ({cx}, {cy}) → xdotool ({cx+self.csd_x}, {cy+self.csd_y})")
         self.flutter_click(cx, cy)
 
@@ -867,6 +899,31 @@ class UIDriver:
         abs_x = g["x"] + x
         abs_y = g["y"] + y
         self._do_click(abs_x, abs_y, button=button, delay_s=delay_s)
+
+    def scroll_down(self, clicks: int = 3, fx: int | None = None, fy: int | None = None):
+        """Scroll down `clicks` wheel-clicks at Flutter coordinates (fx, fy).
+
+        Uses xdotool button 5 (scroll wheel down).  If fx/fy are not given,
+        scrolls at the window center.
+        """
+        g = self.window_geometry()
+        if g is None:
+            return
+        if fx is None:
+            fx = g["w"] // 2
+        if fy is None:
+            fy = g["h"] // 2
+        abs_x = g["x"] + self.csd_x + fx
+        abs_y = g["y"] + self.csd_y + fy
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.04)
+        for _ in range(clicks):
+            subprocess.run(["xdotool", "click", "5"], env=env, stderr=subprocess.DEVNULL)
+            time.sleep(0.05)
 
     def mouse_move(self, abs_x: int, abs_y: int):
         """Move the cursor to screen-absolute coordinates via xdotool (XTEST)."""

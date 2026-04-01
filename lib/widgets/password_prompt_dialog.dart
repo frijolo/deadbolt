@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart'
@@ -127,8 +128,8 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
   void _showHints(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Registered keys'),
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.registeredKeys),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,8 +146,8 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK')),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.l10n.ok)),
         ],
       ),
     );
@@ -181,10 +182,10 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          const Expanded(child: Text('Enter xpub to unlock')),
+          Expanded(child: Text(context.l10n.enterXpubToUnlock)),
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'Show registered keys',
+            tooltip: context.l10n.showRegisteredKeys,
             onPressed: _slotsLoaded && _slots.isNotEmpty
                 ? () => _showHints(context)
                 : null,
@@ -198,7 +199,7 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Paste any xpub registered for this wallet. Keyspec format ([mfp/path]xpub) is also accepted.',
+              context.l10n.xpubUnlockHint,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -213,8 +214,8 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
                 alignLabelWithHint: true,
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (_extractXpub(v) == null) return 'Invalid xpub or keyspec';
+                if (v == null || v.trim().isEmpty) return context.l10n.required;
+                if (_extractXpub(v) == null) return context.l10n.invalidXpubOrKeyspec;
                 return null;
               },
             ),
@@ -231,7 +232,7 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
                   child: TextButton.icon(
                     onPressed: _hwBusy ? null : _onImport,
                     icon: const Icon(Icons.file_open_outlined),
-                    label: const Text('Import'),
+                    label: Text(context.l10n.importAction),
                   ),
                 ),
                 if (_hwAvailable) ...[
@@ -246,7 +247,7 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.usb_outlined),
-                      label: const Text('Hardware wallet'),
+                      label: Text(context.l10n.hwWalletTitle),
                     ),
                   ),
                 ],
@@ -257,14 +258,14 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
                 Expanded(
                   child: TextButton(
                     onPressed: _hwBusy ? null : () => Navigator.of(context).pop(null),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.cancel),
                   ),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: FilledButton(
                     onPressed: _hwBusy ? null : _submit,
-                    child: const Text('Unlock'),
+                    child: Text(context.l10n.unlock),
                   ),
                 ),
               ],
@@ -365,7 +366,7 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
                 controller: _confirmCtrl,
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
-                  labelText: 'Confirm password',
+                  labelText: context.l10n.confirmPasswordLabel,
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(_obscureConfirm
@@ -377,7 +378,7 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
                 ),
                 onFieldSubmitted: (_) => _submit(),
                 validator: (v) {
-                  if (v != _passwordCtrl.text) return 'Passwords do not match';
+                  if (v != _passwordCtrl.text) return context.l10n.validatorPasswordsNoMatch;
                   return null;
                 },
               ),
@@ -388,11 +389,11 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(null),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: _submit,
-          child: const Text('Confirm'),
+          child: Text(context.l10n.confirm),
         ),
       ],
     );

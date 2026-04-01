@@ -4,6 +4,17 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Fixes
+- **Key removal crash** — Removing a key that is no longer in the edited list no longer throws; uses `firstOrNull` guard.
+- **Null-safe keyspec parsing** — Invalid keyspec strings in the simple-wallet dialog no longer crash; handled gracefully.
+
+### Improvements
+- Network selector appears above the descriptor/key fields in wallet creation dialogs for a more logical flow.
+
+---
+
 ## [v1.7.1]
 
 ### New Features

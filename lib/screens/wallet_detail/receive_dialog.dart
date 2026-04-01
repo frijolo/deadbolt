@@ -186,7 +186,7 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
             width: double.infinity,
             child: OutlinedButton.icon(
               icon: const Icon(Icons.memory, size: 16),
-              label: const Text('Verify'),
+              label: Text(l10n.verifyButton),
               onPressed: () => _verifyOnDevice(context),
             ),
           ),

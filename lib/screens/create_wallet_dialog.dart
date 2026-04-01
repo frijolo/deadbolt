@@ -139,6 +139,14 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               ),
               const SizedBox(height: 16),
 
+              // Network — always shown so the user can pick the exact
+              // testnet variant (testnet / testnet4 / signet / regtest)
+              NetworkDropdownField(
+                value: _selectedNetwork,
+                onChanged: (n) => setState(() => _selectedNetwork = n),
+              ),
+              const SizedBox(height: 16),
+
               // Descriptor: editable (manual) or read-only card (from project)
               if (widget.preselectedProject == null) ...[
                 Row(
@@ -181,13 +189,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                 _buildDescriptorCard(context),
                 const SizedBox(height: 16),
               ],
-
-              // Network — always shown so the user can pick the exact
-              // testnet variant (testnet / testnet4 / signet / regtest)
-              NetworkDropdownField(
-                value: _selectedNetwork,
-                onChanged: (n) => setState(() => _selectedNetwork = n),
-              ),
 
               const SizedBox(height: 16),
               ProtectionSection(

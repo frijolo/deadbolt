@@ -601,7 +601,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                       ? null // already signed; no need
                       : () => _signWithHw(context),
                   icon: const Icon(Icons.hardware_outlined, size: 18),
-                  label: const Text('Sign with hardware wallet'),
+                  label: Text(l10n.signWithHwWallet),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -775,7 +775,7 @@ class _SignerRow extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: onSign,
               icon: const Icon(Icons.key_outlined, size: 16),
-              label: const Text('Sign'),
+              label: Text(l10n.signButton),
             )
           else
             Text(

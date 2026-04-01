@@ -465,7 +465,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
     if (isInUse) return;
 
     // Find the key to get its database ID
-    final keyToRemove = s.editedKeys!.firstWhere((k) => k.mfp == mfp);
+    final keyToRemove = s.editedKeys!.where((k) => k.mfp == mfp).firstOrNull;
+    if (keyToRemove == null) return;
 
     // Remove from database if it has a database ID
     if (keyToRemove.originalDbId != null) {

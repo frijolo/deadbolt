@@ -433,8 +433,8 @@ class WalletListScreen extends StatelessWidget {
     } else {
       importCredential = await showPasswordPrompt(
         context,
-        title: 'Enter backup password',
-        subtitle: 'This backup is password-protected.',
+        title: context.l10n.enterBackupPassword,
+        subtitle: context.l10n.backupPasswordSubtitle,
       );
     }
     if (importCredential == null) return;

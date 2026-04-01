@@ -27,82 +27,13 @@ import 'package:deadbolt/src/rust/api/tor.dart' show isTorRunning, torSocksAddr;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
+import 'package:deadbolt/screens/create_tx/create_tx_models.dart';
+import 'package:deadbolt/screens/create_tx/confirm_sheet.dart';
 
 // Outputs below this threshold are not created (absorbed into fee).
 const _dustLimit = 546;
 
 final _bitcoinUriPrefixRe = RegExp(r'^bitcoin:', caseSensitive: false);
-
-enum _FeeEditMode { none, rate, total }
-
-/// Internal transaction estimate used to drive live fee/change display.
-class _TxSummary {
-  final int feeSats;
-  final int changeSats;
-  final int sendSats;
-  final double feeRate;
-  final int totalWu;
-  final bool hasChange;
-  final bool insufficientFunds;
-
-  const _TxSummary({
-    required this.feeSats,
-    required this.changeSats,
-    required this.sendSats,
-    required this.feeRate,
-    required this.totalWu,
-    required this.hasChange,
-    this.insufficientFunds = false,
-  });
-}
-
-/// Formats a sats integer input with thousands separators (e.g. 1,234,567).
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(',', '');
-    if (digits.isEmpty) return newValue.copyWith(text: '');
-    final n = int.tryParse(digits);
-    if (n == null) return oldValue;
-    final formatted = _fmt(n);
-    return newValue.copyWith(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-
-  static String _fmt(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
-}
-
-/// Holds the per-recipient state for the multi-output send form.
-class _RecipientEntry {
-  _RecipientEntry();
-
-  final addressCtrl = TextEditingController();
-  final amountCtrl = TextEditingController();
-  int? wu; // output weight units from addressOutputWu()
-
-  /// Parses the amount field stripping thousands separators.
-  int get rawAmount => int.tryParse(amountCtrl.text.replaceAll(',', '').trim()) ?? 0;
-  bool editMode = true;
-  bool resolvingWu = false;
-  Timer? debounce;
-
-  void dispose() {
-    debounce?.cancel();
-    addressCtrl.dispose();
-    amountCtrl.dispose();
-  }
-}
 
 /// Screen for building an unsigned PSBT. Coin selection happens inside this
 /// screen via [CoinSelectorScreen].
@@ -167,13 +98,13 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   bool _creating = false;
 
   // Multi-recipient state.
-  final List<_RecipientEntry> _recipients = [_RecipientEntry()];
+  final List<RecipientEntry> _recipients = [RecipientEntry()];
   /// Index of the recipient that gets the wallet remainder (send-max semantics).
   /// null = every recipient has an explicit amount.
   int? _maxRecipientIndex;
 
   APISpendPath? _selectedPath;
-  _FeeEditMode _feeEditMode = _FeeEditMode.none;
+  FeeEditMode _feeEditMode = FeeEditMode.none;
 
   // Selected UTXOs (chosen via CoinSelectorScreen)
   List<APIUtxo> _selectedUtxos = [];
@@ -280,7 +211,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   void _confirmFeeRate() {
     final summary = _txSummary;
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
-    setState(() => _feeEditMode = _FeeEditMode.none);
+    setState(() => _feeEditMode = FeeEditMode.none);
   }
 
   /// Back-compute fee rate from user-entered total fee.
@@ -395,7 +326,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   void _addRecipient() {
     setState(() {
-      _recipients.add(_RecipientEntry());
+      _recipients.add(RecipientEntry());
     });
   }
 
@@ -404,7 +335,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       _recipients[index].dispose();
       if (_recipients.length == 1) {
         // Last entry: reset instead of remove.
-        _recipients[0] = _RecipientEntry();
+        _recipients[0] = RecipientEntry();
         _maxRecipientIndex = null;
       } else {
         _recipients.removeAt(index);
@@ -428,7 +359,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Transaction estimate ────────────────────────────────────────────────
 
-  _TxSummary? get _txSummary {
+  TxSummary? get _txSummary {
     final path = _selectedPath;
     if (path == null || _selectedUtxos.isEmpty) return null;
     // All entries must have WU resolved.
@@ -444,7 +375,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
     // Determine fee rate — branch by active edit mode.
     double? rate;
-    if (_feeEditMode == _FeeEditMode.total) {
+    if (_feeEditMode == FeeEditMode.total) {
       final fee = int.tryParse(_totalFeeCtrl.text);
       if (fee == null || fee <= 0) return null;
       if (!hasDrain) {
@@ -471,7 +402,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           .where((e) => e.key != _maxRecipientIndex)
           .fold(0, (s, e) => s + e.value.rawAmount);
       final drainAmount = totalIn - nonDrainAmount - fee;
-      return _TxSummary(
+      return TxSummary(
         feeSats: fee,
         changeSats: 0,
         sendSats: drainAmount > 0 ? drainAmount : 0,
@@ -490,7 +421,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final change = totalIn - totalAmount - feeWithChange;
 
     if (change >= _dustLimit) {
-      return _TxSummary(
+      return TxSummary(
         feeSats: feeWithChange,
         changeSats: change,
         sendSats: totalAmount,
@@ -502,7 +433,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       final feeNoChange = (rate * wuNoChange / 4.0).ceil();
       final leftover = totalIn - totalAmount - feeNoChange;
       if (leftover < 0) {
-        return _TxSummary(
+        return TxSummary(
           feeSats: feeNoChange,
           changeSats: 0,
           sendSats: totalAmount,
@@ -513,7 +444,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         );
       }
       // Leftover dust goes to miner.
-      return _TxSummary(
+      return TxSummary(
         feeSats: feeNoChange + leftover,
         changeSats: 0,
         sendSats: totalAmount,
@@ -1037,7 +968,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   // ─── Recipients ──────────────────────────────────────────────────────────
 
   List<Widget> _buildRecipientList(
-      BuildContext context, ThemeData theme, _TxSummary? summary) {
+      BuildContext context, ThemeData theme, TxSummary? summary) {
     final l10n = context.l10n;
     final colorScheme = theme.colorScheme;
     final dimColor = colorScheme.onSurface.withAlpha(AppAlpha.secondary);
@@ -1191,7 +1122,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
-                              _ThousandsSeparatorFormatter(),
+                              ThousandsSeparatorFormatter(),
                             ],
                             onChanged: _onAmountChanged,
                             validator: (v) {
@@ -1299,7 +1230,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     setState(() {
       _selectedPresetIndex = index;
       _feeRateCtrl.text = rates[index].toStringAsFixed(1);
-      _feeEditMode = _FeeEditMode.none;
+      _feeEditMode = FeeEditMode.none;
     });
     final summary = _txSummary;
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
@@ -1312,7 +1243,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     required String labelText,
     required String suffixText,
     required TextEditingController controller,
-    required _FeeEditMode thisMode,
+    required FeeEditMode thisMode,
     required String displayValue,
     required bool isDecimal,
     required VoidCallback onEditTap,
@@ -1367,15 +1298,15 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         return null;
       }
     }
-    if (_feeEditMode != _FeeEditMode.none) {
-      if (_feeEditMode == _FeeEditMode.total) _syncRateFromTotal();
-      setState(() => _feeEditMode = _FeeEditMode.none);
+    if (_feeEditMode != FeeEditMode.none) {
+      if (_feeEditMode == FeeEditMode.total) _syncRateFromTotal();
+      setState(() => _feeEditMode = FeeEditMode.none);
       return null;
     }
     final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
     final rate = double.tryParse(_feeRateCtrl.text.trim());
     if (rate == null || rate < minFeeRate) {
-      setState(() => _feeEditMode = _FeeEditMode.rate);
+      setState(() => _feeEditMode = FeeEditMode.rate);
       return null;
     }
     // Two independent RBF checks (Bitcoin Core ReplacementChecks):
@@ -1388,7 +1319,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       );
       if (rate <= maxOrigRate) {
         showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
-        setState(() => _feeEditMode = _FeeEditMode.rate);
+        setState(() => _feeEditMode = FeeEditMode.rate);
         return null;
       }
       // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed conflict cluster fee + new_vsize.
@@ -1398,7 +1329,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         final totalConflict = _totalConflictFee(resolvedRbfInfos);
         if (summary.feeSats <= totalConflict + newVsize) {
           showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
-          setState(() => _feeEditMode = _FeeEditMode.total);
+          setState(() => _feeEditMode = FeeEditMode.total);
           return null;
         }
       }
@@ -1490,7 +1421,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }).toList();
 
     await showSheet<void>(context, (sheetCtx) {
-      return _DirectSendConfirmSheet(
+      return DirectSendConfirmSheet(
         recipients: displayRecipients,
         feeSat: summary?.feeSats,
         changeSat: (summary != null && summary.hasChange) ? summary.changeSats : null,
@@ -1558,7 +1489,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     // "0.91810345" instead of "0.92". Parse once to avoid a double round-trip.
     final double? parsedCtrlRate;
     final String feeRateDisplay;
-    if (_feeEditMode == _FeeEditMode.total) {
+    if (_feeEditMode == FeeEditMode.total) {
       feeRateDisplay = summary != null
           ? summary.feeRate.toStringAsFixed(2)
           : _feeRateCtrl.text;
@@ -1588,7 +1519,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
             : null;
     // Total fee display: live from summary in all modes except when the user
     // is actively editing the total fee field.
-    final totalFeeDisplay = _feeEditMode == _FeeEditMode.total
+    final totalFeeDisplay = _feeEditMode == FeeEditMode.total
         ? (_totalFeeCtrl.text.isEmpty ? '—' : _totalFeeCtrl.text)
         : (summary?.feeSats.toString() ?? '—');
 
@@ -1676,7 +1607,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                 onFeeSelected: (rate) {
                   setState(() {
                     _feeRateCtrl.text = BitcoinFormatter.formatFeeRate(rate);
-                    _feeEditMode = _FeeEditMode.none;
+                    _feeEditMode = FeeEditMode.none;
                     _selectedPresetIndex = null;
                   });
                   _confirmFeeRate();
@@ -1697,7 +1628,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       labelText: l10n.createTxFeeRate,
                       suffixText: 'sat/vB',
                       controller: _feeRateCtrl,
-                      thisMode: _FeeEditMode.rate,
+                      thisMode: FeeEditMode.rate,
                       displayValue: feeRateDisplay,
                       isDecimal: true,
                       errorText: rateErrorText,
@@ -1706,7 +1637,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                         _feeRateCtrl.text = rate < effectiveMinRate
                             ? effectiveMinRate.toStringAsFixed(2)
                             : feeRateDisplay;
-                        setState(() => _feeEditMode = _FeeEditMode.rate);
+                        setState(() => _feeEditMode = FeeEditMode.rate);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) _rateFocusNode.requestFocus();
                         });
@@ -1721,7 +1652,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       labelText: l10n.createTxTotalFee,
                       suffixText: 'sats',
                       controller: _totalFeeCtrl,
-                      thisMode: _FeeEditMode.total,
+                      thisMode: FeeEditMode.total,
                       displayValue: totalFeeDisplay,
                       isDecimal: false,
                       errorText: feeErrorText,
@@ -1730,14 +1661,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                         _totalFeeCtrl.text = rbfMinFeeSats > 0 && feeSats < rbfMinFeeSats
                             ? rbfMinFeeSats.toString()
                             : (feeSats > 0 ? feeSats.toString() : '');
-                        setState(() => _feeEditMode = _FeeEditMode.total);
+                        setState(() => _feeEditMode = FeeEditMode.total);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) _totalFocusNode.requestFocus();
                         });
                       },
                       onDone: () {
                         _syncRateFromTotal();
-                        setState(() => _feeEditMode = _FeeEditMode.none);
+                        setState(() => _feeEditMode = FeeEditMode.none);
                       },
                     ),
                   ),
@@ -1839,138 +1770,4 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   }
 }
 
-class _DirectSendConfirmSheet extends StatelessWidget {
-  const _DirectSendConfirmSheet({
-    required this.recipients,
-    this.feeSat,
-    this.changeSat,
-    required this.feeRateSatPerVb,
-    required this.onConfirm,
-  });
 
-  final List<({String address, int amountSat})> recipients;
-  final int? feeSat;
-  final int? changeSat;
-  final double feeRateSatPerVb;
-  final VoidCallback onConfirm;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final feeText = feeSat != null
-        ? '${BitcoinFormatter.formatNum(feeSat!)} sats'
-            ' (${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB)'
-        : '${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB';
-    final totalAmount = recipients.fold(0, (s, r) => s + r.amountSat);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 32,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: colorScheme.onSurface.withAlpha(60),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          Text(l10n.directSendConfirmTitle,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          // One row per recipient (always, for visual consistency).
-          for (int i = 0; i < recipients.length; i++) ...[
-            _ConfirmRow(
-              label: '${l10n.psbtRecipient} ${i + 1}',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ColoredGroupText(text: recipients[i].address),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${BitcoinFormatter.formatNum(recipients[i].amountSat)} sats',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          // Total amount row when >1 recipient.
-          if (recipients.length > 1) ...[
-            _ConfirmRow(
-              label: l10n.createTxTotalOut,
-              child: Text(
-                '${BitcoinFormatter.formatNum(totalAmount)} sats',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          _ConfirmRow(
-            label: l10n.psbtFee,
-            child: Text(feeText, style: theme.textTheme.bodySmall),
-          ),
-          if (changeSat != null) ...[
-            const SizedBox(height: 8),
-            _ConfirmRow(
-              label: l10n.createTxEstChange,
-              child: Text(
-                '${BitcoinFormatter.formatNum(changeSat!)} sats',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.cancel),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: onConfirm,
-                icon: const Icon(Icons.send_outlined),
-                label: Text(l10n.directSendConfirmAction),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConfirmRow extends StatelessWidget {
-  const _ConfirmRow({required this.label, required this.child});
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 64,
-          child: Text(label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withAlpha(150))),
-        ),
-        Expanded(child: child),
-      ],
-    );
-  }
-}

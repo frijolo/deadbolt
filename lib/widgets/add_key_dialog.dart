@@ -63,7 +63,7 @@ Future<String?> _showDerivationPathPicker(
   return showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Derivation path'),
+      title: Text(context.l10n.keyDerivPathLabel),
       content: TextField(
         controller: controller,
         autofocus: true,
@@ -73,14 +73,14 @@ Future<String?> _showDerivationPathPicker(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () {
             final path = controller.text.trim();
             if (path.isNotEmpty) Navigator.pop(ctx, path);
           },
-          child: const Text('Confirm'),
+          child: Text(context.l10n.confirm),
         ),
       ],
     ),
@@ -786,9 +786,9 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                     Text(
                       widget.walletMode
                           ? (widget.expectedMfp != null
-                              ? 'Add private key'
-                              : 'Add signing key')
-                          : 'Edit key',
+                              ? l10n.addPrivateKeyLabel
+                              : l10n.addSigningKeyLabel)
+                          : l10n.editKeyTitle,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     if (widget.walletMode && widget.expectedMfp != null)
@@ -882,7 +882,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                 onPressed: _submit,
                 child: Text(
                   widget.walletMode || _isEditMode
-                      ? 'Add private key'
+                      ? l10n.addPrivateKeyLabel
                       : l10n.add,
                 ),
               ),
@@ -904,21 +904,21 @@ class _AddKeySheetState extends State<_AddKeySheet> {
         _MethodTile(
           icon: Icons.download_outlined,
           title: l10n.importAction,
-          subtitle: 'Clipboard, file or QR code',
+          subtitle: l10n.addKeyClipboardSubtitle,
           onTap: _onImportTapped,
         ),
         const SizedBox(height: 8),
         _MethodTile(
           icon: Icons.hardware,
-          title: 'Hardware wallet',
-          subtitle: 'USB or Bluetooth device',
+          title: l10n.hwWalletTitle,
+          subtitle: l10n.addKeyHwSubtitle,
           onTap: _onHardwareTapped,
         ),
         const SizedBox(height: 8),
         _MethodTile(
           icon: Icons.edit_outlined,
-          title: 'Enter manually',
-          subtitle: 'Watch Only (xpub) or Hot Key (seed)',
+          title: l10n.addKeyManualTitle,
+          subtitle: l10n.addKeyManualSubtitle,
           onTap: () => setState(() => _showMethodPicker = false),
           trailingIcon: Icons.chevron_right,
         ),
@@ -988,7 +988,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             obscureText: !_showPassphrase,
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
-              labelText: 'BIP39 passphrase (optional)',
+              labelText: context.l10n.bip39PassphraseLabel,
               suffixIcon: IconButton(
                 icon: Icon(
                     _showPassphrase ? Icons.visibility_off : Icons.visibility),
@@ -1091,7 +1091,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             obscureText: !_showPassphrase,
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
-              labelText: 'BIP39 passphrase (optional)',
+              labelText: context.l10n.bip39PassphraseLabel,
               suffixIcon: IconButton(
                 icon: Icon(
                     _showPassphrase ? Icons.visibility_off : Icons.visibility),
@@ -1102,13 +1102,13 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           ),
           if (_walletValidating) ...[
             const SizedBox(height: 8),
-            const Row(children: [
-              SizedBox(
+            Row(children: [
+              const SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2)),
-              SizedBox(width: 8),
-              Text('Validating...', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: 8),
+              Text(context.l10n.validating, style: const TextStyle(fontSize: 12)),
             ]),
           ] else if (_walletMfp != null) ...[
             const SizedBox(height: 8),
@@ -1193,11 +1193,11 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     return [
       TextField(
         controller: _derivPathController,
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          labelText: 'Derivation path',
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: context.l10n.keyDerivPathLabel,
           hintText: "84'/0'/0'",
-          helperText: 'Without leading m/',
+          helperText: context.l10n.derivPathWithoutLeading,
         ),
         style: const TextStyle(fontFamily: 'monospace'),
       ),
@@ -1281,7 +1281,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               const SizedBox(height: 6),
               TextButton.icon(
                 icon: const Icon(Icons.copy, size: 16),
-                label: const Text('Copy'),
+                label: Text(context.l10n.copy),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                 ),

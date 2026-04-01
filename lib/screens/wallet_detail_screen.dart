@@ -15,9 +15,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 export 'package:deadbolt/cubit/wallet_detail_cubit.dart' show APIUtxo;
 import 'package:deadbolt/theme/app_theme.dart';
-import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
-import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
@@ -27,14 +25,8 @@ import 'package:deadbolt/screens/export_backup_dialog.dart'
     show showExportBackupDialog;
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/widgets/mfp_badge.dart';
-import 'package:deadbolt/widgets/descriptor_tab.dart';
-import 'package:deadbolt/widgets/path_card.dart'
-    show PathTimelockBadge, PathKeyPathBadge;
 import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
 import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
-import 'package:deadbolt/widgets/key_card.dart';
-import 'package:deadbolt/widgets/wallet_path_detail_sheet.dart'
-    show showWalletPathSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart'
     show showTextExportSheet;
 import 'package:deadbolt/widgets/popup_menu_helpers.dart';
@@ -43,7 +35,6 @@ import 'package:deadbolt/widgets/text_import_sheet.dart'
     show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
-import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 import 'package:deadbolt/screens/wallet_detail/receive_dialog.dart';
@@ -52,6 +43,8 @@ import 'package:deadbolt/screens/wallet_detail/transactions_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/addresses_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
+import 'package:deadbolt/screens/wallet_detail/views/wallet_overview_tab.dart';
+import 'package:deadbolt/screens/wallet_detail/views/wallet_descriptor_tab.dart';
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -124,8 +117,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               } else {
                 credential = await showPasswordPrompt(
                   context,
-                  title: 'Enter wallet password',
-                  subtitle: 'This wallet is protected with a password.',
+                  title: context.l10n.enterWalletPassword,
+                  subtitle: context.l10n.walletPasswordSubtitle,
                 );
               }
               if (credential != null && context.mounted) {
@@ -428,7 +421,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         if (!File(savedPath).existsSync()) {
           await File(savedPath).writeAsBytes(backupBytes);
         }
-        if (context.mounted) showSuccessToast(context, 'Backup saved');
+        if (context.mounted) showSuccessToast(context, context.l10n.backupSaved);
       } catch (e) {
         if (context.mounted) showErrorToastException(context, e);
       }
@@ -677,12 +670,12 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               const PopupMenuDivider(),
               iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
               const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: 'Change protection'),
+              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: l10n.changeProtectionMenu),
               if (state.walletInfo.protection.protectionType ==
                       APIProtectionType.userPassword ||
                   state.walletInfo.protection.protectionType ==
                       APIProtectionType.xpubKey) ...[
-                iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: 'Lock wallet'),
+                iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: l10n.lockWallet),
               ],
             ],
           ),
@@ -694,7 +687,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
             _buildElectrumPrivacyWarning(context, state),
             Expanded(
               child: switch (state.selectedTab) {
-                0 => _OverviewView(
+                0 => OverviewView(
                   state: state,
                   onSendTap: () => _openSendFlow(context, state),
                   onReceiveTap: () => _openReceiveFlow(context, state),
@@ -717,7 +710,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                 1 => TransactionsView(state: state),
                 2 => AddressesView(state: state),
                 3 => CoinsView(state: state),
-                _ => _DescriptorView(state: state),
+                _ => DescriptorView(state: state),
               },
             ),
           ],
@@ -759,687 +752,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Overview view (tab 0) — balance + action buttons
-// ─────────────────────────────────────────────────────────────
-
-enum _BalanceUnit { sats, btc, fiat }
-
-class _OverviewView extends StatefulWidget {
-  final WalletDetailLoaded state;
-  final VoidCallback onSendTap;
-  final VoidCallback onReceiveTap;
-  final VoidCallback onSyncTap;
-  final VoidCallback onRescanTap;
-  final VoidCallback onExportLabelsTap;
-  final VoidCallback onImportLabelsTap;
-  final VoidCallback onHwTap;
-  final VoidCallback onChangeProtectionTap;
-
-  const _OverviewView({
-    required this.state,
-    required this.onSendTap,
-    required this.onReceiveTap,
-    required this.onSyncTap,
-    required this.onRescanTap,
-    required this.onExportLabelsTap,
-    required this.onImportLabelsTap,
-    required this.onHwTap,
-    required this.onChangeProtectionTap,
-  });
-
-  @override
-  State<_OverviewView> createState() => _OverviewViewState();
-}
-
-class _OverviewViewState extends State<_OverviewView> {
-  _BalanceUnit _unit = _BalanceUnit.sats;
-
-  bool get _fiatAvailable =>
-      widget.state.currentBtcPrice != null &&
-      widget.state.fiatCurrency != null;
-
-  List<_BalanceUnit> get _availableUnits => [
-        _BalanceUnit.sats,
-        _BalanceUnit.btc,
-        if (_fiatAvailable) _BalanceUnit.fiat,
-      ];
-
-  void _cycleUnit() {
-    final units = _availableUnits;
-    final next = (units.indexOf(_unit) + 1) % units.length;
-    setState(() => _unit = units[next]);
-  }
-
-  String _fmt(int sats) {
-    final l10n = context.l10n;
-    switch (_unit) {
-      case _BalanceUnit.sats:
-        return l10n.balanceSats(sats);
-      case _BalanceUnit.btc:
-        return l10n.balanceBtc((sats / 1e8).toStringAsFixed(8));
-      case _BalanceUnit.fiat:
-        return BitcoinFormatter.formatSatsFiat(
-          sats,
-          widget.state.currentBtcPrice!,
-          widget.state.fiatCurrency!,
-        );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final state = widget.state;
-    final balance = state.balance;
-    final walletInfo = state.walletInfo;
-    final totalSats =
-        balance.confirmed +
-        balance.trustedPending +
-        balance.untrustedPending +
-        balance.immature;
-    final lastSynced = walletInfo.lastSyncedAt != null
-        ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
-        : null;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // ── Balance card ────────────────────────────────────────────────────
-        Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: _cycleUnit,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _fmt(totalSats.toInt()),
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.compare_arrows,
-                        size: 18,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withAlpha(AppAlpha.secondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _BalanceChip(
-                        label: l10n.balanceConfirmed,
-                        value: _fmt(balance.confirmed.toInt()),
-                      ),
-                      if (balance.trustedPending + balance.untrustedPending >
-                          BigInt.zero)
-                        _BalanceChip(
-                          label: l10n.balancePending,
-                          value: _fmt((balance.trustedPending +
-                                  balance.untrustedPending)
-                              .toInt()),
-                          dimmed: true,
-                        ),
-                      if (balance.immature > BigInt.zero)
-                        _BalanceChip(
-                          label: l10n.balanceImmature,
-                          value: _fmt(balance.immature.toInt()),
-                          dimmed: true,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          lastSynced != null
-                              ? l10n.lastSynced(_formatOverviewDateTime(lastSynced))
-                              : l10n.notYetSynced,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(AppAlpha.secondary),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // ── Primary actions ─────────────────────────────────────────────────
-        _twoButtons(
-          icon1: Icons.arrow_upward, label1: l10n.walletSendButton, onTap1: widget.onSendTap, filled1: true,
-          icon2: Icons.arrow_downward, label2: l10n.walletReceiveButton, onTap2: widget.onReceiveTap, filled2: true,
-        ),
-        const SizedBox(height: 12),
-
-        // ── Secondary actions ───────────────────────────────────────────────
-        _twoButtons(
-          icon1: Icons.sync, label1: l10n.syncButton, onTap1: widget.onSyncTap, enabled1: !state.isSyncing,
-          icon2: Icons.manage_search, label2: l10n.rescanButton, onTap2: widget.onRescanTap,
-        ),
-        const SizedBox(height: 12),
-        _twoButtons(
-          icon1: Icons.upload_outlined, label1: l10n.exportBip329Button, onTap1: widget.onExportLabelsTap,
-          icon2: Icons.download_outlined, label2: l10n.importBip329Button, onTap2: widget.onImportLabelsTap,
-        ),
-        const SizedBox(height: 12),
-        _twoButtons(
-          icon1: Icons.memory, label1: 'Hardware wallet', onTap1: widget.onHwTap,
-          icon2: Icons.shield_outlined, label2: 'Encryption', onTap2: widget.onChangeProtectionTap,
-        ),
-      ],
-    );
-  }
-
-  static Widget _twoButtons({
-    required IconData icon1,
-    required String label1,
-    required VoidCallback onTap1,
-    bool filled1 = false,
-    bool enabled1 = true,
-    required IconData icon2,
-    required String label2,
-    required VoidCallback onTap2,
-    bool filled2 = false,
-    bool enabled2 = true,
-  }) {
-    return Row(
-      children: [
-        Expanded(child: _ActionButton(icon: icon1, label: label1, filled: filled1, enabled: enabled1, onTap: onTap1)),
-        const SizedBox(width: 12),
-        Expanded(child: _ActionButton(icon: icon2, label: label2, filled: filled2, enabled: enabled2, onTap: onTap2)),
-      ],
-    );
-  }
-
-  String _formatOverviewDateTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} '
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool filled;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    this.filled = false,
-    this.enabled = true,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: filled ? scheme.primaryContainer : scheme.surfaceContainerHighest,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 28,
-                color: enabled
-                    ? (filled
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant)
-                    : scheme.onSurface.withAlpha(AppAlpha.muted),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: filled ? FontWeight.bold : FontWeight.normal,
-                  color: enabled
-                      ? (filled
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant)
-                      : scheme.onSurface.withAlpha(AppAlpha.muted),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Shared widgets (balance card, sync row, tx tile, etc.)
-// ─────────────────────────────────────────────────────────────
-
-class _BalanceChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool dimmed;
-
-  const _BalanceChip({
-    required this.label,
-    required this.value,
-    this.dimmed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(dimmed ? 97 : 178),
-          ),
-        ),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(dimmed ? 97 : 210),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
 
 enum _ExportChoice { labels, descriptor, wallet }
 
 enum _ImportChoice { labels, psbt, sweepWif }
-
-// ─────────────────────────────────────────────────────────────
-// Descriptor view (tab 4)
-// ─────────────────────────────────────────────────────────────
-
-Color _walletColorForMfpIndex(BuildContext context, int index) {
-  final ext = Theme.of(context).extension<KeyColorExtension>()!;
-  return ext.keyColors[index % ext.keyColors.length];
-}
-
-class _DescriptorView extends StatelessWidget {
-  final WalletDetailLoaded state;
-
-  const _DescriptorView({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!state.descriptorLoaded) {
-      return LoadingIndicator(message: context.l10n.analyzingDescriptorLoading);
-    }
-
-    final analysis = state.descriptorAnalysis;
-    if (analysis == null) {
-      return Center(
-        child: Text(
-          context.l10n.descriptorLabel,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-          ),
-        ),
-      );
-    }
-
-    final isTaproot = analysis.walletType.name == 'p2Tr';
-    final l10n = context.l10n;
-
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          TabBar(
-            tabs: [
-              Tab(text: l10n.spendPathsSection(analysis.spendPaths.length)),
-              Tab(text: l10n.keysSection(analysis.keys.length)),
-              Tab(text: l10n.descriptorLabel),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _WalletSpendPathsTab(
-                  paths: analysis.spendPaths,
-                  keys: analysis.keys,
-                  keyLabels: state.keyLabels,
-                  pathLabels: state.pathLabels,
-                  isTaproot: isTaproot,
-                ),
-                _WalletKeysTab(
-                  keys: analysis.keys,
-                  keyLabels: state.keyLabels,
-                  hotKeys: state.hotKeys,
-                ),
-                DescriptorTab(descriptor: analysis.descriptor),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────
-// Wallet keys tab
-// ─────────────────────────────────────────────────────────────
-
-class _WalletKeysTab extends StatelessWidget {
-  final List<APIPubKey> keys;
-  final Map<String, String> keyLabels;
-  final List<APIHotKeyInfo> hotKeys;
-
-  const _WalletKeysTab({
-    required this.keys,
-    required this.keyLabels,
-    required this.hotKeys,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hotMfps = hotKeys.map((k) => k.mfp).toSet();
-    final cubit = context.read<WalletDetailCubit>();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      children: [
-        for (var i = 0; i < keys.length; i++)
-          KeyCard(
-            key: ValueKey(keys[i].mfp),
-            mfp: keys[i].mfp,
-            derivationPath: keys[i].derivationPath,
-            xpub: keys[i].xpub,
-            label: keyLabels[keys[i].mfp],
-            mfpColor: _walletColorForMfpIndex(context, i),
-            isHot: hotMfps.contains(keys[i].mfp),
-            onNameSave: (name) => cubit.setWalletKeyLabel(keys[i].mfp, name ?? ''),
-            onMakeHot: !hotMfps.contains(keys[i].mfp)
-                ? () => showAddPrivateKeySheet(
-                      context,
-                      cubit: cubit,
-                      expectedMfp: keys[i].mfp,
-                      keyLabel: keyLabels[keys[i].mfp],
-                    )
-                : null,
-            onRevealSeed: hotMfps.contains(keys[i].mfp)
-                ? () => cubit.revealHotKey(keys[i].mfp)
-                : null,
-            onDeletePrivateInfo: hotMfps.contains(keys[i].mfp)
-                ? () => cubit.deleteHotKey(keys[i].mfp)
-                : null,
-            deletePrivateInfoDisclaimer: context.l10n.deleteWalletPrivateKeyDisclaimer,
-          ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Wallet spend paths tab
-// ─────────────────────────────────────────────────────────────
-
-class _WalletSpendPathsTab extends StatelessWidget {
-  final List<APISpendPath> paths;
-  final List<APIPubKey> keys;
-  final Map<String, String> keyLabels;
-  final Map<int, String> pathLabels;
-  final bool isTaproot;
-
-  const _WalletSpendPathsTab({
-    required this.paths,
-    required this.keys,
-    required this.keyLabels,
-    required this.pathLabels,
-    required this.isTaproot,
-  });
-
-  Color _colorForMfp(BuildContext context, String mfp) {
-    final idx = keys.indexWhere((k) => k.mfp == mfp);
-    return _walletColorForMfpIndex(context, idx < 0 ? 0 : idx);
-  }
-
-  String _keyLabel(String mfp) => keyLabels[mfp] ?? mfp.toUpperCase();
-
-  @override
-  Widget build(BuildContext context) {
-    if (paths.isEmpty) return const SizedBox.shrink();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      children: [
-        for (final path in paths)
-          _WalletPathCard(
-            path: path,
-            label: pathLabels[path.id],
-            isTaproot: isTaproot,
-            mfpColorProvider: (mfp) => _colorForMfp(context, mfp),
-            keyLabelProvider: _keyLabel,
-          ),
-      ],
-    );
-  }
-}
-
-class _WalletPathCard extends StatelessWidget {
-  final APISpendPath path;
-  final String? label;
-  final bool isTaproot;
-  final Color Function(String mfp) mfpColorProvider;
-  final String Function(String mfp) keyLabelProvider;
-
-  const _WalletPathCard({
-    required this.path,
-    required this.isTaproot,
-    required this.mfpColorProvider,
-    required this.keyLabelProvider,
-    this.label,
-  });
-
-  String get _autoPathLabel =>
-      BitcoinFormatter.pathLabel(path.threshold, path.mfps, keyLabelProvider);
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isKeyPath = path.trDepth == -1;
-    final hasRelTimelock = path.relTimelock.value > 0;
-    final hasAbsTimelock = path.absTimelock.value > 0;
-    final hasTimelock = hasRelTimelock || hasAbsTimelock;
-
-    final relType = path.relTimelock.timelockType == APIRelativeTimelockType.blocks
-        ? RelativeTimelockType.blocks
-        : RelativeTimelockType.time;
-    final absType = path.absTimelock.timelockType == APIAbsoluteTimelockType.blocks
-        ? AbsoluteTimelockType.blocks
-        : AbsoluteTimelockType.timestamp;
-    final timelockLabel = hasRelTimelock
-        ? BitcoinFormatter.formatRelativeTimelock(relType, path.relTimelock.value)
-        : BitcoinFormatter.formatAbsoluteTimelock(absType, path.absTimelock.value);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: _buildLeading(context),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label ?? _autoPathLabel,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight:
-                      label != null ? FontWeight.w600 : FontWeight.normal,
-                  color: label != null
-                      ? cs.onSurface
-                      : cs.onSurface.withAlpha(AppAlpha.muted),
-                  fontStyle:
-                      label != null ? FontStyle.normal : FontStyle.italic,
-                ),
-              ),
-            ),
-            if (hasTimelock)
-              PathTimelockBadge(isRelative: hasRelTimelock, label: timelockLabel),
-            if (isTaproot && isKeyPath) const PathKeyPathBadge(),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
-        onTap: () => showWalletPathSheet(
-          context,
-          path: path,
-          initialLabel: label,
-          isTaproot: isTaproot,
-          mfpColorProvider: mfpColorProvider,
-          keyLabelProvider: keyLabelProvider,
-          onLabelSave: (name) =>
-              context.read<WalletDetailCubit>().setWalletPathLabel(
-                path.id,
-                name ?? '',
-              ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ...path.mfps.map((mfp) {
-                  final label = keyLabelProvider(mfp);
-                  return MfpBadge(
-                    label: label,
-                    color: mfpColorProvider(mfp),
-                    letterSpacing: label == mfp.toUpperCase() ? 0.5 : 0.0,
-                  );
-                }),
-              ],
-            ),
-            const SizedBox(height: 6),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  const Icon(Icons.payments_outlined,
-                      size: 13, color: AppAccent.color),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${BitcoinFormatter.formatDouble(path.vbSweep, 2)} vB',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (path.trDepth >= 0) ...[
-                    _buildSeparator(context),
-                    const Icon(Icons.account_tree_outlined,
-                        size: 13, color: AppAccent.color),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${path.trDepth}',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: cs.onSurface.withAlpha(AppAlpha.mediumHigh)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeading(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final mfps = path.mfps;
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppAccent.color.withAlpha(AppAlpha.subtle),
-            child: Icon(
-              mfps.length == 1 ? Icons.key : Icons.diversity_3,
-              color: AppAccent.color,
-              size: 20,
-            ),
-          ),
-          if (mfps.length > 1)
-            Positioned(
-              right: -4,
-              bottom: -4,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: AppAccent.color.withAlpha(AppAlpha.mediumLow),
-                  border: Border.all(color: AppAccent.color, width: 1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${path.threshold}/${mfps.length}',
-                  style: TextStyle(
-                    color: cs.onSurface.withAlpha(AppAlpha.mediumHigh),
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSeparator(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        '|',
-        style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.hint)),
-      ),
-    );
-  }
-
-}
-
