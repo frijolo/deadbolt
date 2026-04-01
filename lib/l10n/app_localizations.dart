@@ -3577,6 +3577,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Press back again to exit'**
   String get pressBackAgainToExit;
+
+  /// No description provided for @feeHistogramTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Next block fees'**
+  String get feeHistogramTitle;
+
+  /// No description provided for @feeHistogramNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get feeHistogramNext;
 }
 
 class _AppLocalizationsDelegate

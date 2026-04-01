@@ -1955,4 +1955,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get pressBackAgainToExit => 'Pulsa atrás otra vez para salir';
+
+  @override
+  String get feeHistogramTitle => 'Fees próximo bloque';
+
+  @override
+  String get feeHistogramNext => 'Siguiente';
 }

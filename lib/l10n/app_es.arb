@@ -883,5 +883,7 @@
   "scanAccountsRetry": "Reintentar",
   "scanTypeAll": "Todos",
   "bip39PassphraseLabel": "Frase BIP39 (opcional)",
-  "pressBackAgainToExit": "Pulsa atrás otra vez para salir"
+  "pressBackAgainToExit": "Pulsa atrás otra vez para salir",
+  "feeHistogramTitle": "Fees próximo bloque",
+  "feeHistogramNext": "Siguiente"
 }

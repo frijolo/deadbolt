@@ -1939,4 +1939,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pressBackAgainToExit => 'Press back again to exit';
+
+  @override
+  String get feeHistogramTitle => 'Next block fees';
+
+  @override
+  String get feeHistogramNext => 'Next';
 }

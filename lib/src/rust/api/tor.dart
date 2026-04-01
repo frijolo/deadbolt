@@ -33,3 +33,7 @@ void setTorDataDir({required String path}) =>
 /// Poll this while [isTorRunning] is false to show detailed progress to the user.
 (double, String) torBootstrapProgress() =>
     RustLib.instance.api.crateApiTorTorBootstrapProgress();
+
+/// Returns the local SOCKS5 address (e.g. "127.0.0.1:51234") when Tor is
+/// running and the listener is ready, or None otherwise.
+String? torSocksAddr() => RustLib.instance.api.crateApiTorTorSocksAddr();

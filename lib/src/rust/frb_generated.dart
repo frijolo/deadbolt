@@ -72,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1261670828;
+  int get rustContentHash => 1595694177;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -665,6 +665,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   (double, String) crateApiTorTorBootstrapProgress();
+
+  String? crateApiTorTorSocksAddr();
 
   Future<void> crateApiAnalyzerValidateDescriptorNetwork({
     required String descriptor,
@@ -4930,6 +4932,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "tor_bootstrap_progress", argNames: []);
 
   @override
+  String? crateApiTorTorSocksAddr() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 119,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTorTorSocksAddrConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTorTorSocksAddrConstMeta =>
+      const TaskConstMeta(debugName: "tor_socks_addr", argNames: []);
+
+  @override
   Future<void> crateApiAnalyzerValidateDescriptorNetwork({
     required String descriptor,
     required APINetwork network,
@@ -4943,7 +4971,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 119,
+            funcId: 120,
             port: port_,
           );
         },
@@ -4982,7 +5010,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 120,
+            funcId: 121,
             port: port_,
           );
         },
@@ -5019,7 +5047,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 121,
+            funcId: 122,
             port: port_,
           );
         },
@@ -5050,7 +5078,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 122,
+            funcId: 123,
             port: port_,
           );
         },
@@ -5083,7 +5111,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 123,
+            funcId: 124,
             port: port_,
           );
         },
@@ -5116,7 +5144,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 124,
+            funcId: 125,
             port: port_,
           );
         },
@@ -5147,7 +5175,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 125,
+            funcId: 126,
             port: port_,
           );
         },
@@ -9227,15 +9255,15 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
     mfp: mfp,
   );
 
-  /// Abrir una suscripción Electrum reactiva para este wallet.
+  /// Open a reactive Electrum subscription for this wallet.
   ///
-  /// Suscribe a block headers + todos los SPKs revelados del wallet.
-  /// Emite `true` a través del `sink` cada vez que llega una notificación
-  /// (nuevo bloque o actividad en un scriptpubkey). El llamador debe disparar
-  /// un sync cuando recibe el evento.
+  /// Subscribes to block headers + all revealed SPKs of the wallet.
+  /// Emits `true` through `sink` whenever a notification arrives
+  /// (new block or scriptpubkey activity). The caller should trigger
+  /// a sync on each event.
   ///
-  /// La función retorna inmediatamente; la escucha corre en un hilo blocking.
-  /// El bucle termina cuando el Dart sink se cierra (StreamSubscription.cancel).
+  /// Returns immediately; the listener runs on a blocking thread.
+  /// The loop exits when the Dart sink is closed (StreamSubscription.cancel).
   Stream<bool> startSubscription({required String electrumUrl}) =>
       RustLib.instance.api.crateApiWalletApiWalletStartSubscription(
         that: this,

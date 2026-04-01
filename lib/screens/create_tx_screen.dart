@@ -20,7 +20,10 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet;
+import 'package:deadbolt/widgets/fee_histogram_widget.dart';
 import 'package:deadbolt/widgets/fee_presets_widget.dart';
+import 'package:deadbolt/services/mempool_blocks_service.dart';
+import 'package:deadbolt/src/rust/api/tor.dart' show isTorRunning, torSocksAddr;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
@@ -185,6 +188,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   FeePresets? _feePresets;
   int? _selectedPresetIndex; // 0=economy, 1=normal, 2=priority; null=none
 
+  MempoolBlocksSnapshot? _blockSnapshot;
+  Timer? _blockSnapshotTimer;
+  bool _blockSnapshotPending = false;
+
   // Focus nodes for the two fee fields — explicit requestFocus() is more reliable
   // than autofocus: true on desktop platforms.
   final _rateFocusNode = FocusNode();
@@ -222,10 +229,29 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     FeeEstimationService.getPresets(explorerBase).then((p) {
       if (mounted) setState(() => _feePresets = p);
     });
+    _refreshBlockSnapshot();
+    _blockSnapshotTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _refreshBlockSnapshot(),
+    );
+  }
+
+  void _refreshBlockSnapshot() {
+    if (_blockSnapshotPending) return;
+    _blockSnapshotPending = true;
+    final explorerBase =
+        context.read<SettingsCubit>().state.explorerBaseForNetwork(_currentNetwork);
+    final socksAddr = isTorRunning() ? torSocksAddr() : null;
+    MempoolBlocksService.getSnapshot(explorerBase, torSocksAddr: socksAddr)
+        .then((s) {
+      _blockSnapshotPending = false;
+      if (mounted) setState(() => _blockSnapshot = s);
+    });
   }
 
   @override
   void dispose() {
+    _blockSnapshotTimer?.cancel();
     for (final entry in _recipients) {
       entry.dispose();
     }
@@ -1521,9 +1547,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
     final maxOrigRate =
         resolvedRbfInfos.fold<double>(0.0, (m, i) => max(m, i.minFeeRateSatPerVb));
-    // Effective minimum rate: stricter of relay minimum and RBF diagram constraint.
-    final effectiveMinRate =
-        resolvedRbfInfos.isNotEmpty ? max(minFeeRate.toDouble(), maxOrigRate) : minFeeRate.toDouble();
+    // RBF requires rate > maxOrigRate; +0.01 is the smallest valid display step.
+    final effectiveMinRate = resolvedRbfInfos.isNotEmpty
+        ? max(minFeeRate.toDouble(), maxOrigRate) + 0.01
+        : minFeeRate.toDouble();
     // Live display value for fee rate field — when editing total fee, show the
     // live back-computed rate from summary so the display and error check agree.
     // When the controller holds a high-precision internal value (stored by
@@ -1542,22 +1569,21 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
     final currentRate = parsedCtrlRate ?? 0.0;
 
-    // RBF absolute fee minimum (Rule 4) — depends on new tx size.
-    // Uses total conflict cluster fee: orig + unconfirmed descendants.
+    // BIP-125 Rule 4: new_fee > conflict_cluster + new_vsize; +1 is the smallest valid integer.
     int rbfMinFeeSats = 0;
     if (resolvedRbfInfos.isNotEmpty && summary != null) {
       final newVsize = (summary.totalWu / 4.0).ceil();
       final totalConflict = _totalConflictFee(resolvedRbfInfos);
-      rbfMinFeeSats = totalConflict + newVsize;
+      rbfMinFeeSats = totalConflict + newVsize + 1;
     }
 
     final String? rateErrorText =
-        currentRate > 0 && currentRate <= effectiveMinRate
+        currentRate > 0 && currentRate < effectiveMinRate
             ? 'min: ${effectiveMinRate.toStringAsFixed(2)} sat/vB'
             : null;
 
     final String? feeErrorText =
-        rbfMinFeeSats > 0 && summary != null && !summary.insufficientFunds && summary.feeSats <= rbfMinFeeSats
+        rbfMinFeeSats > 0 && summary != null && !summary.insufficientFunds && summary.feeSats < rbfMinFeeSats
             ? 'min: $rbfMinFeeSats sats'
             : null;
     // Total fee display: live from summary in all modes except when the user
@@ -1645,6 +1671,19 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
               ..._buildRecipientList(context, theme, summary),
               const SizedBox(height: 16),
 
+              FeeHistogramWidget(
+                snapshot: _blockSnapshot,
+                onFeeSelected: (rate) {
+                  setState(() {
+                    _feeRateCtrl.text = BitcoinFormatter.formatFeeRate(rate);
+                    _feeEditMode = _FeeEditMode.none;
+                    _selectedPresetIndex = null;
+                  });
+                  _confirmFeeRate();
+                },
+              ),
+              if (_blockSnapshot != null) const SizedBox(height: 4),
+
               buildFeePresetsSegments(_feePresets, _selectedPresetIndex, _applyPreset),
               if (_feePresets != null) const SizedBox(height: 8),
 
@@ -1664,8 +1703,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       errorText: rateErrorText,
                       onEditTap: () {
                         final rate = double.tryParse(feeRateDisplay) ?? 0.0;
-                        _feeRateCtrl.text = rate <= effectiveMinRate
-                            ? (effectiveMinRate + 0.01).toStringAsFixed(2)
+                        _feeRateCtrl.text = rate < effectiveMinRate
+                            ? effectiveMinRate.toStringAsFixed(2)
                             : feeRateDisplay;
                         setState(() => _feeEditMode = _FeeEditMode.rate);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1688,8 +1727,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       errorText: feeErrorText,
                       onEditTap: () {
                         final feeSats = summary?.feeSats ?? 0;
-                        _totalFeeCtrl.text = rbfMinFeeSats > 0 && feeSats <= rbfMinFeeSats
-                            ? (rbfMinFeeSats + 1).toString()
+                        _totalFeeCtrl.text = rbfMinFeeSats > 0 && feeSats < rbfMinFeeSats
+                            ? rbfMinFeeSats.toString()
                             : (feeSats > 0 ? feeSats.toString() : '');
                         setState(() => _feeEditMode = _FeeEditMode.total);
                         WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1261670828;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1595694177;
 
 // Section: executor
 
@@ -5324,6 +5324,35 @@ fn wire__crate__api__tor__tor_bootstrap_progress_impl(
         },
     )
 }
+fn wire__crate__api__tor__tor_socks_addr_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tor_socks_addr",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::tor::tor_socks_addr())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__analyzer__validate_descriptor_network_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -7300,28 +7329,28 @@ fn pde_ffi_dispatcher_primary_impl(
         110 => wire__crate__api__wif_sweep__resolve_wif_impl(port, ptr, rust_vec_len, data_len),
         116 => wire__crate__api__wallet__strip_psbt_for_hw_impl(port, ptr, rust_vec_len, data_len),
         117 => wire__crate__api__wif_sweep__sweep_wif_impl(port, ptr, rust_vec_len, data_len),
-        119 => wire__crate__api__analyzer__validate_descriptor_network_impl(
+        120 => wire__crate__api__analyzer__validate_descriptor_network_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
-        121 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        122 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
-        123 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
+        121 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
+        122 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        123 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
+        124 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__wallet__wallet_requires_password_impl(
+        125 => wire__crate__api__wallet__wallet_requires_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => {
+        126 => {
             wire__crate__api__wallet__wallet_requires_xpub_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -7404,6 +7433,7 @@ fn pde_ffi_dispatcher_sync_impl(
         114 => wire__crate__api__tor__start_tor_impl(ptr, rust_vec_len, data_len),
         115 => wire__crate__api__tor__stop_tor_impl(ptr, rust_vec_len, data_len),
         118 => wire__crate__api__tor__tor_bootstrap_progress_impl(ptr, rust_vec_len, data_len),
+        119 => wire__crate__api__tor__tor_socks_addr_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

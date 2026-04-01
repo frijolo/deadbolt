@@ -629,8 +629,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Open a reactive Electrum subscription for this wallet.
   ///
   /// Subscribes to block headers + all revealed SPKs of the wallet.
-  /// Emits `true` whenever a notification arrives (new block or scriptpubkey
-  /// activity). The caller should trigger a sync on each event.
+  /// Emits `true` through `sink` whenever a notification arrives
+  /// (new block or scriptpubkey activity). The caller should trigger
+  /// a sync on each event.
   ///
   /// Returns immediately; the listener runs on a blocking thread.
   /// The loop exits when the Dart sink is closed (StreamSubscription.cancel).

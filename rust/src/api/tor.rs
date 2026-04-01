@@ -45,3 +45,10 @@ pub fn set_tor_data_dir(path: String) {
 pub fn tor_bootstrap_progress() -> (f32, String) {
     crate::core::tor_manager::tor_bootstrap_progress()
 }
+
+/// Returns the local SOCKS5 address (e.g. "127.0.0.1:51234") when Tor is
+/// running and the listener is ready, or None otherwise.
+#[frb(sync)]
+pub fn tor_socks_addr() -> Option<String> {
+    crate::core::tor_manager::tor_socks_addr()
+}

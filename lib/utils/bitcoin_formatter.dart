@@ -23,6 +23,14 @@ class BitcoinFormatter {
   static String formatDouble(double n, int decimalDigits) =>
       NumberFormat.decimalPatternDigits(decimalDigits: decimalDigits).format(n);
 
+  /// Format a fee rate (sat/vB) with precision that scales with magnitude:
+  /// < 10 → 2 decimals, 10–99 → 1 decimal, ≥ 100 → 0 decimals.
+  static String formatFeeRate(double fee) {
+    if (fee >= 100) return fee.toStringAsFixed(0);
+    if (fee >= 10) return fee.toStringAsFixed(1);
+    return fee.toStringAsFixed(2);
+  }
+
   /// Convert [sats] to BTC value and format with [fiatPrice] and [currency].
   static String formatSatsFiat(int sats, double fiatPrice, String currency) =>
       formatFiat(sats / 1e8 * fiatPrice, currency);
