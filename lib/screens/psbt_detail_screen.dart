@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,6 +9,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -408,6 +410,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
           ),
           body: SafeArea(
             child: ListView(
+              dragStartBehavior: DragStartBehavior.down,
               padding: const EdgeInsets.all(16),
               children: [
                 // Spent inputs warning
@@ -501,7 +504,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                         const SizedBox(height: 8),
                         _DetailRow(
                           label: l10n.psbtCreatedAt,
-                          value: _formatDate(_psbt.createdAt.toInt()),
+                          value: formatDateTimeFromUnix(_psbt.createdAt.toInt()),
                         ),
                         if (spendPath != null)
                           ..._buildTimelockRows(
@@ -627,14 +630,6 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
 }
 
 enum _PsbtMenuAction { delete }
-
-String _formatDate(int unixSeconds) {
-  final dt = DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000);
-  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')} '
-      '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}';
-}
 
 // ─── Sub-widgets ──────────────────────────────────────────────────────────────
 

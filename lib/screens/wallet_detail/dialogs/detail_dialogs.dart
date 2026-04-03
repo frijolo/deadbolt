@@ -10,6 +10,7 @@ import 'package:deadbolt/screens/psbt_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -125,7 +126,7 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                 ),
               ),
               DetailRow(
-                label: 'Address',
+                label: l10n.coinAddress,
                 child: Row(
                   children: [
                     Expanded(
@@ -144,7 +145,7 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                           if (singleHotMfp != null)
                             (
                               icon: Icons.key_outlined,
-                              label: 'Export private key (WIF)',
+                              label: l10n.wifExportTitle,
                               onTap: () => showWifExportFlow(
                                 context,
                                 address: address.address,
@@ -762,7 +763,7 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                 if (confirmedAt != null)
                   DetailRow(
                     label: l10n.txDetailsConfirmedAt,
-                    child: Text(_formatDateTime(confirmedAt)),
+                    child: Text(formatDateTime(confirmedAt)),
                   ),
               ] else
                 DetailRow(
@@ -871,10 +872,6 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
 // ─────────────────────────────────────────────────────────────

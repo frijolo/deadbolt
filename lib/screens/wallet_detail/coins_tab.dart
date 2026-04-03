@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -27,6 +29,16 @@ class CoinsView extends StatelessWidget {
     if (!state.utxosLoaded) {
       return LoadingIndicator(message: l10n.loadingCoins);
     }
+
+    final minBlocks =
+        context.watch<SettingsCubit>().state.inheritanceMinTimelockBlocks;
+    final isInheritance =
+        state.descriptorAnalysis?.spendPaths.any(
+          (p) =>
+              p.relTimelock.timelockType == APIRelativeTimelockType.blocks &&
+              p.relTimelock.value >= minBlocks,
+        ) ??
+        false;
 
     final utxos = state.utxos;
     final totalSats = utxos.fold<int>(0, (sum, u) => sum + u.valueSat.toInt());
@@ -98,6 +110,7 @@ class CoinsView extends StatelessWidget {
               currentBtcPrice: state.currentBtcPrice,
               fiatCurrency: state.fiatCurrency,
               walletState: state,
+              isInheritance: isInheritance,
             ),
           ),
       ],
@@ -114,6 +127,7 @@ class _CoinTile extends StatelessWidget {
   final double? currentBtcPrice;
   final String? fiatCurrency;
   final WalletDetailLoaded walletState;
+  final bool isInheritance;
 
   const _CoinTile({
     required this.utxo,
@@ -124,6 +138,7 @@ class _CoinTile extends StatelessWidget {
     required this.walletState,
     this.currentBtcPrice,
     this.fiatCurrency,
+    this.isInheritance = false,
   });
 
   @override
@@ -273,7 +288,24 @@ class _CoinTile extends StatelessWidget {
               ),
             ],
           ),
-          trailing: const Icon(Icons.chevron_right, size: 18),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isInheritance && !isSpending)
+                IconButton(
+                  icon: const Icon(Icons.update, size: 16),
+                  tooltip: l10n.revaultNow,
+                  onPressed: () => openRevaultTx(context, walletState, utxo),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    maxWidth: 32,
+                    maxHeight: 32,
+                  ),
+                ),
+              const Icon(Icons.chevron_right, size: 18),
+            ],
+          ),
         ),
       ),
     );

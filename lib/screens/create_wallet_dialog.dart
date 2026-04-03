@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -124,6 +125,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         child: Form(
           key: _formKey,
           child: ListView(
+            dragStartBehavior: DragStartBehavior.down,
             padding: const EdgeInsets.all(16),
             children: [
               // Name

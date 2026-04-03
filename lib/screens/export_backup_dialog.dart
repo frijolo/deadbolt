@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
@@ -77,6 +78,7 @@ class _ExportBackupDialogState extends State<_ExportBackupDialog> {
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          dragStartBehavior: DragStartBehavior.down,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

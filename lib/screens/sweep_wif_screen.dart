@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -381,6 +382,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.sweepWifTitle)),
       body: SingleChildScrollView(
+        dragStartBehavior: DragStartBehavior.down,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

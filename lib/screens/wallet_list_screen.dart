@@ -14,6 +14,7 @@ import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/app_nav_drawer.dart';
@@ -185,7 +186,7 @@ class WalletListScreen extends StatelessWidget {
               Expanded(
                 child: Text(
                   lastSynced != null
-                      ? l10n.lastSynced(_formatDate(lastSynced))
+                      ? l10n.lastSynced(formatDateTime(lastSynced))
                       : isLocked
                       ? l10n.walletPasswordProtected
                       : l10n.notYetSynced,
@@ -300,10 +301,6 @@ class WalletListScreen extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _formatDate(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   void _showCreateDialog(BuildContext context) async {

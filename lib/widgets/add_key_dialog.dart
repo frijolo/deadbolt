@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -33,15 +34,18 @@ typedef KeyspecResult = ({
 
 /// Returns the standard BIP derivation path for the given wallet type and network.
 ///
-/// For P2TR, [existingKeyCount] distinguishes single-sig (0 keys → m/86')
-/// from multisig (1+ keys already present → m/48'/.../2').
+/// For P2TR:
+/// - [isMultiPath] = true (e.g. inheritance/miniscript) → always m/48'/.../2'
+/// - [isMultiPath] = false: [existingKeyCount] = 0 → m/86' (single-sig),
+///   [existingKeyCount] > 0 → m/48'/.../2' (multi-signer)
 /// [accountIndex] selects the BIP44 account level (default 0).
 String _defaultDerivationPath(
   APIWalletType walletType,
   APINetwork network,
-  int existingKeyCount, [
+  int existingKeyCount, {
+  bool isMultiPath = false,
   int accountIndex = 0,
-]) {
+}) {
   final coin = network == APINetwork.bitcoin ? '0' : '1';
   final a = "$accountIndex'";
   return switch (walletType) {
@@ -50,7 +54,7 @@ String _defaultDerivationPath(
     APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/$a",
     APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/$a/1'",
     APIWalletType.p2Tr =>
-      existingKeyCount > 0 ? "m/48'/$coin'/$a/2'" : "m/86'/$coin'/$a",
+      (isMultiPath || existingKeyCount > 0) ? "m/48'/$coin'/$a/2'" : "m/86'/$coin'/$a",
     APIWalletType.unknown => "m/86'/$coin'/$a",
   };
 }
@@ -94,7 +98,11 @@ class _QuickPath {
   const _QuickPath(this.path, this.label);
 }
 
-List<_QuickPath> _quickPaths(APIWalletType? walletType, APINetwork network) {
+List<_QuickPath> _quickPaths(
+  APIWalletType? walletType,
+  APINetwork network, {
+  bool isMultiPath = false,
+}) {
   final coin = network == APINetwork.bitcoin ? '0' : '1';
   final paths = <_QuickPath>[];
 
@@ -102,7 +110,10 @@ List<_QuickPath> _quickPaths(APIWalletType? walletType, APINetwork network) {
     paths.add(_QuickPath("84'/$coin'/0'", 'BIP84 (Native SegWit)'));
   }
   if (walletType == null || walletType == APIWalletType.p2Tr) {
-    paths.add(_QuickPath("86'/$coin'/0'", 'BIP86 (Taproot single-sig)'));
+    if (!isMultiPath) {
+      paths.add(_QuickPath("86'/$coin'/0'", 'BIP86 (Taproot single-sig)'));
+    }
+    paths.add(_QuickPath("48'/$coin'/0'/2'", 'BIP48 multisig (Taproot)'));
   }
   if (walletType == null ||
       walletType == APIWalletType.p2Wsh ||
@@ -214,12 +225,14 @@ Future<KeyspecResult?> showKeyspecSheet(
   required APIWalletType walletType,
   int existingKeyCount = 0,
   Set<String> existingMfps = const {},
+  bool isMultiPath = false,
 }) {
   return showSheet<KeyspecResult>(context, (ctx) => _AddKeySheet(
     network: network,
     walletType: walletType,
     existingKeyCount: existingKeyCount,
     existingMfps: existingMfps,
+    isMultiPath: isMultiPath,
     keyspecMode: true,
   ));
 }
@@ -276,6 +289,9 @@ class _AddKeySheet extends StatefulWidget {
       onAddMnemonic;
   final Future<APIHotKeyInfo?> Function(String xprv)? onAddXprv;
 
+  // Multi-path context (e.g. inheritance): forces BIP48/Taproot derivation path
+  final bool isMultiPath;
+
   // Keyspec-only mode: pops with "[mfp/path]xpub" string instead of void
   final bool keyspecMode;
 
@@ -295,6 +311,7 @@ class _AddKeySheet extends StatefulWidget {
     this.keyLabel,
     this.onAddMnemonic,
     this.onAddXprv,
+    this.isMultiPath = false,
     this.keyspecMode = false,
   });
 
@@ -356,12 +373,14 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       _xpubController.text = k.xpub;
     }
 
-    final paths = _quickPaths(widget.walletType, widget.network);
+    final paths = _quickPaths(widget.walletType, widget.network,
+        isMultiPath: widget.isMultiPath);
     final suggested = widget.walletType != null
         ? _defaultDerivationPath(
             widget.walletType!,
             widget.network,
             widget.existingKeyCount,
+            isMultiPath: widget.isMultiPath,
           ).replaceFirst('m/', '')
         : '';
     _derivPathController = TextEditingController(
@@ -407,7 +426,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
         widget.walletType!,
         widget.network,
         widget.existingKeyCount,
-        _accountIndex,
+        isMultiPath: widget.isMultiPath,
+        accountIndex: _accountIndex,
       ).replaceFirst('m/', '');
     }
   }
@@ -729,7 +749,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             widget.walletType!,
             widget.network,
             widget.existingKeyCount,
-            _accountIndex,
+            isMultiPath: widget.isMultiPath,
+            accountIndex: _accountIndex,
           )
         : "m/86'/0'/0'";
     final path = await _showDerivationPathPicker(context, suggested);
@@ -854,6 +875,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             ],
             Flexible(
               child: SingleChildScrollView(
+                dragStartBehavior: DragStartBehavior.down,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -939,7 +961,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       return _buildWalletSeedForm();
     }
 
-    final quickPaths = _quickPaths(widget.walletType, widget.network);
+    final quickPaths = _quickPaths(widget.walletType, widget.network,
+        isMultiPath: widget.isMultiPath);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,

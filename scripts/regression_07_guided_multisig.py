@@ -129,6 +129,10 @@ async def _set_threshold(d: UIDriver, target: int, current: int):
 
 async def _create_and_verify(d: UIDriver, wallet_name: str):
     """Click 'Create wallet' and verify the wallet detail screen opens."""
+    # Scroll down to ensure the button is fully in the interactive area,
+    # especially on forms with 3+ keys where it lands near the window edge.
+    d.scroll_down(3)
+    await asyncio.sleep(0.4)
     await click_label(d, "Create wallet", delay=0.5)
     await wait_for(
         d, '"Receive"',

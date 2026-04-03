@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -73,6 +74,7 @@ class _WifConfirmDialogState extends State<_WifConfirmDialog> {
     return AlertDialog(
       title: Text(l10n.wifExportTitle),
       content: SingleChildScrollView(
+        dragStartBehavior: DragStartBehavior.down,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +174,7 @@ class _WifDisplayDialog extends StatelessWidget {
     return AlertDialog(
       titlePadding: kDialogTitlePadding,
       title: dialogCloseTitle(
-        'Private key (WIF)',
+        l10n.sweepWifPrivateKeySection,
         onClose: () => Navigator.of(context).pop(),
         tooltip: l10n.cancel,
       ),

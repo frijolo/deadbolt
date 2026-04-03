@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -113,6 +114,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          dragStartBehavior: DragStartBehavior.down,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

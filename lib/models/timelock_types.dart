@@ -8,6 +8,11 @@ enum RelativeTimelockType {
     return values.firstWhere((e) => e.name == s.toLowerCase());
   }
 
+  static RelativeTimelockType fromApi(APIRelativeTimelockType t) =>
+      t == APIRelativeTimelockType.blocks
+          ? RelativeTimelockType.blocks
+          : RelativeTimelockType.time;
+
   APIRelativeTimelockType toRust() {
     return this == blocks
         ? APIRelativeTimelockType.blocks

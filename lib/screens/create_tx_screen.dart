@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show max;
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -1537,6 +1538,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
+            dragStartBehavior: DragStartBehavior.down,
             padding: const EdgeInsets.all(16),
             children: [
               // ── Coin selector ──

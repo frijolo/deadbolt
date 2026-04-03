@@ -29,7 +29,14 @@ class AppSettings {
   final PriceProviderType fiatProvider;
   final bool torEnabled;
 
+  /// Minimum relative timelock (in blocks) for a spend path to be considered
+  /// an inheritance path and shown in the inheritance status panel.
+  /// Prevents short-timelock Taproot "signing combination" paths from being
+  /// misidentified as heir paths.
+  final int inheritanceMinTimelockBlocks;
+
   static const kDefaultElectrumMainnet = 'ssl://electrum.blockstream.info:50002';
+  static const kDefaultInheritanceMinTimelock = 144; // ~1 day
 
   const AppSettings({
     required this.locale,
@@ -51,6 +58,7 @@ class AppSettings {
     this.fiatCurrency = 'usd',
     this.fiatProvider = PriceProviderType.coinGecko,
     this.torEnabled = false,
+    this.inheritanceMinTimelockBlocks = AppSettings.kDefaultInheritanceMinTimelock,
   });
 
   String electrumUrlForNetwork(APINetwork net) {
@@ -121,6 +129,7 @@ class AppSettings {
     String? fiatCurrency,
     PriceProviderType? fiatProvider,
     bool? torEnabled,
+    int? inheritanceMinTimelockBlocks,
   }) {
     return AppSettings(
       locale: locale ?? this.locale,
@@ -142,6 +151,8 @@ class AppSettings {
       fiatCurrency: fiatCurrency ?? this.fiatCurrency,
       fiatProvider: fiatProvider ?? this.fiatProvider,
       torEnabled: torEnabled ?? this.torEnabled,
+      inheritanceMinTimelockBlocks:
+          inheritanceMinTimelockBlocks ?? this.inheritanceMinTimelockBlocks,
     );
   }
 }
@@ -166,6 +177,7 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _fiatCurrencyKey = 'fiatCurrency';
   static const _fiatProviderKey = 'fiatProvider';
   static const _torEnabledKey = 'torEnabled';
+  static const _inheritanceMinTimelockKey = 'inheritanceMinTimelock';
 
   SharedPreferences? _prefs;
 
@@ -242,6 +254,9 @@ class SettingsCubit extends Cubit<AppSettings> {
       fiatProvider: PriceProviderType.values.byName(
           prefs.getString(_fiatProviderKey) ?? defaults.fiatProvider.name),
       torEnabled: prefs.getBool(_torEnabledKey) ?? defaults.torEnabled,
+      inheritanceMinTimelockBlocks:
+          prefs.getInt(_inheritanceMinTimelockKey) ??
+              defaults.inheritanceMinTimelockBlocks,
     ));
 
     // Restore Tor state across restarts.
@@ -320,6 +335,12 @@ class SettingsCubit extends Cubit<AppSettings> {
     await prefs.setBool(_torEnabledKey, enabled);
     await _applyTorEnabled(enabled);
     emit(state.copyWith(torEnabled: enabled));
+  }
+
+  Future<void> setInheritanceMinTimelockBlocks(int value) async {
+    final prefs = await _getPrefs();
+    await prefs.setInt(_inheritanceMinTimelockKey, value);
+    emit(state.copyWith(inheritanceMinTimelockBlocks: value));
   }
 
   Future<void> setFiatProvider(PriceProviderType provider) async {

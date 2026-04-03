@@ -263,7 +263,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
 
     return switch (state) {
       // ── Scanning ─────────────────────────────────────────────────────────
-      HwWalletScanning() => const _Spinner(label: 'Scanning for devices…'),
+      HwWalletScanning() => _Spinner(label: context.l10n.hwWalletScanning),
 
       // ── No devices ───────────────────────────────────────────────────────
       HwWalletDevicesFound(devices: final devices) when devices.isEmpty =>
@@ -278,7 +278,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
 
       // ── Connecting / waiting for PIN ─────────────────────────────────────
       HwWalletConnecting() =>
-        const _Spinner(label: 'Unlock your device…'),
+        _Spinner(label: context.l10n.hwWalletUnlockDevice),
 
       // ── Pairing code visible on both screens ──────────────────────────────
       HwWalletPairing(pairingCode: final code) => _PairingCode(code: code),

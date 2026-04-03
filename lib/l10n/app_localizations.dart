@@ -3230,6 +3230,270 @@ abstract class AppLocalizations {
   /// **'Multiple keys required to sign. Ideal for shared control or extra security.'**
   String get walletTypeMultisigDesc;
 
+  /// No description provided for @walletTypeInheritance.
+  ///
+  /// In en, this message translates to:
+  /// **'Inheritance'**
+  String get walletTypeInheritance;
+
+  /// No description provided for @walletTypeInheritanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-path wallet: you control funds now, heirs can access after a set time delay.'**
+  String get walletTypeInheritanceDesc;
+
+  /// No description provided for @ownerKeysSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Your keys'**
+  String get ownerKeysSection;
+
+  /// No description provided for @heirsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Heirs'**
+  String get heirsSection;
+
+  /// No description provided for @addHeir.
+  ///
+  /// In en, this message translates to:
+  /// **'Add heir'**
+  String get addHeir;
+
+  /// No description provided for @editHeir.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit heir'**
+  String get editHeir;
+
+  /// No description provided for @heirName.
+  ///
+  /// In en, this message translates to:
+  /// **'Heir name'**
+  String get heirName;
+
+  /// No description provided for @heirNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Alice, Family, Lawyer'**
+  String get heirNameHint;
+
+  /// No description provided for @heirKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Heir\'s key'**
+  String get heirKey;
+
+  /// No description provided for @heirTimelockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Can access after'**
+  String get heirTimelockLabel;
+
+  /// No description provided for @inheritanceSixMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'6 months (~26,280 blocks)'**
+  String get inheritanceSixMonths;
+
+  /// No description provided for @inheritanceOneYear.
+  ///
+  /// In en, this message translates to:
+  /// **'1 year (~52,560 blocks)'**
+  String get inheritanceOneYear;
+
+  /// No description provided for @inheritanceThreeMonthsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'3 mo'**
+  String get inheritanceThreeMonthsShort;
+
+  /// No description provided for @inheritanceSixMonthsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'6 mo'**
+  String get inheritanceSixMonthsShort;
+
+  /// No description provided for @inheritanceNineMonthsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'9 mo'**
+  String get inheritanceNineMonthsShort;
+
+  /// No description provided for @inheritanceOneYearShort.
+  ///
+  /// In en, this message translates to:
+  /// **'1 yr'**
+  String get inheritanceOneYearShort;
+
+  /// No description provided for @inheritanceThreeMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'3 months (~13,140 blocks)'**
+  String get inheritanceThreeMonths;
+
+  /// No description provided for @inheritanceNineMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'9 months (~39,420 blocks)'**
+  String get inheritanceNineMonths;
+
+  /// No description provided for @inheritanceCustomTimelock.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom...'**
+  String get inheritanceCustomTimelock;
+
+  /// No description provided for @inheritanceDuplicateTimelockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate timelocks'**
+  String get inheritanceDuplicateTimelockTitle;
+
+  /// No description provided for @inheritanceDuplicateTimelockBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Two or more heirs share the same timelock. For better compatibility with other coordination software, each spending path should have a unique timelock.'**
+  String get inheritanceDuplicateTimelockBody;
+
+  /// No description provided for @inheritanceDuplicateTimelockFix.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix automatically'**
+  String get inheritanceDuplicateTimelockFix;
+
+  /// No description provided for @inheritanceDuplicateTimelockContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue anyway'**
+  String get inheritanceDuplicateTimelockContinue;
+
+  /// No description provided for @inheritanceHeirsNeedKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a key for each heir'**
+  String get inheritanceHeirsNeedKey;
+
+  /// No description provided for @inheritanceNeedHeir.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one heir'**
+  String get inheritanceNeedHeir;
+
+  /// No description provided for @inheritanceOwnerPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Main'**
+  String get inheritanceOwnerPathLabel;
+
+  /// No description provided for @inheritanceMinTimelockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Inheritance timelock threshold'**
+  String get inheritanceMinTimelockLabel;
+
+  /// No description provided for @inheritanceMinTimelockInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inheritance detection'**
+  String get inheritanceMinTimelockInfoTitle;
+
+  /// No description provided for @inheritanceMinTimelockInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Some Taproot descriptors use spend paths with short timelocks (e.g. 1–2 blocks) to model multiple signing combinations for the same owner — these are not inheritance paths. This threshold is the minimum number of blocks a relative timelock must have before a spend path is treated as an inheritance path and the status panel is shown.\n\nDefault: 144 blocks (~1 day).'**
+  String get inheritanceMinTimelockInfo;
+
+  /// No description provided for @inheritanceStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Inheritance'**
+  String get inheritanceStatus;
+
+  /// No description provided for @inheritanceSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe'**
+  String get inheritanceSafe;
+
+  /// No description provided for @inheritanceApproaching.
+  ///
+  /// In en, this message translates to:
+  /// **'Heir access approaching'**
+  String get inheritanceApproaching;
+
+  /// No description provided for @inheritanceUnlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Heir can access funds'**
+  String get inheritanceUnlocked;
+
+  /// No description provided for @inheritanceNeedsSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync to check heir access'**
+  String get inheritanceNeedsSync;
+
+  /// No description provided for @inheritanceNoFunds.
+  ///
+  /// In en, this message translates to:
+  /// **'No confirmed funds'**
+  String get inheritanceNoFunds;
+
+  /// No description provided for @revaultNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-vault'**
+  String get revaultNow;
+
+  /// No description provided for @revaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset inheritance timer'**
+  String get revaultTitle;
+
+  /// No description provided for @revaultDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends all funds back to this wallet. Once confirmed, the inheritance timer resets — heirs must wait the full delay again.'**
+  String get revaultDescription;
+
+  /// No description provided for @revaultFeeRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate (sat/vB)'**
+  String get revaultFeeRateLabel;
+
+  /// No description provided for @revaultCreateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create re-vault transaction'**
+  String get revaultCreateButton;
+
+  /// No description provided for @revaultCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating transaction...'**
+  String get revaultCreating;
+
+  /// No description provided for @blocksUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'blocks'**
+  String get blocksUnit;
+
+  /// No description provided for @inheritanceHeirN.
+  ///
+  /// In en, this message translates to:
+  /// **'Heir {n}'**
+  String inheritanceHeirN(int n);
+
+  /// No description provided for @inheritanceEarliestAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest heir access in ~{duration} ({blocks} blocks)'**
+  String inheritanceEarliestAccess(String duration, int blocks);
+
   /// No description provided for @scriptTypeLabel.
   ///
   /// In en, this message translates to:
@@ -3373,6 +3637,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connecting…'**
   String get hwWalletConnecting;
+
+  /// No description provided for @hwWalletUnlockDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock your device…'**
+  String get hwWalletUnlockDevice;
 
   /// No description provided for @hwRegisterWallet.
   ///

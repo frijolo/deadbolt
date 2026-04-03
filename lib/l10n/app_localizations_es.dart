@@ -1753,6 +1753,152 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se requieren varias claves para firmar. Ideal para control compartido o seguridad adicional.';
 
   @override
+  String get walletTypeInheritance => 'Herencia';
+
+  @override
+  String get walletTypeInheritanceDesc =>
+      'Cartera multipaso: tú controlas los fondos ahora; los herederos pueden acceder tras un retraso de tiempo.';
+
+  @override
+  String get ownerKeysSection => 'Tus claves';
+
+  @override
+  String get heirsSection => 'Herederos';
+
+  @override
+  String get addHeir => 'Añadir heredero';
+
+  @override
+  String get editHeir => 'Editar heredero';
+
+  @override
+  String get heirName => 'Nombre del heredero';
+
+  @override
+  String get heirNameHint => 'p.ej. Alice, Familia, Abogado';
+
+  @override
+  String get heirKey => 'Clave del heredero';
+
+  @override
+  String get heirTimelockLabel => 'Puede acceder después de';
+
+  @override
+  String get inheritanceSixMonths => '6 meses (~26.280 bloques)';
+
+  @override
+  String get inheritanceOneYear => '1 año (~52.560 bloques)';
+
+  @override
+  String get inheritanceThreeMonthsShort => '3 m';
+
+  @override
+  String get inheritanceSixMonthsShort => '6 m';
+
+  @override
+  String get inheritanceNineMonthsShort => '9 m';
+
+  @override
+  String get inheritanceOneYearShort => '1 a';
+
+  @override
+  String get inheritanceThreeMonths => '3 meses (~13.140 bloques)';
+
+  @override
+  String get inheritanceNineMonths => '9 meses (~39.420 bloques)';
+
+  @override
+  String get inheritanceCustomTimelock => 'Personalizado...';
+
+  @override
+  String get inheritanceDuplicateTimelockTitle => 'Timelocks duplicados';
+
+  @override
+  String get inheritanceDuplicateTimelockBody =>
+      'Dos o más herederos comparten el mismo timelock. Para mayor compatibilidad con otros softwares de coordinación, cada ruta de gasto debería tener un timelock distinto.';
+
+  @override
+  String get inheritanceDuplicateTimelockFix => 'Corregir automáticamente';
+
+  @override
+  String get inheritanceDuplicateTimelockContinue =>
+      'Continuar de todas formas';
+
+  @override
+  String get inheritanceHeirsNeedKey =>
+      'Establece una clave para cada heredero';
+
+  @override
+  String get inheritanceNeedHeir => 'Añade al menos un heredero';
+
+  @override
+  String get inheritanceOwnerPathLabel => 'Principal';
+
+  @override
+  String get inheritanceMinTimelockLabel => 'Umbral de timelock de herencia';
+
+  @override
+  String get inheritanceMinTimelockInfoTitle => 'Detección de herencia';
+
+  @override
+  String get inheritanceMinTimelockInfo =>
+      'Algunos descriptores Taproot usan spend paths con timelocks cortos (p.ej. 1–2 bloques) para modelar combinaciones de firma del mismo propietario — estos no son paths de herencia. Este umbral define el número mínimo de bloques que debe tener un timelock relativo para que un spend path se considere de herencia y se muestre el panel de estado.\n\nPor defecto: 144 bloques (~1 día).';
+
+  @override
+  String get inheritanceStatus => 'Herencia';
+
+  @override
+  String get inheritanceSafe => 'Seguro';
+
+  @override
+  String get inheritanceApproaching => 'Acceso del heredero próximo';
+
+  @override
+  String get inheritanceUnlocked => 'El heredero puede acceder a los fondos';
+
+  @override
+  String get inheritanceNeedsSync => 'Sincroniza para comprobar el acceso';
+
+  @override
+  String get inheritanceNoFunds => 'Sin fondos confirmados';
+
+  @override
+  String get revaultNow => 'Re-vault';
+
+  @override
+  String get revaultTitle => 'Reiniciar temporizador de herencia';
+
+  @override
+  String get revaultDescription =>
+      'Envía todos los fondos de vuelta a esta cartera. Al confirmarse, el temporizador se reinicia — los herederos deben esperar el tiempo completo de nuevo.';
+
+  @override
+  String get revaultFeeRateLabel => 'Tasa de comisión (sat/vB)';
+
+  @override
+  String get revaultCreateButton => 'Crear transacción re-vault';
+
+  @override
+  String get revaultCreating => 'Creando transacción...';
+
+  @override
+  String get blocksUnit => 'bloques';
+
+  @override
+  String inheritanceHeirN(int n) {
+    return 'Heredero $n';
+  }
+
+  @override
+  String inheritanceEarliestAccess(String duration, int blocks) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return 'Acceso del heredero más pronto en ~$duration ($blocksString bloques)';
+  }
+
+  @override
   String get scriptTypeLabel => 'Tipo de script';
 
   @override
@@ -1834,6 +1980,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get hwWalletConnecting => 'Conectando…';
+
+  @override
+  String get hwWalletUnlockDevice => 'Desbloquea tu dispositivo…';
 
   @override
   String get hwRegisterWallet => 'Registrar wallet';

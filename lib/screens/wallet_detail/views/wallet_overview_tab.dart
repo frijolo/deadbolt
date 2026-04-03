@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/spend_path_unlock.dart';
 
 enum BalanceUnit { sats, btc, fiat }
 
@@ -70,6 +75,17 @@ class _OverviewViewState extends State<OverviewView> {
     }
   }
 
+  List<APISpendPath> _inheritancePaths(WalletDetailLoaded state) {
+    final minBlocks =
+        context.watch<SettingsCubit>().state.inheritanceMinTimelockBlocks;
+    return state.descriptorAnalysis?.spendPaths
+            .where((p) =>
+                p.relTimelock.timelockType == APIRelativeTimelockType.blocks &&
+                p.relTimelock.value >= minBlocks)
+            .toList() ??
+        [];
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -84,6 +100,8 @@ class _OverviewViewState extends State<OverviewView> {
     final lastSynced = walletInfo.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(walletInfo.lastSyncedAt! * 1000)
         : null;
+
+    final heirPaths = _inheritancePaths(state);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -168,6 +186,13 @@ class _OverviewViewState extends State<OverviewView> {
             ),
           ),
         ),
+
+        // ── Inheritance status card ─────────────────────────────────────────
+        if (heirPaths.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _InheritanceStatusCard(state: state, heirPaths: heirPaths),
+        ],
+
         const SizedBox(height: 20),
 
         // ── Primary actions ─────────────────────────────────────────────────
@@ -223,6 +248,245 @@ class _OverviewViewState extends State<OverviewView> {
         '${dt.minute.toString().padLeft(2, '0')}';
   }
 }
+
+// ---------------------------------------------------------------------------
+// Inheritance status card
+// ---------------------------------------------------------------------------
+
+/// Returns the minimum blocks remaining until any heir can access funds,
+/// based on the most vulnerable (oldest) confirmed UTXO.
+/// Returns null if wallet is not synced or there are no confirmed UTXOs.
+int? _earliestHeirAccessBlocks({
+  required List<APISpendPath> heirPaths,
+  required List<APIUtxo> utxos,
+  required int tipHeight,
+}) {
+  if (tipHeight == 0) return null;
+  final confirmedUtxos =
+      utxos.where((u) => u.isConfirmed && u.confirmationHeight != null).toList();
+  if (confirmedUtxos.isEmpty) return null;
+
+  int? earliest;
+  for (final path in heirPaths) {
+    if (path.relTimelock.timelockType != APIRelativeTimelockType.blocks) continue;
+    final required = path.relTimelock.value;
+    for (final utxo in confirmedUtxos) {
+      final elapsed = tipHeight - utxo.confirmationHeight!.toInt();
+      final remaining = required - elapsed;
+      final clamped = remaining < 0 ? 0 : remaining;
+      if (earliest == null || clamped < earliest) {
+        earliest = clamped;
+      }
+    }
+  }
+  return earliest;
+}
+
+class _InheritanceStatusCard extends StatelessWidget {
+  final WalletDetailLoaded state;
+  final List<APISpendPath> heirPaths;
+
+  const _InheritanceStatusCard({
+    required this.state,
+    required this.heirPaths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final tipHeight = state.tipHeight;
+    final utxos = state.utxos;
+    final hasConfirmedBalance = state.balance.confirmed > BigInt.zero;
+
+    final earliestBlocks = _earliestHeirAccessBlocks(
+      heirPaths: heirPaths,
+      utxos: utxos,
+      tipHeight: tipHeight,
+    );
+
+    // Determine status color and label
+    final Color statusColor;
+    final String statusLabel;
+    final IconData statusIcon;
+
+    if (tipHeight == 0 || !state.utxosLoaded) {
+      statusColor = scheme.onSurfaceVariant;
+      statusLabel = l10n.inheritanceNeedsSync;
+      statusIcon = Icons.sync_outlined;
+    } else if (!hasConfirmedBalance || earliestBlocks == null) {
+      statusColor = scheme.onSurfaceVariant;
+      statusLabel = l10n.inheritanceNoFunds;
+      statusIcon = Icons.lock_open_outlined;
+    } else if (earliestBlocks == 0) {
+      statusColor = Colors.red;
+      statusLabel = l10n.inheritanceUnlocked;
+      statusIcon = Icons.warning_amber_rounded;
+    } else if (earliestBlocks < 1008) {
+      statusColor = Colors.orange;
+      statusLabel = l10n.inheritanceApproaching;
+      statusIcon = Icons.timer_outlined;
+    } else {
+      statusColor = Colors.green;
+      statusLabel = l10n.inheritanceSafe;
+      statusIcon = Icons.lock_outline;
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.family_restroom, size: 18, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.inheritanceStatus,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                const Spacer(),
+                Icon(statusIcon, size: 16, color: statusColor),
+                const SizedBox(width: 4),
+                Text(
+                  statusLabel,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+
+            // Heir paths list
+            for (final path in heirPaths) ...[
+              _HeirPathRow(
+                path: path,
+                tipHeight: tipHeight,
+                utxos: utxos,
+                label: state.pathLabels[path.id],
+              ),
+              const SizedBox(height: 6),
+            ],
+
+            // Re-vault button — navigates to the coins tab so the user can
+            // pick which coin(s) to re-vault individually.
+            if (hasConfirmedBalance) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      context.read<WalletDetailCubit>().selectTab(3),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: Text(l10n.revaultNow),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+}
+
+class _HeirPathRow extends StatelessWidget {
+  final APISpendPath path;
+  final int tipHeight;
+  final List<APIUtxo> utxos;
+  final String? label;
+
+  const _HeirPathRow({
+    required this.path,
+    required this.tipHeight,
+    required this.utxos,
+    this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final staticLabel = BitcoinFormatter.formatRelativeTimelock(
+      RelativeTimelockType.fromApi(path.relTimelock.timelockType),
+      path.relTimelock.value,
+    );
+
+    // Worst-case (oldest/most vulnerable) UTXO determines displayed status.
+    SpendPathStatus? worstStatus;
+    for (final utxo in utxos.where((u) => u.isConfirmed)) {
+      final s = spendPathStatus(path: path, utxo: utxo, tipHeight: tipHeight);
+      if (worstStatus == null || _statusRank(s) < _statusRank(worstStatus)) {
+        worstStatus = s;
+      }
+    }
+
+    final isUnlocked = worstStatus is SpendPathUnlocked;
+    final dotColor = isUnlocked ? Colors.red : scheme.onSurfaceVariant;
+    final bodySmall = Theme.of(context).textTheme.bodySmall;
+
+    // Show remaining time when data is available; fall back to static timelock.
+    // Unlocked → null (icon already communicates the state).
+    final timeText = switch (worstStatus) {
+      SpendPathRelLocked(:final remainingBlocks) when remainingBlocks != null =>
+        BitcoinFormatter.formatDuration(remainingBlocks * 10),
+      SpendPathUnlocked() => null,
+      _ => staticLabel,
+    };
+
+    return Row(
+      children: [
+        Icon(
+          isUnlocked ? Icons.lock_open_outlined : Icons.lock_clock_outlined,
+          size: 14,
+          color: dotColor,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Row(
+            children: [
+              if (label != null && label!.isNotEmpty) ...[
+                Flexible(
+                  child: Text(
+                    label!,
+                    style: bodySmall?.copyWith(
+                      color: scheme.onSurface.withAlpha(AppAlpha.high),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (timeText != null) const SizedBox(width: 8),
+              ],
+              if (timeText != null)
+                Text(
+                  timeText,
+                  style: bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Lower rank = closer to unlocked (worse for security).
+  int _statusRank(SpendPathStatus s) => switch (s) {
+        SpendPathUnlocked() => 0,
+        SpendPathRelLocked() => 1,
+        SpendPathUnconfirmed() => 2,
+        SpendPathNeedsSync() => 3,
+        SpendPathAbsLocked() => 4,
+      };
+}
+
+// ---------------------------------------------------------------------------
+// Shared action widgets
+// ---------------------------------------------------------------------------
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;

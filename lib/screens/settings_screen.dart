@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -29,6 +30,7 @@ class SettingsScreen extends StatelessWidget {
           builder: (context, settings) {
             final cubit = context.read<SettingsCubit>();
             return ListView(
+              dragStartBehavior: DragStartBehavior.down,
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
                 _SectionCard(
@@ -76,6 +78,8 @@ class SettingsScreen extends StatelessWidget {
                       current: settings.walletType,
                       onChanged: cubit.setWalletType,
                     ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _InheritanceMinTimelockTile(settings: settings, cubit: cubit),
                   ],
                 ),
                 _SectionCard(
@@ -482,6 +486,114 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
           border: const OutlineInputBorder(),
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onTap: () => setState(() => _editing = true),
+        onSubmitted: (_) => _save(),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Inheritance minimum timelock tile
+// ─────────────────────────────────────────────────────────────
+
+class _InheritanceMinTimelockTile extends StatefulWidget {
+  final AppSettings settings;
+  final SettingsCubit cubit;
+
+  const _InheritanceMinTimelockTile(
+      {required this.settings, required this.cubit});
+
+  @override
+  State<_InheritanceMinTimelockTile> createState() =>
+      _InheritanceMinTimelockTileState();
+}
+
+class _InheritanceMinTimelockTileState
+    extends State<_InheritanceMinTimelockTile> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+        text: widget.settings.inheritanceMinTimelockBlocks.toString());
+    _focusNode = FocusNode()..addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_InheritanceMinTimelockTile old) {
+    super.didUpdateWidget(old);
+    if (!_editing &&
+        old.settings.inheritanceMinTimelockBlocks !=
+            widget.settings.inheritanceMinTimelockBlocks) {
+      _controller.text =
+          widget.settings.inheritanceMinTimelockBlocks.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) _save();
+  }
+
+  void _save() {
+    if (!_editing) return;
+    final value = int.tryParse(_controller.text.trim());
+    if (value != null && value > 0) {
+      widget.cubit.setInheritanceMinTimelockBlocks(value);
+    } else {
+      _controller.text =
+          widget.settings.inheritanceMinTimelockBlocks.toString();
+    }
+    setState(() => _editing = false);
+  }
+
+  void _showInfo(BuildContext context) {
+    final l10n = context.l10n;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(l10n.inheritanceMinTimelockInfoTitle),
+        content: Text(l10n.inheritanceMinTimelockInfo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          labelText: l10n.inheritanceMinTimelockLabel,
+          hintText: '144',
+          suffixText: l10n.blocksUnit,
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.info_outline, size: 18),
+            tooltip: l10n.inheritanceMinTimelockInfoTitle,
+            onPressed: () => _showInfo(context),
+          ),
+          border: const OutlineInputBorder(),
+        ),
+        keyboardType: TextInputType.number,
         onTap: () => setState(() => _editing = true),
         onSubmitted: (_) => _save(),
       ),

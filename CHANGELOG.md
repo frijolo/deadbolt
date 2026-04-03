@@ -4,13 +4,21 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.8.0]
+
+### New Features
+- **Inheritance wallets** — New wallet type that creates multi-path Taproot descriptors: you control funds normally, and designated heirs can access them after a configurable timelock delay (3 months, 6 months, 9 months, 1 year, or custom blocks).
+- **Inheritance status card** — The wallet overview now shows an inheritance panel displaying the earliest date a heir could access funds, based on the oldest confirmed UTXO and remaining timelock.
+- **Re-vault** — One-tap button to sweep all funds back to the same wallet, resetting the inheritance timer.
+- **Inheritance detection threshold** — New setting to configure the minimum timelock (in blocks) that distinguishes an inheritance path from a short-delay multisig path (default: 144 blocks ≈ 1 day).
 
 ### Fixes
 - **Key removal crash** — Removing a key that is no longer in the edited list no longer throws; uses `firstOrNull` guard.
 - **Null-safe keyspec parsing** — Invalid keyspec strings in the simple-wallet dialog no longer crash; handled gracefully.
 
 ### Improvements
+- Coins tab now shows inheritance indicators on UTXOs for inheritance wallets.
+- Hardware wallet sheet now shows "Unlock your device…" prompt.
 - Network selector appears above the descriptor/key fields in wallet creation dialogs for a more logical flow.
 
 ---
@@ -325,6 +333,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.8.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.8.0
 [v1.7.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.1
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
 [v1.2.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.2.0

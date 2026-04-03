@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -211,6 +212,7 @@ class _RestoreFromSeedScreenState extends State<RestoreFromSeedScreen> {
 
   Widget _buildIdleBody(AppLocalizations l10n) {
     return ListView(
+      dragStartBehavior: DragStartBehavior.down,
       padding: const EdgeInsets.all(16),
       children: [
         MnemonicEntryField(controller: _mnemonicController),

@@ -1744,6 +1744,150 @@ class AppLocalizationsEn extends AppLocalizations {
       'Multiple keys required to sign. Ideal for shared control or extra security.';
 
   @override
+  String get walletTypeInheritance => 'Inheritance';
+
+  @override
+  String get walletTypeInheritanceDesc =>
+      'Multi-path wallet: you control funds now, heirs can access after a set time delay.';
+
+  @override
+  String get ownerKeysSection => 'Your keys';
+
+  @override
+  String get heirsSection => 'Heirs';
+
+  @override
+  String get addHeir => 'Add heir';
+
+  @override
+  String get editHeir => 'Edit heir';
+
+  @override
+  String get heirName => 'Heir name';
+
+  @override
+  String get heirNameHint => 'e.g. Alice, Family, Lawyer';
+
+  @override
+  String get heirKey => 'Heir\'s key';
+
+  @override
+  String get heirTimelockLabel => 'Can access after';
+
+  @override
+  String get inheritanceSixMonths => '6 months (~26,280 blocks)';
+
+  @override
+  String get inheritanceOneYear => '1 year (~52,560 blocks)';
+
+  @override
+  String get inheritanceThreeMonthsShort => '3 mo';
+
+  @override
+  String get inheritanceSixMonthsShort => '6 mo';
+
+  @override
+  String get inheritanceNineMonthsShort => '9 mo';
+
+  @override
+  String get inheritanceOneYearShort => '1 yr';
+
+  @override
+  String get inheritanceThreeMonths => '3 months (~13,140 blocks)';
+
+  @override
+  String get inheritanceNineMonths => '9 months (~39,420 blocks)';
+
+  @override
+  String get inheritanceCustomTimelock => 'Custom...';
+
+  @override
+  String get inheritanceDuplicateTimelockTitle => 'Duplicate timelocks';
+
+  @override
+  String get inheritanceDuplicateTimelockBody =>
+      'Two or more heirs share the same timelock. For better compatibility with other coordination software, each spending path should have a unique timelock.';
+
+  @override
+  String get inheritanceDuplicateTimelockFix => 'Fix automatically';
+
+  @override
+  String get inheritanceDuplicateTimelockContinue => 'Continue anyway';
+
+  @override
+  String get inheritanceHeirsNeedKey => 'Set a key for each heir';
+
+  @override
+  String get inheritanceNeedHeir => 'Add at least one heir';
+
+  @override
+  String get inheritanceOwnerPathLabel => 'Main';
+
+  @override
+  String get inheritanceMinTimelockLabel => 'Inheritance timelock threshold';
+
+  @override
+  String get inheritanceMinTimelockInfoTitle => 'Inheritance detection';
+
+  @override
+  String get inheritanceMinTimelockInfo =>
+      'Some Taproot descriptors use spend paths with short timelocks (e.g. 1–2 blocks) to model multiple signing combinations for the same owner — these are not inheritance paths. This threshold is the minimum number of blocks a relative timelock must have before a spend path is treated as an inheritance path and the status panel is shown.\n\nDefault: 144 blocks (~1 day).';
+
+  @override
+  String get inheritanceStatus => 'Inheritance';
+
+  @override
+  String get inheritanceSafe => 'Safe';
+
+  @override
+  String get inheritanceApproaching => 'Heir access approaching';
+
+  @override
+  String get inheritanceUnlocked => 'Heir can access funds';
+
+  @override
+  String get inheritanceNeedsSync => 'Sync to check heir access';
+
+  @override
+  String get inheritanceNoFunds => 'No confirmed funds';
+
+  @override
+  String get revaultNow => 'Re-vault';
+
+  @override
+  String get revaultTitle => 'Reset inheritance timer';
+
+  @override
+  String get revaultDescription =>
+      'Sends all funds back to this wallet. Once confirmed, the inheritance timer resets — heirs must wait the full delay again.';
+
+  @override
+  String get revaultFeeRateLabel => 'Fee rate (sat/vB)';
+
+  @override
+  String get revaultCreateButton => 'Create re-vault transaction';
+
+  @override
+  String get revaultCreating => 'Creating transaction...';
+
+  @override
+  String get blocksUnit => 'blocks';
+
+  @override
+  String inheritanceHeirN(int n) {
+    return 'Heir $n';
+  }
+
+  @override
+  String inheritanceEarliestAccess(String duration, int blocks) {
+    final intl.NumberFormat blocksNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String blocksString = blocksNumberFormat.format(blocks);
+
+    return 'Earliest heir access in ~$duration ($blocksString blocks)';
+  }
+
+  @override
   String get scriptTypeLabel => 'Script type';
 
   @override
@@ -1822,6 +1966,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hwWalletConnecting => 'Connecting…';
+
+  @override
+  String get hwWalletUnlockDevice => 'Unlock your device…';
 
   @override
   String get hwRegisterWallet => 'Register wallet';
