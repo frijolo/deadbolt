@@ -263,53 +263,6 @@ int copyProjectKeysToWallet({
   walletPassword: walletPassword,
 );
 
-/// Export a wallet to a self-contained encrypted `.deadbolt` backup (v2 format).
-///
-/// `export_protection` must be `UserPassword` or `XpubKey`.
-/// - `UserPassword`: provide `export_password`; the credential is protected with Argon2id.
-/// - `XpubKey`: xpubs are auto-extracted from the descriptor; each gets its own slot.
-///
-/// `security_level` controls the Argon2id parameters for the export credential slots.
-/// The returned bytes should be saved as a `.deadbolt` file.
-Future<Uint8List> exportWalletBackup({
-  required String walletPath,
-  required String deviceKeyHex,
-  String? openPassword,
-  required APIProtectionType exportProtection,
-  String? exportPassword,
-  required APISecurityLevel securityLevel,
-}) => RustLib.instance.api.crateApiWalletExportWalletBackup(
-  walletPath: walletPath,
-  deviceKeyHex: deviceKeyHex,
-  openPassword: openPassword,
-  exportProtection: exportProtection,
-  exportPassword: exportPassword,
-  securityLevel: securityLevel,
-);
-
-/// Import a `.deadbolt` backup (v1 or v2) and add it as a new wallet in `wallets_dir`.
-///
-/// `import_credential`: password for UserPassword backups, xpub or keyspec for XpubKey backups.
-/// Returns the `APIWalletInfo` of the restored wallet.
-Future<APIWalletInfo> importWalletBackup({
-  required List<int> backupBytes,
-  required String importCredential,
-  required String deviceKeyHex,
-  required String walletsDir,
-}) => RustLib.instance.api.crateApiWalletImportWalletBackup(
-  backupBytes: backupBytes,
-  importCredential: importCredential,
-  deviceKeyHex: deviceKeyHex,
-  walletsDir: walletsDir,
-);
-
-/// Inspect a `.deadbolt` backup and return its protection type without decrypting it.
-Future<APIProtectionType> inspectWalletBackup({
-  required List<int> backupBytes,
-}) => RustLib.instance.api.crateApiWalletInspectWalletBackup(
-  backupBytes: backupBytes,
-);
-
 /// Strip non-essential fields from a PSBT to reduce QR code size.
 ///
 /// Returns the BIP39 English wordlist (2048 words, alphabetically sorted).
@@ -337,46 +290,6 @@ List<String> bip39ValidLastWords({
 /// The stored PSBT is never modified — this is only used for QR export.
 Future<String> stripPsbtForHw({required String psbtBase64}) =>
     RustLib.instance.api.crateApiWalletStripPsbtForHw(psbtBase64: psbtBase64);
-
-/// Scan a mnemonic's BIP44-family accounts and return those with on-chain activity.
-///
-/// Iterates accounts starting at index 0. Stops after `account_gap_limit`
-/// consecutive accounts with no transactions and no balance. For each
-/// account it checks the first `address_gap_limit` receive addresses (chain 0)
-/// using Electrum batch queries.
-///
-/// Only singlesig wallet types are supported. Passing `P2WSH` or `P2SH_WSH`
-/// returns an error.
-Future<APIDiscoveredAccounts> discoverAccounts({
-  required String mnemonic,
-  String? passphrase,
-  required APIWalletType walletType,
-  required APINetwork network,
-  required String electrumUrl,
-  required int accountGapLimit,
-  required int addressGapLimit,
-  required bool nonStandardPaths,
-}) => RustLib.instance.api.crateApiWalletDiscoverAccounts(
-  mnemonic: mnemonic,
-  passphrase: passphrase,
-  walletType: walletType,
-  network: network,
-  electrumUrl: electrumUrl,
-  accountGapLimit: accountGapLimit,
-  addressGapLimit: addressGapLimit,
-  nonStandardPaths: nonStandardPaths,
-);
-
-/// Returns the first external receive address (index 0) for a stored wallet
-/// descriptor. Used to match discovered accounts against wallets already on
-/// the device without relying on fragile descriptor string comparisons.
-Future<String> firstAddressFromDescriptor({
-  required String descriptor,
-  required APINetwork network,
-}) => RustLib.instance.api.crateApiWalletFirstAddressFromDescriptor(
-  descriptor: descriptor,
-  network: network,
-);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>>
 abstract class ApiWallet implements RustOpaqueInterface {

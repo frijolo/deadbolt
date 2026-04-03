@@ -119,6 +119,7 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                             onRemove: () => cubit.setAddressLabel(
                                 address.address, '', keychain),
                           ),
+                          barrierDismissible: false,
                         );
                       },
                     ),
@@ -362,6 +363,7 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                             onRemove: () =>
                                 cubit.setCoinLabel(utxo.txid, utxo.vout, ''),
                           ),
+                          barrierDismissible: false,
                         );
                       },
                     ),
@@ -691,6 +693,7 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                                 cubit.setTxLabel(tx.txid, label),
                             onRemove: () => cubit.setTxLabel(tx.txid, ''),
                           ),
+                          barrierDismissible: false,
                         );
                       },
                     ),

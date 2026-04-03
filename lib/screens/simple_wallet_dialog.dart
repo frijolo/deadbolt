@@ -13,7 +13,7 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart'
     show KeyspecResult, kKeyspecPattern, showKeyspecSheet;
-import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet, SheetHandle;
+import 'package:deadbolt/widgets/dialog_helpers.dart' show showSheet, sheetCloseTitle;
 import 'package:deadbolt/widgets/key_edit_sheet.dart' show showKeySheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -241,6 +241,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
           ..._heirs.map((h) => _mfpOf(h.keyspec)),
         },
       ),
+      isDismissible: false,
     );
     if (entry != null && mounted) {
       setState(() => _heirs.add(entry));
@@ -266,6 +267,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         existingMfps: otherMfps,
         initialEntry: current,
       ),
+      isDismissible: false,
     );
     if (updated != null && mounted) {
       setState(() => _heirs[index] = updated);
@@ -1039,13 +1041,11 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SheetHandle(),
-
-          Text(
+          sheetCloseTitle(
+            context,
             _isEditing ? l10n.editHeir : l10n.addHeir,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            onClose: () => Navigator.pop(context),
+            tooltip: l10n.cancel,
           ),
           const SizedBox(height: 16),
 

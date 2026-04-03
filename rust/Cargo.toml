@@ -33,6 +33,11 @@ tokio = { version = "1", features = ["sync", "time", "rt-multi-thread", "net", "
 futures = { version = "0.3", default-features = false, features = ["std"] }
 arti-client = { version = "0.22", default-features = false, features = ["tokio", "rustls", "onion-service-client"] }
 tor-rtcompat = { version = "0.22", default-features = false, features = ["tokio", "rustls"] }
+# Nostr backup support
+nostr = { version = "0.44", default-features = false, features = ["std"] }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+hmac = "0.12"
+sha2 = "0.10"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets

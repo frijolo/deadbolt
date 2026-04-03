@@ -163,6 +163,13 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
     );
   }
 
+  // True when the target count is one of the "rare" sizes (15 / 18 / 21).
+  bool get _isOther => const [15, 18, 21].contains(_targetCount);
+
+  // Value shown as selected in the primary segmented button.
+  // -1 maps to the "…" segment.
+  int get _primarySelection => _isOther ? -1 : _targetCount;
+
   int get _wordCount {
     final words =
         widget.controller.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
@@ -179,27 +186,49 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Word count selector
+        // Word count selector — primary: 12 / 24 / …
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<int>(
             showSelectedIcon: false,
-            segments: [
-              for (final count in bip39ValidWordCounts)
-                ButtonSegment(
-                  value: count,
-                  label: Text('$count', style: const TextStyle(fontSize: 11)),
-                ),
+            segments: const [
+              ButtonSegment(value: 12, label: Text('12', style: TextStyle(fontSize: 11))),
+              ButtonSegment(value: 24, label: Text('24', style: TextStyle(fontSize: 11))),
+              ButtonSegment(value: -1, label: Text('...', style: TextStyle(fontSize: 11))),
             ],
-            selected: {_targetCount},
+            selected: {_primarySelection},
             onSelectionChanged: (v) {
-              setState(() => _targetCount = v.first);
-              widget.onTargetWordCountChanged?.call(v.first);
+              final sel = v.first;
+              final next = sel == -1 ? (_isOther ? _targetCount : 15) : sel;
+              setState(() => _targetCount = next);
+              widget.onTargetWordCountChanged?.call(next);
               _updateSuggestions();
             },
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
           ),
         ),
+        // Secondary selector (15 / 18 / 21) — only when "…" is active
+        if (_isOther) ...[
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 15, label: Text('15', style: TextStyle(fontSize: 11))),
+                ButtonSegment(value: 18, label: Text('18', style: TextStyle(fontSize: 11))),
+                ButtonSegment(value: 21, label: Text('21', style: TextStyle(fontSize: 11))),
+              ],
+              selected: {_targetCount},
+              onSelectionChanged: (v) {
+                setState(() => _targetCount = v.first);
+                widget.onTargetWordCountChanged?.call(v.first);
+                _updateSuggestions();
+              },
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         // Label + progress
         Row(

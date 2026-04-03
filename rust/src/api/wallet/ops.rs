@@ -55,12 +55,16 @@ impl APIWallet {
         // Phase 2: network I/O — mutex NOT held so other threads can read the wallet.
         let client = create_electrum_client(&electrum_url)?;
         let update_full = if is_first_sync {
-            Some(client.full_scan(request_full.unwrap(), STOP_GAP, BATCH_SIZE, false)?)
+            let req = request_full
+                .ok_or_else(|| anyhow::anyhow!("full scan request missing for first sync"))?;
+            Some(client.full_scan(req, STOP_GAP, BATCH_SIZE, false)?)
         } else {
             None
         };
         let update_sync = if !is_first_sync {
-            Some(client.sync(request_sync.unwrap(), BATCH_SIZE, false)?)
+            let req = request_sync
+                .ok_or_else(|| anyhow::anyhow!("sync request missing for incremental sync"))?;
+            Some(client.sync(req, BATCH_SIZE, false)?)
         } else {
             None
         };

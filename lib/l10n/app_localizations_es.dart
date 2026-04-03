@@ -2109,6 +2109,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scanAccountsRetry => 'Reintentar';
 
   @override
+  String get searchNostrLabel => 'Buscar backups en Nostr';
+
+  @override
+  String get searchNostrHint =>
+      'Busca copias de seguridad del descriptor en los relays configurados';
+
+  @override
+  String get searchNostrScanningHint =>
+      'También buscando backups de descriptor en relays Nostr…';
+
+  @override
+  String get nostrBackupFoundOnScan => 'Backup Nostr encontrado';
+
+  @override
+  String get importFromNostrBackup => 'Restaurar desde Nostr';
+
+  @override
   String get scanTypeAll => 'Todos';
 
   @override
@@ -2215,4 +2232,113 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get derivPathWithoutLeading => 'Sin el prefijo m/';
+
+  @override
+  String get nostrRelaysLabel => 'Relays Nostr';
+
+  @override
+  String get nostrRelaysSubtitle =>
+      'Relays para respaldos cifrados de descriptores';
+
+  @override
+  String get nostrRelayAddHint => 'wss://relay.ejemplo.com';
+
+  @override
+  String get nostrRelayInvalidUrl => 'La URL debe comenzar con wss:// o ws://';
+
+  @override
+  String get nostrRelayDuplicate => 'El relay ya está en la lista';
+
+  @override
+  String get nostrRelayAddButton => 'Agregar relay';
+
+  @override
+  String get nostrBackupMenu => 'Respaldo Nostr';
+
+  @override
+  String get nostrBackupTitle => 'Respaldo Nostr';
+
+  @override
+  String get nostrBackupSubtitle =>
+      'Respaldo cifrado del descriptor en relays Nostr';
+
+  @override
+  String get nostrBackupPublish => 'Publicar respaldo';
+
+  @override
+  String get nostrBackupRefresh => 'Actualizar estado';
+
+  @override
+  String get nostrBackupPublished => 'Respaldo publicado';
+
+  @override
+  String get nostrBackupSecurityNote =>
+      'Cualquier persona con tu xpub puede localizar y descifrar este respaldo. Solo comparte xpubs con co-firmantes de confianza.';
+
+  @override
+  String get nostrBackupFound => 'Respaldo encontrado';
+
+  @override
+  String get nostrBackupNotFound => 'Sin respaldo';
+
+  @override
+  String get nostrBackupError => 'Error en relay';
+
+  @override
+  String get nostrBackupNoRelays =>
+      'No hay relays configurados. Agregalos en Ajustes → Relays Nostr.';
+
+  @override
+  String get nostrBackupChecking => 'Verificando…';
+
+  @override
+  String get nostrBackupPublishing => 'Publicando…';
+
+  @override
+  String get walletCreateFromNostr => 'Restaurar desde Nostr';
+
+  @override
+  String get walletCreateFromNostrSub =>
+      'Recupera un respaldo de descriptor desde relays Nostr';
+
+  @override
+  String get nostrRestoreTitle => 'Restaurar desde Nostr';
+
+  @override
+  String get nostrRestoreEnterXpub => 'Ingresa cualquier xpub de la billetera';
+
+  @override
+  String get nostrRestoreXpubHint => 'xpub6... o [mfp/ruta]xpub...';
+
+  @override
+  String get nostrRestoreSearch => 'Buscar en relays';
+
+  @override
+  String get nostrRestoreSearching => 'Buscando en relays…';
+
+  @override
+  String get nostrRestoreNotFound =>
+      'No se encontró respaldo en los relays configurados';
+
+  @override
+  String get nostrRestoreFound => 'Respaldo encontrado';
+
+  @override
+  String get nostrRestoreWalletName => 'Nombre de billetera';
+
+  @override
+  String get nostrRestoreNetwork => 'Red';
+
+  @override
+  String get nostrRestoreDate => 'Respaldado';
+
+  @override
+  String get nostrRestoreEnterCredential => 'Ingresa tu xpub para descifrar';
+
+  @override
+  String get nostrRestoreImport => 'Importar billetera';
+
+  @override
+  String get nostrRestoreWatchOnlyNote =>
+      'La billetera se importará como solo-lectura. Reconecta tu billetera hardware o agrega tu mnemónico para firmar transacciones.';
 }

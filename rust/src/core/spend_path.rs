@@ -26,6 +26,10 @@ use bdk_wallet::{KeychainKind, PersistedWallet, Update, Wallet};
 
 use crate::core::error::WalletError;
 
+// ---------------------------------------------------------------------------
+// Spend path ID
+// ---------------------------------------------------------------------------
+
 /// Calculate a deterministic ID based on spend path properties
 /// This ensures the same spend path always gets the same ID across re-analysis
 pub fn calculate_spend_path_id(
@@ -55,6 +59,10 @@ pub fn calculate_spend_path_id(
     let hash_bytes = hash.as_byte_array();
     u32::from_le_bytes([hash_bytes[0], hash_bytes[1], hash_bytes[2], hash_bytes[3]])
 }
+
+// ---------------------------------------------------------------------------
+// SpendPathBuilder — accumulates descriptor analysis into a SpendPath
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Default)]
 struct SpendPathBuilder {
@@ -207,46 +215,6 @@ impl SpendPathBuilder {
     }
 
     fn _from_policies(policy: &Policy, is_taproot: bool) -> Result<Vec<SpendPathBuilder>> {
-        fn policy_finder(
-            policy: &Policy,
-            policy_path: &mut BTreeMap<String, Vec<usize>>,
-            sps: &mut Vec<SpendPathBuilder>,
-            force_path: bool,
-        ) -> Result<()> {
-            if force_path || policy.requires_path() {
-                match &policy.item {
-                    SatisfiableItem::Thresh {
-                        items,
-                        threshold: _,
-                    } => {
-                        for (i, item) in items.iter().enumerate() {
-                            policy_path.entry(policy.id.clone()).or_default().push(i);
-
-                            policy_finder(item, policy_path, sps, false)?;
-
-                            if let Some(vec) = policy_path.get_mut(&policy.id) {
-                                vec.pop();
-                                if vec.is_empty() {
-                                    policy_path.remove(&policy.id);
-                                }
-                            }
-                        }
-                    }
-                    SatisfiableItem::SchnorrSignature(_) | SatisfiableItem::EcdsaSignature(_) => {
-                        policy_finder(policy, policy_path, sps, false)?;
-                    }
-                    _ => {
-                        Err(WalletError::UnsupportedDescriptor)?;
-                    }
-                };
-            } else {
-                let mut sp = SpendPathBuilder::from_policy(policy)?;
-                sp.policy_path(policy_path.clone());
-                sps.push(sp);
-            }
-            Ok(())
-        }
-
         let mut sps: Vec<SpendPathBuilder> = Vec::new();
         let mut policy_path = BTreeMap::new();
         policy_finder(policy, &mut policy_path, &mut sps, is_taproot)?;
@@ -254,49 +222,101 @@ impl SpendPathBuilder {
     }
 
     fn from_policy(policy: &Policy) -> Result<SpendPathBuilder> {
-        fn policy_parser(policy: &Policy, sp: &mut SpendPathBuilder) -> Result<()> {
-            match &policy.item {
-                SatisfiableItem::Thresh { items, threshold } => {
-                    if policy.requires_path() {
-                        Err(WalletError::UnsupportedDescriptor)?;
-                    }
-                    if *threshold != items.len() {
-                        sp.threshold(*threshold)?;
-                    }
-                    for item in items {
-                        policy_parser(item, sp)?;
-                    }
-                }
-                SatisfiableItem::Multisig { keys, threshold } => {
-                    sp.threshold(*threshold)?;
-                    for key in keys {
-                        sp.add_mfp(fingerprint_of(key)?);
-                    }
-                }
-                SatisfiableItem::SchnorrSignature(key) | SatisfiableItem::EcdsaSignature(key) => {
-                    if !sp.threshold_setted {
-                        sp.add_threshold(1)?;
-                    }
-                    sp.add_mfp(fingerprint_of(key)?);
-                }
-                SatisfiableItem::RelativeTimelock { value } => {
-                    sp.rel_timelock(value.to_consensus_u32());
-                }
-                SatisfiableItem::AbsoluteTimelock { value } => {
-                    sp.abs_timelock(value.to_consensus_u32());
-                }
-                _ => {
-                    Err(WalletError::UnsupportedDescriptor)?;
-                }
-            };
-            Ok(())
-        }
-
         let mut spb = Self::new();
         policy_parser(policy, &mut spb)?;
         Ok(spb)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Policy tree traversal helpers (used by SpendPathBuilder::from_policies)
+// ---------------------------------------------------------------------------
+
+/// Walk the BDK policy tree and collect one `SpendPathBuilder` per satisfiable leaf.
+///
+/// `force_path` is true when building Taproot paths, where every leaf is a separate
+/// spend option and we always need to enumerate branches.
+fn policy_finder(
+    policy: &Policy,
+    policy_path: &mut BTreeMap<String, Vec<usize>>,
+    sps: &mut Vec<SpendPathBuilder>,
+    force_path: bool,
+) -> Result<()> {
+    if force_path || policy.requires_path() {
+        match &policy.item {
+            SatisfiableItem::Thresh {
+                items,
+                threshold: _,
+            } => {
+                for (i, item) in items.iter().enumerate() {
+                    policy_path.entry(policy.id.clone()).or_default().push(i);
+
+                    policy_finder(item, policy_path, sps, false)?;
+
+                    if let Some(vec) = policy_path.get_mut(&policy.id) {
+                        vec.pop();
+                        if vec.is_empty() {
+                            policy_path.remove(&policy.id);
+                        }
+                    }
+                }
+            }
+            SatisfiableItem::SchnorrSignature(_) | SatisfiableItem::EcdsaSignature(_) => {
+                policy_finder(policy, policy_path, sps, false)?;
+            }
+            _ => {
+                Err(WalletError::UnsupportedDescriptor)?;
+            }
+        };
+    } else {
+        let mut sp = SpendPathBuilder::from_policy(policy)?;
+        sp.policy_path(policy_path.clone());
+        sps.push(sp);
+    }
+    Ok(())
+}
+
+/// Parse a single BDK policy node into a `SpendPathBuilder`, accumulating
+/// threshold, MFPs, and timelock values.
+fn policy_parser(policy: &Policy, sp: &mut SpendPathBuilder) -> Result<()> {
+    match &policy.item {
+        SatisfiableItem::Thresh { items, threshold } => {
+            if policy.requires_path() {
+                Err(WalletError::UnsupportedDescriptor)?;
+            }
+            if *threshold != items.len() {
+                sp.threshold(*threshold)?;
+            }
+            for item in items {
+                policy_parser(item, sp)?;
+            }
+        }
+        SatisfiableItem::Multisig { keys, threshold } => {
+            sp.threshold(*threshold)?;
+            for key in keys {
+                sp.add_mfp(fingerprint_of(key)?);
+            }
+        }
+        SatisfiableItem::SchnorrSignature(key) | SatisfiableItem::EcdsaSignature(key) => {
+            if !sp.threshold_setted {
+                sp.add_threshold(1)?;
+            }
+            sp.add_mfp(fingerprint_of(key)?);
+        }
+        SatisfiableItem::RelativeTimelock { value } => {
+            sp.rel_timelock(value.to_consensus_u32());
+        }
+        SatisfiableItem::AbsoluteTimelock { value } => {
+            sp.abs_timelock(value.to_consensus_u32());
+        }
+        _ => {
+            Err(WalletError::UnsupportedDescriptor)?;
+        }
+    };
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub struct SpendPath {
@@ -319,6 +339,10 @@ pub struct SpendPath {
 
     pub key_changes: BTreeMap<String, u32>, // mfp → change index (0=external, 1=internal)
 }
+
+// ---------------------------------------------------------------------------
+// Key extraction helpers
+// ---------------------------------------------------------------------------
 
 /// Extract MFP from DescriptorPublicKey if origin is present
 fn mfp_of_dpk(dpk: &DescriptorPublicKey) -> Option<String> {
@@ -720,6 +744,10 @@ impl SpendPath {
     }
 }
 
+// ---------------------------------------------------------------------------
+// WeightCalc — builds dummy transactions to measure per-input/output weight
+// ---------------------------------------------------------------------------
+
 /// Taproot control block: 1 byte version + 32 bytes internal key
 const TAPROOT_CB_BASE_LEN: usize = 33;
 /// Each node in the Merkle path adds 32 bytes to the control block
@@ -1015,6 +1043,10 @@ impl WeightCalc {
         wu as f32 / 4.0
     }
 }
+
+// ---------------------------------------------------------------------------
+// Misc utility helpers
+// ---------------------------------------------------------------------------
 
 /// Returns true if this (mfp, path) pair matches the expected change index for this spend path.
 /// The change index is the second-to-last derivation step (immediately before the address index).

@@ -23,7 +23,7 @@ import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/change_protection_dialog.dart';
 import 'package:deadbolt/screens/export_backup_dialog.dart'
     show showExportBackupDialog;
-import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
+import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
 import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
@@ -45,6 +45,8 @@ import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_overview_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_descriptor_tab.dart';
+import 'package:deadbolt/screens/wallet_detail/dialogs/nostr_backup_dialog.dart'
+    show showNostrBackupSheet;
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -225,6 +227,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           currentProtection: state.walletInfo.protection.protectionType,
           currentSecurityLevel: state.walletInfo.protection.securityLevel,
         );
+      case _WalletMenuAction.nostrBackup:
+        showNostrBackupSheet(context, state: state);
     }
   }
 
@@ -373,7 +377,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 
     final List<int> backupBytes;
     try {
-      backupBytes = await rust_wallet.exportWalletBackup(
+      backupBytes = await rust_backup.exportWalletBackup(
         walletPath: walletPath,
         deviceKeyHex: deviceKey,
         openPassword: openPassword,
@@ -671,6 +675,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
               const PopupMenuDivider(),
               iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: l10n.changeProtectionMenu),
+              iconMenuItem(value: _WalletMenuAction.nostrBackup, icon: Icons.backup_outlined, label: l10n.nostrBackupMenu),
               if (state.walletInfo.protection.protectionType ==
                       APIProtectionType.userPassword ||
                   state.walletInfo.protection.protectionType ==
@@ -753,7 +758,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 }
 
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection, nostrBackup }
 
 enum _ExportChoice { labels, descriptor, wallet }
 

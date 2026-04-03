@@ -8,6 +8,9 @@ import 'api/hw_wallet.dart';
 import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
+import 'api/wallet/backup.dart';
+import 'api/wallet/discovery.dart';
+import 'api/wallet/nostr_backup.dart';
 import 'api/wif_sweep.dart';
 import 'core/spend_path.dart';
 import 'dart:async';
@@ -72,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1595694177;
+  int get rustContentHash => 1420565774;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -436,6 +439,12 @@ abstract class RustLibApi extends BaseApi {
     required int absTimelock,
   });
 
+  Future<List<NostrRelayStatus>>
+  crateApiWalletNostrBackupCheckNostrBackupStatus({
+    required String descriptor,
+    required List<String> relayUrls,
+  });
+
   Future<APIHwConnectResult> crateApiHwWalletConnectHwDevice({
     required String devicePath,
     required String noiseDir,
@@ -495,7 +504,14 @@ abstract class RustLibApi extends BaseApi {
     required String derivationPath,
   });
 
-  Future<APIDiscoveredAccounts> crateApiWalletDiscoverAccounts({
+  Future<List<String>> crateApiWalletDiscoveryDeriveXpubsForNostr({
+    required String mnemonic,
+    String? passphrase,
+    required APINetwork network,
+    required int accountCount,
+  });
+
+  Future<APIDiscoveredAccounts> crateApiWalletDiscoveryDiscoverAccounts({
     required String mnemonic,
     String? passphrase,
     required APIWalletType walletType,
@@ -506,7 +522,7 @@ abstract class RustLibApi extends BaseApi {
     required bool nonStandardPaths,
   });
 
-  Future<Uint8List> crateApiWalletExportWalletBackup({
+  Future<Uint8List> crateApiWalletBackupExportWalletBackup({
     required String walletPath,
     required String deviceKeyHex,
     String? openPassword,
@@ -515,7 +531,12 @@ abstract class RustLibApi extends BaseApi {
     required APISecurityLevel securityLevel,
   });
 
-  Future<String> crateApiWalletFirstAddressFromDescriptor({
+  Future<List<NostrBackupResponse>> crateApiWalletNostrBackupFetchNostrBackup({
+    required String xpub,
+    required List<String> relayUrls,
+  });
+
+  Future<String> crateApiWalletDiscoveryFirstAddressFromDescriptor({
     required String descriptor,
     required APINetwork network,
   });
@@ -576,7 +597,15 @@ abstract class RustLibApi extends BaseApi {
     String? descriptor,
   });
 
-  Future<APIWalletInfo> crateApiWalletImportWalletBackup({
+  Future<APIWalletInfo> crateApiWalletNostrBackupImportNostrBackup({
+    required List<int> backupBytes,
+    required String xpubCredential,
+    required String deviceKeyHex,
+    required String walletsDir,
+    String? walletNameOverride,
+  });
+
+  Future<APIWalletInfo> crateApiWalletBackupImportWalletBackup({
     required List<int> backupBytes,
     required String importCredential,
     required String deviceKeyHex,
@@ -585,7 +614,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiAnalyzerInitApp();
 
-  Future<APIProtectionType> crateApiWalletInspectWalletBackup({
+  Future<APIProtectionType> crateApiWalletBackupInspectWalletBackup({
     required List<int> backupBytes,
   });
 
@@ -614,6 +643,13 @@ abstract class RustLibApi extends BaseApi {
     required String walletPath,
     required String deviceKeyHex,
     String? password,
+  });
+
+  Future<List<NostrRelayStatus>> crateApiWalletNostrBackupPublishNostrBackup({
+    required String walletPath,
+    required String deviceKeyHex,
+    String? openPassword,
+    required List<String> relayUrls,
   });
 
   Future<List<APIWifUtxo>> crateApiWifSweepQueryWifUtxos({
@@ -697,6 +733,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiWalletWalletRequiresXpub({required String walletPath});
+
+  Future<APIWalletType> crateApiWalletDiscoveryWalletTypeFromDescriptor({
+    required String descriptor,
+  });
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_ApiWallet;
@@ -3303,6 +3343,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<NostrRelayStatus>>
+  crateApiWalletNostrBackupCheckNostrBackupStatus({
+    required String descriptor,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(descriptor, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 73,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_nostr_relay_status,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletNostrBackupCheckNostrBackupStatusConstMeta,
+        argValues: [descriptor, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletNostrBackupCheckNostrBackupStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "check_nostr_backup_status",
+        argNames: ["descriptor", "relayUrls"],
+      );
+
+  @override
   Future<APIHwConnectResult> crateApiHwWalletConnectHwDevice({
     required String devicePath,
     required String noiseDir,
@@ -3316,7 +3392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 73,
+            funcId: 74,
             port: port_,
           );
         },
@@ -3353,7 +3429,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 74,
+            funcId: 75,
             port: port_,
           );
         },
@@ -3391,7 +3467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(walletPath, serializer);
           sse_encode_String(deviceKeyHex, serializer);
           sse_encode_opt_String(walletPassword, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 75)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 76)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_32,
@@ -3448,7 +3524,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 76,
+            funcId: 77,
             port: port_,
           );
         },
@@ -3498,7 +3574,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 78,
             port: port_,
           );
         },
@@ -3531,7 +3607,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 79,
             port: port_,
           );
         },
@@ -3567,7 +3643,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_i_64(projectId, serializer);
           sse_encode_String(mfp, serializer);
           sse_encode_String(deviceKeyHex, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 79)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 80)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -3596,7 +3672,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 80,
+            funcId: 81,
             port: port_,
           );
         },
@@ -3632,7 +3708,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 82,
             port: port_,
           );
         },
@@ -3667,7 +3743,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 83,
             port: port_,
           );
         },
@@ -3689,7 +3765,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<APIDiscoveredAccounts> crateApiWalletDiscoverAccounts({
+  Future<List<String>> crateApiWalletDiscoveryDeriveXpubsForNostr({
+    required String mnemonic,
+    String? passphrase,
+    required APINetwork network,
+    required int accountCount,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_opt_String(passphrase, serializer);
+          sse_encode_api_network(network, serializer);
+          sse_encode_u_32(accountCount, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 84,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletDiscoveryDeriveXpubsForNostrConstMeta,
+        argValues: [mnemonic, passphrase, network, accountCount],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletDiscoveryDeriveXpubsForNostrConstMeta =>
+      const TaskConstMeta(
+        debugName: "derive_xpubs_for_nostr",
+        argNames: ["mnemonic", "passphrase", "network", "accountCount"],
+      );
+
+  @override
+  Future<APIDiscoveredAccounts> crateApiWalletDiscoveryDiscoverAccounts({
     required String mnemonic,
     String? passphrase,
     required APIWalletType walletType,
@@ -3714,7 +3829,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 83,
+            funcId: 85,
             port: port_,
           );
         },
@@ -3722,7 +3837,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_api_discovered_accounts,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletDiscoverAccountsConstMeta,
+        constMeta: kCrateApiWalletDiscoveryDiscoverAccountsConstMeta,
         argValues: [
           mnemonic,
           passphrase,
@@ -3738,7 +3853,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiWalletDiscoverAccountsConstMeta =>
+  TaskConstMeta get kCrateApiWalletDiscoveryDiscoverAccountsConstMeta =>
       const TaskConstMeta(
         debugName: "discover_accounts",
         argNames: [
@@ -3754,7 +3869,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Uint8List> crateApiWalletExportWalletBackup({
+  Future<Uint8List> crateApiWalletBackupExportWalletBackup({
     required String walletPath,
     required String deviceKeyHex,
     String? openPassword,
@@ -3775,7 +3890,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 84,
+            funcId: 86,
             port: port_,
           );
         },
@@ -3783,7 +3898,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletExportWalletBackupConstMeta,
+        constMeta: kCrateApiWalletBackupExportWalletBackupConstMeta,
         argValues: [
           walletPath,
           deviceKeyHex,
@@ -3797,7 +3912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiWalletExportWalletBackupConstMeta =>
+  TaskConstMeta get kCrateApiWalletBackupExportWalletBackupConstMeta =>
       const TaskConstMeta(
         debugName: "export_wallet_backup",
         argNames: [
@@ -3811,7 +3926,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiWalletFirstAddressFromDescriptor({
+  Future<List<NostrBackupResponse>> crateApiWalletNostrBackupFetchNostrBackup({
+    required String xpub,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(xpub, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 87,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_nostr_backup_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletNostrBackupFetchNostrBackupConstMeta,
+        argValues: [xpub, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletNostrBackupFetchNostrBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "fetch_nostr_backup",
+        argNames: ["xpub", "relayUrls"],
+      );
+
+  @override
+  Future<String> crateApiWalletDiscoveryFirstAddressFromDescriptor({
     required String descriptor,
     required APINetwork network,
   }) {
@@ -3824,7 +3974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 88,
             port: port_,
           );
         },
@@ -3832,14 +3982,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletFirstAddressFromDescriptorConstMeta,
+        constMeta: kCrateApiWalletDiscoveryFirstAddressFromDescriptorConstMeta,
         argValues: [descriptor, network],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWalletFirstAddressFromDescriptorConstMeta =>
+  TaskConstMeta
+  get kCrateApiWalletDiscoveryFirstAddressFromDescriptorConstMeta =>
       const TaskConstMeta(
         debugName: "first_address_from_descriptor",
         argNames: ["descriptor", "network"],
@@ -3857,7 +4008,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 89,
             port: port_,
           );
         },
@@ -3887,7 +4038,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(sessionId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 87)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_api_hw_session_info,
@@ -3922,7 +4073,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 88,
+            funcId: 91,
             port: port_,
           );
         },
@@ -3955,7 +4106,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 92,
             port: port_,
           );
         },
@@ -3982,7 +4133,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 93)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_api_hw_session_info,
@@ -4014,7 +4165,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 91,
+            funcId: 94,
             port: port_,
           );
         },
@@ -4042,7 +4193,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(sessionId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 92)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 95)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -4078,7 +4229,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 93,
+            funcId: 96,
             port: port_,
           );
         },
@@ -4115,7 +4266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 94,
+            funcId: 97,
             port: port_,
           );
         },
@@ -4153,7 +4304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 95,
+            funcId: 98,
             port: port_,
           );
         },
@@ -4192,7 +4343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 96,
+            funcId: 99,
             port: port_,
           );
         },
@@ -4213,7 +4364,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<APIWalletInfo> crateApiWalletImportWalletBackup({
+  Future<APIWalletInfo> crateApiWalletNostrBackupImportNostrBackup({
+    required List<int> backupBytes,
+    required String xpubCredential,
+    required String deviceKeyHex,
+    required String walletsDir,
+    String? walletNameOverride,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(backupBytes, serializer);
+          sse_encode_String(xpubCredential, serializer);
+          sse_encode_String(deviceKeyHex, serializer);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_opt_String(walletNameOverride, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 100,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_wallet_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletNostrBackupImportNostrBackupConstMeta,
+        argValues: [
+          backupBytes,
+          xpubCredential,
+          deviceKeyHex,
+          walletsDir,
+          walletNameOverride,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletNostrBackupImportNostrBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "import_nostr_backup",
+        argNames: [
+          "backupBytes",
+          "xpubCredential",
+          "deviceKeyHex",
+          "walletsDir",
+          "walletNameOverride",
+        ],
+      );
+
+  @override
+  Future<APIWalletInfo> crateApiWalletBackupImportWalletBackup({
     required List<int> backupBytes,
     required String importCredential,
     required String deviceKeyHex,
@@ -4230,7 +4434,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 97,
+            funcId: 101,
             port: port_,
           );
         },
@@ -4238,14 +4442,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_api_wallet_info,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletImportWalletBackupConstMeta,
+        constMeta: kCrateApiWalletBackupImportWalletBackupConstMeta,
         argValues: [backupBytes, importCredential, deviceKeyHex, walletsDir],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWalletImportWalletBackupConstMeta =>
+  TaskConstMeta get kCrateApiWalletBackupImportWalletBackupConstMeta =>
       const TaskConstMeta(
         debugName: "import_wallet_backup",
         argNames: [
@@ -4265,7 +4469,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 98,
+            funcId: 102,
             port: port_,
           );
         },
@@ -4284,7 +4488,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<APIProtectionType> crateApiWalletInspectWalletBackup({
+  Future<APIProtectionType> crateApiWalletBackupInspectWalletBackup({
     required List<int> backupBytes,
   }) {
     return handler.executeNormal(
@@ -4295,7 +4499,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 99,
+            funcId: 103,
             port: port_,
           );
         },
@@ -4303,14 +4507,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_api_protection_type,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiWalletInspectWalletBackupConstMeta,
+        constMeta: kCrateApiWalletBackupInspectWalletBackupConstMeta,
         argValues: [backupBytes],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWalletInspectWalletBackupConstMeta =>
+  TaskConstMeta get kCrateApiWalletBackupInspectWalletBackupConstMeta =>
       const TaskConstMeta(
         debugName: "inspect_wallet_backup",
         argNames: ["backupBytes"],
@@ -4325,7 +4529,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 100,
+            funcId: 104,
           )!;
         },
         codec: SseCodec(
@@ -4351,7 +4555,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 101,
+            funcId: 105,
           )!;
         },
         codec: SseCodec(
@@ -4377,7 +4581,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 102,
+            funcId: 106,
           )!;
         },
         codec: SseCodec(
@@ -4410,7 +4614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 103,
+            funcId: 107,
           )!;
         },
         codec: SseCodec(
@@ -4444,7 +4648,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 104,
+            funcId: 108,
             port: port_,
           );
         },
@@ -4476,7 +4680,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 105,
+            funcId: 109,
             port: port_,
           );
         },
@@ -4513,7 +4717,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 106,
+            funcId: 110,
             port: port_,
           );
         },
@@ -4535,6 +4739,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<List<NostrRelayStatus>> crateApiWalletNostrBackupPublishNostrBackup({
+    required String walletPath,
+    required String deviceKeyHex,
+    String? openPassword,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletPath, serializer);
+          sse_encode_String(deviceKeyHex, serializer);
+          sse_encode_opt_String(openPassword, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 111,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_nostr_relay_status,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletNostrBackupPublishNostrBackupConstMeta,
+        argValues: [walletPath, deviceKeyHex, openPassword, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletNostrBackupPublishNostrBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "publish_nostr_backup",
+        argNames: ["walletPath", "deviceKeyHex", "openPassword", "relayUrls"],
+      );
+
+  @override
   Future<List<APIWifUtxo>> crateApiWifSweepQueryWifUtxos({
     required String wif,
     required APINetwork network,
@@ -4550,7 +4793,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 107,
+            funcId: 112,
             port: port_,
           );
         },
@@ -4585,7 +4828,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 108,
+            funcId: 113,
             port: port_,
           );
         },
@@ -4624,7 +4867,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 109,
+            funcId: 114,
             port: port_,
           );
         },
@@ -4658,7 +4901,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 110,
+            funcId: 115,
             port: port_,
           );
         },
@@ -4696,7 +4939,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 111,
+            funcId: 116,
           )!;
         },
         codec: SseCodec(
@@ -4726,7 +4969,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 112,
+            funcId: 117,
           )!;
         },
         codec: SseCodec(
@@ -4753,7 +4996,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 113,
+            funcId: 118,
           )!;
         },
         codec: SseCodec(
@@ -4779,7 +5022,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 114,
+            funcId: 119,
           )!;
         },
         codec: SseCodec(
@@ -4805,7 +5048,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 115,
+            funcId: 120,
           )!;
         },
         codec: SseCodec(
@@ -4832,7 +5075,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 116,
+            funcId: 121,
             port: port_,
           );
         },
@@ -4873,7 +5116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 117,
+            funcId: 122,
             port: port_,
           );
         },
@@ -4914,7 +5157,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 118,
+            funcId: 123,
           )!;
         },
         codec: SseCodec(
@@ -4940,7 +5183,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 119,
+            funcId: 124,
           )!;
         },
         codec: SseCodec(
@@ -4971,7 +5214,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 120,
+            funcId: 125,
             port: port_,
           );
         },
@@ -5010,7 +5253,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 121,
+            funcId: 126,
             port: port_,
           );
         },
@@ -5047,7 +5290,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 122,
+            funcId: 127,
             port: port_,
           );
         },
@@ -5078,7 +5321,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 123,
+            funcId: 128,
             port: port_,
           );
         },
@@ -5111,7 +5354,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 124,
+            funcId: 129,
             port: port_,
           );
         },
@@ -5144,7 +5387,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 125,
+            funcId: 130,
             port: port_,
           );
         },
@@ -5175,7 +5418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 126,
+            funcId: 131,
             port: port_,
           );
         },
@@ -5194,6 +5437,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "wallet_requires_xpub",
         argNames: ["walletPath"],
+      );
+
+  @override
+  Future<APIWalletType> crateApiWalletDiscoveryWalletTypeFromDescriptor({
+    required String descriptor,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(descriptor, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 132,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_wallet_type,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWalletDiscoveryWalletTypeFromDescriptorConstMeta,
+        argValues: [descriptor],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletDiscoveryWalletTypeFromDescriptorConstMeta =>
+      const TaskConstMeta(
+        debugName: "wallet_type_from_descriptor",
+        argNames: ["descriptor"],
       );
 
   RustArcIncrementStrongCountFnType
@@ -5958,6 +6234,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIWalletType dco_decode_box_autoadd_api_wallet_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_wallet_type(raw);
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -6173,6 +6455,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<NostrBackupResponse> dco_decode_list_nostr_backup_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_nostr_backup_response)
+        .toList();
+  }
+
+  @protected
+  List<NostrRelayStatus> dco_decode_list_nostr_relay_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_nostr_relay_status).toList();
+  }
+
+  @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeInt64List(raw);
@@ -6197,6 +6493,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NostrBackupResponse dco_decode_nostr_backup_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return NostrBackupResponse(
+      bytes: dco_decode_list_prim_u_8_strict(arr[0]),
+      walletName: dco_decode_opt_String(arr[1]),
+      network: dco_decode_opt_String(arr[2]),
+      createdAt: dco_decode_opt_box_autoadd_i_64(arr[3]),
+      firstAddress: dco_decode_opt_String(arr[4]),
+      walletType: dco_decode_opt_box_autoadd_api_wallet_type(arr[5]),
+    );
+  }
+
+  @protected
+  NostrRelayStatus dco_decode_nostr_relay_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return NostrRelayStatus(
+      url: dco_decode_String(arr[0]),
+      hasBackup: dco_decode_bool(arr[1]),
+      lastPublishedAt: dco_decode_opt_box_autoadd_i_64(arr[2]),
+      eventId: dco_decode_opt_String(arr[3]),
+      error: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -6208,6 +6535,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_api_hw_session_info(raw);
+  }
+
+  @protected
+  APIWalletType? dco_decode_opt_box_autoadd_api_wallet_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_api_wallet_type(raw);
   }
 
   @protected
@@ -7114,6 +7447,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIWalletType sse_decode_box_autoadd_api_wallet_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_wallet_type(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -7529,6 +7870,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<NostrBackupResponse> sse_decode_list_nostr_backup_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NostrBackupResponse>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_nostr_backup_response(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NostrRelayStatus> sse_decode_list_nostr_relay_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NostrRelayStatus>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_nostr_relay_status(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -7557,6 +7926,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NostrBackupResponse sse_decode_nostr_backup_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bytes = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_walletName = sse_decode_opt_String(deserializer);
+    var var_network = sse_decode_opt_String(deserializer);
+    var var_createdAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_firstAddress = sse_decode_opt_String(deserializer);
+    var var_walletType = sse_decode_opt_box_autoadd_api_wallet_type(
+      deserializer,
+    );
+    return NostrBackupResponse(
+      bytes: var_bytes,
+      walletName: var_walletName,
+      network: var_network,
+      createdAt: var_createdAt,
+      firstAddress: var_firstAddress,
+      walletType: var_walletType,
+    );
+  }
+
+  @protected
+  NostrRelayStatus sse_decode_nostr_relay_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_url = sse_decode_String(deserializer);
+    var var_hasBackup = sse_decode_bool(deserializer);
+    var var_lastPublishedAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_eventId = sse_decode_opt_String(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return NostrRelayStatus(
+      url: var_url,
+      hasBackup: var_hasBackup,
+      lastPublishedAt: var_lastPublishedAt,
+      eventId: var_eventId,
+      error: var_error,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7575,6 +7984,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_api_hw_session_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  APIWalletType? sse_decode_opt_box_autoadd_api_wallet_type(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_api_wallet_type(deserializer));
     } else {
       return null;
     }
@@ -8336,6 +8758,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_api_wallet_type(
+    APIWalletType self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_wallet_type(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -8703,6 +9134,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_nostr_backup_response(
+    List<NostrBackupResponse> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_nostr_backup_response(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_nostr_relay_status(
+    List<NostrRelayStatus> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_nostr_relay_status(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_i_64_strict(
     Int64List self,
     SseSerializer serializer,
@@ -8745,6 +9200,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_nostr_backup_response(
+    NostrBackupResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_8_strict(self.bytes, serializer);
+    sse_encode_opt_String(self.walletName, serializer);
+    sse_encode_opt_String(self.network, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.createdAt, serializer);
+    sse_encode_opt_String(self.firstAddress, serializer);
+    sse_encode_opt_box_autoadd_api_wallet_type(self.walletType, serializer);
+  }
+
+  @protected
+  void sse_encode_nostr_relay_status(
+    NostrRelayStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.url, serializer);
+    sse_encode_bool(self.hasBackup, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.lastPublishedAt, serializer);
+    sse_encode_opt_String(self.eventId, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -8764,6 +9246,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_api_hw_session_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_wallet_type(
+    APIWalletType? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_api_wallet_type(self, serializer);
     }
   }
 

@@ -4,6 +4,16 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### New Features
+- **Nostr backup** — Wallet descriptors can now be encrypted and published to Nostr relays for redundant off-device backup. Accessible from the wallet detail screen.
+- **Restore from Nostr** — Recover a wallet directly from a Nostr backup using your xpub or seed phrase, without manual descriptor entry.
+- **Account discovery on seed restore** — When restoring from a seed phrase, the app scans the blockchain for used accounts across all script types (P2WPKH, P2TR, P2SH-P2WPKH) and displays found wallets with balances and transaction counts. Nostr backups are also fetched and shown alongside on-chain results.
+- **Nostr relay management** — New settings screen to add, remove, and reorder Nostr relay URLs.
+
+---
+
 ## [v1.8.0]
 
 ### New Features

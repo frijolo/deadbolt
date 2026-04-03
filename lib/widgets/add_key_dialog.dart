@@ -159,22 +159,26 @@ Future<void> showAddKeySheet(
       state.editedKeys!.map((k) => k.mfp.toLowerCase()).toSet();
   final existingKeyCount = state.editedKeys!.length;
 
-  await showSheet<void>(context, (ctx) => _AddKeySheet(
-    network: network,
-    walletType: walletType,
-    existingKeyCount: existingKeyCount,
-    existingMfps: existingMfps,
-    editingKey: editingKey,
-    onKeyAdded: onKeyAdded,
-    onAddKey: (key) => cubit.addKey(key),
-    onUpdateKey: (key) => cubit.updateKey(key),
-    onSeedAdded: (mnemonic, passphrase) async {
-      await cubit.addProjectMnemonicHotKey(mnemonic, passphrase);
-    },
-    onXprvSeedAdded: (xprv) async {
-      await cubit.addProjectXprvHotKey(xprv);
-    },
-  ));
+  await showSheet<void>(
+    context,
+    (ctx) => _AddKeySheet(
+      network: network,
+      walletType: walletType,
+      existingKeyCount: existingKeyCount,
+      existingMfps: existingMfps,
+      editingKey: editingKey,
+      onKeyAdded: onKeyAdded,
+      onAddKey: (key) => cubit.addKey(key),
+      onUpdateKey: (key) => cubit.updateKey(key),
+      onSeedAdded: (mnemonic, passphrase) async {
+        await cubit.addProjectMnemonicHotKey(mnemonic, passphrase);
+      },
+      onXprvSeedAdded: (xprv) async {
+        await cubit.addProjectXprvHotKey(xprv);
+      },
+    ),
+    isDismissible: false,
+  );
 }
 
 // Backward-compat alias used by spend_path_edit_sheet.
@@ -201,15 +205,19 @@ Future<bool> showAddPrivateKeySheet(
       ? state.walletInfo.network
       : APINetwork.testnet;
 
-  final result = await showSheet<bool>(context, (ctx) => _AddKeySheet(
-    network: network,
-    walletMode: true,
-    expectedMfp: expectedMfp,
-    keyLabel: keyLabel,
-    onAddMnemonic: (mnemonic, passphrase) =>
-        cubit.addMnemonicKey(mnemonic, passphrase),
-    onAddXprv: (xprv) => cubit.addXprvKey(xprv),
-  ));
+  final result = await showSheet<bool>(
+    context,
+    (ctx) => _AddKeySheet(
+      network: network,
+      walletMode: true,
+      expectedMfp: expectedMfp,
+      keyLabel: keyLabel,
+      onAddMnemonic: (mnemonic, passphrase) =>
+          cubit.addMnemonicKey(mnemonic, passphrase),
+      onAddXprv: (xprv) => cubit.addXprvKey(xprv),
+    ),
+    isDismissible: false,
+  );
   return result ?? false;
 }
 
@@ -227,14 +235,18 @@ Future<KeyspecResult?> showKeyspecSheet(
   Set<String> existingMfps = const {},
   bool isMultiPath = false,
 }) {
-  return showSheet<KeyspecResult>(context, (ctx) => _AddKeySheet(
-    network: network,
-    walletType: walletType,
-    existingKeyCount: existingKeyCount,
-    existingMfps: existingMfps,
-    isMultiPath: isMultiPath,
-    keyspecMode: true,
-  ));
+  return showSheet<KeyspecResult>(
+    context,
+    (ctx) => _AddKeySheet(
+      network: network,
+      walletType: walletType,
+      existingKeyCount: existingKeyCount,
+      existingMfps: existingMfps,
+      isMultiPath: isMultiPath,
+      keyspecMode: true,
+    ),
+    isDismissible: false,
+  );
 }
 
 /// Opens the "Add private key" bottom sheet for a **project** context.
@@ -250,15 +262,19 @@ Future<bool> showAddProjectPrivateKeySheet(
   final state = cubit.state as ProjectDetailLoaded;
   final network = APINetwork.values.byName(state.project.network);
 
-  final result = await showSheet<bool>(context, (ctx) => _AddKeySheet(
-    network: network,
-    walletMode: true,
-    expectedMfp: expectedMfp,
-    keyLabel: keyLabel,
-    onAddMnemonic: (mnemonic, passphrase) =>
-        cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
-    onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
-  ));
+  final result = await showSheet<bool>(
+    context,
+    (ctx) => _AddKeySheet(
+      network: network,
+      walletMode: true,
+      expectedMfp: expectedMfp,
+      keyLabel: keyLabel,
+      onAddMnemonic: (mnemonic, passphrase) =>
+          cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
+      onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
+    ),
+    isDismissible: false,
+  );
   return result ?? false;
 }
 
@@ -799,46 +815,59 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-          // Title row
-          _isEditMode || widget.walletMode
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.walletMode
-                          ? (widget.expectedMfp != null
-                              ? l10n.addPrivateKeyLabel
-                              : l10n.addSigningKeyLabel)
-                          : l10n.editKeyTitle,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    if (widget.walletMode && widget.expectedMfp != null)
-                      Text(
-                        widget.keyLabel != null &&
-                                widget.keyLabel!.isNotEmpty
-                            ? '${widget.keyLabel} · ${widget.expectedMfp}'
-                            : 'Key: ${widget.expectedMfp}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
+          // Title row with close button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _isEditMode || widget.walletMode
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.walletMode
+                                ? (widget.expectedMfp != null
+                                    ? l10n.addPrivateKeyLabel
+                                    : l10n.addSigningKeyLabel)
+                                : l10n.editKeyTitle,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          if (widget.walletMode && widget.expectedMfp != null)
+                            Text(
+                              widget.keyLabel != null &&
+                                      widget.keyLabel!.isNotEmpty
+                                  ? '${widget.keyLabel} · ${widget.expectedMfp}'
+                                  : 'Key: ${widget.expectedMfp}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontFamily: 'monospace',
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            )
+                          else if (_isEditMode)
+                            Text(
+                              widget.editingKey!.mfp.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontFamily: 'monospace',
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                        ],
                       )
-                    else if (_isEditMode)
-                      Text(
-                        widget.editingKey!.mfp.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
+                    : Text(
+                        l10n.addKeyDialogTitle,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                  ],
-                )
-              : Text(
-                  l10n.addKeyDialogTitle,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: l10n.cancel,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
 
           if (_showMethodPicker)

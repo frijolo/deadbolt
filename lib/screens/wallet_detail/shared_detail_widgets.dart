@@ -13,10 +13,18 @@ import 'package:deadbolt/widgets/dialog_helpers.dart';
 // ─────────────────────────────────────────────────────────────
 
 /// Show a dialog that inherits the current [WalletDetailCubit] from [context].
-void showWalletDialog(BuildContext context, Widget child) {
+///
+/// Set [barrierDismissible] to false for form dialogs (e.g. [LabelDialog])
+/// to prevent accidental data loss when tapping the barrier.
+void showWalletDialog(
+  BuildContext context,
+  Widget child, {
+  bool barrierDismissible = true,
+}) {
   final cubit = context.read<WalletDetailCubit>();
   showDialog<void>(
     context: context,
+    barrierDismissible: barrierDismissible,
     builder: (ctx) => BlocProvider.value(value: cubit, child: child),
   );
 }

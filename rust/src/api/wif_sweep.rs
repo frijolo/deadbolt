@@ -170,16 +170,17 @@ pub async fn sweep_wif(
     // Build unsigned transaction.
     let inputs: Vec<TxIn> = utxos
         .iter()
-        .map(|u| {
-            let txid = Txid::from_str(&u.txid).expect("valid txid from Electrum");
-            TxIn {
+        .map(|u| -> anyhow::Result<TxIn> {
+            let txid = Txid::from_str(&u.txid)
+                .map_err(|e| anyhow::anyhow!("invalid txid from Electrum '{}': {e}", u.txid))?;
+            Ok(TxIn {
                 previous_output: OutPoint::new(txid, u.vout),
                 script_sig: ScriptBuf::new(),
                 sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
                 witness: Witness::new(),
-            }
+            })
         })
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     let outputs = vec![TxOut {
         value: Amount::from_sat(output_sat),
@@ -196,9 +197,9 @@ pub async fn sweep_wif(
     // Sign each input.
     for (i, utxo) in utxos.iter().enumerate() {
         let utxo_addr = Address::from_str(&utxo.address)
-            .expect("valid address")
+            .map_err(|e| anyhow::anyhow!("invalid address '{}': {e}", utxo.address))?
             .require_network(net)
-            .expect("network matches");
+            .map_err(|e| anyhow::anyhow!("address network mismatch for '{}': {e}", utxo.address))?;
         let utxo_spk = utxo_addr.script_pubkey();
         let value = Amount::from_sat(utxo.value_sat);
 

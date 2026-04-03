@@ -2091,6 +2091,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanAccountsRetry => 'Retry';
 
   @override
+  String get searchNostrLabel => 'Search Nostr backups';
+
+  @override
+  String get searchNostrHint =>
+      'Look for descriptor backups on configured relays';
+
+  @override
+  String get searchNostrScanningHint =>
+      'Also searching Nostr relays for descriptor backups…';
+
+  @override
+  String get nostrBackupFoundOnScan => 'Nostr backup found';
+
+  @override
+  String get importFromNostrBackup => 'Restore from Nostr';
+
+  @override
   String get scanTypeAll => 'All types';
 
   @override
@@ -2196,4 +2213,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get derivPathWithoutLeading => 'Without leading m/';
+
+  @override
+  String get nostrRelaysLabel => 'Nostr Relays';
+
+  @override
+  String get nostrRelaysSubtitle => 'Relays for encrypted descriptor backups';
+
+  @override
+  String get nostrRelayAddHint => 'wss://relay.example.com';
+
+  @override
+  String get nostrRelayInvalidUrl => 'URL must start with wss:// or ws://';
+
+  @override
+  String get nostrRelayDuplicate => 'Relay already in list';
+
+  @override
+  String get nostrRelayAddButton => 'Add relay';
+
+  @override
+  String get nostrBackupMenu => 'Nostr Backup';
+
+  @override
+  String get nostrBackupTitle => 'Nostr Backup';
+
+  @override
+  String get nostrBackupSubtitle =>
+      'Encrypted descriptor backup on Nostr relays';
+
+  @override
+  String get nostrBackupPublish => 'Publish Backup';
+
+  @override
+  String get nostrBackupRefresh => 'Refresh Status';
+
+  @override
+  String get nostrBackupPublished => 'Backup published';
+
+  @override
+  String get nostrBackupSecurityNote =>
+      'Anyone with your xpub can locate and decrypt this backup. Only share xpubs with trusted co-signers.';
+
+  @override
+  String get nostrBackupFound => 'Backup found';
+
+  @override
+  String get nostrBackupNotFound => 'No backup found';
+
+  @override
+  String get nostrBackupError => 'Relay error';
+
+  @override
+  String get nostrBackupNoRelays =>
+      'No relays configured. Add relays in Settings → Nostr Relays.';
+
+  @override
+  String get nostrBackupChecking => 'Checking…';
+
+  @override
+  String get nostrBackupPublishing => 'Publishing…';
+
+  @override
+  String get walletCreateFromNostr => 'Restore from Nostr';
+
+  @override
+  String get walletCreateFromNostrSub =>
+      'Recover a descriptor backup from Nostr relays';
+
+  @override
+  String get nostrRestoreTitle => 'Restore from Nostr';
+
+  @override
+  String get nostrRestoreEnterXpub => 'Enter any xpub from the wallet';
+
+  @override
+  String get nostrRestoreXpubHint => 'xpub6... or [mfp/path]xpub...';
+
+  @override
+  String get nostrRestoreSearch => 'Search Relays';
+
+  @override
+  String get nostrRestoreSearching => 'Searching relays…';
+
+  @override
+  String get nostrRestoreNotFound => 'No backup found on configured relays';
+
+  @override
+  String get nostrRestoreFound => 'Backup found';
+
+  @override
+  String get nostrRestoreWalletName => 'Wallet name';
+
+  @override
+  String get nostrRestoreNetwork => 'Network';
+
+  @override
+  String get nostrRestoreDate => 'Backed up';
+
+  @override
+  String get nostrRestoreEnterCredential => 'Enter your xpub to decrypt';
+
+  @override
+  String get nostrRestoreImport => 'Import Wallet';
+
+  @override
+  String get nostrRestoreWatchOnlyNote =>
+      'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.';
 }

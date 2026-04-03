@@ -3854,6 +3854,36 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get scanAccountsRetry;
 
+  /// No description provided for @searchNostrLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Nostr backups'**
+  String get searchNostrLabel;
+
+  /// No description provided for @searchNostrHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Look for descriptor backups on configured relays'**
+  String get searchNostrHint;
+
+  /// No description provided for @searchNostrScanningHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also searching Nostr relays for descriptor backups…'**
+  String get searchNostrScanningHint;
+
+  /// No description provided for @nostrBackupFoundOnScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Nostr backup found'**
+  String get nostrBackupFoundOnScan;
+
+  /// No description provided for @importFromNostrBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Nostr'**
+  String get importFromNostrBackup;
+
   /// No description provided for @scanTypeAll.
   ///
   /// In en, this message translates to:
@@ -4063,6 +4093,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Without leading m/'**
   String get derivPathWithoutLeading;
+
+  /// No description provided for @nostrRelaysLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Nostr Relays'**
+  String get nostrRelaysLabel;
+
+  /// No description provided for @nostrRelaysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Relays for encrypted descriptor backups'**
+  String get nostrRelaysSubtitle;
+
+  /// No description provided for @nostrRelayAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'wss://relay.example.com'**
+  String get nostrRelayAddHint;
+
+  /// No description provided for @nostrRelayInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'URL must start with wss:// or ws://'**
+  String get nostrRelayInvalidUrl;
+
+  /// No description provided for @nostrRelayDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay already in list'**
+  String get nostrRelayDuplicate;
+
+  /// No description provided for @nostrRelayAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add relay'**
+  String get nostrRelayAddButton;
+
+  /// No description provided for @nostrBackupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Nostr Backup'**
+  String get nostrBackupMenu;
+
+  /// No description provided for @nostrBackupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nostr Backup'**
+  String get nostrBackupTitle;
+
+  /// No description provided for @nostrBackupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted descriptor backup on Nostr relays'**
+  String get nostrBackupSubtitle;
+
+  /// No description provided for @nostrBackupPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish Backup'**
+  String get nostrBackupPublish;
+
+  /// No description provided for @nostrBackupRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh Status'**
+  String get nostrBackupRefresh;
+
+  /// No description provided for @nostrBackupPublished.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup published'**
+  String get nostrBackupPublished;
+
+  /// No description provided for @nostrBackupSecurityNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with your xpub can locate and decrypt this backup. Only share xpubs with trusted co-signers.'**
+  String get nostrBackupSecurityNote;
+
+  /// No description provided for @nostrBackupFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup found'**
+  String get nostrBackupFound;
+
+  /// No description provided for @nostrBackupNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No backup found'**
+  String get nostrBackupNotFound;
+
+  /// No description provided for @nostrBackupError.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay error'**
+  String get nostrBackupError;
+
+  /// No description provided for @nostrBackupNoRelays.
+  ///
+  /// In en, this message translates to:
+  /// **'No relays configured. Add relays in Settings → Nostr Relays.'**
+  String get nostrBackupNoRelays;
+
+  /// No description provided for @nostrBackupChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get nostrBackupChecking;
+
+  /// No description provided for @nostrBackupPublishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing…'**
+  String get nostrBackupPublishing;
+
+  /// No description provided for @walletCreateFromNostr.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Nostr'**
+  String get walletCreateFromNostr;
+
+  /// No description provided for @walletCreateFromNostrSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover a descriptor backup from Nostr relays'**
+  String get walletCreateFromNostrSub;
+
+  /// No description provided for @nostrRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Nostr'**
+  String get nostrRestoreTitle;
+
+  /// No description provided for @nostrRestoreEnterXpub.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter any xpub from the wallet'**
+  String get nostrRestoreEnterXpub;
+
+  /// No description provided for @nostrRestoreXpubHint.
+  ///
+  /// In en, this message translates to:
+  /// **'xpub6... or [mfp/path]xpub...'**
+  String get nostrRestoreXpubHint;
+
+  /// No description provided for @nostrRestoreSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Relays'**
+  String get nostrRestoreSearch;
+
+  /// No description provided for @nostrRestoreSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching relays…'**
+  String get nostrRestoreSearching;
+
+  /// No description provided for @nostrRestoreNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No backup found on configured relays'**
+  String get nostrRestoreNotFound;
+
+  /// No description provided for @nostrRestoreFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup found'**
+  String get nostrRestoreFound;
+
+  /// No description provided for @nostrRestoreWalletName.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet name'**
+  String get nostrRestoreWalletName;
+
+  /// No description provided for @nostrRestoreNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network'**
+  String get nostrRestoreNetwork;
+
+  /// No description provided for @nostrRestoreDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Backed up'**
+  String get nostrRestoreDate;
+
+  /// No description provided for @nostrRestoreEnterCredential.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your xpub to decrypt'**
+  String get nostrRestoreEnterCredential;
+
+  /// No description provided for @nostrRestoreImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Wallet'**
+  String get nostrRestoreImport;
+
+  /// No description provided for @nostrRestoreWatchOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.'**
+  String get nostrRestoreWatchOnlyNote;
 }
 
 class _AppLocalizationsDelegate

@@ -25,6 +25,7 @@ void showEditNameDialog(
     // Simple dialog — no duplicate validation needed.
     showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         titlePadding: kDialogTitlePadding,
         title: dialogCloseTitle(title, onClose: () => Navigator.pop(ctx), tooltip: l10n.cancel),

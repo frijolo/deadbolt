@@ -12,6 +12,9 @@ ignore = [
     # rsa v0.9.10 — Marvin Attack (RUSTSEC-2023-0071). Transitive dep through
     # arti-client. Not used for any Bitcoin or wallet key operations.
     "RUSTSEC-2023-0071",
+    # instant v0.1.13 — unmaintained (RUSTSEC-2024-0384). Transitive dep through
+    # nostr v0.44.2. No replacement available in the nostr crate's dep tree.
+    "RUSTSEC-2024-0384",
 ]
 
 [licenses]
@@ -25,7 +28,8 @@ allow = [
     "Unicode-3.0",        # unicode-ident
     "MITNFA",             # hex_lit (bitcoin dep)
     "OpenSSL",            # aws-lc-sys (rustls dep)
-    "MPL-2.0",            # webpki-roots (electrum-client dep)
+    "MPL-2.0",            # webpki-roots older versions (electrum-client dep)
+    "CDLA-Permissive-2.0", # webpki-roots v0.26+ (tokio-tungstenite dep)
     "Unlicense",          # noise-protocol (async-hwi dep)
     "Zlib",               # slotmap (arti-client dep)
 ]

@@ -231,6 +231,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (!isClosed) super.emit(state);
   }
 
+  // ─── Wallet session ──────────────────────────────────────────────────────
+
   /// Register the wallet handle with the global WalletSyncService and start
   /// listening to sync events for this wallet. Replaces startAutoSync.
   /// Called from _WalletDetailViewState._maybeStartAutoSync once the wallet loads.
@@ -415,11 +417,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Load PSBTs eagerly
       List<APIPsbtInfo> psbts = [];
       Map<int, APIPsbtAnalysis> psbtAnalyses = {};
+      String? loadWarning;
       try {
         psbts = await handle.listPsbts();
         psbtAnalyses = await _analyzePsbts(handle, psbts);
       } catch (e, st) {
         logError('WalletDetailCubit.load() PSBTs', e, st);
+        loadWarning = formatRustError(e);
       }
 
       // Load hot keys
@@ -428,6 +432,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         hotKeys = handle.listHotKeys();
       } catch (e, st) {
         logError('WalletDetailCubit.load() hotKeys', e, st);
+        loadWarning ??= formatRustError(e);
       }
 
       emit(WalletDetailLoaded(
@@ -449,6 +454,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: true,
         hotKeys: hotKeys,
+        errorMessage: loadWarning,
       ));
       // Eagerly load descriptor analysis so PSBT navigation works from the
       // Transactions tab without needing to visit the Descriptor tab first.
@@ -469,6 +475,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (s is! WalletDetailLoaded) return;
     _syncService.syncWallet(s.walletInfo.walletPath);
   }
+
+  // ─── Transaction navigation ──────────────────────────────────────────────
 
   Future<void> setTxLabel(String txid, String label) async {
     final current = state;
@@ -580,6 +588,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     if (current is! WalletDetailLoaded) return;
     emit(current.copyWith(selectedAddressKeychain: keychain));
   }
+
+  // ─── Address management ──────────────────────────────────────────────────
 
   /// Ensures at least the receive (external) addresses are loaded.
   /// If no addresses have been revealed yet (fresh wallet), reveals some first
@@ -738,6 +748,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     return Map.fromEntries(entries.whereType<MapEntry<int, APIPsbtAnalysis>>());
   }
 
+  // ─── Labels ──────────────────────────────────────────────────────────────
+
   void setWalletKeyLabel(String mfp, String label) {
     final current = state;
     if (current is! WalletDetailLoaded) return;
@@ -814,6 +826,8 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     await _loadUtxos();
   }
 
+
+  // ─── RBF / CPFP ──────────────────────────────────────────────────────────
 
   /// Returns RBF constraints for the given mempool spending txid, or null on failure.
   Future<APIRbfInfo?> getRbfInfo(String spendingTxid) async {
@@ -1218,11 +1232,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       final updated = current.walletHandle.signPsbtWithKey(psbtId: psbtId, mfp: mfp);
       // Re-analyze signatures
       APIPsbtAnalysis? analysis;
+      String? analyzeError;
       try {
         analysis = await current.walletHandle
             .analyzePsbt(psbtBase64: updated.psbtBase64, mfps: updated.mfps);
       } catch (e, st) {
         logError('WalletDetailCubit.signPsbtWithKey() analyze', e, st);
+        analyzeError = formatRustError(e);
       }
 
       // Re-read state to avoid overwriting concurrent updates (e.g. a sync
@@ -1233,7 +1249,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
           .toList();
       final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(latest.psbtAnalyses);
       if (analysis != null) updatedAnalyses[psbtId] = analysis;
-      emit(latest.copyWith(psbts: updatedPsbts, psbtAnalyses: updatedAnalyses));
+      emit(latest.copyWith(
+        psbts: updatedPsbts,
+        psbtAnalyses: updatedAnalyses,
+        errorMessage: analyzeError,
+      ));
       return updated;
     } catch (e, st) {
       _emitError('WalletDetailCubit.signPsbtWithKey()', e, st);
@@ -1241,9 +1261,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Protection management
-  // ---------------------------------------------------------------------------
+  // ─── Protection management ──────────────────────────────────────────────
 
   /// Change the wallet's encryption scheme without export/import.
   ///
@@ -1305,9 +1323,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Fiat price support
-  // -------------------------------------------------------------------------
+  // ─── Fiat price support ─────────────────────────────────────────────────
 
   /// Update fiat configuration and trigger a price fetch for missing transactions.
   Future<void> setFiatConfig(

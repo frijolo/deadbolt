@@ -11,6 +11,9 @@ import 'api/hw_wallet.dart';
 import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
+import 'api/wallet/backup.dart';
+import 'api/wallet/discovery.dart';
+import 'api/wallet/nostr_backup.dart';
 import 'api/wif_sweep.dart';
 import 'core/spend_path.dart';
 import 'dart:async';
@@ -242,6 +245,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(dynamic raw);
 
   @protected
+  APIWalletType dco_decode_box_autoadd_api_wallet_type(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -347,6 +353,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIXpubSlot> dco_decode_list_api_xpub_slot(dynamic raw);
 
   @protected
+  List<NostrBackupResponse> dco_decode_list_nostr_backup_response(dynamic raw);
+
+  @protected
+  List<NostrRelayStatus> dco_decode_list_nostr_relay_status(dynamic raw);
+
+  @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
@@ -359,10 +371,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  NostrBackupResponse dco_decode_nostr_backup_response(dynamic raw);
+
+  @protected
+  NostrRelayStatus dco_decode_nostr_relay_status(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
   APIHwSessionInfo? dco_decode_opt_box_autoadd_api_hw_session_info(dynamic raw);
+
+  @protected
+  APIWalletType? dco_decode_opt_box_autoadd_api_wallet_type(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -638,6 +659,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIWalletType sse_decode_box_autoadd_api_wallet_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -777,6 +803,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIXpubSlot> sse_decode_list_api_xpub_slot(SseDeserializer deserializer);
 
   @protected
+  List<NostrBackupResponse> sse_decode_list_nostr_backup_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<NostrRelayStatus> sse_decode_list_nostr_relay_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
@@ -789,10 +825,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  NostrBackupResponse sse_decode_nostr_backup_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NostrRelayStatus sse_decode_nostr_relay_status(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   APIHwSessionInfo? sse_decode_opt_box_autoadd_api_hw_session_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIWalletType? sse_decode_opt_box_autoadd_api_wallet_type(
     SseDeserializer deserializer,
   );
 
@@ -1131,6 +1180,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_api_wallet_type(
+    APIWalletType self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -1312,6 +1367,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_nostr_backup_response(
+    List<NostrBackupResponse> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_nostr_relay_status(
+    List<NostrRelayStatus> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_i_64_strict(
     Int64List self,
     SseSerializer serializer,
@@ -1333,11 +1400,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_nostr_backup_response(
+    NostrBackupResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_nostr_relay_status(
+    NostrRelayStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_api_hw_session_info(
     APIHwSessionInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_wallet_type(
+    APIWalletType? self,
     SseSerializer serializer,
   );
 

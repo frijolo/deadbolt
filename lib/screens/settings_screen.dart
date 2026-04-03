@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/screens/nostr_relays_screen.dart';
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/widgets/wallet_type_picker.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -128,6 +129,18 @@ class SettingsScreen extends StatelessWidget {
                       },
                       currentUrlFor: settings.explorerBaseForNetwork,
                       onSave: cubit.setExplorerUrl,
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    ListTile(
+                      title: Text(l10n.nostrRelaysLabel),
+                      subtitle: Text(l10n.nostrRelaysSubtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NostrRelaysScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -80,9 +80,13 @@ impl TorManager {
             return Ok(());
         }
 
-        let data_dir = self.data_dir.lock().unwrap().clone();
+        let data_dir = self
+            .data_dir
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-        *self.shutdown_tx.lock().unwrap() = Some(shutdown_tx);
+        *self.shutdown_tx.lock().unwrap_or_else(|e| e.into_inner()) = Some(shutdown_tx);
 
         std::thread::spawn(move || {
             let rt = match tokio::runtime::Builder::new_multi_thread()
@@ -102,7 +106,12 @@ impl TorManager {
     }
 
     fn stop(&self) {
-        if let Some(tx) = self.shutdown_tx.lock().unwrap().take() {
+        if let Some(tx) = self
+            .shutdown_tx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = tx.send(());
         }
         self.socks_port.store(0, Ordering::SeqCst);
@@ -180,7 +189,13 @@ async fn run_tor_relay(data_dir: PathBuf, shutdown_rx: tokio::sync::oneshot::Rec
         }
     };
 
-    let port = listener.local_addr().unwrap().port();
+    let port = match listener.local_addr() {
+        Ok(addr) => addr.port(),
+        Err(e) => {
+            eprintln!("[Tor] Failed to get SOCKS5 listener address: {e}");
+            return;
+        }
+    };
     TOR_MANAGER.socks_port.store(port, Ordering::SeqCst);
     TOR_MANAGER.running.store(true, Ordering::SeqCst);
 

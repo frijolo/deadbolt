@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:deadbolt/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -88,4 +89,30 @@ class RecipientEntry {
     addressCtrl.dispose();
     amountCtrl.dispose();
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Shared layout helper (used by RbfCard and CpfpBanner)
+// ─────────────────────────────────────────────────────────────
+
+/// A two-column label/value row used inside fee-related cards.
+Widget rbfRow(String label, String value, Color valueColor, ThemeData theme) {
+  return Row(
+    children: [
+      SizedBox(
+        width: 110,
+        child: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(color: valueColor),
+        ),
+      ),
+    ],
+  );
 }

@@ -25,11 +25,13 @@ import 'package:deadbolt/widgets/fee_histogram_widget.dart';
 import 'package:deadbolt/widgets/fee_presets_widget.dart';
 import 'package:deadbolt/services/mempool_blocks_service.dart';
 import 'package:deadbolt/src/rust/api/tor.dart' show isTorRunning, torSocksAddr;
-import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
 import 'package:deadbolt/screens/create_tx/create_tx_models.dart';
 import 'package:deadbolt/screens/create_tx/confirm_sheet.dart';
+import 'package:deadbolt/screens/create_tx/rbf_card.dart';
+import 'package:deadbolt/screens/create_tx/cpfp_banner.dart';
+import 'package:deadbolt/screens/create_tx/selected_path_card.dart';
 
 // Outputs below this threshold are not created (absorbed into fee).
 const _dustLimit = 546;
@@ -695,277 +697,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     return null;
   }
 
-  Widget _buildRbfCard(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final resolvedInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
-    final hasLoading = _rbfInfos.values.any((v) => v == null);
-
-    // Rate constraint (fixed, from original txs — ImprovesFeerateDiagram).
-    final maxOrigRate = resolvedInfos.fold<double>(
-      0.0,
-      (m, i) => max(m, i.minFeeRateSatPerVb),
-    );
-    final currentRate = double.tryParse(_feeRateCtrl.text) ?? 0.0;
-    final rateTooLow = resolvedInfos.isNotEmpty && currentRate <= maxOrigRate;
-
-    // Absolute fee constraint (Rule 4 — depends on new tx size).
-    // Uses total conflict cluster fee: orig + any unconfirmed descendants (BIP-125 Rule 4).
-    final summary = _txSummary;
-    final totalConflictFee = _totalConflictFee(resolvedInfos);
-    final int? actualNewVsize =
-        summary != null ? (summary.totalWu / 4.0).ceil() : null;
-    final int minFeeSat = actualNewVsize != null
-        ? totalConflictFee + actualNewVsize
-        : resolvedInfos.fold<int>(0, (m, i) => max(m, i.minFeeSat.toInt()));
-    final bool absFeeTooLow = resolvedInfos.isNotEmpty &&
-        summary != null &&
-        !summary.insufficientFunds &&
-        summary.feeSats <= minFeeSat;
-
-    final bool feeTooLow = rateTooLow || absFeeTooLow;
-    final warningColor = feeTooLow ? colorScheme.error : AppAccent.color;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      color: warningColor.withAlpha(AppAlpha.faint),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: warningColor.withAlpha(AppAlpha.pale)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, size: 16, color: warningColor),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.rbfWarningTitle,
-                  style: theme.textTheme.labelMedium?.copyWith(color: warningColor),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (resolvedInfos.isEmpty && hasLoading)
-              Text(
-                l10n.rbfUnknownFee,
-                style: theme.textTheme.bodySmall,
-              )
-            else if (resolvedInfos.isNotEmpty) ...[
-              Builder(builder: (ctx) {
-                // For display, show the info of the spending tx with the highest fee
-                // (i.e., strictest constraint).
-                final info = resolvedInfos.reduce(
-                  (a, b) => b.origFeeSat > a.origFeeSat ? b : a,
-                );
-                final dimColor = theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _rbfRow(
-                      l10n.rbfOriginalFee,
-                      '${info.origFeeSat} sats  (${info.origFeeRateSatPerVb.toStringAsFixed(1)} sat/vB, ${info.origVsize} vB)',
-                      dimColor,
-                      theme,
-                    ),
-                    if (info.descendantCount > 0) ...[
-                      const SizedBox(height: 4),
-                      _rbfRow(
-                        l10n.rbfDescendants,
-                        info.descendantFeeSat != null
-                            ? '${info.descendantCount} tx${info.descendantCount > 1 ? 's' : ''}, ${info.descendantFeeSat} sats'
-                            : '${info.descendantCount} tx${info.descendantCount > 1 ? 's' : ''} (fee unknown)',
-                        dimColor,
-                        theme,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    _rbfRow(
-                      l10n.rbfMinFee,
-                      '> $minFeeSat sats${actualNewVsize == null ? ' ~' : ''}',
-                      absFeeTooLow ? warningColor : dimColor,
-                      theme,
-                    ),
-                    const SizedBox(height: 4),
-                    _rbfRow(
-                      l10n.rbfMinRate,
-                      '> ${maxOrigRate.toStringAsFixed(1)} sat/vB',
-                      rateTooLow ? warningColor : dimColor,
-                      theme,
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rbfRow(String label, String value, Color valueColor, ThemeData theme) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(color: valueColor),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Banner shown when unconfirmed UTXOs are selected, displaying the CPFP package fee rate.
-  /// Accounts for all ancestor txs transitively (parents, grandparents, …).
-  Widget _buildCpfpBanner(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    const accentColor = AppAccent.color;
-    final cpfp = _cpfpInfo;
-    final summary = _txSummary;
-
-    // Effective package fee rate = (ancestor_fees + child_fee) / (ancestor_vsize + child_vsize).
-    String effectiveRateText = '—';
-    if (cpfp != null && summary != null) {
-      final ancestorFee = cpfp.ancestorFeeSat?.toInt();
-      final ancestorVsize = cpfp.ancestorVsize.toInt();
-      final childFee = summary.feeSats;
-      final childVsize = (summary.totalWu / 4.0).ceil();
-      if (ancestorFee != null && (ancestorVsize + childVsize) > 0) {
-        final effectiveRate = (ancestorFee + childFee) / (ancestorVsize + childVsize);
-        effectiveRateText = '${effectiveRate.toStringAsFixed(1)} sat/vB';
-      }
-    }
-
-    // Ancestor fee summary line.
-    final String ancestorFeeText;
-    if (cpfp != null) {
-      if (cpfp.ancestorFeeSat != null) {
-        ancestorFeeText =
-            '${cpfp.ancestorFeeSat} sats  (${cpfp.ancestorFeeRateSatPerVb.toStringAsFixed(1)} sat/vB, ${cpfp.ancestorVsize} vB)';
-      } else {
-        ancestorFeeText = l10n.rbfUnknownFee;
-      }
-    } else {
-      ancestorFeeText = _cpfpInfoLoading ? '…' : '—';
-    }
-
-    return Card(
-      margin: EdgeInsets.zero,
-      color: accentColor.withAlpha(AppAlpha.faint),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: accentColor.withAlpha(AppAlpha.pale)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.trending_up, size: 16, color: accentColor),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.cpfpBannerTitle,
-                  style: theme.textTheme.labelMedium?.copyWith(color: accentColor),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _rbfRow(
-              l10n.cpfpParentFee,
-              ancestorFeeText,
-              colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-              theme,
-            ),
-            if (cpfp != null && cpfp.ancestorCount > 1) ...[
-              const SizedBox(height: 4),
-              _rbfRow(
-                l10n.cpfpAncestorCount,
-                '${cpfp.ancestorCount}',
-                colorScheme.onSurface.withAlpha(AppAlpha.secondary),
-                theme,
-              ),
-            ],
-            const SizedBox(height: 4),
-            _rbfRow(
-              l10n.cpfpEffectiveRate,
-              effectiveRateText,
-              accentColor,
-              theme,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectedPathCard(
-    BuildContext context,
-    APISpendPath path,
-    int tipHeight,
-    int? utxoMaxConfHeight,
-  ) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${path.threshold}-of-${path.mfps.length}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(AppAlpha.medium),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...path.mfps.map((mfp) {
-              final label = widget.keyLabels[mfp];
-              final display = mfp.substring(0, 8).toUpperCase();
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    MfpBadge(label: display, color: theme.colorScheme.outline),
-                    if (label != null && label.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          label,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── Recipients ──────────────────────────────────────────────────────────
 
   List<Widget> _buildRecipientList(
@@ -1578,13 +1309,21 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
               // ── RBF warning card (always 2 children — stable indices below) ──
               _rbfInfos.isNotEmpty
-                  ? _buildRbfCard(context)
+                  ? RbfCard(
+                      rbfInfos: _rbfInfos,
+                      feeRateText: _feeRateCtrl.text,
+                      txSummary: _txSummary,
+                    )
                   : const SizedBox.shrink(),
               SizedBox(height: _rbfInfos.isNotEmpty ? 16 : 0),
 
               // ── CPFP info banner (shown when unconfirmed UTXOs selected) ──
               if (_selectedUtxos.any((u) => !u.isConfirmed)) ...[
-                _buildCpfpBanner(context),
+                CpfpBanner(
+                  cpfpInfo: _cpfpInfo,
+                  cpfpInfoLoading: _cpfpInfoLoading,
+                  txSummary: _txSummary,
+                ),
                 const SizedBox(height: 16),
               ],
 
@@ -1728,8 +1467,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
               if (_selectedPath != null) ...[
                 const SizedBox(height: 12),
-                _buildSelectedPathCard(
-                  context, _selectedPath!, widget.tipHeight, utxoMaxConfHeight,
+                SelectedPathCard(
+                  path: _selectedPath!,
+                  tipHeight: widget.tipHeight,
+                  utxoMaxConfHeight: utxoMaxConfHeight,
+                  keyLabels: widget.keyLabels,
                 ),
               ],
 

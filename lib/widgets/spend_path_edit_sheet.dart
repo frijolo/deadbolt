@@ -654,6 +654,7 @@ class _SpendPathEditSheetContent extends StatelessWidget {
       EditableSpendPath path) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => TimelockDialog(
         initialMode: path.timelockMode,
         initialRelType: path.relTimelockType,

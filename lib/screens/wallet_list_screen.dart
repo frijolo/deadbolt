@@ -6,13 +6,14 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
+import 'package:deadbolt/screens/restore_from_nostr_screen.dart';
 import 'package:deadbolt/screens/restore_from_seed_screen.dart';
 import 'package:deadbolt/screens/simple_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
+import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -22,7 +23,7 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
-enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, fromSeed }
+enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, fromSeed, fromNostr }
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -352,6 +353,12 @@ class WalletListScreen extends StatelessWidget {
               subtitle: Text(ctx.l10n.scanAccountsNoActivitySubtitle),
               onTap: () => Navigator.pop(ctx, _CreateMode.fromSeed),
             ),
+            ListTile(
+              leading: const Icon(Icons.cloud_download_outlined),
+              title: Text(ctx.l10n.walletCreateFromNostr),
+              subtitle: Text(ctx.l10n.walletCreateFromNostrSub),
+              onTap: () => Navigator.pop(ctx, _CreateMode.fromNostr),
+            ),
             const SizedBox(height: 8),
           ],
         ));
@@ -388,6 +395,17 @@ class WalletListScreen extends StatelessWidget {
         await RestoreFromSeedScreen.push(context);
         if (context.mounted) context.read<WalletListCubit>().refresh();
         return;
+      case _CreateMode.fromNostr:
+        final path = await RestoreFromNostrScreen.push(context);
+        if (path != null && context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => WalletDetailScreen(walletPath: path),
+            ),
+          );
+        }
+        return;
     }
 
     if (walletPath != null && context.mounted) {
@@ -415,7 +433,7 @@ class WalletListScreen extends StatelessWidget {
     // 2. Inspect backup to determine protection type
     APIProtectionType backupType;
     try {
-      backupType = await rust_wallet.inspectWalletBackup(backupBytes: bytes);
+      backupType = await rust_backup.inspectWalletBackup(backupBytes: bytes);
     } catch (e) {
       if (context.mounted) showErrorToastException(context, e);
       return;
@@ -444,7 +462,7 @@ class WalletListScreen extends StatelessWidget {
       final deviceKey = await service.getOrCreateEncryptionKey();
       final walletsDir = await service.getWalletsDir();
 
-      final info = await rust_wallet.importWalletBackup(
+      final info = await rust_backup.importWalletBackup(
         backupBytes: bytes,
         importCredential: importCredential,
         deviceKeyHex: deviceKey,
