@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,9 +9,11 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
-import 'package:deadbolt/services/fee_estimation_service.dart';
+import 'package:deadbolt/services/fee_estimation_service.dart' show FeePresets;
+import 'package:deadbolt/services/mempool_blocks_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/tor.dart' show isTorRunning, torSocksAddr;
 import 'package:deadbolt/src/rust/api/wif_sweep.dart' as wif_sweep;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
@@ -71,6 +75,9 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
   FeePresets? _feePresets;
   int? _selectedPresetIndex;
 
+  Timer? _blockSnapshotTimer;
+  bool _blockSnapshotPending = false;
+
   List<wif_sweep.APIWifAddress>? _resolvedAddresses;
   List<wif_sweep.APIWifUtxo>? _utxos;
   bool _querying = false;
@@ -85,6 +92,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
 
   @override
   void dispose() {
+    _blockSnapshotTimer?.cancel();
     _wifCtrl.dispose();
     _destCtrl.dispose();
     _feeRateCtrl.dispose();
@@ -93,10 +101,29 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
   }
 
   void _loadFeePresets() {
-    final explorerBase =
-        context.read<SettingsCubit>().state.explorerBaseForNetwork(widget.network);
-    FeeEstimationService.getPresets(explorerBase).then((p) {
-      if (mounted) setState(() => _feePresets = p);
+    _refreshBlockSnapshot();
+    _blockSnapshotTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshBlockSnapshot(),
+    );
+  }
+
+  void _refreshBlockSnapshot() {
+    if (_blockSnapshotPending) return;
+    _blockSnapshotPending = true;
+    final settings = context.read<SettingsCubit>().state;
+    final explorerBase = settings.explorerBaseForNetwork(widget.network);
+    final socksAddr = isTorRunning() ? torSocksAddr() : null;
+    MempoolBlocksService.getSnapshot(explorerBase, torSocksAddr: socksAddr).then((s) {
+      _blockSnapshotPending = false;
+      if (!mounted) return;
+      setState(() {
+        if (s != null) {
+          _feePresets = s.presetsFromSnapshot(
+            context.read<SettingsCubit>().state.minFeeRate,
+          );
+        }
+      });
     });
   }
 

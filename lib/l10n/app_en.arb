@@ -162,6 +162,7 @@
     }
   },
   "close": "Close",
+  "dismiss": "Dismiss",
   "savedToDownloads": "File saved",
   "copiedToClipboard": "Copied to clipboard",
   "projectNameDialogTitle": "Project name",

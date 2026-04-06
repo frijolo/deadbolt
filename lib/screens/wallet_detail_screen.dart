@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus, XFile;
@@ -603,36 +604,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     if (settings.electrumUrlForNetwork(APINetwork.bitcoin) != AppSettings.kDefaultElectrumMainnet) {
       return const SizedBox.shrink();
     }
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.privacy_tip_outlined, size: 18, color: cs.onSecondaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                l10n.electrumPrivacyWarning,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSecondaryContainer,
-                    ),
-              ),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: cs.onSecondaryContainer),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
-              child: Text(l10n.goToSettings),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const _ElectrumPrivacyWarningBanner();
   }
 
   Widget _buildLoaded(BuildContext context, WalletDetailLoaded state) {
@@ -769,3 +741,83 @@ enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels
 enum _ExportChoice { labels, descriptor, wallet, nostr }
 
 enum _ImportChoice { labels, psbt, sweepWif }
+
+const _kElectrumPrivacyWarningHiddenUntilKey = 'electrumPrivacyWarningHiddenUntil';
+
+class _ElectrumPrivacyWarningBanner extends StatefulWidget {
+  const _ElectrumPrivacyWarningBanner();
+
+  @override
+  State<_ElectrumPrivacyWarningBanner> createState() => _ElectrumPrivacyWarningBannerState();
+}
+
+class _ElectrumPrivacyWarningBannerState extends State<_ElectrumPrivacyWarningBanner> {
+  bool _hidden = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkDismissed();
+  }
+
+  Future<void> _checkDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hiddenUntil = prefs.getInt(_kElectrumPrivacyWarningHiddenUntilKey);
+    final nowHidden = hiddenUntil != null && DateTime.now().millisecondsSinceEpoch < hiddenUntil;
+    if (mounted) setState(() => _hidden = nowHidden);
+  }
+
+  Future<void> _dismissFor7Days() async {
+    final prefs = await SharedPreferences.getInstance();
+    final until = DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch;
+    await prefs.setInt(_kElectrumPrivacyWarningHiddenUntilKey, until);
+    if (mounted) setState(() => _hidden = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hidden) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.privacy_tip_outlined, size: 18, color: cs.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.electrumPrivacyWarning,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSecondaryContainer,
+                    ),
+              ),
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: cs.onSecondaryContainer),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
+                  child: Text(l10n.goToSettings),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: cs.onSecondaryContainer),
+                  onPressed: _dismissFor7Days,
+                  child: Text(l10n.dismiss),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

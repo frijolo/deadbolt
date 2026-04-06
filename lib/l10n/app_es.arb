@@ -156,6 +156,7 @@
   "qrTooLargeForLevel": "Contenido demasiado grande para este nivel de corrección",
   "qrPart": "{current} / {total}",
   "close": "Cerrar",
+  "dismiss": "Descartar",
   "savedToDownloads": "Archivo guardado",
   "copiedToClipboard": "Copiado al portapapeles",
   "projectNameDialogTitle": "Nombre del proyecto",

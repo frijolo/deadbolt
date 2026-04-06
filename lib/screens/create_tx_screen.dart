@@ -11,7 +11,7 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/services/fee_estimation_service.dart';
+import 'package:deadbolt/services/fee_estimation_service.dart' show FeePresets;
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -158,11 +158,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   }
 
   void _loadFeePresets() {
-    final explorerBase =
-        context.read<SettingsCubit>().state.explorerBaseForNetwork(_currentNetwork);
-    FeeEstimationService.getPresets(explorerBase).then((p) {
-      if (mounted) setState(() => _feePresets = p);
-    });
     _refreshBlockSnapshot();
     _blockSnapshotTimer = Timer.periodic(
       const Duration(seconds: 5),
@@ -173,13 +168,21 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   void _refreshBlockSnapshot() {
     if (_blockSnapshotPending) return;
     _blockSnapshotPending = true;
-    final explorerBase =
-        context.read<SettingsCubit>().state.explorerBaseForNetwork(_currentNetwork);
+    final settings = context.read<SettingsCubit>().state;
+    final explorerBase = settings.explorerBaseForNetwork(_currentNetwork);
     final socksAddr = isTorRunning() ? torSocksAddr() : null;
     MempoolBlocksService.getSnapshot(explorerBase, torSocksAddr: socksAddr)
         .then((s) {
       _blockSnapshotPending = false;
-      if (mounted) setState(() => _blockSnapshot = s);
+      if (!mounted) return;
+      setState(() {
+        _blockSnapshot = s;
+        if (s != null) {
+          _feePresets = s.presetsFromSnapshot(
+            context.read<SettingsCubit>().state.minFeeRate,
+          );
+        }
+      });
     });
   }
 

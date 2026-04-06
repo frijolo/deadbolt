@@ -4,6 +4,14 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Fee presets from mempool blocks** — Priority, normal, and economy fee rates are now derived directly from the live mempool block snapshot (p75/p25 of next block and median of second block), replacing the separate fee-estimation API call.
+- **Dismissible Electrum privacy warning** — The privacy warning banner on the wallet detail screen can now be hidden for 7 days via a "Don't show for 7 days" button.
+
+---
+
 ## [v1.9.0]
 
 ### New Features

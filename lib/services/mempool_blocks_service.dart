@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:deadbolt/services/fee_estimation_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks.dart';
@@ -14,12 +16,16 @@ class ProjectedBlock {
   /// Median fee rate (sat/vB).
   final double medianFee;
 
+  /// ~25th-percentile fee rate (sat/vB).
+  final double p25Fee;
+
   /// ~75th-percentile fee rate (sat/vB) — feeRange[75% index].
   final double p75Fee;
 
   const ProjectedBlock({
     required this.minFee,
     required this.medianFee,
+    required this.p25Fee,
     required this.p75Fee,
   });
 }
@@ -34,6 +40,25 @@ class MempoolBlocksSnapshot {
   /// Min fee of the next block to be mined, or null when unknown.
   double? get nextBlockMinFee =>
       blocks.isNotEmpty ? blocks.first.minFee : null;
+
+  /// Derives fee presets from block data using:
+  ///   priority = p75 of block 0
+  ///   normal   = p25 of block 0
+  ///   economy  = median of block 1
+  /// [minFee] is used as a floor for all values and as fallback when
+  /// a block is unavailable.
+  FeePresets presetsFromSnapshot(double minFee) {
+    double floor(double v) => max(v, minFee);
+
+    final b0 = blocks.isNotEmpty ? blocks[0] : null;
+    final b1 = blocks.length > 1 ? blocks[1] : null;
+
+    final priority = floor(b0?.p75Fee ?? minFee);
+    final normal = floor(b0?.p25Fee ?? minFee);
+    final economy = floor(b1?.medianFee ?? minFee);
+
+    return FeePresets(economy: economy, normal: normal, priority: priority);
+  }
 }
 
 class MempoolBlocksService {
@@ -77,15 +102,19 @@ class MempoolBlocksService {
           final min =
               (feeRange?.isNotEmpty == true ? feeRange![0] as num? : null)
                   ?.toDouble();
+          double? p25;
           double? p75;
           if (feeRange != null && feeRange.isNotEmpty) {
-            final idx = ((feeRange.length - 1) * 0.75).round();
-            p75 = (feeRange[idx] as num?)?.toDouble();
+            final p25idx = ((feeRange.length - 1) * 0.25).round();
+            p25 = (feeRange[p25idx] as num?)?.toDouble();
+            final p75idx = ((feeRange.length - 1) * 0.75).round();
+            p75 = (feeRange[p75idx] as num?)?.toDouble();
           }
           if (median == null) continue;
           blocks.add(ProjectedBlock(
             minFee: min ?? median,
             medianFee: median,
+            p25Fee: p25 ?? median,
             p75Fee: p75 ?? median,
           ));
         }
