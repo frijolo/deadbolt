@@ -167,6 +167,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferredNetworkLabel => 'Preferred Network';
 
   @override
+  String get activeNetworkLabel => 'Active Network';
+
+  @override
+  String get activeNetworkDescription =>
+      'Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.';
+
+  @override
+  String walletsHiddenOnOtherNetworks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'wallets',
+      one: 'wallet',
+    );
+    return '$count $_temp0 on other networks — change in Settings';
+  }
+
+  @override
+  String restoringToNetwork(String network) {
+    return 'Restoring to: $network';
+  }
+
+  @override
   String get preferredWalletTypeLabel => 'Default Wallet Type';
 
   @override
@@ -1971,6 +1994,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hwWalletUnlockDevice => 'Unlock your device…';
 
   @override
+  String get hwWalletNoDevices =>
+      'No hardware wallet detected.\nMake sure it is plugged in.';
+
+  @override
+  String get hwWalletSelectDevice => 'Select a device';
+
+  @override
+  String get hwWalletScanDevices => 'Scan for devices';
+
+  @override
+  String get hwWalletPairingCode => 'Pairing code';
+
+  @override
+  String get hwWalletNoConfirmNeeded =>
+      'No confirmation needed on the device for key export.';
+
+  @override
   String get hwRegisterWallet => 'Register wallet';
 
   @override
@@ -2038,7 +2078,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String scanAccountsScanningHint(int accountGap, int addrGap) {
-    return 'Checking addresses on Electrum (accounts gap: $accountGap, addresses gap: $addrGap)…';
+    return 'Checking addresses on Electrum…\n(accounts gap: $accountGap, addresses gap: $addrGap)';
   }
 
   @override
@@ -2046,9 +2086,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addressGapLimitLabel => 'Address gap limit';
-
-  @override
-  String get advancedScanOptions => 'Advanced';
 
   @override
   String get scanNonStandardPathsLabel => 'Non-standard derivation paths';
@@ -2066,8 +2103,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String scanAccountsFoundActivity(int count) {
-    return '$count account(s) with activity';
+  String scanAccountsFoundBackups(int count) {
+    return '$count account(s) found';
   }
 
   @override
@@ -2078,6 +2115,31 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get scanAccountsNoActivitySubtitle =>
       'Recover accounts from a mnemonic phrase';
+
+  @override
+  String get restoreFromHwMenuLabel => 'Recover from hardware wallet';
+
+  @override
+  String get restoreFromHwMenuSubtitle =>
+      'Scan accounts from a connected BitBox02';
+
+  @override
+  String get restoreFromHwTitle => 'Recover from Hardware Wallet';
+
+  @override
+  String get hwDiscoveryNoDevice =>
+      'No hardware wallet connected. Connect and pair your device first.';
+
+  @override
+  String get hwDiscoveryStart => 'Scan accounts';
+
+  @override
+  String hwDiscoveryDeriving(int n, int total) {
+    return 'Exporting keys… ($n/$total)';
+  }
+
+  @override
+  String get hwDiscoveryScanning => 'Scanning blockchain…';
 
   @override
   String scanAccountsActivitySummary(int txCount) {
@@ -2098,6 +2160,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Look for descriptor backups on configured relays';
 
   @override
+  String get hwSkipLegacyLabel => 'Skip legacy (P2PKH) derivations';
+
+  @override
+  String get hwSkipLegacyHint =>
+      'Avoids device confirmation prompts for m/44’ paths';
+
+  @override
   String get searchNostrScanningHint =>
       'Also searching Nostr relays for descriptor backups…';
 
@@ -2106,6 +2175,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importFromNostrBackup => 'Restore from Nostr';
+
+  @override
+  String get nostrImportTamperTitle => 'Verify after import';
+
+  @override
+  String get nostrImportTamperBody =>
+      'Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.';
 
   @override
   String get scanTypeAll => 'All types';
@@ -2262,6 +2338,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nostrBackupNotFound => 'No backup found';
 
   @override
+  String nostrBackupPartialCosigners(int backedUp, int total) {
+    return '$backedUp/$total cosigners backed up';
+  }
+
+  @override
   String get nostrBackupError => 'Relay error';
 
   @override
@@ -2273,6 +2354,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nostrBackupPublishing => 'Publishing…';
+
+  @override
+  String get nostrBackupDelete => 'Delete Backup';
+
+  @override
+  String get nostrBackupDeleting => 'Deleting…';
+
+  @override
+  String get nostrBackupDeleted => 'Backup deleted from relay';
+
+  @override
+  String get nostrBackupDeleteConfirm =>
+      'Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.';
 
   @override
   String get walletCreateFromNostr => 'Restore from Nostr';
@@ -2318,6 +2412,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nostrRestoreImport => 'Import Wallet';
 
   @override
+  String get nostrRestoreImporting => 'Importing wallet…';
+
+  @override
   String get nostrRestoreWatchOnlyNote =>
       'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.';
+
+  @override
+  String get recoverWalletTitle => 'Recover Wallet';
+
+  @override
+  String get restoreTabXpub => 'xpub';
+
+  @override
+  String get restoreTabSeed => 'Seed';
+
+  @override
+  String get restoreTabHardware => 'Hardware';
+
+  @override
+  String get restoreXpubEnterXpub =>
+      'Enter an extended public key to scan on-chain accounts and search Nostr backups.';
+
+  @override
+  String get restoreXpubScanButton => 'Scan';
 }

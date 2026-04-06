@@ -54,13 +54,15 @@ import websockets
 from argon2.low_level import hash_secret_raw, Type as Argon2Type
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-BOLD  = "\033[1m"
-DIM   = "\033[2m"
-GREEN = "\033[32m"
-CYAN  = "\033[36m"
-RESET = "\033[0m"
+BOLD   = "\033[1m"
+DIM    = "\033[2m"
+GREEN  = "\033[32m"
+YELLOW = "\033[33m"
+RED    = "\033[31m"
+CYAN   = "\033[36m"
+RESET  = "\033[0m"
 
 verbose = False
 
@@ -89,7 +91,7 @@ def fail(msg: str):
     sys.exit(1)
 
 
-# ── Step 1: Parse xpub credential ─────────────────────────────────────────────
+# ── Step 1: Parse xpub credential ────────────────────────────────────────────
 
 def parse_xpub_credential(credential: str) -> tuple[Optional[str], str]:
     """
@@ -280,7 +282,7 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
 
     # ── Steps 4-6 repeated for each event ────────────────────────────────────
 
-    def decrypt_event(ev_index: int, event: dict) -> Optional[tuple[str, dict]]:
+    def decrypt_event(ev_index: int, event: dict) -> Optional[tuple[str, dict, str]]:
         """
         Try to decode and decrypt one event.
         Returns (descriptor, payload) on success, None if it can't be decrypted.
@@ -293,6 +295,10 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
         info("  Event ID",    event.get("id", "?")[:32] + "…")
         info("  d-tag",       d_tag)
         info("  created_at",  str(event.get("created_at")))
+
+        if not event.get("content"):
+            print("  → Skipped (deletion event — content is empty)")
+            return None
 
         try:
             payload: dict = json.loads(base64.b64decode(event["content"]))
@@ -313,7 +319,7 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
 
         slots: list[dict] = payload["protection"]["slots"]
 
-        sub = ev_index * 3
+        sub = ev_index * 2
         step(5 + sub, f"Unwrap export data key — event {ev_index + 1}")
         print(f"""
   Argon2id(password=xpub, salt=slot.salt, m_cost={slots[0].get('m_cost',65536)},

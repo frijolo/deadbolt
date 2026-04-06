@@ -5,6 +5,7 @@ import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
@@ -77,6 +78,7 @@ class DescriptorView extends StatelessWidget {
                   keys: analysis.keys,
                   keyLabels: state.keyLabels,
                   hotKeys: state.hotKeys,
+                  wallet: state.walletHandle,
                 ),
                 DescriptorTab(descriptor: analysis.descriptor),
               ],
@@ -92,50 +94,59 @@ class DescriptorView extends StatelessWidget {
 // Wallet keys tab
 // ─────────────────────────────────────────────────────────────
 
-class WalletKeysTab extends StatelessWidget {
+class WalletKeysTab extends StatefulWidget {
   final List<APIPubKey> keys;
   final Map<String, String> keyLabels;
   final List<APIHotKeyInfo> hotKeys;
+  final ApiWallet wallet;
 
   const WalletKeysTab({
     super.key,
     required this.keys,
     required this.keyLabels,
     required this.hotKeys,
+    required this.wallet,
   });
 
   @override
+  State<WalletKeysTab> createState() => _WalletKeysTabState();
+}
+
+class _WalletKeysTabState extends State<WalletKeysTab> {
+  @override
   Widget build(BuildContext context) {
-    final hotMfps = hotKeys.map((k) => k.mfp).toSet();
+    final hotMfps = widget.hotKeys.map((k) => k.mfp).toSet();
     final cubit = context.read<WalletDetailCubit>();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
-        for (var i = 0; i < keys.length; i++)
+        for (var i = 0; i < widget.keys.length; i++)
           KeyCard(
-            key: ValueKey(keys[i].mfp),
-            mfp: keys[i].mfp,
-            derivationPath: keys[i].derivationPath,
-            xpub: keys[i].xpub,
-            label: keyLabels[keys[i].mfp],
+            key: ValueKey(widget.keys[i].mfp),
+            mfp: widget.keys[i].mfp,
+            derivationPath: widget.keys[i].derivationPath,
+            xpub: widget.keys[i].xpub,
+            label: widget.keyLabels[widget.keys[i].mfp],
             mfpColor: walletColorForMfpIndex(context, i),
-            isHot: hotMfps.contains(keys[i].mfp),
-            onNameSave: (name) => cubit.setWalletKeyLabel(keys[i].mfp, name ?? ''),
-            onMakeHot: !hotMfps.contains(keys[i].mfp)
+            isHot: hotMfps.contains(widget.keys[i].mfp),
+            onNameSave: (name) =>
+                cubit.setWalletKeyLabel(widget.keys[i].mfp, name ?? ''),
+            onMakeHot: !hotMfps.contains(widget.keys[i].mfp)
                 ? () => showAddPrivateKeySheet(
                       context,
                       cubit: cubit,
-                      expectedMfp: keys[i].mfp,
-                      keyLabel: keyLabels[keys[i].mfp],
+                      expectedMfp: widget.keys[i].mfp,
+                      keyLabel: widget.keyLabels[widget.keys[i].mfp],
                     )
                 : null,
-            onRevealSeed: hotMfps.contains(keys[i].mfp)
-                ? () => cubit.revealHotKey(keys[i].mfp)
+            onRevealSeed: hotMfps.contains(widget.keys[i].mfp)
+                ? () => cubit.revealHotKey(widget.keys[i].mfp)
                 : null,
-            onDeletePrivateInfo: hotMfps.contains(keys[i].mfp)
-                ? () => cubit.deleteHotKey(keys[i].mfp)
+            onDeletePrivateInfo: hotMfps.contains(widget.keys[i].mfp)
+                ? () => cubit.deleteHotKey(widget.keys[i].mfp)
                 : null,
-            deletePrivateInfoDisclaimer: context.l10n.deleteWalletPrivateKeyDisclaimer,
+            deletePrivateInfoDisclaimer:
+                context.l10n.deleteWalletPrivateKeyDisclaimer,
           ),
       ],
     );

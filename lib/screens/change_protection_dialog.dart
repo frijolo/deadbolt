@@ -225,20 +225,30 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
           ),
         ),
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
-        TextButton(
-          onPressed: _isChanging ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: _isChanging || !_hasChanges ? null : () => _confirm(context),
-          child: _isChanging
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l10n.changeButton),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _isChanging ? null : () => Navigator.of(context).pop(),
+                child: Text(l10n.cancel),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: _isChanging || !_hasChanges ? null : () => _confirm(context),
+                child: _isChanging
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.changeButton),
+              ),
+            ),
+          ],
         ),
       ],
     );

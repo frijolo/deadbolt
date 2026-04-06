@@ -563,6 +563,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// up to the stop gap. Uses incremental sync on subsequent calls to only check
   /// already-revealed script pubkeys, which is much faster.
   Future<void> sync_({required String electrumUrl});
+
+  /// Return the network for this wallet.
+  APINetwork walletNetwork();
 }
 
 /// A key label entry returned from [APIWallet::get_key_labels].

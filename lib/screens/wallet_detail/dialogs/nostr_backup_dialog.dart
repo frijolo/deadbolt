@@ -78,11 +78,13 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
 
   Future<void> _publishBackup() async {
     if (_relays.isEmpty) return;
+
     setState(() => _publishing = true);
     final service = context.read<WalletService>();
     final deviceKey = await service.getOrCreateEncryptionKey();
     final walletPath = widget.state.walletInfo.walletPath;
     final openPassword = service.getCachedPassword(walletPath);
+
     try {
       final statuses = await publishNostrBackup(
         walletPath: walletPath,
@@ -101,6 +103,54 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
       if (mounted) showErrorToastException(context, e);
     } finally {
       if (mounted) setState(() => _publishing = false);
+    }
+  }
+
+  Future<void> _deleteBackup(String relayUrl) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.nostrBackupDelete),
+        content: Text(l10n.nostrBackupDeleteConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _statusMap[relayUrl] = NostrRelayStatus(
+          url: relayUrl,
+          hasBackup: false,
+          lastPublishedAt: null,
+          eventId: null,
+          error: null,
+          backedUpXpubs: 0,
+          totalXpubs: _statusMap[relayUrl]?.totalXpubs ?? 0,
+        ));
+
+    try {
+      final statuses = await deleteNostrBackup(
+        descriptor: widget.state.walletInfo.descriptor,
+        relayUrls: [relayUrl],
+      );
+      if (!mounted) return;
+      setState(() {
+        for (final s in statuses) {
+          _statusMap[s.url] = s;
+        }
+      });
+      if (mounted) showSuccessToast(context, l10n.nostrBackupDeleted);
+    } catch (e) {
+      if (mounted) showErrorToastException(context, e);
     }
   }
 
@@ -174,6 +224,7 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
           ...(_relays.map((url) => _RelayStatusTile(
                 url: url,
                 status: _statusMap[url],
+                onDelete: () => _deleteBackup(url),
               ))),
         const SizedBox(height: 12),
         Padding(
@@ -221,8 +272,13 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
 class _RelayStatusTile extends StatelessWidget {
   final String url;
   final NostrRelayStatus? status;
+  final VoidCallback onDelete;
 
-  const _RelayStatusTile({required this.url, required this.status});
+  const _RelayStatusTile({
+    required this.url,
+    required this.status,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -245,30 +301,49 @@ class _RelayStatusTile extends StatelessWidget {
     } else if (status!.hasBackup) {
       icon = const Icon(Icons.check_circle_outline, size: 18, color: Colors.green);
       iconColor = Colors.green;
-      final ts = status!.lastPublishedAt;
-      subtitle = ts != null
-          ? formatDateTimeFromUnix(ts.toInt())
-          : l10n.nostrBackupFound;
+      final lastPublishedAt = status!.lastPublishedAt;
+      final dateStr = lastPublishedAt != null ? formatDateTimeFromUnix(lastPublishedAt.toInt()) : l10n.nostrBackupFound;
+      subtitle = status!.totalXpubs > 1
+          ? '${status!.backedUpXpubs}/${status!.totalXpubs} cosigners · $dateStr'
+          : dateStr;
+    } else if (status!.backedUpXpubs > 0) {
+      // Partial: some cosigners have backed up, but not all.
+      icon = const Icon(Icons.warning_amber_outlined, size: 18, color: Colors.orange);
+      iconColor = Colors.orange;
+      subtitle = l10n.nostrBackupPartialCosigners(status!.backedUpXpubs, status!.totalXpubs);
     } else {
       icon = Icon(Icons.cancel_outlined, size: 18, color: cs.error);
       subtitle = l10n.nostrBackupNotFound;
       iconColor = cs.error;
     }
 
+    final hasBackup = status?.hasBackup == true;
+
+    Widget? subtitleWidget;
+    if (subtitle.isNotEmpty) {
+      subtitleWidget = Text(
+        subtitle,
+        style: ts.bodySmall?.copyWith(color: iconColor),
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
     return ListTile(
       dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      contentPadding: const EdgeInsets.only(left: 16, right: 4),
       leading: icon,
       title: Text(
         url,
         overflow: TextOverflow.ellipsis,
         style: ts.bodySmall,
       ),
-      subtitle: subtitle.isNotEmpty
-          ? Text(
-              subtitle,
-              style: ts.bodySmall?.copyWith(color: iconColor),
-              overflow: TextOverflow.ellipsis,
+      subtitle: subtitleWidget,
+      trailing: hasBackup
+          ? IconButton(
+              icon: Icon(Icons.delete_outline,
+                  size: 18, color: cs.onSurfaceVariant),
+              tooltip: l10n.nostrBackupDelete,
+              onPressed: onDelete,
             )
           : null,
     );

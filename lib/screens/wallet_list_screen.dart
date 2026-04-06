@@ -6,8 +6,7 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
-import 'package:deadbolt/screens/restore_from_nostr_screen.dart';
-import 'package:deadbolt/screens/restore_from_seed_screen.dart';
+import 'package:deadbolt/screens/restore_wallet/restore_wallet_screen.dart';
 import 'package:deadbolt/screens/simple_wallet_dialog.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
@@ -23,7 +22,7 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
-enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, fromSeed, fromNostr }
+enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, restore }
 
 class WalletListScreen extends StatelessWidget {
   final int navIndex;
@@ -34,6 +33,7 @@ class WalletListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final settings = context.watch<SettingsCubit>().state;
 
     return Scaffold(
       drawer: onNavigate != null
@@ -42,6 +42,19 @@ class WalletListScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.walletsTitle),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+              child: GestureDetector(
+                onTap: () => _showNetworkPicker(context),
+                child: MfpBadge(
+                  label: localizedNetworkName(context, settings.network),
+                  color: AppAccent.color,
+                  letterSpacing: 0.0,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: l10n.menuNew,
@@ -58,8 +71,8 @@ class WalletListScreen extends StatelessWidget {
           },
           listener: (context, state) {
             if (state is! WalletListLoaded) return;
-            final settings = context.read<SettingsCubit>().state;
-            context.read<WalletSyncService>().initFromList(state.wallets, settings);
+            final s = context.read<SettingsCubit>().state;
+            context.read<WalletSyncService>().initFromList(state.wallets, s);
           },
           builder: (context, state) {
             return switch (state) {
@@ -83,19 +96,30 @@ class WalletListScreen extends StatelessWidget {
                 ),
               WalletListError(:final message) =>
                 Center(child: Text(message)),
-              WalletListLoaded(:final wallets) => wallets.isEmpty
-                  ? _buildEmptyState(context)
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: wallets.length,
-                      itemBuilder: (context, index) => KeyedSubtree(
-                        key: ValueKey(wallets[index].walletPath),
-                        child: _buildWalletCard(context, wallets[index], state),
-                      ),
-                    ),
+              WalletListLoaded() =>
+                _buildLoadedBody(context, state, settings),
             };
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadedBody(BuildContext context,
+      WalletListLoaded state, AppSettings settings) {
+    final visibleWallets =
+        state.wallets.where((w) => w.network == settings.network).toList();
+
+    if (visibleWallets.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: visibleWallets.length,
+      itemBuilder: (context, index) => KeyedSubtree(
+        key: ValueKey(visibleWallets[index].walletPath),
+        child: _buildWalletCard(context, visibleWallets[index], state),
       ),
     );
   }
@@ -122,6 +146,27 @@ class WalletListScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showNetworkPicker(BuildContext context) {
+    final current = context.read<SettingsCubit>().state.network;
+    showSheet<APINetwork>(context, (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SheetHandle(),
+        for (final n in APINetwork.values)
+          ListTile(
+            title: Text(localizedNetworkName(ctx, n)),
+            trailing: n == current ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(ctx, n),
+          ),
+        const SizedBox(height: 8),
+      ],
+    )).then((n) {
+      if (n != null && context.mounted) {
+        context.read<SettingsCubit>().setNetwork(n);
+      }
+    });
   }
 
   Widget _buildWalletCard(
@@ -200,15 +245,6 @@ class WalletListScreen extends StatelessWidget {
                         .withAlpha(AppAlpha.secondary),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              MfpBadge(
-                label: localizedNetworkDisplayName(
-                  context,
-                  wallet.network.name,
-                ),
-                color: AppAccent.color,
-                letterSpacing: 0.0,
               ),
             ],
           ),
@@ -349,15 +385,9 @@ class WalletListScreen extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.manage_search_outlined),
-              title: Text(ctx.l10n.restoreFromSeedMenuLabel),
+              title: Text(ctx.l10n.recoverWalletTitle),
               subtitle: Text(ctx.l10n.scanAccountsNoActivitySubtitle),
-              onTap: () => Navigator.pop(ctx, _CreateMode.fromSeed),
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_download_outlined),
-              title: Text(ctx.l10n.walletCreateFromNostr),
-              subtitle: Text(ctx.l10n.walletCreateFromNostrSub),
-              onTap: () => Navigator.pop(ctx, _CreateMode.fromNostr),
+              onTap: () => Navigator.pop(ctx, _CreateMode.restore),
             ),
             const SizedBox(height: 8),
           ],
@@ -391,20 +421,9 @@ class WalletListScreen extends StatelessWidget {
       case _CreateMode.fromBackup:
         await _importBackup(context);
         return;
-      case _CreateMode.fromSeed:
-        await RestoreFromSeedScreen.push(context);
+      case _CreateMode.restore:
+        await RestoreWalletScreen.push(context);
         if (context.mounted) context.read<WalletListCubit>().refresh();
-        return;
-      case _CreateMode.fromNostr:
-        final path = await RestoreFromNostrScreen.push(context);
-        if (path != null && context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => WalletDetailScreen(walletPath: path),
-            ),
-          );
-        }
         return;
     }
 
@@ -462,7 +481,7 @@ class WalletListScreen extends StatelessWidget {
       final deviceKey = await service.getOrCreateEncryptionKey();
       final walletsDir = await service.getWalletsDir();
 
-      final info = await rust_backup.importWalletBackup(
+      final result = await rust_backup.importWalletBackup(
         backupBytes: bytes,
         importCredential: importCredential,
         deviceKeyHex: deviceKey,
@@ -478,7 +497,7 @@ class WalletListScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => WalletDetailScreen(walletPath: info.walletPath),
+            builder: (_) => WalletDetailScreen(walletPath: result.wallet.walletPath),
           ),
         );
       }

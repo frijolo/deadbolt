@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
-import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
+import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart' show showErrorToast;
+import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
+import 'package:deadbolt/widgets/hw_connection_widgets.dart';
 
 /// Shows a bottom sheet for all hardware wallet actions on a wallet.
 ///
@@ -102,7 +102,7 @@ class _HwActionsSheet extends StatelessWidget {
         productString: final prod,
         rootFingerprint: final mfp,
       ) =>
-        _ConnectedHeader(
+        HwConnectedHeader(
           productString: prod,
           rootFingerprint: mfp,
           onDisconnect: () {
@@ -111,20 +111,20 @@ class _HwActionsSheet extends StatelessWidget {
           },
         ),
       HwWalletScanning() =>
-        _StatusRow(icon: Icons.search, label: context.l10n.hwWalletScanning),
+        HwStatusRow(icon: Icons.search, label: context.l10n.hwWalletScanning),
       HwWalletConnecting() =>
-        _StatusRow(icon: Icons.usb, label: context.l10n.hwWalletConnecting),
-      HwWalletPairing(pairingCode: final code) => _PairingView(code: code),
-      HwWalletConfirming(pairingCode: final code) => _PairingView(code: code),
+        HwStatusRow(icon: Icons.usb, label: context.l10n.hwWalletConnecting),
+      HwWalletPairing(pairingCode: final code) => HwPairingView(code: code),
+      HwWalletConfirming(pairingCode: final code) => HwPairingView(code: code),
       HwWalletOperating(operationLabel: final label) =>
-        _StatusRow(icon: Icons.memory, label: label, spinning: true),
+        HwStatusRow(icon: Icons.memory, label: label, spinning: true),
       HwWalletDevicesFound(devices: final devices) when devices.isEmpty =>
-        _NoDevicesRow(onRefresh: cubit.scanDevices),
+        HwNoDevicesRow(onRefresh: cubit.scanDevices),
       HwWalletDevicesFound(devices: final devices) =>
-        _DeviceListSection(devices: devices, onTap: (d) => cubit.connectDevice(d.devicePath)),
+        HwDeviceListSection(devices: devices, onTap: (d) => cubit.connectDevice(d.devicePath)),
       HwWalletError() ||
       HwWalletIdle() =>
-        _NoDevicesRow(onRefresh: cubit.scanDevices),
+        HwNoDevicesRow(onRefresh: cubit.scanDevices),
     };
   }
 
@@ -217,173 +217,6 @@ class _HwActionsSheet extends StatelessWidget {
               : null,
         ),
         const SizedBox(height: 8),
-      ],
-    );
-  }
-}
-
-// ─── Sub-widgets ───────────────────────────────────────────────────────────────
-
-class _ConnectedHeader extends StatelessWidget {
-  final String productString;
-  final String rootFingerprint;
-  final VoidCallback onDisconnect;
-
-  const _ConnectedHeader({
-    required this.productString,
-    required this.rootFingerprint,
-    required this.onDisconnect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.usb, color: Colors.green),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(productString,
-                  style: Theme.of(context).textTheme.bodyLarge),
-              if (rootFingerprint.isNotEmpty)
-                Text(
-                  rootFingerprint,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontFamily: 'monospace'),
-                ),
-            ],
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: onDisconnect,
-          icon: const Icon(Icons.usb_off, size: 16),
-          label: Text(context.l10n.hwDisconnectButton),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
-            side: BorderSide(
-                color: Theme.of(context).colorScheme.error.withAlpha(AppAlpha.pale)),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool spinning;
-
-  const _StatusRow({
-    required this.icon,
-    required this.label,
-    this.spinning = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        spinning
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(icon,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
-        const SizedBox(width: 12),
-        Text(label),
-      ],
-    );
-  }
-}
-
-class _NoDevicesRow extends StatelessWidget {
-  final VoidCallback onRefresh;
-  const _NoDevicesRow({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(Icons.usb_off,
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
-        const SizedBox(width: 12),
-        Expanded(child: Text(context.l10n.hwNoDevice)),
-        TextButton.icon(
-          icon: const Icon(Icons.refresh, size: 16),
-          label: Text(context.l10n.hwScanButton),
-          onPressed: onRefresh,
-        ),
-      ],
-    );
-  }
-}
-
-class _DeviceListSection extends StatelessWidget {
-  final List<APIHwDevice> devices;
-  final void Function(APIHwDevice) onTap;
-
-  const _DeviceListSection({required this.devices, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(context.l10n.hwSelectDevice,
-            style: Theme.of(context).textTheme.bodySmall),
-        for (final d in devices)
-          ListTile(
-            dense: true,
-            leading: const Icon(Icons.usb),
-            title: Text(d.productString),
-            subtitle:
-                d.serialNumber.isNotEmpty ? Text(d.serialNumber) : null,
-            trailing: const Icon(Icons.chevron_right, size: 16),
-            onTap: () => onTap(d),
-          ),
-      ],
-    );
-  }
-}
-
-class _PairingView extends StatelessWidget {
-  final String code;
-  const _PairingView({required this.code});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.l10n.hwPairingCompare,
-          style: Theme.of(context).textTheme.bodySmall,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          code,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontFamily: 'monospace',
-                letterSpacing: 8,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 12),
-        const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        const SizedBox(height: 4),
       ],
     );
   }

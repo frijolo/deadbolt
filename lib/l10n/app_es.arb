@@ -67,6 +67,20 @@
   "settingsTitle": "Configuración",
   "languageLabel": "Idioma",
   "preferredNetworkLabel": "Red preferida",
+  "activeNetworkLabel": "Red activa",
+  "activeNetworkDescription": "Solo se muestran wallets de esta red. Las wallets de otras redes quedan ocultas, no eliminadas.",
+  "walletsHiddenOnOtherNetworks": "{count} {count, plural, one{wallet} other{wallets}} en otras redes — cambia en Ajustes",
+  "@walletsHiddenOnOtherNetworks": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "restoringToNetwork": "Restaurando en: {network}",
+  "@restoringToNetwork": {
+    "placeholders": {
+      "network": { "type": "String" }
+    }
+  },
   "preferredWalletTypeLabel": "Tipo de billetera predeterminado",
   "settingsLanguageEn": "English",
   "settingsLanguageEs": "Español",
@@ -873,6 +887,11 @@
   "hwWalletScanning": "Buscando dispositivos\u2026",
   "hwWalletConnecting": "Conectando\u2026",
   "hwWalletUnlockDevice": "Desbloquea tu dispositivo\u2026",
+  "hwWalletNoDevices": "No se detectó ningún hardware wallet.\nAsegúrate de que esté conectado.",
+  "hwWalletSelectDevice": "Selecciona un dispositivo",
+  "hwWalletScanDevices": "Buscar dispositivos",
+  "hwWalletPairingCode": "Código de emparejamiento",
+  "hwWalletNoConfirmNeeded": "No se requiere confirmación en el dispositivo para exportar claves.",
   "hwRegisterWallet": "Registrar wallet",
   "hwRegisterWalletSub": "Registrar esta política en el dispositivo",
   "hwNotRequired": "No requerido para wallets de clave única",
@@ -901,7 +920,7 @@
   "restoreFromSeedTitle": "Recuperar desde semilla",
   "scanAccountsAction": "Escanear accounts",
   "scanAccountsScanning": "Escaneando accounts…",
-  "scanAccountsScanningHint": "Verificando direcciones en Electrum (accounts: {accountGap}, dir.: {addrGap})…",
+  "scanAccountsScanningHint": "Verificando direcciones en Electrum…\n(accounts: {accountGap}, dir.: {addrGap})",
   "@scanAccountsScanningHint": {
     "placeholders": {
       "accountGap": { "type": "int" },
@@ -910,7 +929,6 @@
   },
   "accountGapLimitLabel": "Límite de accounts vacías",
   "addressGapLimitLabel": "Límite de direcciones",
-  "advancedScanOptions": "Avanzado",
   "scanNonStandardPathsLabel": "Rutas de derivación no estándar",
   "scanNonStandardPathsHint": "Busca también rutas BIP alternativas para cada tipo de script (44/49/84/86)",
   "scanAccountsNoActivity": "No se encontraron accounts con actividad previa.",
@@ -920,8 +938,8 @@
       "count": { "type": "int" }
     }
   },
-  "scanAccountsFoundActivity": "{count} account(s) con actividad",
-  "@scanAccountsFoundActivity": {
+  "scanAccountsFoundBackups": "{count} account(s) encontrado(s)",
+  "@scanAccountsFoundBackups": {
     "placeholders": {
       "count": { "type": "int" }
     }
@@ -933,6 +951,19 @@
     }
   },
   "scanAccountsNoActivitySubtitle": "Recupera cuentas a partir de una frase semilla",
+  "restoreFromHwMenuLabel": "Recuperar desde hardware wallet",
+  "restoreFromHwMenuSubtitle": "Busca cuentas desde una BitBox02 conectada",
+  "restoreFromHwTitle": "Recuperar desde Hardware Wallet",
+  "hwDiscoveryNoDevice": "No hay hardware wallet conectada. Conecta y empareja tu dispositivo primero.",
+  "hwDiscoveryStart": "Buscar cuentas",
+  "hwDiscoveryDeriving": "Exportando claves… ({n}/{total})",
+  "@hwDiscoveryDeriving": {
+    "placeholders": {
+      "n": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "hwDiscoveryScanning": "Escaneando blockchain…",
   "scanAccountsActivitySummary": "{txCount} tx",
   "@scanAccountsActivitySummary": {
     "placeholders": {
@@ -943,9 +974,13 @@
   "scanAccountsRetry": "Reintentar",
   "searchNostrLabel": "Buscar backups en Nostr",
   "searchNostrHint": "Busca copias de seguridad del descriptor en los relays configurados",
+  "hwSkipLegacyLabel": "Omitir derivaciones legacy (P2PKH)",
+  "hwSkipLegacyHint": "Evita confirmaciones en el dispositivo para rutas m/44\u2019",
   "searchNostrScanningHint": "También buscando backups de descriptor en relays Nostr…",
   "nostrBackupFoundOnScan": "Backup Nostr encontrado",
   "importFromNostrBackup": "Restaurar desde Nostr",
+  "nostrImportTamperTitle": "Verifica tras importar",
+  "nostrImportTamperBody": "Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu billetera esperada antes de enviar fondos.",
   "scanTypeAll": "Todos",
   "bip39PassphraseLabel": "Frase BIP39 (opcional)",
   "pressBackAgainToExit": "Pulsa atrás otra vez para salir",
@@ -999,10 +1034,15 @@
   "nostrBackupSecurityNote": "Cualquier persona con tu xpub puede localizar y descifrar este respaldo. Solo comparte xpubs con co-firmantes de confianza.",
   "nostrBackupFound": "Respaldo encontrado",
   "nostrBackupNotFound": "Sin respaldo",
+  "nostrBackupPartialCosigners": "{backedUp}/{total} co-firmantes respaldados",
   "nostrBackupError": "Error en relay",
   "nostrBackupNoRelays": "No hay relays configurados. Agregalos en Ajustes → Relays Nostr.",
   "nostrBackupChecking": "Verificando…",
   "nostrBackupPublishing": "Publicando…",
+  "nostrBackupDelete": "Eliminar respaldo",
+  "nostrBackupDeleting": "Eliminando…",
+  "nostrBackupDeleted": "Respaldo eliminado del relay",
+  "nostrBackupDeleteConfirm": "¿Reemplazar el respaldo en este relay con un evento vacío? El descriptor ya no será recuperable desde este relay.",
 
   "walletCreateFromNostr": "Restaurar desde Nostr",
   "walletCreateFromNostrSub": "Recupera un respaldo de descriptor desde relays Nostr",
@@ -1019,5 +1059,13 @@
   "nostrRestoreDate": "Respaldado",
   "nostrRestoreEnterCredential": "Ingresa tu xpub para descifrar",
   "nostrRestoreImport": "Importar billetera",
-  "nostrRestoreWatchOnlyNote": "La billetera se importará como solo-lectura. Reconecta tu billetera hardware o agrega tu mnemónico para firmar transacciones."
+  "nostrRestoreImporting": "Importando billetera…",
+  "nostrRestoreWatchOnlyNote": "La billetera se importará como solo-lectura. Reconecta tu billetera hardware o agrega tu mnemónico para firmar transacciones.",
+
+  "recoverWalletTitle": "Recuperar Cartera",
+  "restoreTabXpub": "xpub",
+  "restoreTabSeed": "Semilla",
+  "restoreTabHardware": "Hardware",
+  "restoreXpubEnterXpub": "Ingresa una clave pública extendida para escanear cuentas on-chain y buscar backups en Nostr.",
+  "restoreXpubScanButton": "Escanear"
 }

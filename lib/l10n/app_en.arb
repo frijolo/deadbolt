@@ -67,6 +67,20 @@
   "settingsTitle": "Settings",
   "languageLabel": "Language",
   "preferredNetworkLabel": "Preferred Network",
+  "activeNetworkLabel": "Active Network",
+  "activeNetworkDescription": "Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.",
+  "walletsHiddenOnOtherNetworks": "{count} {count, plural, one{wallet} other{wallets}} on other networks — change in Settings",
+  "@walletsHiddenOnOtherNetworks": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "restoringToNetwork": "Restoring to: {network}",
+  "@restoringToNetwork": {
+    "placeholders": {
+      "network": { "type": "String" }
+    }
+  },
   "preferredWalletTypeLabel": "Default Wallet Type",
   "settingsLanguageEn": "English",
   "settingsLanguageEs": "Español",
@@ -880,6 +894,11 @@
   "hwWalletScanning": "Scanning for devices\u2026",
   "hwWalletConnecting": "Connecting\u2026",
   "hwWalletUnlockDevice": "Unlock your device\u2026",
+  "hwWalletNoDevices": "No hardware wallet detected.\nMake sure it is plugged in.",
+  "hwWalletSelectDevice": "Select a device",
+  "hwWalletScanDevices": "Scan for devices",
+  "hwWalletPairingCode": "Pairing code",
+  "hwWalletNoConfirmNeeded": "No confirmation needed on the device for key export.",
   "hwRegisterWallet": "Register wallet",
   "hwRegisterWalletSub": "Register this policy on the device",
   "hwNotRequired": "Not required for single-key wallets",
@@ -908,7 +927,7 @@
   "restoreFromSeedTitle": "Recover from seed",
   "scanAccountsAction": "Scan accounts",
   "scanAccountsScanning": "Scanning accounts…",
-  "scanAccountsScanningHint": "Checking addresses on Electrum (accounts gap: {accountGap}, addresses gap: {addrGap})…",
+  "scanAccountsScanningHint": "Checking addresses on Electrum…\n(accounts gap: {accountGap}, addresses gap: {addrGap})",
   "@scanAccountsScanningHint": {
     "placeholders": {
       "accountGap": { "type": "int" },
@@ -917,7 +936,6 @@
   },
   "accountGapLimitLabel": "Account gap limit",
   "addressGapLimitLabel": "Address gap limit",
-  "advancedScanOptions": "Advanced",
   "scanNonStandardPathsLabel": "Non-standard derivation paths",
   "scanNonStandardPathsHint": "Also scan alternative BIP purpose paths for each script type (44/49/84/86)",
   "scanAccountsNoActivity": "No accounts with prior activity found.",
@@ -927,8 +945,8 @@
       "count": { "type": "int" }
     }
   },
-  "scanAccountsFoundActivity": "{count} account(s) with activity",
-  "@scanAccountsFoundActivity": {
+  "scanAccountsFoundBackups": "{count} account(s) found",
+  "@scanAccountsFoundBackups": {
     "placeholders": {
       "count": { "type": "int" }
     }
@@ -940,6 +958,19 @@
     }
   },
   "scanAccountsNoActivitySubtitle": "Recover accounts from a mnemonic phrase",
+  "restoreFromHwMenuLabel": "Recover from hardware wallet",
+  "restoreFromHwMenuSubtitle": "Scan accounts from a connected BitBox02",
+  "restoreFromHwTitle": "Recover from Hardware Wallet",
+  "hwDiscoveryNoDevice": "No hardware wallet connected. Connect and pair your device first.",
+  "hwDiscoveryStart": "Scan accounts",
+  "hwDiscoveryDeriving": "Exporting keys… ({n}/{total})",
+  "@hwDiscoveryDeriving": {
+    "placeholders": {
+      "n": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "hwDiscoveryScanning": "Scanning blockchain…",
   "scanAccountsActivitySummary": "{txCount} tx",
   "@scanAccountsActivitySummary": {
     "placeholders": {
@@ -950,9 +981,13 @@
   "scanAccountsRetry": "Retry",
   "searchNostrLabel": "Search Nostr backups",
   "searchNostrHint": "Look for descriptor backups on configured relays",
+  "hwSkipLegacyLabel": "Skip legacy (P2PKH) derivations",
+  "hwSkipLegacyHint": "Avoids device confirmation prompts for m/44\u2019 paths",
   "searchNostrScanningHint": "Also searching Nostr relays for descriptor backups…",
   "nostrBackupFoundOnScan": "Nostr backup found",
   "importFromNostrBackup": "Restore from Nostr",
+  "nostrImportTamperTitle": "Verify after import",
+  "nostrImportTamperBody": "Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.",
   "scanTypeAll": "All types",
   "bip39PassphraseLabel": "BIP39 passphrase (optional)",
   "pressBackAgainToExit": "Press back again to exit",
@@ -1006,10 +1041,21 @@
   "nostrBackupSecurityNote": "Anyone with your xpub can locate and decrypt this backup. Only share xpubs with trusted co-signers.",
   "nostrBackupFound": "Backup found",
   "nostrBackupNotFound": "No backup found",
+  "nostrBackupPartialCosigners": "{backedUp}/{total} cosigners backed up",
+  "@nostrBackupPartialCosigners": {
+    "placeholders": {
+      "backedUp": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "nostrBackupError": "Relay error",
   "nostrBackupNoRelays": "No relays configured. Add relays in Settings → Nostr Relays.",
   "nostrBackupChecking": "Checking…",
   "nostrBackupPublishing": "Publishing…",
+  "nostrBackupDelete": "Delete Backup",
+  "nostrBackupDeleting": "Deleting…",
+  "nostrBackupDeleted": "Backup deleted from relay",
+  "nostrBackupDeleteConfirm": "Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.",
 
   "walletCreateFromNostr": "Restore from Nostr",
   "walletCreateFromNostrSub": "Recover a descriptor backup from Nostr relays",
@@ -1026,5 +1072,13 @@
   "nostrRestoreDate": "Backed up",
   "nostrRestoreEnterCredential": "Enter your xpub to decrypt",
   "nostrRestoreImport": "Import Wallet",
-  "nostrRestoreWatchOnlyNote": "The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions."
+  "nostrRestoreImporting": "Importing wallet…",
+  "nostrRestoreWatchOnlyNote": "The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.",
+
+  "recoverWalletTitle": "Recover Wallet",
+  "restoreTabXpub": "xpub",
+  "restoreTabSeed": "Seed",
+  "restoreTabHardware": "Hardware",
+  "restoreXpubEnterXpub": "Enter an extended public key to scan on-chain accounts and search Nostr backups.",
+  "restoreXpubScanButton": "Scan"
 }

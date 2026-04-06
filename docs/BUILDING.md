@@ -44,21 +44,23 @@ cd rust && cargo test
 # Linting
 flutter analyze
 cd rust && cargo clippy
+cd rust && cargo machete   # checks for unused dependencies (matches CI)
 ```
 
 ## Integration Tests
 
-Integration tests require a connected device or emulator. Run the test build preparation script first:
+Integration tests require a running display. Prepare the test build once after each code change, then run the Python regression scripts:
 
 ```bash
-# Prepare test build (sets up mock Rust bindings)
-./scripts/prepare_test_build.sh
+# Prepare test build (patches Rust bindings for headless use)
+DISPLAY=:0 bash scripts/prepare_test_build.sh
 
-# Run integration tests with a display
-DISPLAY=:0 flutter test integration_test/
+# Run regression scripts (repeat for 01 through 08)
+DISPLAY=:0 python3 scripts/regression_01_singlesig.py
+DISPLAY=:0 python3 scripts/regression_02_multisig.py
+# ...
+DISPLAY=:0 python3 scripts/regression_08_labels_backup.py
 ```
-
-See `scripts/regression_0N.sh` scripts for regression test sequences.
 
 ## Regenerating FFI Bindings
 

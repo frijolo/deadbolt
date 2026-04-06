@@ -394,10 +394,17 @@ async def _export_wallet_backup(d: UIDriver):
     await fill_field(d, "Backup password", EXPORT_PASSWORD)
     await fill_field(d, "Confirm password", EXPORT_PASSWORD)
 
-    # Click Export — immediately triggers Argon2id-High (~10–25 s),
-    # then opens the GTK file-save dialog.
+    # Click Export — may first show a "Backup Signatures" warning when the
+    # wallet has unsigned keys.  If so, click "Export backup" to proceed.
+    # After that, Argon2id-High runs (~10–25 s) then the GTK dialog opens.
     print("    [step] clicking Export (Argon2id-High may take ~10–25 s)…")
     await click_label(d, "Export", delay=0.5)
+
+    await asyncio.sleep(1.0)
+    sem = await d.semantics_tree()
+    if '"Backup Signatures"' in sem:
+        print("    [info] Backup Signatures warning shown — clicking 'Export backup' to proceed")
+        await click_label(d, "Export backup", delay=0.5)
 
     # Wait for the GTK dialog to open (with generous timeout for Argon2id)
     await _handle_gtk_save_dialog(BACKUP_FILE, pre_wins, timeout=40.0)

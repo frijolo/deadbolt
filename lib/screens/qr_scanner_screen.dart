@@ -11,6 +11,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/qr_decoder.dart';
+import 'package:deadbolt/utils/seed_qr.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 
@@ -131,7 +132,16 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       final qrResult = decodeQrFromRgbFrame(w, h, rgbBytes);
 
       if (qrResult != null) {
-        if (mounted) _onQrValue(qrResult.text);
+        // Compact SeedQR: try raw bytes before falling back to text.
+        final rawBytes = qrResult.rawBytes;
+        if (rawBytes != null && rawBytes.isNotEmpty) {
+          final mnemonic = decodeSeedQrCompact(rawBytes);
+          if (mnemonic != null) {
+            _done = true;
+            if (mounted) Navigator.pop(context, mnemonic);
+          }
+        }
+        if (!_done && mounted) _onQrValue(qrResult.text);
       } else {
         if (mounted) setState(() => _scanState = _ScanState.noQr);
       }
@@ -180,6 +190,15 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   /// Called by both MobileScanner and the desktop polling branch.
   void _onQrValue(String value) {
     if (_done) return;
+
+    // Standard SeedQR: digit-only string (e.g. "0001000200030004...")
+    final mnemonic = decodeSeedQrText(value);
+    if (mnemonic != null) {
+      _done = true;
+      Navigator.pop(context, mnemonic);
+      return;
+    }
+
     if (value.toLowerCase().startsWith('ur:')) {
       _urDecoder ??= BCURFountainDecoder();
 
@@ -240,7 +259,28 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   void _onDetect(BarcodeCapture capture) {
-    final value = capture.barcodes.firstOrNull?.rawValue;
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode == null) return;
+
+    // Compact SeedQR: binary-mode QR code with raw 11-bit packed word indices.
+    // Same pattern as BC-UR PSBT: read raw bytes, decode to a usable string.
+    final decoded = barcode.rawDecodedBytes;
+    if (decoded != null) {
+      final bytes = switch (decoded) {
+        DecodedBarcodeBytes(:final bytes) => bytes,
+        DecodedVisionBarcodeBytes(:final bytes) => bytes,
+      };
+      if (bytes != null && bytes.isNotEmpty) {
+        final mnemonic = decodeSeedQrCompact(bytes);
+        if (mnemonic != null) {
+          _done = true;
+          if (mounted) Navigator.pop(context, mnemonic);
+          return;
+        }
+      }
+    }
+
+    final value = barcode.rawValue;
     if (value == null || value.isEmpty) return;
     _onQrValue(value);
   }

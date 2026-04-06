@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart'
     show bip39ValidLastWords, bip39Wordlist;
 
@@ -163,6 +164,18 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
     );
   }
 
+  Future<void> _scanSeedQr() async {
+    final result = await QrScannerScreen.push(context);
+    if (result == null || !mounted) return;
+    widget.controller.text = result;
+    // Auto-adjust target word count to match the scanned mnemonic.
+    final count = result.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    if (bip39ValidWordCounts.contains(count) && count != _targetCount) {
+      setState(() => _targetCount = count);
+      widget.onTargetWordCountChanged?.call(count);
+    }
+  }
+
   // True when the target count is one of the "rare" sizes (15 / 18 / 21).
   bool get _isOther => const [15, 18, 21].contains(_targetCount);
 
@@ -230,11 +243,19 @@ class _MnemonicEntryFieldState extends State<MnemonicEntryField> {
           ),
         ],
         const SizedBox(height: 8),
-        // Label + progress
+        // Label + QR scan + progress
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(context.l10n.seedPhraseDialogTitle),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner, size: 18),
+              tooltip: context.l10n.scanQrCode,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              onPressed: _scanSeedQr,
+            ),
+            const SizedBox(width: 4),
             Text(
               '$wordCount / $_targetCount',
               style: TextStyle(

@@ -97,10 +97,12 @@ This payload is then base64-encoded and placed in the Nostr event's `content` fi
 
 ### 2a — Inner plaintext
 
-The inner plaintext (what ultimately gets encrypted) is a minimal JSON object:
+The inner plaintext (what ultimately gets encrypted) is a JSON object:
 
 ```json
-{ "descriptor": "wpkh([deadbeef/84h/0h/0h]xpub6C5s.../<0;1>/*)" }
+{
+  "descriptor": "wpkh([deadbeef/84h/0h/0h]xpub6C5s.../<0;1>/*)"
+}
 ```
 
 ### 2b — Export data key
@@ -165,7 +167,7 @@ event** (kind 30078):
   "pubkey": "<x-only-pubkey-hex derived from xpub>",
   "created_at": <unix_timestamp>,
   "tags": [
-    ["d", "deadbolt-backup"],
+    ["d", "deadbolt-backup-{first8hex(SHA-256(descriptor))}"],
     ["t", "deadbolt-backup"]
   ],
   "content": "<base64(payload_json_bytes)>",
@@ -278,9 +280,9 @@ descriptor      = inner["descriptor"]
 - Full wallet database
 - Transaction history
 
-**What IS stored on relays:**
+**What IS stored on relays (inside the encrypted payload):**
 - The wallet descriptor (public keys + script template)
-- Wallet name, network, creation timestamp (all in the encrypted payload)
+- Wallet name, network, creation timestamp
 
 A relay operator who intercepts the event cannot decrypt it without knowing the
 xpub. The xpub is public information (it appears in the derived Nostr pubkey), so
@@ -308,3 +310,15 @@ Nostr Relays):
 - The `created_at` field inside the payload is the wallet's creation timestamp
   (not the backup timestamp), so it stays stable across re-publishes.
 - The outer Nostr event's `created_at` is the actual publish time.
+
+### Deletion
+
+Deadbolt "deletes" a backup by publishing a **replacement event with empty `content`**
+using the same `(pubkey, kind, d-tag)` triple. On NIP-33–compliant relays this
+atomically replaces the encrypted event. On non-compliant relays that return both
+the old backup event and the new empty event, Deadbolt applies a **newest-wins** rule:
+the event with the highest `created_at` determines backup status. If that event has
+empty content, `has_backup = false`.
+
+**Rust source:** `rust/src/api/wallet/nostr_backup.rs` → `delete_nostr_backup()`,
+`ws_fetch_backup()`

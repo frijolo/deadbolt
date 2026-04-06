@@ -53,7 +53,10 @@ deadbolt/
 | `api/wallet/ops.rs` | Wallet CRUD, sync, protection types |
 | `api/wallet/psbt.rs` | PSBT build, sign, merge, broadcast |
 | `api/wallet/labels.rs` | BIP-329 label import/export |
-| `api/hw_wallet.rs` | Hardware wallet FFI (xpub export, PSBT sign) |
+| `api/wallet/backup.rs` | `.deadbolt` encrypted backup export/import |
+| `api/wallet/nostr_backup.rs` | Nostr backup publish, fetch, delete |
+| `api/wallet/discovery.rs` | BIP-44 gap-limit account discovery across script types |
+| `api/hw_wallet.rs` | Hardware wallet FFI (xpub export, PSBT sign, message sign) |
 | `api/wif_sweep.rs` | WIF sweep: resolve addresses, fetch UTXOs, build/sign/broadcast |
 | `core/hw/mod.rs` | BitBox02 transport + async-hwi wrapper |
 | `core/tor_manager.rs` | Embedded arti Tor client lifecycle |

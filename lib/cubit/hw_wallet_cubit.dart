@@ -133,7 +133,7 @@ class HwWalletCubit extends Cubit<HwWalletState> {
     }
   }
 
-  /// Transitions back to [HwWalletReady] after an operation completes,
+  /// Transitions back to [HwWalletReady] after an operation completes or errors,
   /// keeping the sheet open for further actions.
   void returnToReady() {
     final s = state;
@@ -143,6 +143,9 @@ class HwWalletCubit extends Cubit<HwWalletState> {
         productString: s.productString,
         rootFingerprint: s.rootFingerprint,
       ));
+    } else if (s is HwWalletError && s.sessionId != null) {
+      // Session still exists after an operation error — restore ready state.
+      unawaited(_emitReady(s.sessionId!));
     }
   }
 

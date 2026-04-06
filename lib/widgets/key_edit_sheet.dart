@@ -295,6 +295,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
       style: OutlinedButton.styleFrom(
         foregroundColor: AppAccent.color,
         side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.half)),
+        minimumSize: const Size(double.infinity, 40),
       ),
     );
   }
@@ -331,13 +332,21 @@ class _KeySheetContentState extends State<_KeySheetContent> {
         title: Text(l10n.viewPrivateKeyButton),
         content: Text(l10n.viewPrivateKeyDisclaimer),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.viewPrivateKeyConfirm),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(l10n.cancel),
+                ),
+              ),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(l10n.viewPrivateKeyConfirm),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -395,16 +404,24 @@ class _KeySheetContentState extends State<_KeySheetContent> {
         title: Text(l10n.deletePrivateKeyButton),
         content: Text(disclaimer),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l10n.deletePrivateKeyConfirm),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(l10n.cancel),
+                ),
+              ),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(ctx).colorScheme.error,
+                  ),
+                  child: Text(l10n.deletePrivateKeyConfirm),
+                ),
+              ),
+            ],
           ),
         ],
       ),

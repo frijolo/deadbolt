@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
 
+import 'package:deadbolt/utils/seed_qr.dart';
+
 /// Result of decoding a QR code from a camera frame.
 class QrDecodeResult {
   final String text;
@@ -14,7 +16,10 @@ class QrDecodeResult {
   /// Raw payload bytes (before text encoding).
   final int? rawByteCount;
 
-  const QrDecodeResult(this.text, {this.version, this.rawByteCount});
+  /// Raw payload bytes as unsigned bytes — populated for binary-mode QR codes.
+  final Uint8List? rawBytes;
+
+  const QrDecodeResult(this.text, {this.version, this.rawByteCount, this.rawBytes});
 
   /// Human-readable size summary, e.g. "v10 · 57×57 · 32 bytes".
   String get sizeDescription {
@@ -51,10 +56,15 @@ QrDecodeResult? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) 
   try {
     final result = QRCodeReader()
         .decode(BinaryBitmap(GlobalHistogramBinarizer(source)));
+    final rb = result.rawBytes;
+    final rawBytes = rb != null
+        ? Uint8List.fromList(rb.map((b) => b & 0xFF).toList())
+        : null;
     return QrDecodeResult(
       result.text,
       version: result.version,
-      rawByteCount: result.rawBytes?.length,
+      rawByteCount: rb?.length,
+      rawBytes: rawBytes,
     );
   } catch (_) {
     return null; // NotFoundException — no QR in frame
@@ -93,5 +103,14 @@ Future<String?> decodeQrFromImageFile() async {
   final reader = QRCodeReader();
   // Throws NotFoundException if no QR code is found.
   final qrResult = reader.decode(bitmap);
+
+  // Compact SeedQR: binary QR whose payload is raw 11-bit packed word indices.
+  final rb = qrResult.rawBytes;
+  if (rb != null) {
+    final bytes = Uint8List.fromList(rb.map((b) => b & 0xFF).toList());
+    final mnemonic = decodeSeedQrCompact(bytes);
+    if (mnemonic != null) return mnemonic;
+  }
+
   return qrResult.text;
 }

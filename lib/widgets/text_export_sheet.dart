@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:deadbolt/errors.dart' show formatRustError;
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/theme/app_theme.dart';
@@ -220,7 +221,7 @@ Future<void> _shareAsFile(
   } catch (e) {
     if (context.mounted) {
       final l10n = context.l10n;
-      showErrorToast(context, l10n.exportFailed(e.toString()));
+      showErrorToast(context, l10n.exportFailed(formatRustError(e)));
     }
   }
 }
@@ -308,7 +309,7 @@ Future<void> _saveWithFilePicker(
     }
     if (context.mounted) showSuccessToast(context, l10n.savedToDownloads);
   } catch (e) {
-    if (context.mounted) showErrorToast(context, l10n.exportFailed(e.toString()));
+    if (context.mounted) showErrorToast(context, l10n.exportFailed(formatRustError(e)));
   }
 }
 

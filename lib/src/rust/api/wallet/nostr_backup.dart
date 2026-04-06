@@ -7,7 +7,7 @@ import '../../frb_generated.dart';
 import '../model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `ws_fetch_backup`, `ws_fetch_payloads_for_xpub`, `ws_publish_event`
+// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `ws_check_descriptor_backup`, `ws_fetch_payloads_for_xpub`, `ws_open`, `ws_publish_event`
 
 /// Publish an encrypted descriptor backup for every xpub in the wallet to all
 /// configured Nostr relays. One event is published per xpub (each encrypted
@@ -28,12 +28,34 @@ Future<List<NostrRelayStatus>> publishNostrBackup({
   relayUrls: relayUrls,
 );
 
-/// Check which relays have a backup event for this wallet. One status per relay.
-/// `has_backup = true` means the relay has at least one xpub event for this wallet.
+/// Check which relays have a complete backup for this wallet.
+///
+/// `has_backup = true` means **every** xpub in the descriptor has published a
+/// non-empty backup event with the matching d-tag on that relay.
+/// `backed_up_xpubs` / `total_xpubs` give the exact per-cosigner breakdown
+/// so the UI can distinguish "all backed up", "some backed up", and "none".
 Future<List<NostrRelayStatus>> checkNostrBackupStatus({
   required String descriptor,
   required List<String> relayUrls,
 }) => RustLib.instance.api.crateApiWalletNostrBackupCheckNostrBackupStatus(
+  descriptor: descriptor,
+  relayUrls: relayUrls,
+);
+
+/// Overwrite this wallet's backup on each relay with an empty placeholder event.
+///
+/// Kind 30078 is an addressable (parameterized-replaceable) event: publishing a
+/// new event with the same author pubkey and d-tag replaces the previous one.
+/// This is more reliable than NIP-09 deletion requests, which many relays ignore.
+///
+/// For every xpub in the descriptor an empty kind-30078 event is signed with the
+/// derived Nostr keypair and published to each relay URL.
+/// Returns one `NostrRelayStatus` per relay — `has_backup` reflects
+/// whether the replacement was accepted (relay returned `["OK", id, true]`).
+Future<List<NostrRelayStatus>> deleteNostrBackup({
+  required String descriptor,
+  required List<String> relayUrls,
+}) => RustLib.instance.api.crateApiWalletNostrBackupDeleteNostrBackup(
   descriptor: descriptor,
   relayUrls: relayUrls,
 );
@@ -58,7 +80,7 @@ Future<List<NostrBackupResponse>> fetchNostrBackup({
 /// the user reconnects their hardware wallet or re-enters their mnemonic).
 ///
 /// `xpub_credential`: bare xpub or `[mfp/path]xpub` keyspec.
-Future<APIWalletInfo> importNostrBackup({
+Future<NostrImportResult> importNostrBackup({
   required List<int> backupBytes,
   required String xpubCredential,
   required String deviceKeyHex,
@@ -81,6 +103,10 @@ class NostrBackupResponse {
   final String? firstAddress;
   final APIWalletType? walletType;
 
+  /// The decrypted descriptor string. Present when decryption succeeded.
+  /// Can be passed to `scan_descriptor` to fetch on-chain balance/tx count.
+  final String? descriptor;
+
   const NostrBackupResponse({
     required this.bytes,
     this.walletName,
@@ -88,6 +114,7 @@ class NostrBackupResponse {
     this.createdAt,
     this.firstAddress,
     this.walletType,
+    this.descriptor,
   });
 
   @override
@@ -97,7 +124,8 @@ class NostrBackupResponse {
       network.hashCode ^
       createdAt.hashCode ^
       firstAddress.hashCode ^
-      walletType.hashCode;
+      walletType.hashCode ^
+      descriptor.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -109,14 +137,33 @@ class NostrBackupResponse {
           network == other.network &&
           createdAt == other.createdAt &&
           firstAddress == other.firstAddress &&
-          walletType == other.walletType;
+          walletType == other.walletType &&
+          descriptor == other.descriptor;
+}
+
+/// Return type of `import_nostr_backup`.
+class NostrImportResult {
+  final APIWalletInfo wallet;
+
+  const NostrImportResult({required this.wallet});
+
+  @override
+  int get hashCode => wallet.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NostrImportResult &&
+          runtimeType == other.runtimeType &&
+          wallet == other.wallet;
 }
 
 /// Status of a Nostr relay for one wallet's backup.
 class NostrRelayStatus {
   final String url;
 
-  /// True if at least one xpub backup event was confirmed on this relay.
+  /// True when every xpub in the descriptor has a valid backup event on this
+  /// relay. An empty-content "deleted" event counts as no backup.
   final bool hasBackup;
 
   /// Unix timestamp of the most recent event found (or published).
@@ -128,12 +175,23 @@ class NostrRelayStatus {
   /// Non-null when the relay could not be reached or returned an error.
   final String? error;
 
+  /// Number of xpubs that have a valid backup for this specific descriptor.
+  /// For singlesig this is 0 or 1; for multisig it can be anywhere from 0
+  /// to `total_xpubs`.
+  final PlatformInt64 backedUpXpubs;
+
+  /// Total number of xpubs in the wallet descriptor (1 for singlesig,
+  /// N for N-of-M multisig).
+  final PlatformInt64 totalXpubs;
+
   const NostrRelayStatus({
     required this.url,
     required this.hasBackup,
     this.lastPublishedAt,
     this.eventId,
     this.error,
+    required this.backedUpXpubs,
+    required this.totalXpubs,
   });
 
   @override
@@ -142,7 +200,9 @@ class NostrRelayStatus {
       hasBackup.hashCode ^
       lastPublishedAt.hashCode ^
       eventId.hashCode ^
-      error.hashCode;
+      error.hashCode ^
+      backedUpXpubs.hashCode ^
+      totalXpubs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -153,5 +213,7 @@ class NostrRelayStatus {
           hasBackup == other.hasBackup &&
           lastPublishedAt == other.lastPublishedAt &&
           eventId == other.eventId &&
-          error == other.error;
+          error == other.error &&
+          backedUpXpubs == other.backedUpXpubs &&
+          totalXpubs == other.totalXpubs;
 }

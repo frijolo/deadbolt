@@ -227,8 +227,6 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           currentProtection: state.walletInfo.protection.protectionType,
           currentSecurityLevel: state.walletInfo.protection.securityLevel,
         );
-      case _WalletMenuAction.nostrBackup:
-        showNostrBackupSheet(context, state: state);
     }
   }
 
@@ -375,6 +373,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final opts = await showExportBackupDialog(context);
     if (opts == null || !context.mounted) return;
 
+    if (!context.mounted) return;
+
     final List<int> backupBytes;
     try {
       backupBytes = await rust_backup.exportWalletBackup(
@@ -496,6 +496,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           title: Text(l10n.walletExportLabel),
           onTap: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
         ),
+        ListTile(
+          leading: const Icon(Icons.backup_outlined),
+          title: Text(l10n.nostrBackupMenu),
+          onTap: () => Navigator.of(ctx).pop(_ExportChoice.nostr),
+        ),
         const SizedBox(height: 8),
       ],
     ));
@@ -504,6 +509,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       _exportLabels(context, state);
     } else if (choice == _ExportChoice.descriptor) {
       _exportDescriptor(context, state);
+    } else if (choice == _ExportChoice.nostr) {
+      showNostrBackupSheet(context, state: state);
     } else {
       _exportBackup(context, state);
     }
@@ -675,7 +682,6 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
               const PopupMenuDivider(),
               iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: l10n.changeProtectionMenu),
-              iconMenuItem(value: _WalletMenuAction.nostrBackup, icon: Icons.backup_outlined, label: l10n.nostrBackupMenu),
               if (state.walletInfo.protection.protectionType ==
                       APIProtectionType.userPassword ||
                   state.walletInfo.protection.protectionType ==
@@ -758,8 +764,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 }
 
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection, nostrBackup }
+enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
 
-enum _ExportChoice { labels, descriptor, wallet }
+enum _ExportChoice { labels, descriptor, wallet, nostr }
 
 enum _ImportChoice { labels, psbt, sweepWif }

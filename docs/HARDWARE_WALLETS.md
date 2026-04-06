@@ -1,6 +1,10 @@
 # Hardware Wallet Setup
 
-Deadbolt supports signing PSBTs and exporting xpubs directly from a BitBox02 hardware wallet.
+Deadbolt integrates with the BitBox02 hardware wallet for three workflows:
+
+- **PSBT signing** — sign an unsigned transaction without exposing private keys to the host machine.
+- **xpub export** — export the device's xpub for a derivation path directly into a wallet descriptor.
+- **Restore from hardware wallet** — connect a BitBox02 to scan on-chain accounts and fetch Nostr backups, recovering a wallet without entering a seed phrase (accessible from the wallet list via "Recover from hardware wallet").
 
 ## Supported devices
 

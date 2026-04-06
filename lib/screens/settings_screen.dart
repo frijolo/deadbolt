@@ -65,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
                   icon: Icons.tune_outlined,
                   children: [
                     _SettingsDropdown<APINetwork>(
-                      label: l10n.preferredNetworkLabel,
+                      label: l10n.activeNetworkLabel,
                       value: settings.network,
                       items: [
                         for (final n in APINetwork.values)

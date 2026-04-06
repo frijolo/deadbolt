@@ -84,7 +84,7 @@ Future<String?> _fromFile(BuildContext context) async {
     }
     return utf8.decode(bytes, allowMalformed: true);
   } catch (e) {
-    if (context.mounted) showErrorToast(context, e.toString());
+    if (context.mounted) showErrorToastException(context, e);
     return null;
   }
 }
@@ -188,7 +188,7 @@ Future<String?> _psbtFromFile(BuildContext context) async {
       return base64Encode(bytes);
     }
   } catch (e) {
-    if (context.mounted) showErrorToast(context, e.toString());
+    if (context.mounted) showErrorToastException(context, e);
     return null;
   }
 }

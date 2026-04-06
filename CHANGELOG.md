@@ -11,6 +11,15 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Restore from Nostr** — Recover a wallet directly from a Nostr backup using your xpub or seed phrase, without manual descriptor entry.
 - **Account discovery on seed restore** — When restoring from a seed phrase, the app scans the blockchain for used accounts across all script types (P2WPKH, P2TR, P2SH-P2WPKH) and displays found wallets with balances and transaction counts. Nostr backups are also fetched and shown alongside on-chain results.
 - **Nostr relay management** — New settings screen to add, remove, and reorder Nostr relay URLs.
+- **Restore from hardware wallet** — New flow to recover a wallet from a connected BitBox02: the app exports the xpub, scans on-chain accounts, and fetches matching Nostr backups — all without entering a seed phrase.
+- **SeedQR import** — The QR scanner now recognises SeedQR payloads (both standard 4-digit-per-word and compact binary formats), automatically decoding them into a BIP-39 mnemonic on the seed-restore screen.
+- **Active network filter** — The network setting now acts as a global filter: only wallets on the active network are shown in all list views. A count of hidden wallets on other networks is displayed inline. The active network badge is visible in the app bar of all wallet/project creation and recovery screens.
+- **Skip legacy derivations toggle** — When recovering from a hardware wallet, a new toggle lets you skip P2PKH (m/44′) derivation paths, avoiding unnecessary confirmation prompts on the device.
+
+### Improvements
+- **Unified recovery screen** — Seed, hardware wallet, and xpub recovery flows are now consolidated into a single screen with three tabs, replacing the three separate screens.
+- **Cosigner backup count** — The Nostr backup status tile now shows how many of the descriptor's xpubs have a backup on each relay (e.g. "2/3 cosigners").
+- **Nostr import confirmation** — Importing a Nostr backup now shows a confirmation dialog reminding users to verify the descriptor and receiving addresses before sending funds.
 
 ---
 

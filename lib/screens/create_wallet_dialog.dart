@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
@@ -14,9 +15,11 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
+import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
-import 'package:deadbolt/widgets/network_dropdown_field.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/protection_section.dart';
 
 /// Opens [CreateWalletDialog] pre-filled with [project], then navigates to
@@ -81,7 +84,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   final _descriptorController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  APINetwork _selectedNetwork = APINetwork.testnet;
+  late APINetwork _selectedNetwork;
   bool _isCreating = false;
   bool _deleteProject = false;
 
@@ -98,6 +101,8 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
       final p = widget.preselectedProject!;
       _nameController.text = p.name;
       _selectedNetwork = APINetwork.values.byName(p.network);
+    } else {
+      _selectedNetwork = context.read<SettingsCubit>().state.network;
     }
   }
 
@@ -120,6 +125,18 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.createWalletTitle),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: MfpBadge(
+                label: localizedNetworkName(context, _selectedNetwork),
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Form(
@@ -138,14 +155,6 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? l10n.walletNameRequired
                     : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Network — always shown so the user can pick the exact
-              // testnet variant (testnet / testnet4 / signet / regtest)
-              NetworkDropdownField(
-                value: _selectedNetwork,
-                onChanged: (n) => setState(() => _selectedNetwork = n),
               ),
               const SizedBox(height: 16),
 

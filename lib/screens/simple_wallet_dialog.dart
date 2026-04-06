@@ -18,8 +18,8 @@ import 'package:deadbolt/widgets/key_edit_sheet.dart' show showKeySheet;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
-import 'package:deadbolt/widgets/network_dropdown_field.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/widgets/protection_section.dart';
 
 // ---------------------------------------------------------------------------
@@ -547,6 +547,18 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.newWalletTitle),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: MfpBadge(
+                label: localizedNetworkName(context, _selectedNetwork),
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Form(
@@ -564,13 +576,6 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? l10n.validatorNameRequired : null,
-              ),
-              const SizedBox(height: 20),
-
-              // Network
-              NetworkDropdownField(
-                value: _selectedNetwork,
-                onChanged: (n) => setState(() => _selectedNetwork = n),
               ),
               const SizedBox(height: 20),
 

@@ -10,6 +10,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 flutter_rust_bridge = "=2.11.1"
 bdk_wallet = { version = "2.3.0", features = ["rusqlite", "keys-bip39", "compiler"] }
+bitcoin = { version = "0.32", features = ["secp-recovery"] }
 anyhow = {version = "1.0", features = ["backtrace"]}
 rand = { version = "0.9", features = ["os_rng"] }
 thiserror = "2"
@@ -50,6 +51,12 @@ tempfile = "3"
 [patch.crates-io]
 bitbox-api = { git = "https://github.com/frijolo/bitbox-api-rs.git", rev = "d9ba1600cd4f7e9ca017d93d8e807a16647b0e6e" }
 async-hwi = { git = "https://github.com/frijolo/async-hwi.git", rev = "e21fdf54d6c9c886ea3df04f2596630407428c82" }
+
+[package.metadata.cargo-machete]
+# `bitcoin` is accessed only via `bdk_wallet::bitcoin::*`, but the direct
+# dependency is required to activate the `secp-recovery` feature (enables
+# RecoverableSignature) on the shared bitcoin crate instance.
+ignored = ["bitcoin"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

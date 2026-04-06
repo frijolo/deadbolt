@@ -1,46 +1,35 @@
 # Deadbolt
 
-**A Bitcoin descriptor analyzer and wallet manager**
+**A Bitcoin descriptor wallet with first-class multisig, Nostr backup, and built-in Tor**
 
-Deadbolt is a cross-platform tool that parses and analyzes Bitcoin wallet descriptors to extract network information, public keys, and spend paths with fee weight estimates. It also creates on-device Bitcoin wallets, syncs balances via Electrum, and builds PSBTs (unsigned transactions) with optional coin control. Built with Flutter (UI) and Rust (core logic), it provides a secure, privacy-preserving way to understand and manage Bitcoin wallet setups.
+Built with Flutter (UI) and Rust (BDK core), Deadbolt manages Bitcoin wallets from their output descriptor. It works equally well as an air-gapped coordinator, a hot wallet, or a multisig co-signer — without requiring a trusted server or a cloud account.
 
 [![CI](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml/badge.svg)](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml)
 [![Release](https://github.com/frijolo/deadbolt/actions/workflows/release.yml/badge.svg)](https://github.com/frijolo/deadbolt/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+## What sets Deadbolt apart
+
+**XPub-based wallet protection** — Wallets can be locked with any xpub from the descriptor instead of a password. Any co-signer key (or a connected BitBox02) unlocks the wallet directly — no password to remember or lose. Protection type (DeviceKey / Password / XPub) can be changed in-place at any time without export.
+
+**Nostr encrypted backup** — Descriptors are encrypted per-xpub (Argon2id + AES-256-GCM) and published to Nostr relays. Each co-signer can independently locate and decrypt their own backup using only their xpub — no password, no seed phrase, no trusted server. See [docs/NOSTR_BACKUP.md](docs/NOSTR_BACKUP.md).
+
+**Inheritance wallets** — Creates Taproot multi-path descriptors where you control funds normally and a designated heir can access them after a configurable timelock (3 months to custom blocks). The overview shows the earliest heir-access date based on actual UTXOs; re-vault resets the clock in one tap.
+
+**Embedded Tor, no daemon** — All Electrum connections route through a built-in arti Tor client. No system Tor installation required; the circuit persists across app restarts.
+
+**Deep descriptor analysis** — Parses every descriptor type (P2PKH, P2WPKH, P2WSH, Taproot, miniscript, multipath `<0;1>/*`). Extracts all xpubs with derivation paths, enumerates every spend path, and calculates the vbyte weight for each — useful for understanding complex miniscript policies before committing funds.
+
 ## Features
 
-- **Descriptor Parsing**: Supports all Bitcoin descriptor types (P2PKH, P2WPKH, P2WSH, multisig, Taproot, miniscript, etc.)
-- **Network Detection**: Automatically identifies mainnet, testnet, signet, or regtest
-- **Public Key Extraction**: Parses extended public keys (xpub, ypub, zpub, tpub, etc.)
-- **Spend Path Analysis**: Identifies all possible spending conditions in complex descriptors
-- **Fee Estimation**: Calculates transaction weight for each spend path
-- **Wallet Management**: Create on-device wallets, sync balances via Electrum, view UTXOs and transactions
-- **PSBT Workflow**: Build PSBTs with coin control and RBF support; import and merge partial signatures; broadcast finalized transactions
-- **Multi-Recipient Transactions**: Send to multiple addresses in a single transaction with per-output amounts; one output can be set to "MAX" to receive the wallet remainder
-- **Direct Send**: Single-sig wallets with a local hot key can sign and broadcast in one step — no PSBT round-trip required
-- **Local Signing**: Store encrypted private keys on-device (hot signing keys) and sign PSBTs without any external device
-- **WIF Export**: Reveal a hot signing key as WIF for use in external wallets
-- **WIF Sweep**: Sweep funds from an external WIF private key directly into a wallet or custom address
-- **Hardware Wallet Signing**: Sign PSBTs and export xpubs directly from a BitBox02 (Android, Linux, Windows). See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
-- **Password-Protected Wallets**: Lock individual wallets with a password; the key never leaves the device unencrypted
-- **XPub Key Protection**: Protect wallets with any xpub from the descriptor — any registered key can unlock, including via hardware wallet (no password to remember or lose)
-- **Change Protection In-Place**: Switch between DeviceKey, Password, and XPub protection at any time from the wallet overview, without export or import
-- **Encrypted Backup & Restore**: Export a wallet as an encrypted `.deadbolt` backup file and restore it on any device
-- **Restore from Seed**: Recover wallets from a BIP-39 mnemonic with optional passphrase; auto-discovers existing accounts via BIP-44 gap-limit scanning across single-sig script types
-- **BIP-329 Labels**: Import and export wallet labels in the standard BIP-329 format
-- **Liana Format Export**: Export descriptors in the format expected by the Liana wallet (adds the required `[00000000]` origin fingerprint to NUMS-key Taproot descriptors; descriptors with a real key-path are compatible as-is)
-- **QR Support**: Import/export descriptors and PSBTs via QR codes (including animated BC-UR)
-- **Project Import/Export**: Save and load descriptor projects as JSON files
-- **Theme Support**: Light, Dark, and System default themes
-- **Internationalization**: UI available in English and Spanish
-- **Tor Routing**: Optional embedded Tor client (arti) routes all Electrum connections through the Tor network — no system Tor daemon required, persists across restarts
-- **Fiat Price Display**: Optional BTC price overlay (CoinGecko or mempool.space) shows balance and transaction amounts in fiat alongside sats/BTC
-- **Configurable Connectivity**: Set custom Electrum and block explorer URLs per network (mainnet, testnet, testnet4, signet, regtest), adjustable minimum fee rate
-- **Guided Wallet Wizard**: Step-by-step wizard for creating single-sig and multisig wallets without manually crafting a descriptor
-- **Privacy-First**: No telemetry, no analytics, no data collection — wallet sync uses your own Electrum server; optionally route through Tor for enhanced network privacy
-- **Cross-Platform**: Available for Android, Linux, and Windows
-- **Signed Releases**: SHA256 checksums are GPG-signed for release verification
+- **Wallet operations**: Build transactions with coin control and RBF; multi-recipient sends; direct sign-and-broadcast for hot wallets (no PSBT round-trip)
+- **Hardware wallet**: Sign PSBTs and export xpubs from a BitBox02 via USB (Android, Linux, Windows) — see [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
+- **Hot signing keys**: Encrypted on-device keys for single-device workflows; WIF export and WIF sweep supported
+- **Wallet recovery** (unified screen with three tabs): restore from a BIP-39 seed phrase with gap-limit account discovery; recover via a connected BitBox02 without revealing your seed; or scan by xpub/keyspec alone — Nostr backups are surfaced automatically alongside on-chain results in all three flows; SeedQR payloads (standard and compact) accepted directly from the camera
+- **Labels**: BIP-329 import/export; Liana-format descriptor export
+- **QR / BC-UR**: Animated QR for descriptors and PSBTs; SeedQR import; compatible with Coldcard, SeedSigner, Krux
+- **Privacy**: No telemetry; sync only to your own Electrum server; optional Tor; fully offline descriptor analysis
+- **Cross-platform**: Android, Linux, Windows; GPG-signed releases
 
 ## Installation
 
@@ -108,10 +97,9 @@ tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
 
 ### Signing Options
 
-- **Hot signing keys** — Store an encrypted private key on-device and sign PSBTs locally without any external hardware
-- **BitBox02 hardware wallet** — Connect a BitBox02 via USB to keep private keys off the device entirely
-
-Both workflows produce a signed PSBT that can be broadcast directly from the app.
+- **Hot signing keys** — Encrypted key stored on-device; single-sig wallets sign and broadcast in one step without a PSBT round-trip
+- **BitBox02** — Connect via USB; private keys never leave the device
+- **Air-gapped coordinators** — Export unsigned PSBTs as animated BC-UR QR codes; import the signed result from any compatible signer (Coldcard, SeedSigner, Krux)
 
 ### What Deadbolt Does NOT Do
 

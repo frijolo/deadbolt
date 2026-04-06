@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
+import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/widgets/wallet_type_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -66,7 +67,21 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         : l10n.fromScratchMode;
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: MfpBadge(
+                label: localizedNetworkName(context, _selectedNetwork),
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -142,40 +157,6 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      l10n.networkLabel,
-                      style: TextStyle(fontSize: 11, color: cs.onSurface.withAlpha(AppAlpha.secondary)),
-                    ),
-                    const SizedBox(height: 4),
-                    PopupMenuButton<APINetwork>(
-                      offset: const Offset(0, 32),
-                      onSelected: (value) => setState(() => _selectedNetwork = value),
-                      tooltip: l10n.selectNetworkTooltip,
-                      itemBuilder: (context) => APINetwork.values
-                          .map((network) => PopupMenuItem(
-                                value: network,
-                                child: Text(localizedNetworkName(context, network)),
-                              ))
-                          .toList(),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cs.onSurface.withAlpha(AppAlpha.disabled)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              localizedNetworkName(context, _selectedNetwork),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            const Icon(Icons.arrow_drop_down, size: 24),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 16),
                     Text(
                       l10n.walletTypeLabel,

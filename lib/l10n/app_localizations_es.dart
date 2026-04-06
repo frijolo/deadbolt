@@ -167,6 +167,29 @@ class AppLocalizationsEs extends AppLocalizations {
   String get preferredNetworkLabel => 'Red preferida';
 
   @override
+  String get activeNetworkLabel => 'Red activa';
+
+  @override
+  String get activeNetworkDescription =>
+      'Solo se muestran wallets de esta red. Las wallets de otras redes quedan ocultas, no eliminadas.';
+
+  @override
+  String walletsHiddenOnOtherNetworks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'wallets',
+      one: 'wallet',
+    );
+    return '$count $_temp0 en otras redes — cambia en Ajustes';
+  }
+
+  @override
+  String restoringToNetwork(String network) {
+    return 'Restaurando en: $network';
+  }
+
+  @override
   String get preferredWalletTypeLabel => 'Tipo de billetera predeterminado';
 
   @override
@@ -1985,6 +2008,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get hwWalletUnlockDevice => 'Desbloquea tu dispositivo…';
 
   @override
+  String get hwWalletNoDevices =>
+      'No se detectó ningún hardware wallet.\nAsegúrate de que esté conectado.';
+
+  @override
+  String get hwWalletSelectDevice => 'Selecciona un dispositivo';
+
+  @override
+  String get hwWalletScanDevices => 'Buscar dispositivos';
+
+  @override
+  String get hwWalletPairingCode => 'Código de emparejamiento';
+
+  @override
+  String get hwWalletNoConfirmNeeded =>
+      'No se requiere confirmación en el dispositivo para exportar claves.';
+
+  @override
   String get hwRegisterWallet => 'Registrar wallet';
 
   @override
@@ -2055,7 +2095,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String scanAccountsScanningHint(int accountGap, int addrGap) {
-    return 'Verificando direcciones en Electrum (accounts: $accountGap, dir.: $addrGap)…';
+    return 'Verificando direcciones en Electrum…\n(accounts: $accountGap, dir.: $addrGap)';
   }
 
   @override
@@ -2063,9 +2103,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get addressGapLimitLabel => 'Límite de direcciones';
-
-  @override
-  String get advancedScanOptions => 'Avanzado';
 
   @override
   String get scanNonStandardPathsLabel => 'Rutas de derivación no estándar';
@@ -2084,8 +2121,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String scanAccountsFoundActivity(int count) {
-    return '$count account(s) con actividad';
+  String scanAccountsFoundBackups(int count) {
+    return '$count account(s) encontrado(s)';
   }
 
   @override
@@ -2096,6 +2133,31 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get scanAccountsNoActivitySubtitle =>
       'Recupera cuentas a partir de una frase semilla';
+
+  @override
+  String get restoreFromHwMenuLabel => 'Recuperar desde hardware wallet';
+
+  @override
+  String get restoreFromHwMenuSubtitle =>
+      'Busca cuentas desde una BitBox02 conectada';
+
+  @override
+  String get restoreFromHwTitle => 'Recuperar desde Hardware Wallet';
+
+  @override
+  String get hwDiscoveryNoDevice =>
+      'No hay hardware wallet conectada. Conecta y empareja tu dispositivo primero.';
+
+  @override
+  String get hwDiscoveryStart => 'Buscar cuentas';
+
+  @override
+  String hwDiscoveryDeriving(int n, int total) {
+    return 'Exportando claves… ($n/$total)';
+  }
+
+  @override
+  String get hwDiscoveryScanning => 'Escaneando blockchain…';
 
   @override
   String scanAccountsActivitySummary(int txCount) {
@@ -2116,6 +2178,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Busca copias de seguridad del descriptor en los relays configurados';
 
   @override
+  String get hwSkipLegacyLabel => 'Omitir derivaciones legacy (P2PKH)';
+
+  @override
+  String get hwSkipLegacyHint =>
+      'Evita confirmaciones en el dispositivo para rutas m/44’';
+
+  @override
   String get searchNostrScanningHint =>
       'También buscando backups de descriptor en relays Nostr…';
 
@@ -2124,6 +2193,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get importFromNostrBackup => 'Restaurar desde Nostr';
+
+  @override
+  String get nostrImportTamperTitle => 'Verifica tras importar';
+
+  @override
+  String get nostrImportTamperBody =>
+      'Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu billetera esperada antes de enviar fondos.';
 
   @override
   String get scanTypeAll => 'Todos';
@@ -2282,6 +2358,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get nostrBackupNotFound => 'Sin respaldo';
 
   @override
+  String nostrBackupPartialCosigners(int backedUp, int total) {
+    return '$backedUp/$total co-firmantes respaldados';
+  }
+
+  @override
   String get nostrBackupError => 'Error en relay';
 
   @override
@@ -2293,6 +2374,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get nostrBackupPublishing => 'Publicando…';
+
+  @override
+  String get nostrBackupDelete => 'Eliminar respaldo';
+
+  @override
+  String get nostrBackupDeleting => 'Eliminando…';
+
+  @override
+  String get nostrBackupDeleted => 'Respaldo eliminado del relay';
+
+  @override
+  String get nostrBackupDeleteConfirm =>
+      '¿Reemplazar el respaldo en este relay con un evento vacío? El descriptor ya no será recuperable desde este relay.';
 
   @override
   String get walletCreateFromNostr => 'Restaurar desde Nostr';
@@ -2339,6 +2433,28 @@ class AppLocalizationsEs extends AppLocalizations {
   String get nostrRestoreImport => 'Importar billetera';
 
   @override
+  String get nostrRestoreImporting => 'Importando billetera…';
+
+  @override
   String get nostrRestoreWatchOnlyNote =>
       'La billetera se importará como solo-lectura. Reconecta tu billetera hardware o agrega tu mnemónico para firmar transacciones.';
+
+  @override
+  String get recoverWalletTitle => 'Recuperar Cartera';
+
+  @override
+  String get restoreTabXpub => 'xpub';
+
+  @override
+  String get restoreTabSeed => 'Semilla';
+
+  @override
+  String get restoreTabHardware => 'Hardware';
+
+  @override
+  String get restoreXpubEnterXpub =>
+      'Ingresa una clave pública extendida para escanear cuentas on-chain y buscar backups en Nostr.';
+
+  @override
+  String get restoreXpubScanButton => 'Escanear';
 }

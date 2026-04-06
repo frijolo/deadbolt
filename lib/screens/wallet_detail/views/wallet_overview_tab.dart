@@ -8,6 +8,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 
 enum BalanceUnit { sats, btc, fiat }
@@ -137,49 +138,45 @@ class _OverviewViewState extends State<OverviewView> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _BalanceChip(
-                        label: l10n.balanceConfirmed,
-                        value: _fmt(balance.confirmed.toInt()),
-                      ),
-                      if (balance.trustedPending + balance.untrustedPending >
-                          BigInt.zero)
+                  if (balance.trustedPending + balance.untrustedPending + balance.immature > BigInt.zero) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
                         _BalanceChip(
-                          label: l10n.balancePending,
-                          value: _fmt((balance.trustedPending +
-                                  balance.untrustedPending)
-                              .toInt()),
-                          dimmed: true,
+                          label: l10n.balanceConfirmed,
+                          value: _fmt(balance.confirmed.toInt()),
                         ),
-                      if (balance.immature > BigInt.zero)
-                        _BalanceChip(
-                          label: l10n.balanceImmature,
-                          value: _fmt(balance.immature.toInt()),
-                          dimmed: true,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          lastSynced != null
-                              ? l10n.lastSynced(_formatOverviewDateTime(lastSynced))
-                              : l10n.notYetSynced,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(AppAlpha.secondary),
+                        if (balance.trustedPending + balance.untrustedPending >
+                            BigInt.zero)
+                          _BalanceChip(
+                            label: l10n.balancePending,
+                            value: _fmt((balance.trustedPending +
+                                    balance.untrustedPending)
+                                .toInt()),
+                            dimmed: true,
                           ),
-                        ),
-                      ),
-                    ],
+                        if (balance.immature > BigInt.zero)
+                          _BalanceChip(
+                            label: l10n.balanceImmature,
+                            value: _fmt(balance.immature.toInt()),
+                            dimmed: true,
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Text(
+                    lastSynced != null
+                        ? l10n.lastSynced(formatDateTime(lastSynced))
+                        : l10n.notYetSynced,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(AppAlpha.secondary),
+                    ),
                   ),
                 ],
               ),
@@ -187,66 +184,52 @@ class _OverviewViewState extends State<OverviewView> {
           ),
         ),
 
-        // ── Inheritance status card ─────────────────────────────────────────
-        if (heirPaths.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _InheritanceStatusCard(state: state, heirPaths: heirPaths),
-        ],
-
         const SizedBox(height: 20),
 
-        // ── Primary actions ─────────────────────────────────────────────────
-        _twoButtons(
-          icon1: Icons.arrow_upward, label1: l10n.walletSendButton, onTap1: widget.onSendTap, filled1: true,
-          icon2: Icons.arrow_downward, label2: l10n.walletReceiveButton, onTap2: widget.onReceiveTap, filled2: true,
+        // ── Primary actions (large cards) ───────────────────────────────────
+        Row(
+          children: [
+            Expanded(child: _ActionButton(icon: Icons.arrow_upward, label: l10n.walletSendButton, filled: true, onTap: widget.onSendTap)),
+            const SizedBox(width: 12),
+            Expanded(child: _ActionButton(icon: Icons.arrow_downward, label: l10n.walletReceiveButton, filled: true, onTap: widget.onReceiveTap)),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
-        // ── Secondary actions ───────────────────────────────────────────────
-        _twoButtons(
-          icon1: Icons.sync, label1: l10n.syncButton, onTap1: widget.onSyncTap, enabled1: !state.isSyncing,
-          icon2: Icons.manage_search, label2: l10n.rescanButton, onTap2: widget.onRescanTap,
-        ),
-        const SizedBox(height: 12),
-        _twoButtons(
-          icon1: Icons.upload_outlined, label1: l10n.exportBip329Button, onTap1: widget.onExportLabelsTap,
-          icon2: Icons.download_outlined, label2: l10n.importBip329Button, onTap2: widget.onImportLabelsTap,
-        ),
-        const SizedBox(height: 12),
-        _twoButtons(
-          icon1: Icons.memory, label1: l10n.hwWalletTitle, onTap1: widget.onHwTap,
-          icon2: Icons.shield_outlined, label2: l10n.encryptionLabel, onTap2: widget.onChangeProtectionTap,
-        ),
+        // ── Secondary actions (2-column outlined grid) ──────────────────────
+        ..._buildSecondaryGrid([
+          _ActionButton(icon: Icons.sync, label: l10n.syncButton, enabled: !state.isSyncing, onTap: widget.onSyncTap),
+          _ActionButton(icon: Icons.manage_search, label: l10n.rescanButton, onTap: widget.onRescanTap),
+          _ActionButton(icon: Icons.upload_outlined, label: l10n.exportBip329Button, onTap: widget.onExportLabelsTap),
+          _ActionButton(icon: Icons.download_outlined, label: l10n.importBip329Button, onTap: widget.onImportLabelsTap),
+          _ActionButton(icon: Icons.memory, label: l10n.hwWalletTitle, onTap: widget.onHwTap),
+          _ActionButton(icon: Icons.shield_outlined, label: l10n.encryptionLabel, onTap: widget.onChangeProtectionTap),
+        ]),
+
+        // ── Inheritance status card (below actions — advanced info) ─────────
+        if (heirPaths.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _InheritanceStatusCard(state: state, heirPaths: heirPaths),
+        ],
       ],
     );
   }
 
-  static Widget _twoButtons({
-    required IconData icon1,
-    required String label1,
-    required VoidCallback onTap1,
-    bool filled1 = false,
-    bool enabled1 = true,
-    required IconData icon2,
-    required String label2,
-    required VoidCallback onTap2,
-    bool filled2 = false,
-    bool enabled2 = true,
-  }) {
-    return Row(
-      children: [
-        Expanded(child: _ActionButton(icon: icon1, label: label1, filled: filled1, enabled: enabled1, onTap: onTap1)),
-        const SizedBox(width: 12),
-        Expanded(child: _ActionButton(icon: icon2, label: label2, filled: filled2, enabled: enabled2, onTap: onTap2)),
-      ],
-    );
+  static List<Widget> _buildSecondaryGrid(List<Widget> buttons) {
+    final rows = <Widget>[];
+    for (int i = 0; i < buttons.length; i += 2) {
+      if (rows.isNotEmpty) rows.add(const SizedBox(height: 8));
+      rows.add(Row(
+        children: [
+          Expanded(child: buttons[i]),
+          const SizedBox(width: 8),
+          Expanded(child: i + 1 < buttons.length ? buttons[i + 1] : const SizedBox()),
+        ],
+      ));
+    }
+    return rows;
   }
 
-  String _formatOverviewDateTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} '
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +353,7 @@ class _InheritanceStatusCard extends StatelessWidget {
                 tipHeight: tipHeight,
                 utxos: utxos,
                 label: state.pathLabels[path.id],
+                keyLabels: state.keyLabels,
               ),
               const SizedBox(height: 6),
             ],
@@ -383,7 +367,7 @@ class _InheritanceStatusCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () =>
                       context.read<WalletDetailCubit>().selectTab(3),
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.update, size: 16),
                   label: Text(l10n.revaultNow),
                 ),
               ),
@@ -401,11 +385,13 @@ class _HeirPathRow extends StatelessWidget {
   final int tipHeight;
   final List<APIUtxo> utxos;
   final String? label;
+  final Map<String, String> keyLabels;
 
   const _HeirPathRow({
     required this.path,
     required this.tipHeight,
     required this.utxos,
+    required this.keyLabels,
     this.label,
   });
 
@@ -439,6 +425,12 @@ class _HeirPathRow extends StatelessWidget {
       _ => staticLabel,
     };
 
+    final hasCustomLabel = label != null && label!.isNotEmpty;
+    final displayLabel = hasCustomLabel
+        ? label!
+        : BitcoinFormatter.pathLabel(
+            path.threshold, path.mfps, (mfp) => keyLabels[mfp] ?? mfp.toUpperCase());
+
     return Row(
       children: [
         Icon(
@@ -450,23 +442,25 @@ class _HeirPathRow extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              if (label != null && label!.isNotEmpty) ...[
-                Flexible(
-                  child: Text(
-                    label!,
-                    style: bodySmall?.copyWith(
-                      color: scheme.onSurface.withAlpha(AppAlpha.high),
-                    ),
-                    overflow: TextOverflow.ellipsis,
+              Flexible(
+                child: Text(
+                  displayLabel,
+                  style: bodySmall?.copyWith(
+                    color: hasCustomLabel
+                        ? scheme.onSurface.withAlpha(AppAlpha.high)
+                        : scheme.onSurfaceVariant,
+                    fontStyle: hasCustomLabel ? FontStyle.normal : FontStyle.italic,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (timeText != null) const SizedBox(width: 8),
-              ],
-              if (timeText != null)
+              ),
+              if (timeText != null) ...[
+                const SizedBox(width: 8),
                 Text(
                   timeText,
                   style: bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 ),
+              ],
             ],
           ),
         ),
@@ -506,46 +500,61 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final effectiveColor = enabled ? scheme.onSurfaceVariant : scheme.onSurface.withAlpha(AppAlpha.muted);
     return Card(
-      color: filled ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+      color: filled ? scheme.primaryContainer : Colors.transparent,
+      elevation: filled ? null : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: filled
+            ? BorderSide.none
+            : BorderSide(color: scheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 28,
-                color: enabled
-                    ? (filled
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant)
-                    : scheme.onSurface.withAlpha(AppAlpha.muted),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: filled ? FontWeight.bold : FontWeight.normal,
-                  color: enabled
-                      ? (filled
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant)
-                      : scheme.onSurface.withAlpha(AppAlpha.muted),
+          padding: filled
+              ? const EdgeInsets.symmetric(vertical: 12, horizontal: 8)
+              : const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+          child: filled
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 22, color: scheme.onPrimaryContainer),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16, color: effectiveColor),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: effectiveColor),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 }
+
 
 class _BalanceChip extends StatelessWidget {
   final String label;
@@ -579,3 +588,4 @@ class _BalanceChip extends StatelessWidget {
     );
   }
 }
+

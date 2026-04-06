@@ -7,6 +7,8 @@ import '../../frb_generated.dart';
 import '../model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `split_keyspec`
+
 /// Scan a mnemonic's BIP44-family accounts and return those with on-chain activity.
 ///
 /// Iterates accounts starting at index 0. Stops after `account_gap_limit`
@@ -74,3 +76,141 @@ Future<APIWalletType> walletTypeFromDescriptor({required String descriptor}) =>
     RustLib.instance.api.crateApiWalletDiscoveryWalletTypeFromDescriptor(
       descriptor: descriptor,
     );
+
+/// Returns every BIP-32 derivation path needed for hardware-wallet-based
+/// account discovery, grouped by wallet type.
+///
+/// The caller iterates over the returned list and calls `hw_get_xpub` for
+/// every path (no screen confirmation required for xpub export).  The resulting
+/// keyspecs are passed to `discover_accounts_from_keyspecs` for on-chain
+/// scanning, and the bare xpubs are used for Nostr backup lookups.
+///
+/// Covers:
+/// - Singlesig BIP44-style: purposes 44 / 49 / 84 / 86
+/// - Multisig BIP48: script types 1 (P2SH-P2WSH) and 2 (P2WSH native)
+///
+/// `account_gap_limit` accounts are generated per wallet type (use the same
+/// value that will later be passed to the on-chain scanner; default 20).
+///
+/// When `skip_legacy` is `true`, the purpose-44 (P2PKH / legacy) paths are
+/// omitted.  The BitBox02 treats these as unusual and prompts for explicit
+/// device confirmation on every xpub export, so skipping them avoids
+/// unnecessary taps for users who have never used legacy addresses.
+Future<List<APIWalletTypePaths>> hwDerivationPathsForDiscovery({
+  required int accountGapLimit,
+  required APINetwork network,
+  required bool skipLegacy,
+}) => RustLib.instance.api.crateApiWalletDiscoveryHwDerivationPathsForDiscovery(
+  accountGapLimit: accountGapLimit,
+  network: network,
+  skipLegacy: skipLegacy,
+);
+
+/// Discover on-chain accounts using keyspecs already fetched from a hardware
+/// wallet, without access to the mnemonic.
+///
+/// Each entry in `keyspecs_by_type` maps a wallet type to a list of
+/// `"[mfp/path]xpub…"` strings (one per account index starting at 0).
+///
+/// Multisig types (`P2WSH`, `P2SH_WSH`) are silently skipped — on-chain
+/// address derivation requires all co-signer xpubs, which are unknown here.
+/// Use Nostr backup lookups to recover multisig wallets.
+///
+/// Returns the same `APIDiscoveredAccounts` type as `discover_accounts`, so
+/// the Flutter result screen can be shared.
+Future<APIDiscoveredAccounts> discoverAccountsFromKeyspecs({
+  required List<APIWalletTypeKeyspecs> keyspecsByType,
+  required APINetwork network,
+  required String electrumUrl,
+  required int addressGapLimit,
+}) => RustLib.instance.api.crateApiWalletDiscoveryDiscoverAccountsFromKeyspecs(
+  keyspecsByType: keyspecsByType,
+  network: network,
+  electrumUrl: electrumUrl,
+  addressGapLimit: addressGapLimit,
+);
+
+/// Scan a wallet descriptor against an Electrum server and return the total
+/// transaction count and confirmed+unconfirmed balance for the first
+/// `address_gap_limit` external (receive) addresses.
+///
+/// This works for any descriptor type — singlesig or multisig — and is used
+/// to enrich Nostr-found backups with on-chain data without a full BDK sync.
+Future<APIDescriptorScanResult> scanDescriptor({
+  required String descriptor,
+  required APINetwork network,
+  required String electrumUrl,
+  required int addressGapLimit,
+}) => RustLib.instance.api.crateApiWalletDiscoveryScanDescriptor(
+  descriptor: descriptor,
+  network: network,
+  electrumUrl: electrumUrl,
+  addressGapLimit: addressGapLimit,
+);
+
+/// On-chain balance and transaction summary for a single descriptor.
+class APIDescriptorScanResult {
+  final int txCount;
+  final BigInt balanceSat;
+
+  const APIDescriptorScanResult({
+    required this.txCount,
+    required this.balanceSat,
+  });
+
+  @override
+  int get hashCode => txCount.hashCode ^ balanceSat.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIDescriptorScanResult &&
+          runtimeType == other.runtimeType &&
+          txCount == other.txCount &&
+          balanceSat == other.balanceSat;
+}
+
+/// Wallet-type + account-level keyspecs already fetched from a hardware wallet.
+class APIWalletTypeKeyspecs {
+  final APIWalletType walletType;
+
+  /// `"[mfp/84'/0'/0']xpub…"` strings — one per account index, in order.
+  final List<String> keyspecs;
+
+  const APIWalletTypeKeyspecs({
+    required this.walletType,
+    required this.keyspecs,
+  });
+
+  @override
+  int get hashCode => walletType.hashCode ^ keyspecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIWalletTypeKeyspecs &&
+          runtimeType == other.runtimeType &&
+          walletType == other.walletType &&
+          keyspecs == other.keyspecs;
+}
+
+/// Wallet-type + BIP-32 paths to request from a connected hardware wallet.
+class APIWalletTypePaths {
+  final APIWalletType walletType;
+
+  /// Paths to pass to `hw_get_xpub`, e.g. `["m/84'/0'/0'", "m/84'/0'/1'", …]`.
+  final List<String> paths;
+
+  const APIWalletTypePaths({required this.walletType, required this.paths});
+
+  @override
+  int get hashCode => walletType.hashCode ^ paths.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIWalletTypePaths &&
+          runtimeType == other.runtimeType &&
+          walletType == other.walletType &&
+          paths == other.paths;
+}

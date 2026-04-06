@@ -34,7 +34,6 @@ class KeyCard extends StatelessWidget {
   final VoidCallback? onDeletePrivateInfo;
   /// Override for the disclaimer shown before deleting private info.
   final String? deletePrivateInfoDisclaimer;
-
   const KeyCard({
     super.key,
     required this.mfp,
@@ -154,6 +153,7 @@ class KeyCard extends StatelessWidget {
     );
   }
 }
+
 
 /// Small orange "HOT" pill badge shown inline next to the key label.
 class _HotBadge extends StatelessWidget {

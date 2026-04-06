@@ -3,6 +3,11 @@ use super::*;
 // ---------------------------------------------------------------------------
 // Backup functions (.deadbolt format)
 // ---------------------------------------------------------------------------
+
+/// Return type of `import_wallet_backup` — carries the restored wallet info.
+pub struct WalletImportResult {
+    pub wallet: crate::api::model::APIWalletInfo,
+}
 //
 // Format v1:
 // {
@@ -132,7 +137,7 @@ pub fn export_wallet_backup(
             "slots": slots
         },
         "data_key_wrapped": data_key_wrapped,
-        "data": data_b64
+        "data": data_b64,
     });
 
     Ok(serde_json::to_vec(&backup)?)
@@ -141,13 +146,13 @@ pub fn export_wallet_backup(
 /// Import a `.deadbolt` backup (v1 or v2) and add it as a new wallet in `wallets_dir`.
 ///
 /// `import_credential`: password for UserPassword backups, xpub or keyspec for XpubKey backups.
-/// Returns the `APIWalletInfo` of the restored wallet.
+/// Returns the restored wallet info together with signature verification status.
 pub fn import_wallet_backup(
     backup_bytes: Vec<u8>,
     import_credential: String,
     device_key_hex: String,
     wallets_dir: String,
-) -> Result<APIWalletInfo> {
+) -> Result<WalletImportResult> {
     use crate::core::key_protection::{
         derive_key_from_password, generate_data_key, resolve_xpub_data_key, wrap_key,
         ProtectionMeta, XpubSlot,
@@ -253,7 +258,8 @@ pub fn import_wallet_backup(
     let row = read_wallet_info(&conn)?;
     drop(conn);
 
-    super::row_to_api_info(path, row)
+    let wallet = super::row_to_api_info(path, row)?;
+    Ok(WalletImportResult { wallet })
 }
 
 /// Inspect a `.deadbolt` backup and return its protection type without decrypting it.

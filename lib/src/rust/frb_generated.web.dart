@@ -116,6 +116,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APICpfpInfo dco_decode_api_cpfp_info(dynamic raw);
 
   @protected
+  APIDescriptorScanResult dco_decode_api_descriptor_scan_result(dynamic raw);
+
+  @protected
   APIDiscoveredAccounts dco_decode_api_discovered_accounts(dynamic raw);
 
   @protected
@@ -222,6 +225,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletType dco_decode_api_wallet_type(dynamic raw);
+
+  @protected
+  APIWalletTypeKeyspecs dco_decode_api_wallet_type_keyspecs(dynamic raw);
+
+  @protected
+  APIWalletTypePaths dco_decode_api_wallet_type_paths(dynamic raw);
 
   @protected
   APIWifAddress dco_decode_api_wif_address(dynamic raw);
@@ -344,6 +353,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIWalletInfo> dco_decode_list_api_wallet_info(dynamic raw);
 
   @protected
+  List<APIWalletTypeKeyspecs> dco_decode_list_api_wallet_type_keyspecs(
+    dynamic raw,
+  );
+
+  @protected
+  List<APIWalletTypePaths> dco_decode_list_api_wallet_type_paths(dynamic raw);
+
+  @protected
   List<APIWifAddress> dco_decode_list_api_wif_address(dynamic raw);
 
   @protected
@@ -372,6 +389,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NostrBackupResponse dco_decode_nostr_backup_response(dynamic raw);
+
+  @protected
+  NostrImportResult dco_decode_nostr_import_result(dynamic raw);
 
   @protected
   NostrRelayStatus dco_decode_nostr_relay_status(dynamic raw);
@@ -414,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  WalletImportResult dco_decode_wallet_import_result(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -502,6 +525,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APICpfpInfo sse_decode_api_cpfp_info(SseDeserializer deserializer);
+
+  @protected
+  APIDescriptorScanResult sse_decode_api_descriptor_scan_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIDiscoveredAccounts sse_decode_api_discovered_accounts(
@@ -630,6 +658,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletType sse_decode_api_wallet_type(SseDeserializer deserializer);
+
+  @protected
+  APIWalletTypeKeyspecs sse_decode_api_wallet_type_keyspecs(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIWalletTypePaths sse_decode_api_wallet_type_paths(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIWifAddress sse_decode_api_wif_address(SseDeserializer deserializer);
@@ -792,6 +830,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<APIWalletTypeKeyspecs> sse_decode_list_api_wallet_type_keyspecs(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIWalletTypePaths> sse_decode_list_api_wallet_type_paths(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<APIWifAddress> sse_decode_list_api_wif_address(
     SseDeserializer deserializer,
   );
@@ -826,6 +874,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NostrBackupResponse sse_decode_nostr_backup_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NostrImportResult sse_decode_nostr_import_result(
     SseDeserializer deserializer,
   );
 
@@ -874,6 +927,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  WalletImportResult sse_decode_wallet_import_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_AnyhowException(
@@ -983,6 +1041,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_cpfp_info(APICpfpInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_descriptor_scan_result(
+    APIDescriptorScanResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_discovered_accounts(
@@ -1148,6 +1212,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_wallet_type(APIWalletType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_wallet_type_keyspecs(
+    APIWalletTypeKeyspecs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_wallet_type_paths(
+    APIWalletTypePaths self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_wif_address(APIWifAddress self, SseSerializer serializer);
@@ -1349,6 +1425,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_api_wallet_type_keyspecs(
+    List<APIWalletTypeKeyspecs> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_wallet_type_paths(
+    List<APIWalletTypePaths> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_api_wif_address(
     List<APIWifAddress> self,
     SseSerializer serializer,
@@ -1402,6 +1490,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_nostr_backup_response(
     NostrBackupResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_nostr_import_result(
+    NostrImportResult self,
     SseSerializer serializer,
   );
 
@@ -1464,6 +1558,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wallet_import_result(
+    WalletImportResult self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

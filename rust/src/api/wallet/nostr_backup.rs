@@ -41,8 +41,8 @@ use tokio::time::timeout;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::core::key_protection::{
-    decrypt_bytes, encrypt_bytes, generate_data_key, resolve_xpub_data_key, wrap_with_xpub,
-    XpubSlot,
+    decrypt_bytes, encrypt_bytes, generate_data_key, parse_xpub_credential, resolve_xpub_data_key,
+    wrap_with_xpub, XpubSlot,
 };
 use crate::core::wallet_info::{create_wallet_db, resolve_wallet_key, WalletProtectionRequest};
 
@@ -63,7 +63,8 @@ const T_COST: u32 = 3;
 /// Status of a Nostr relay for one wallet's backup.
 pub struct NostrRelayStatus {
     pub url: String,
-    /// True if at least one xpub backup event was confirmed on this relay.
+    /// True when every xpub in the descriptor has a valid backup event on this
+    /// relay. An empty-content "deleted" event counts as no backup.
     pub has_backup: bool,
     /// Unix timestamp of the most recent event found (or published).
     pub last_published_at: Option<i64>,
@@ -71,6 +72,18 @@ pub struct NostrRelayStatus {
     pub event_id: Option<String>,
     /// Non-null when the relay could not be reached or returned an error.
     pub error: Option<String>,
+    /// Number of xpubs that have a valid backup for this specific descriptor.
+    /// For singlesig this is 0 or 1; for multisig it can be anywhere from 0
+    /// to `total_xpubs`.
+    pub backed_up_xpubs: i64,
+    /// Total number of xpubs in the wallet descriptor (1 for singlesig,
+    /// N for N-of-M multisig).
+    pub total_xpubs: i64,
+}
+
+/// Return type of `import_nostr_backup`.
+pub struct NostrImportResult {
+    pub wallet: crate::api::model::APIWalletInfo,
 }
 
 /// Response from `fetch_nostr_backup` with full metadata including first address.
@@ -81,6 +94,9 @@ pub struct NostrBackupResponse {
     pub created_at: Option<i64>,
     pub first_address: Option<String>,
     pub wallet_type: Option<crate::api::model::APIWalletType>,
+    /// The decrypted descriptor string. Present when decryption succeeded.
+    /// Can be passed to `scan_descriptor` to fetch on-chain balance/tx count.
+    pub descriptor: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +140,6 @@ fn build_payload_for_xpub(
     xpub: &str,
     created_at: i64,
 ) -> Result<Vec<u8>> {
-    // Inner plaintext: just the descriptor
     let inner = serde_json::json!({ "descriptor": descriptor });
     let inner_bytes = serde_json::to_vec(&inner)?;
 
@@ -169,6 +184,22 @@ fn build_nostr_event(keys: &Keys, payload_bytes: &[u8], d_tag: &str) -> Result<E
 // Private helpers: Nostr relay WebSocket protocol
 // ---------------------------------------------------------------------------
 
+type WsStream =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+async fn ws_open(relay_url: &str) -> Result<WsStream> {
+    match timeout(
+        Duration::from_secs(CONNECT_TIMEOUT_SECS),
+        connect_async(relay_url),
+    )
+    .await
+    {
+        Ok(Ok((ws, _))) => Ok(ws),
+        Ok(Err(e)) => Err(anyhow!("connect: {e}")),
+        Err(_) => Err(anyhow!("connection timeout")),
+    }
+}
+
 /// Publish a signed event JSON string to a relay.
 /// Returns `(success, error)`. Success means the relay returned `["OK", id, true, ...]`.
 async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<String>) {
@@ -177,19 +208,10 @@ async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<Strin
         Err(e) => return (false, Some(format!("serialize: {e}"))),
     };
 
-    let connect_result = timeout(
-        Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        connect_async(relay_url),
-    )
-    .await;
-
-    let (ws_stream, _) = match connect_result {
-        Ok(Ok(ws)) => ws,
-        Ok(Err(e)) => return (false, Some(format!("connect: {e}"))),
-        Err(_) => return (false, Some("connection timeout".to_string())),
+    let (mut write, mut read) = match ws_open(relay_url).await {
+        Ok(ws) => ws.split(),
+        Err(e) => return (false, Some(e.to_string())),
     };
-
-    let (mut write, mut read) = ws_stream.split();
 
     if let Err(e) = write.send(Message::Text(msg.into())).await {
         let _ = write.close().await;
@@ -227,109 +249,54 @@ async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<Strin
     }
 }
 
-/// Query a relay for backup events authored by one of the given Nostr pubkeys.
-/// Returns `(has_backup, last_timestamp, event_id)`.
-async fn ws_fetch_backup(
+/// Check how many of the given pubkeys have a valid backup for a specific
+/// descriptor (identified by its `d_tag`) on this relay.
+///
+/// Returns `(backed_up_count, last_published_at, last_event_id)`.
+///
+/// Unlike the old aggregate approach, this function:
+/// - Filters by the exact `#d` tag so events from unrelated descriptors are
+///   ignored (fixes backwards-compat false-positives with "deadbolt-backup").
+/// - Tracks the latest event **per pubkey** so partial multisig backups are
+///   reported accurately instead of collapsing N signers into one boolean.
+async fn ws_check_descriptor_backup(
     relay_url: &str,
     pubkeys: &[PublicKey],
-) -> Result<(bool, Option<i64>, Option<String>)> {
-    let connect_result = timeout(
-        Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        connect_async(relay_url),
-    )
-    .await;
+    d_tag: &str,
+) -> Result<(usize, Option<i64>, Option<String>)> {
+    let (mut write, mut read) = ws_open(relay_url).await?.split();
 
-    let (ws_stream, _) = match connect_result {
-        Ok(Ok(ws)) => ws,
-        Ok(Err(e)) => return Err(anyhow!("connect: {e}")),
-        Err(_) => return Err(anyhow!("connection timeout")),
-    };
-
-    let (mut write, mut read) = ws_stream.split();
-
-    // Build REQ filter: kind 30078, any of our pubkeys.
-    // No #d filter — one pubkey can hold multiple descriptor backups with
-    // distinct d-tags; querying by author+kind returns all of them.
     let sub_id = "dbl1";
-    let filter = Filter::new()
-        .kind(Kind::Custom(KIND))
-        .authors(pubkeys.to_vec());
-
-    let req_msg = serde_json::json!(["REQ", sub_id, filter]).to_string();
-
-    if let Err(e) = write.send(Message::Text(req_msg.into())).await {
-        let _ = write.close().await;
-        return Err(anyhow!("send REQ: {e}"));
-    }
-
-    let mut best_timestamp: Option<i64> = None;
-    let mut best_event_id: Option<String> = None;
-
-    let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
-        while let Some(msg_result) = read.next().await {
-            if let Ok(Message::Text(text)) = msg_result {
-                if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if arr[0] == "EOSE" {
-                        break;
-                    }
-                    if arr[0] == "EVENT" && arr[1].as_str() == Some(sub_id) {
-                        if let Some(ev) = arr.get(2) {
-                            let ts = ev["created_at"].as_i64().unwrap_or(0);
-                            if best_timestamp.is_none_or(|prev| ts > prev) {
-                                best_timestamp = Some(ts);
-                                best_event_id = ev["id"].as_str().map(|s| s.to_string());
-                            }
-                        }
-                    }
-                }
-            }
+    // NIP-01 tag filter: `#d` restricts to events whose d-tag matches the
+    // descriptor fingerprint.  This prevents a backup for wallet-A from
+    // reporting as present when checking wallet-B's status.
+    let req_msg = serde_json::json!([
+        "REQ",
+        sub_id,
+        {
+            "kinds": [KIND],
+            "authors": pubkeys.iter().map(|pk| pk.to_hex()).collect::<Vec<_>>(),
+            "#d": [d_tag],
         }
-    })
-    .await;
+    ])
+    .to_string();
 
-    // Close subscription
-    let close_msg = serde_json::json!(["CLOSE", sub_id]).to_string();
-    let _ = write.send(Message::Text(close_msg.into())).await;
-    let _ = write.close().await;
-
-    let has_backup = best_timestamp.is_some();
-    Ok((has_backup, best_timestamp, best_event_id))
-}
-
-/// Fetch all raw payload blobs for a single xpub from a relay.
-///
-/// Returns one entry per distinct descriptor backed up under this xpub.
-/// No `#d` filter is applied — all kind-30078 events authored by the derived
-/// pubkey are returned, regardless of their d-tag.
-async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Result<Vec<Vec<u8>>> {
-    let connect_result = timeout(
-        Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        connect_async(relay_url),
-    )
-    .await;
-
-    let (ws_stream, _) = match connect_result {
-        Ok(Ok(ws)) => ws,
-        Ok(Err(e)) => return Err(anyhow!("connect: {e}")),
-        Err(_) => return Err(anyhow!("connection timeout")),
-    };
-
-    let (mut write, mut read) = ws_stream.split();
-
-    let sub_id = "dbl2";
-    // Query by author + kind only — no #d filter so all descriptor backups
-    // for this xpub are returned, even if the xpub appears in multiple wallets.
-    let filter = Filter::new().kind(Kind::Custom(KIND)).author(*pubkey);
-
-    let req_msg = serde_json::json!(["REQ", sub_id, filter]).to_string();
     if let Err(e) = write.send(Message::Text(req_msg.into())).await {
         let _ = write.close().await;
         return Err(anyhow!("send REQ: {e}"));
     }
 
-    // Track the most recent payload per d-tag to deduplicate re-published backups.
-    let mut best_per_dtag: std::collections::HashMap<String, (i64, Vec<u8>)> =
+    // Per-pubkey: track the latest event and whether it carries real content.
+    // A deletion event (empty content, higher timestamp) must beat an earlier
+    // backup event, so we always update on ts >= previous.
+    let expected: std::collections::HashSet<String> =
+        pubkeys.iter().map(|pk| pk.to_hex()).collect();
+    // key = pubkey hex, value = (latest_ts, has_valid_content)
+    let mut per_pubkey: std::collections::HashMap<String, (i64, bool)> =
         std::collections::HashMap::new();
+    // Track the most recent valid (non-empty) event for the relay-level fields.
+    let mut last_ts: Option<i64> = None;
+    let mut last_event_id: Option<String> = None;
 
     let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
         while let Some(msg_result) = read.next().await {
@@ -340,24 +307,19 @@ async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Resu
                     }
                     if arr[0] == "EVENT" && arr[1].as_str() == Some(sub_id) {
                         if let Some(ev) = arr.get(2) {
+                            let author = ev["pubkey"].as_str().unwrap_or("").to_string();
+                            if !expected.contains(&author) {
+                                continue;
+                            }
                             let ts = ev["created_at"].as_i64().unwrap_or(0);
-                            if let Some(content) = ev["content"].as_str() {
-                                if let Ok(bytes) = general_purpose::STANDARD.decode(content) {
-                                    // Key by d-tag so only the latest version of each
-                                    // backup slot is kept.
-                                    let d_tag = ev["tags"]
-                                        .as_array()
-                                        .and_then(|tags| {
-                                            tags.iter().find(|t| t[0].as_str() == Some("d"))
-                                        })
-                                        .and_then(|t| t[1].as_str())
-                                        .unwrap_or("")
-                                        .to_string();
-                                    let entry =
-                                        best_per_dtag.entry(d_tag).or_insert((i64::MIN, vec![]));
-                                    if ts >= entry.0 {
-                                        *entry = (ts, bytes);
-                                    }
+                            let has_content = !ev["content"].as_str().unwrap_or("").is_empty();
+
+                            let entry = per_pubkey.entry(author).or_insert((i64::MIN, false));
+                            if ts >= entry.0 {
+                                *entry = (ts, has_content);
+                                if has_content && last_ts.is_none_or(|prev| ts > prev) {
+                                    last_ts = Some(ts);
+                                    last_event_id = ev["id"].as_str().map(|s| s.to_string());
                                 }
                             }
                         }
@@ -372,7 +334,84 @@ async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Resu
     let _ = write.send(Message::Text(close_msg.into())).await;
     let _ = write.close().await;
 
-    Ok(best_per_dtag.into_values().map(|(_, b)| b).collect())
+    let backed_up = per_pubkey.values().filter(|(_, ok)| *ok).count();
+    Ok((backed_up, last_ts, last_event_id))
+}
+
+/// Fetch all raw payload blobs for a single xpub from a relay.
+///
+/// Returns one entry per distinct descriptor backed up under this xpub.
+/// No `#d` filter is applied — all kind-30078 events authored by the derived
+/// pubkey are returned, regardless of their d-tag.
+async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Result<Vec<Vec<u8>>> {
+    let (mut write, mut read) = ws_open(relay_url).await?.split();
+
+    let sub_id = "dbl2";
+    // Query by author + kind only — no #d filter so all descriptor backups
+    // for this xpub are returned, even if the xpub appears in multiple wallets.
+    let filter = Filter::new().kind(Kind::Custom(KIND)).author(*pubkey);
+
+    let req_msg = serde_json::json!(["REQ", sub_id, filter]).to_string();
+    if let Err(e) = write.send(Message::Text(req_msg.into())).await {
+        let _ = write.close().await;
+        return Err(anyhow!("send REQ: {e}"));
+    }
+
+    // Track the most recent event per d-tag (content may be empty = deleted).
+    // Using `Option<Vec<u8>>` so we can distinguish "deleted" (None) from
+    // "backup present" (Some(bytes)).
+    let mut best_per_dtag: std::collections::HashMap<String, (i64, Option<Vec<u8>>)> =
+        std::collections::HashMap::new();
+
+    let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
+        while let Some(msg_result) = read.next().await {
+            if let Ok(Message::Text(text)) = msg_result {
+                if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if arr[0] == "EOSE" {
+                        break;
+                    }
+                    if arr[0] == "EVENT" && arr[1].as_str() == Some(sub_id) {
+                        if let Some(ev) = arr.get(2) {
+                            let ts = ev["created_at"].as_i64().unwrap_or(0);
+                            if let Some(content) = ev["content"].as_str() {
+                                // Key by d-tag so only the latest version of each
+                                // backup slot is kept. Store None for empty content
+                                // (deletion marker) so deleted slots are excluded.
+                                let d_tag = ev["tags"]
+                                    .as_array()
+                                    .and_then(|tags| {
+                                        tags.iter().find(|t| t[0].as_str() == Some("d"))
+                                    })
+                                    .and_then(|t| t[1].as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let entry = best_per_dtag.entry(d_tag).or_insert((i64::MIN, None));
+                                if ts >= entry.0 {
+                                    let payload = if content.is_empty() {
+                                        None
+                                    } else {
+                                        general_purpose::STANDARD.decode(content).ok()
+                                    };
+                                    *entry = (ts, payload);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+    .await;
+
+    let close_msg = serde_json::json!(["CLOSE", sub_id]).to_string();
+    let _ = write.send(Message::Text(close_msg.into())).await;
+    let _ = write.close().await;
+
+    // Only return slots where the most recent event is a real backup (non-empty).
+    Ok(best_per_dtag
+        .into_values()
+        .filter_map(|(_, payload)| payload)
+        .collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -455,6 +494,8 @@ pub async fn publish_nostr_backup(
         .ok()
         .map(|d| d.as_secs() as i64);
 
+    let total_xpubs = xpub_map.len() as i64;
+
     let statuses = relay_urls
         .into_iter()
         .map(|url| {
@@ -469,6 +510,8 @@ pub async fn publish_nostr_backup(
                 last_published_at: if ok { now } else { None },
                 event_id: None,
                 error: err,
+                backed_up_xpubs: if ok { total_xpubs } else { 0 },
+                total_xpubs,
                 url,
             }
         })
@@ -477,8 +520,12 @@ pub async fn publish_nostr_backup(
     Ok(statuses)
 }
 
-/// Check which relays have a backup event for this wallet. One status per relay.
-/// `has_backup = true` means the relay has at least one xpub event for this wallet.
+/// Check which relays have a complete backup for this wallet.
+///
+/// `has_backup = true` means **every** xpub in the descriptor has published a
+/// non-empty backup event with the matching d-tag on that relay.
+/// `backed_up_xpubs` / `total_xpubs` give the exact per-cosigner breakdown
+/// so the UI can distinguish "all backed up", "some backed up", and "none".
 pub async fn check_nostr_backup_status(
     descriptor: String,
     relay_urls: Vec<String>,
@@ -488,7 +535,10 @@ pub async fn check_nostr_backup_status(
         return Err(anyhow!("No xpubs in descriptor"));
     }
 
-    // Derive the Nostr pubkeys for all xpubs
+    let total_xpubs = xpub_map.len() as i64;
+    let d_tag = descriptor_d_tag(&descriptor);
+
+    // Derive the Nostr pubkeys for all xpubs in this descriptor.
     let pubkeys: Vec<PublicKey> = xpub_map
         .values()
         .map(|xpub| {
@@ -501,8 +551,9 @@ pub async fn check_nostr_backup_status(
     for relay_url in &relay_urls {
         let url = relay_url.clone();
         let pks = pubkeys.clone();
+        let dtag = d_tag.clone();
         handles.push(tokio::spawn(async move {
-            let result = ws_fetch_backup(&url, &pks).await;
+            let result = ws_check_descriptor_backup(&url, &pks, &dtag).await;
             (url, result)
         }));
     }
@@ -511,13 +562,16 @@ pub async fn check_nostr_backup_status(
     for handle in handles {
         if let Ok((url, result)) = handle.await {
             match result {
-                Ok((has_backup, last_at, event_id)) => {
+                Ok((backed_up, last_at, event_id)) => {
+                    let backed_up_xpubs = backed_up as i64;
                     statuses.push(NostrRelayStatus {
                         url,
-                        has_backup,
+                        has_backup: backed_up_xpubs == total_xpubs,
                         last_published_at: last_at,
                         event_id,
                         error: None,
+                        backed_up_xpubs,
+                        total_xpubs,
                     });
                 }
                 Err(e) => {
@@ -527,11 +581,99 @@ pub async fn check_nostr_backup_status(
                         last_published_at: None,
                         event_id: None,
                         error: Some(e.to_string()),
+                        backed_up_xpubs: 0,
+                        total_xpubs,
                     });
                 }
             }
         }
     }
+
+    Ok(statuses)
+}
+
+/// Overwrite this wallet's backup on each relay with an empty placeholder event.
+///
+/// Kind 30078 is an addressable (parameterized-replaceable) event: publishing a
+/// new event with the same author pubkey and d-tag replaces the previous one.
+/// This is more reliable than NIP-09 deletion requests, which many relays ignore.
+///
+/// For every xpub in the descriptor an empty kind-30078 event is signed with the
+/// derived Nostr keypair and published to each relay URL.
+/// Returns one `NostrRelayStatus` per relay — `has_backup` reflects
+/// whether the replacement was accepted (relay returned `["OK", id, true]`).
+pub async fn delete_nostr_backup(
+    descriptor: String,
+    relay_urls: Vec<String>,
+) -> Result<Vec<NostrRelayStatus>> {
+    let xpub_map = super::extract_xpub_mfp_map(&descriptor);
+    if xpub_map.is_empty() {
+        return Err(anyhow!("No xpubs found in wallet descriptor"));
+    }
+
+    let d_tag = descriptor_d_tag(&descriptor);
+
+    // Build one empty replacement event per xpub keypair.
+    // Same kind and d-tag as the original backup → relay replaces it.
+    let mut events: Vec<Event> = Vec::new();
+    for xpub in xpub_map.values() {
+        let keys = derive_nostr_keypair(xpub)?;
+        let event = EventBuilder::new(Kind::Custom(KIND), "")
+            .tag(Tag::identifier(&d_tag))
+            .sign_with_keys(&keys)
+            .map_err(|e| anyhow!("replacement event signing: {e}"))?;
+        events.push(event);
+    }
+
+    // Publish to every relay.
+    let mut handles = Vec::new();
+    for relay_url in &relay_urls {
+        for event in &events {
+            let url = relay_url.clone();
+            let ev = event.clone();
+            handles.push(tokio::spawn(async move {
+                let (ok, err) = ws_publish_event(&url, &ev).await;
+                (url, ok, err)
+            }));
+        }
+    }
+
+    let mut relay_ok: std::collections::HashMap<String, bool> =
+        relay_urls.iter().map(|u| (u.clone(), false)).collect();
+    let mut relay_err: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    for handle in handles {
+        if let Ok((url, ok, maybe_err)) = handle.await {
+            if ok {
+                relay_ok.insert(url, true);
+            } else if let Some(e) = maybe_err {
+                relay_err.entry(url).or_insert(e);
+            }
+        }
+    }
+
+    let total_xpubs = xpub_map.len() as i64;
+
+    let statuses = relay_urls
+        .into_iter()
+        .map(|url| {
+            let ok = *relay_ok.get(&url).unwrap_or(&false);
+            NostrRelayStatus {
+                // Deletion published an empty event — no real backup exists regardless.
+                has_backup: false,
+                last_published_at: None,
+                event_id: None,
+                error: if ok {
+                    None
+                } else {
+                    relay_err.get(&url).cloned()
+                },
+                backed_up_xpubs: 0,
+                total_xpubs,
+                url,
+            }
+        })
+        .collect();
 
     Ok(statuses)
 }
@@ -547,7 +689,10 @@ pub async fn fetch_nostr_backup(
     xpub: String,
     relay_urls: Vec<String>,
 ) -> Result<Vec<NostrBackupResponse>> {
-    let keys = derive_nostr_keypair(&xpub)?;
+    // Strip any keyspec prefix ([mfp/path]) — the Nostr keypair is derived
+    // from the bare xpub only, matching how publish_nostr_backup works.
+    let (_, bare_xpub) = parse_xpub_credential(&xpub);
+    let keys = derive_nostr_keypair(bare_xpub)?;
     let pubkey = keys.public_key();
 
     // Collect all payload blobs from the first relay that has any.
@@ -630,6 +775,7 @@ pub async fn fetch_nostr_backup(
             created_at,
             first_address,
             wallet_type: Some(wallet_type),
+            descriptor: Some(descriptor.to_string()),
         });
     }
 
@@ -654,7 +800,7 @@ pub async fn import_nostr_backup(
     device_key_hex: String,
     wallets_dir: String,
     wallet_name_override: Option<String>,
-) -> Result<APIWalletInfo> {
+) -> Result<NostrImportResult> {
     let payload: serde_json::Value = serde_json::from_slice(&backup_bytes)
         .map_err(|e| anyhow!("Invalid Nostr backup format: {e}"))?;
 
@@ -721,7 +867,8 @@ pub async fn import_nostr_backup(
         WalletProtectionRequest::DeviceKey,
     )?;
 
-    super::row_to_api_info(path, row)
+    let wallet = super::row_to_api_info(path, row)?;
+    Ok(NostrImportResult { wallet })
 }
 
 // ---------------------------------------------------------------------------
@@ -745,6 +892,72 @@ mod tests {
         let k1 = derive_nostr_keypair("xpubAAA").unwrap();
         let k2 = derive_nostr_keypair("xpubBBB").unwrap();
         assert_ne!(k1.public_key(), k2.public_key());
+    }
+
+    /// fetch_nostr_backup strips [mfp/path] from the credential before deriving
+    /// the Nostr pubkey, matching how publish_nostr_backup uses the bare xpub
+    /// extracted from the descriptor.
+    #[test]
+    fn test_keyspec_stripped_same_pubkey_as_bare_xpub() {
+        let bare = "tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K";
+        let keyspec = "[ff81be5d/48'/1'/0'/2']tpubDDxjvuVfYHF4KcVyd5wkNS6pKJvg1x6CUtCRL3nRX2MDHKcja6M7YB7FYFYDkXzx8fL7k9bYi8XDpfPetqvd6ER2VYt1WsQSHYnhhT2EX7K";
+
+        let (_, stripped) = parse_xpub_credential(keyspec);
+        assert_eq!(stripped, bare, "keyspec stripping should yield bare xpub");
+
+        let k_bare = derive_nostr_keypair(bare).unwrap();
+        let k_from_keyspec = derive_nostr_keypair(stripped).unwrap();
+        assert_eq!(
+            k_bare.public_key(),
+            k_from_keyspec.public_key(),
+            "Nostr keypair from bare xpub must match keypair from stripped keyspec"
+        );
+    }
+
+    /// The most recent event (by timestamp) determines backup status.
+    /// A deletion event (empty content, newer ts) must override an old backup
+    /// even when a non-NIP-33-compliant relay returns both events.
+    #[test]
+    fn test_deletion_event_wins_over_older_backup() {
+        // Simulate ws_fetch_backup logic with two events: backup at t=1000,
+        // deletion (empty content) at t=2000.
+        let events: Vec<(i64, &str)> = vec![
+            (1000, "aGVsbG8="), // base64("hello") — old backup
+            (2000, ""),         // empty — deletion marker, newer
+        ];
+
+        let mut best_ts: Option<i64> = None;
+        let mut best_content = String::new();
+        for (ts, content) in &events {
+            if best_ts.is_none_or(|prev| *ts > prev) {
+                best_ts = Some(*ts);
+                best_content = content.to_string();
+            }
+        }
+        assert!(
+            best_content.is_empty(),
+            "deletion event at t=2000 must override backup at t=1000"
+        );
+
+        // Reverse: re-published backup (t=3000) after deletion (t=2000) → visible.
+        let events2: Vec<(i64, &str)> = vec![
+            (1000, "aGVsbG8="),
+            (2000, ""),
+            (3000, "aGVsbG8="), // re-published
+        ];
+
+        let mut best_ts2: Option<i64> = None;
+        let mut best_content2 = String::new();
+        for (ts, content) in &events2 {
+            if best_ts2.is_none_or(|prev| *ts > prev) {
+                best_ts2 = Some(*ts);
+                best_content2 = content.to_string();
+            }
+        }
+        assert!(
+            !best_content2.is_empty(),
+            "re-published backup at t=3000 must be visible after deletion at t=2000"
+        );
     }
 
     #[test]

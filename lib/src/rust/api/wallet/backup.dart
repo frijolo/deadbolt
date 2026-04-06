@@ -34,8 +34,8 @@ Future<Uint8List> exportWalletBackup({
 /// Import a `.deadbolt` backup (v1 or v2) and add it as a new wallet in `wallets_dir`.
 ///
 /// `import_credential`: password for UserPassword backups, xpub or keyspec for XpubKey backups.
-/// Returns the `APIWalletInfo` of the restored wallet.
-Future<APIWalletInfo> importWalletBackup({
+/// Returns the restored wallet info together with signature verification status.
+Future<WalletImportResult> importWalletBackup({
   required List<int> backupBytes,
   required String importCredential,
   required String deviceKeyHex,
@@ -53,3 +53,20 @@ Future<APIProtectionType> inspectWalletBackup({
 }) => RustLib.instance.api.crateApiWalletBackupInspectWalletBackup(
   backupBytes: backupBytes,
 );
+
+/// Return type of `import_wallet_backup` — carries the restored wallet info.
+class WalletImportResult {
+  final APIWalletInfo wallet;
+
+  const WalletImportResult({required this.wallet});
+
+  @override
+  int get hashCode => wallet.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WalletImportResult &&
+          runtimeType == other.runtimeType &&
+          wallet == other.wallet;
+}

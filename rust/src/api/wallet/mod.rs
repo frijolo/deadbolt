@@ -1067,6 +1067,14 @@ impl APIWallet {
             .or(xprv)
             .ok_or_else(|| anyhow::anyhow!("Signing key entry for MFP {} has no seed data", mfp))
     }
+
+    /// Return the network for this wallet.
+    #[frb(sync)]
+    pub fn wallet_network(&self) -> Result<APINetwork> {
+        let core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        APINetwork::try_from(info.network.as_str())
+    }
 }
 
 /// Validate a mnemonic phrase and return its MFP without storing anything.

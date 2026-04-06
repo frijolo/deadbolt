@@ -119,8 +119,8 @@ pub fn resolve_key_strings(mfps: &[String], keys: &[PubKey]) -> Result<Vec<Strin
 
 /// Parse a key string into a DescriptorPublicKey
 pub fn parse_dpk(key_str: &str, mfp: &str) -> Result<DescriptorPublicKey> {
-    key_str.parse::<DescriptorPublicKey>().map_err(|_| {
-        WalletError::BuilderError(format!("Failed to parse key for MFP: {}", mfp)).into()
+    key_str.parse::<DescriptorPublicKey>().map_err(|e| {
+        WalletError::BuilderError(format!("Failed to parse key for MFP {mfp}: {e}")).into()
     })
 }
 

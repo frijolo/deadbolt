@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/errors.dart';
@@ -29,6 +30,8 @@ class ProjectListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final settings = context.watch<SettingsCubit>().state;
+
     return Scaffold(
       drawer: onNavigate != null
           ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
@@ -36,6 +39,16 @@ class ProjectListScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(l10n.projectsTitle),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+              child: MfpBadge(
+                label: localizedNetworkName(context, settings.network),
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: l10n.menuNew,
@@ -62,37 +75,104 @@ class ProjectListScreen extends StatelessWidget {
               ),
             ProjectListError(:final message) =>
               Center(child: Text(message)),
-            ProjectListLoaded(:final projects) => projects.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          l10n.noProjects,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary)),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton.icon(
-                          onPressed: () => _showCreateSheet(context),
-                          icon: const Icon(Icons.add),
-                          label: Text(l10n.menuNew),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: projects.length,
-                    itemBuilder: (context, index) => KeyedSubtree(
-                      key: ValueKey(projects[index].id),
-                      child: _buildProjectCard(context, projects[index]),
-                    ),
-                  ),
+            ProjectListLoaded(:final projects) => _buildLoadedBody(
+                context, projects, settings),
             };
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadedBody(BuildContext context,
+      List<Project> allProjects, AppSettings settings) {
+    final l10n = context.l10n;
+    final visibleProjects = allProjects
+        .where((p) => p.network == settings.network.name)
+        .toList();
+    final hiddenCount = allProjects.length - visibleProjects.length;
+
+    if (visibleProjects.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.noProjects,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(AppAlpha.secondary)),
+            ),
+            if (hiddenCount > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                l10n.walletsHiddenOnOtherNetworks(hiddenCount),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(AppAlpha.secondary),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => _showCreateSheet(context),
+              icon: const Icon(Icons.add),
+              label: Text(l10n.menuNew),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(AppAlpha.secondary),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l10n.walletsHiddenOnOtherNetworks(hiddenCount),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(AppAlpha.secondary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: visibleProjects.length,
+            itemBuilder: (context, index) => KeyedSubtree(
+              key: ValueKey(visibleProjects[index].id),
+              child: _buildProjectCard(context, visibleProjects[index]),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -107,23 +187,13 @@ class ProjectListScreen extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              MfpBadge(
-                label: localizedNetworkDisplayName(context, project.network),
-                color: AppAccent.color,
-                letterSpacing: 0.0,
-              ),
-              const SizedBox(width: 8),
-              MfpBadge(
-                label: localizedWalletTypeName(
-                  context,
-                  APIWalletType.values.byName(project.walletType),
-                ),
-                color: AppAccent.color,
-                letterSpacing: 0.0,
-              ),
-            ],
+          child: MfpBadge(
+            label: localizedWalletTypeName(
+              context,
+              APIWalletType.values.byName(project.walletType),
+            ),
+            color: AppAccent.color,
+            letterSpacing: 0.0,
           ),
         ),
         trailing: Row(

@@ -404,6 +404,30 @@ abstract class AppLocalizations {
   /// **'Preferred Network'**
   String get preferredNetworkLabel;
 
+  /// No description provided for @activeNetworkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Network'**
+  String get activeNetworkLabel;
+
+  /// No description provided for @activeNetworkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.'**
+  String get activeNetworkDescription;
+
+  /// No description provided for @walletsHiddenOnOtherNetworks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {count, plural, one{wallet} other{wallets}} on other networks — change in Settings'**
+  String walletsHiddenOnOtherNetworks(int count);
+
+  /// No description provided for @restoringToNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring to: {network}'**
+  String restoringToNetwork(String network);
+
   /// No description provided for @preferredWalletTypeLabel.
   ///
   /// In en, this message translates to:
@@ -3644,6 +3668,36 @@ abstract class AppLocalizations {
   /// **'Unlock your device…'**
   String get hwWalletUnlockDevice;
 
+  /// No description provided for @hwWalletNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No hardware wallet detected.\nMake sure it is plugged in.'**
+  String get hwWalletNoDevices;
+
+  /// No description provided for @hwWalletSelectDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a device'**
+  String get hwWalletSelectDevice;
+
+  /// No description provided for @hwWalletScanDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for devices'**
+  String get hwWalletScanDevices;
+
+  /// No description provided for @hwWalletPairingCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing code'**
+  String get hwWalletPairingCode;
+
+  /// No description provided for @hwWalletNoConfirmNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'No confirmation needed on the device for key export.'**
+  String get hwWalletNoConfirmNeeded;
+
   /// No description provided for @hwRegisterWallet.
   ///
   /// In en, this message translates to:
@@ -3773,7 +3827,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanAccountsScanningHint.
   ///
   /// In en, this message translates to:
-  /// **'Checking addresses on Electrum (accounts gap: {accountGap}, addresses gap: {addrGap})…'**
+  /// **'Checking addresses on Electrum…\n(accounts gap: {accountGap}, addresses gap: {addrGap})'**
   String scanAccountsScanningHint(int accountGap, int addrGap);
 
   /// No description provided for @accountGapLimitLabel.
@@ -3787,12 +3841,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Address gap limit'**
   String get addressGapLimitLabel;
-
-  /// No description provided for @advancedScanOptions.
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced'**
-  String get advancedScanOptions;
 
   /// No description provided for @scanNonStandardPathsLabel.
   ///
@@ -3818,11 +3866,11 @@ abstract class AppLocalizations {
   /// **'Scanned {count} accounts'**
   String scanAccountsScannedCount(int count);
 
-  /// No description provided for @scanAccountsFoundActivity.
+  /// No description provided for @scanAccountsFoundBackups.
   ///
   /// In en, this message translates to:
-  /// **'{count} account(s) with activity'**
-  String scanAccountsFoundActivity(int count);
+  /// **'{count} account(s) found'**
+  String scanAccountsFoundBackups(int count);
 
   /// No description provided for @scanAccountsNewAccount.
   ///
@@ -3835,6 +3883,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recover accounts from a mnemonic phrase'**
   String get scanAccountsNoActivitySubtitle;
+
+  /// No description provided for @restoreFromHwMenuLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover from hardware wallet'**
+  String get restoreFromHwMenuLabel;
+
+  /// No description provided for @restoreFromHwMenuSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan accounts from a connected BitBox02'**
+  String get restoreFromHwMenuSubtitle;
+
+  /// No description provided for @restoreFromHwTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover from Hardware Wallet'**
+  String get restoreFromHwTitle;
+
+  /// No description provided for @hwDiscoveryNoDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'No hardware wallet connected. Connect and pair your device first.'**
+  String get hwDiscoveryNoDevice;
+
+  /// No description provided for @hwDiscoveryStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan accounts'**
+  String get hwDiscoveryStart;
+
+  /// No description provided for @hwDiscoveryDeriving.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting keys… ({n}/{total})'**
+  String hwDiscoveryDeriving(int n, int total);
+
+  /// No description provided for @hwDiscoveryScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning blockchain…'**
+  String get hwDiscoveryScanning;
 
   /// No description provided for @scanAccountsActivitySummary.
   ///
@@ -3866,6 +3956,18 @@ abstract class AppLocalizations {
   /// **'Look for descriptor backups on configured relays'**
   String get searchNostrHint;
 
+  /// No description provided for @hwSkipLegacyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip legacy (P2PKH) derivations'**
+  String get hwSkipLegacyLabel;
+
+  /// No description provided for @hwSkipLegacyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Avoids device confirmation prompts for m/44’ paths'**
+  String get hwSkipLegacyHint;
+
   /// No description provided for @searchNostrScanningHint.
   ///
   /// In en, this message translates to:
@@ -3883,6 +3985,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore from Nostr'**
   String get importFromNostrBackup;
+
+  /// No description provided for @nostrImportTamperTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify after import'**
+  String get nostrImportTamperTitle;
+
+  /// No description provided for @nostrImportTamperBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.'**
+  String get nostrImportTamperBody;
 
   /// No description provided for @scanTypeAll.
   ///
@@ -4184,6 +4298,12 @@ abstract class AppLocalizations {
   /// **'No backup found'**
   String get nostrBackupNotFound;
 
+  /// No description provided for @nostrBackupPartialCosigners.
+  ///
+  /// In en, this message translates to:
+  /// **'{backedUp}/{total} cosigners backed up'**
+  String nostrBackupPartialCosigners(int backedUp, int total);
+
   /// No description provided for @nostrBackupError.
   ///
   /// In en, this message translates to:
@@ -4207,6 +4327,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Publishing…'**
   String get nostrBackupPublishing;
+
+  /// No description provided for @nostrBackupDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Backup'**
+  String get nostrBackupDelete;
+
+  /// No description provided for @nostrBackupDeleting.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting…'**
+  String get nostrBackupDeleting;
+
+  /// No description provided for @nostrBackupDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup deleted from relay'**
+  String get nostrBackupDeleted;
+
+  /// No description provided for @nostrBackupDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.'**
+  String get nostrBackupDeleteConfirm;
 
   /// No description provided for @walletCreateFromNostr.
   ///
@@ -4292,11 +4436,53 @@ abstract class AppLocalizations {
   /// **'Import Wallet'**
   String get nostrRestoreImport;
 
+  /// No description provided for @nostrRestoreImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing wallet…'**
+  String get nostrRestoreImporting;
+
   /// No description provided for @nostrRestoreWatchOnlyNote.
   ///
   /// In en, this message translates to:
   /// **'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.'**
   String get nostrRestoreWatchOnlyNote;
+
+  /// No description provided for @recoverWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover Wallet'**
+  String get recoverWalletTitle;
+
+  /// No description provided for @restoreTabXpub.
+  ///
+  /// In en, this message translates to:
+  /// **'xpub'**
+  String get restoreTabXpub;
+
+  /// No description provided for @restoreTabSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed'**
+  String get restoreTabSeed;
+
+  /// No description provided for @restoreTabHardware.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware'**
+  String get restoreTabHardware;
+
+  /// No description provided for @restoreXpubEnterXpub.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an extended public key to scan on-chain accounts and search Nostr backups.'**
+  String get restoreXpubEnterXpub;
+
+  /// No description provided for @restoreXpubScanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get restoreXpubScanButton;
 }
 
 class _AppLocalizationsDelegate

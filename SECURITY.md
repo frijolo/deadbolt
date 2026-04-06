@@ -201,6 +201,7 @@ flutter build <platform> --release
 - ✅ **XPub key protection** - Wallets can be unlocked by any registered xpub from the descriptor; brute-force infeasible due to xpub entropy (~256 bits)
 - ✅ **Selectable Argon2id levels** - Standard / High / Extreme presets calibrated on real mobile hardware (300 ms / 1.6 s / 5.5 s)
 - ✅ **Encrypted backups** - `.deadbolt` backup format uses Argon2id + AES-256-GCM; self-contained and portable
+- ✅ **Nostr encrypted backup** - Wallet descriptors encrypted per-xpub (Argon2id + AES-256-GCM) and published to Nostr relays; only the owner's xpub can decrypt
 - ✅ **Tor routing** - Optional embedded Tor client (arti) routes all Electrum traffic through the Tor network, hiding the user's IP from the Electrum server
 
 ### Planned Improvements
@@ -256,5 +257,5 @@ Published security advisories will be available at:
 
 ---
 
-**Last updated**: 2026-03-27
+**Last updated**: 2026-04-05
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`
