@@ -515,19 +515,19 @@ class _ActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: filled
-              ? const EdgeInsets.symmetric(vertical: 12, horizontal: 8)
-              : const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+              ? const EdgeInsets.symmetric(vertical: 20, horizontal: 8)
+              : const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
           child: filled
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 22, color: scheme.onPrimaryContainer),
-                    const SizedBox(height: 6),
+                    Icon(icon, size: 28, color: scheme.onPrimaryContainer),
+                    const SizedBox(height: 8),
                     Text(
                       label,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: scheme.onPrimaryContainer,
                       ),

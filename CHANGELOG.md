@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.0]
 
 ### New Features
 - **Nostr backup** — Wallet descriptors can now be encrypted and published to Nostr relays for redundant off-device backup. Accessible from the wallet detail screen.
@@ -352,6 +352,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.0
 [v1.8.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.8.0
 [v1.7.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.1
 [v1.3.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.3.0
