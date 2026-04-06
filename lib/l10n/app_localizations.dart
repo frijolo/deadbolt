@@ -4244,6 +4244,24 @@ abstract class AppLocalizations {
   /// **'Add relay'**
   String get nostrRelayAddButton;
 
+  /// No description provided for @nostrRelayTimeoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout (seconds)'**
+  String get nostrRelayTimeoutLabel;
+
+  /// No description provided for @nostrRelayMaxAttemptsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempts per relay'**
+  String get nostrRelayMaxAttemptsLabel;
+
+  /// No description provided for @nostrSearchNetworkWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection issues with some Nostr relays. Some backups may not have been found.'**
+  String get nostrSearchNetworkWarning;
+
   /// No description provided for @nostrBackupMenu.
   ///
   /// In en, this message translates to:

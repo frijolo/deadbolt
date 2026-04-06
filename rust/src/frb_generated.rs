@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1549409227;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -309312893;
 
 // Section: executor
 
@@ -5533,6 +5533,45 @@ fn wire__crate__api__wallet__discovery__scan_descriptor_impl(
         },
     )
 }
+fn wire__crate__api__wallet__nostr_backup__set_nostr_relay_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_nostr_relay_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_timeout_secs = <u64>::sse_decode(&mut deserializer);
+            let api_max_attempts = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::wallet::nostr_backup::set_nostr_relay_config(
+                            api_timeout_secs,
+                            api_max_attempts,
+                        );
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__tor__set_tor_data_dir_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -8038,33 +8077,39 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__wallet__strip_psbt_for_hw_impl(port, ptr, rust_vec_len, data_len),
-        127 => wire__crate__api__wif_sweep__sweep_wif_impl(port, ptr, rust_vec_len, data_len),
-        130 => wire__crate__api__analyzer__validate_descriptor_network_impl(
+        122 => wire__crate__api__wallet__nostr_backup__set_nostr_relay_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        131 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
-        132 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        133 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
-        134 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
+        127 => wire__crate__api__wallet__strip_psbt_for_hw_impl(port, ptr, rust_vec_len, data_len),
+        128 => wire__crate__api__wif_sweep__sweep_wif_impl(port, ptr, rust_vec_len, data_len),
+        131 => wire__crate__api__analyzer__validate_descriptor_network_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        135 => wire__crate__api__wallet__wallet_requires_password_impl(
+        132 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
+        133 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        134 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
+        135 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        136 => {
+        136 => wire__crate__api__wallet__wallet_requires_password_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        137 => {
             wire__crate__api__wallet__wallet_requires_xpub_impl(port, ptr, rust_vec_len, data_len)
         }
-        137 => wire__crate__api__wallet__discovery__wallet_type_from_descriptor_impl(
+        138 => wire__crate__api__wallet__discovery__wallet_type_from_descriptor_impl(
             port,
             ptr,
             rust_vec_len,
@@ -8146,12 +8191,12 @@ fn pde_ffi_dispatcher_sync_impl(
         110 => wire__crate__api__hw_wallet__list_hw_devices_impl(ptr, rust_vec_len, data_len),
         111 => wire__crate__api__wallet__list_project_hot_keys_impl(ptr, rust_vec_len, data_len),
         120 => wire__crate__api__wallet__reveal_project_seed_impl(ptr, rust_vec_len, data_len),
-        122 => wire__crate__api__tor__set_tor_data_dir_impl(ptr, rust_vec_len, data_len),
-        123 => wire__crate__api__tor__set_tor_enabled_impl(ptr, rust_vec_len, data_len),
-        124 => wire__crate__api__tor__start_tor_impl(ptr, rust_vec_len, data_len),
-        125 => wire__crate__api__tor__stop_tor_impl(ptr, rust_vec_len, data_len),
-        128 => wire__crate__api__tor__tor_bootstrap_progress_impl(ptr, rust_vec_len, data_len),
-        129 => wire__crate__api__tor__tor_socks_addr_impl(ptr, rust_vec_len, data_len),
+        123 => wire__crate__api__tor__set_tor_data_dir_impl(ptr, rust_vec_len, data_len),
+        124 => wire__crate__api__tor__set_tor_enabled_impl(ptr, rust_vec_len, data_len),
+        125 => wire__crate__api__tor__start_tor_impl(ptr, rust_vec_len, data_len),
+        126 => wire__crate__api__tor__stop_tor_impl(ptr, rust_vec_len, data_len),
+        129 => wire__crate__api__tor__tor_bootstrap_progress_impl(ptr, rust_vec_len, data_len),
+        130 => wire__crate__api__tor__tor_socks_addr_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

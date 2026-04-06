@@ -127,6 +127,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   // Index maps for O(1) lookups in card widget.
   Map<String, _NostrFoundBackup> _nostrByAddress = {};
   Map<String, APIAccountInfo> _accountByAddress = {};
+  // True when Nostr was searched but every relay failed due to network errors.
+  bool _nostrAllRelaysFailed = false;
 
   // ── Tab controller ─────────────────────────────────────────────────────────
   late TabController _tabController;
@@ -165,6 +167,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       _errorMessage = null;
       _accounts = [];
       _totalScanned = 0;
+      _nostrAllRelaysFailed = false;
     });
 
     final types = scriptFilter != null
@@ -239,6 +242,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       _errorMessage = null;
       _accounts = [];
       _totalScanned = 0;
+      _nostrAllRelaysFailed = false;
     });
 
     final url = _electrumUrl;
@@ -300,6 +304,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       _totalScanned = 0;
       _derivedCount = 0;
       _totalToDeriving = 0;
+      _nostrAllRelaysFailed = false;
     });
 
     final url = _electrumUrl;
@@ -479,11 +484,16 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   }
 
   Future<List<_NostrFoundBackup>> _fetchNostrBackups(List<String> xpubs) async {
-    final relays = await NostrRelaySettings().loadRelays();
+    final settings = NostrRelaySettings();
+    final relays = await settings.loadRelays();
     if (relays.isEmpty) return [];
+
+    // Push latest timeout/attempts settings to Rust before querying.
+    await settings.applyToRust();
 
     final results = <_NostrFoundBackup>[];
     final seenNames = <String>{};
+    bool networkErrorOccurred = false;
 
     await Future.wait(xpubs.map((xpub) async {
       try {
@@ -509,10 +519,19 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
             descriptor: resp.descriptor,
           ));
         }
-      } catch (_) {
-        // Relay error — skip silently.
+      } catch (e) {
+        // Rust throws "No relay could be reached" when every relay failed
+        // due to a network error (timeout, connection refused, etc.).
+        // "No backup found..." means relays responded but had no backup — not a network issue.
+        if (e.toString().contains('No relay could be reached')) {
+          networkErrorOccurred = true;
+        }
       }
     }));
+
+    // Flag is set if any single xpub had all its relays unreachable,
+    // regardless of whether other xpubs succeeded.
+    _nostrAllRelaysFailed = networkErrorOccurred;
 
     results.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
     return results;
@@ -820,6 +839,10 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
               style: theme.textTheme.bodySmall,
             ),
           ),
+          if (_nostrAllRelaysFailed) ...[
+            const SizedBox(height: 16),
+            _buildNostrWarningBanner(l10n),
+          ],
           const SizedBox(height: 32),
           FilledButton(
             onPressed: () => setState(() {
@@ -848,6 +871,10 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
             l10n.scanAccountsScannedCount(_totalScanned),
             style: theme.textTheme.bodySmall,
           ),
+          if (_nostrAllRelaysFailed) ...[
+            const SizedBox(height: 12),
+            _buildNostrWarningBanner(l10n),
+          ],
           const SizedBox(height: 12),
           for (final w in _unifiedWallets) ...[
             _buildUnifiedWalletCard(l10n, w),
@@ -855,6 +882,33 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
           ],
         ],
       ],
+    );
+  }
+
+  Widget _buildNostrWarningBanner(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.wifi_off,
+              size: 18, color: theme.colorScheme.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l10n.nostrSearchNetworkWarning,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

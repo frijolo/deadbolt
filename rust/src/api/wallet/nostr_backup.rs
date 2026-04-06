@@ -36,6 +36,7 @@ use futures::{SinkExt, StreamExt};
 use hmac::{Hmac, Mac};
 use nostr::prelude::*;
 use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::time::timeout;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -50,8 +51,28 @@ type HmacSha256 = Hmac<Sha256>;
 
 const D_TAG_PREFIX: &str = "deadbolt-backup";
 const KIND: u16 = 30078;
-const CONNECT_TIMEOUT_SECS: u64 = 10;
-const FETCH_TIMEOUT_SECS: u64 = 15;
+/// Delay between retry attempts (not user-configurable).
+const RETRY_DELAY_MS: u64 = 500;
+// Standard Argon2id parameters for Nostr payload encryption (same as file backup "Standard" level).
+
+/// Runtime-configurable relay timeout (seconds). Default: 15.
+/// A single timeout governs both the WebSocket connect and the message
+/// receive phase of each relay operation.
+static RELAY_TIMEOUT_SECS: AtomicU64 = AtomicU64::new(15);
+
+/// Runtime-configurable total attempt count per relay operation. Default: 3.
+/// 1 = no retries; 2 = one retry; 3 = two retries; etc.
+static RELAY_MAX_ATTEMPTS: AtomicU32 = AtomicU32::new(3);
+
+/// Apply connection settings loaded from persistent storage (e.g. SharedPreferences).
+///
+/// Call this once on app start and whenever the user changes the values.
+/// Thread-safe; changes take effect on the next relay operation.
+pub fn set_nostr_relay_config(timeout_secs: u64, max_attempts: u32) {
+    RELAY_TIMEOUT_SECS.store(timeout_secs.max(1), Ordering::Relaxed);
+    RELAY_MAX_ATTEMPTS.store(max_attempts.max(1), Ordering::Relaxed);
+}
+
 // Standard Argon2id parameters for Nostr payload encryption (same as file backup "Standard" level).
 const M_COST: u32 = 65536;
 const T_COST: u32 = 3;
@@ -187,28 +208,23 @@ fn build_nostr_event(keys: &Keys, payload_bytes: &[u8], d_tag: &str) -> Result<E
 type WsStream =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn ws_open(relay_url: &str) -> Result<WsStream> {
-    match timeout(
-        Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        connect_async(relay_url),
-    )
-    .await
-    {
+async fn ws_open(relay_url: &str, secs: u64) -> Result<WsStream> {
+    match timeout(Duration::from_secs(secs), connect_async(relay_url)).await {
         Ok(Ok((ws, _))) => Ok(ws),
         Ok(Err(e)) => Err(anyhow!("connect: {e}")),
-        Err(_) => Err(anyhow!("connection timeout")),
+        Err(_) => Err(anyhow!("connection timeout ({secs}s)")),
     }
 }
 
-/// Publish a signed event JSON string to a relay.
-/// Returns `(success, error)`. Success means the relay returned `["OK", id, true, ...]`.
-async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<String>) {
+/// Inner implementation of ws_publish_event — one attempt, no retry.
+async fn ws_publish_event_once(relay_url: &str, event: &Event) -> (bool, Option<String>) {
+    let secs = RELAY_TIMEOUT_SECS.load(Ordering::Relaxed);
     let msg = match serde_json::to_string(&serde_json::json!(["EVENT", event])) {
         Ok(m) => m,
         Err(e) => return (false, Some(format!("serialize: {e}"))),
     };
 
-    let (mut write, mut read) = match ws_open(relay_url).await {
+    let (mut write, mut read) = match ws_open(relay_url, secs).await {
         Ok(ws) => ws.split(),
         Err(e) => return (false, Some(e.to_string())),
     };
@@ -222,7 +238,7 @@ async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<Strin
     let mut success = false;
     let mut relay_error: Option<String> = None;
 
-    let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
+    let _ = timeout(Duration::from_secs(secs), async {
         while let Some(msg_result) = read.next().await {
             if let Ok(Message::Text(text)) = msg_result {
                 if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -249,22 +265,32 @@ async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<Strin
     }
 }
 
-/// Check how many of the given pubkeys have a valid backup for a specific
-/// descriptor (identified by its `d_tag`) on this relay.
-///
-/// Returns `(backed_up_count, last_published_at, last_event_id)`.
-///
-/// Unlike the old aggregate approach, this function:
-/// - Filters by the exact `#d` tag so events from unrelated descriptors are
-///   ignored (fixes backwards-compat false-positives with "deadbolt-backup").
-/// - Tracks the latest event **per pubkey** so partial multisig backups are
-///   reported accurately instead of collapsing N signers into one boolean.
-async fn ws_check_descriptor_backup(
+/// Publish a signed event JSON string to a relay, retrying on failure.
+/// Total attempts = RELAY_MAX_ATTEMPTS (runtime-configurable).
+async fn ws_publish_event(relay_url: &str, event: &Event) -> (bool, Option<String>) {
+    let max_attempts = RELAY_MAX_ATTEMPTS.load(Ordering::Relaxed).max(1);
+    let mut last_err: Option<String> = None;
+    for attempt in 0..max_attempts {
+        let (ok, err) = ws_publish_event_once(relay_url, event).await;
+        if ok {
+            return (true, None);
+        }
+        last_err = err;
+        if attempt + 1 < max_attempts {
+            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+        }
+    }
+    (false, last_err)
+}
+
+/// Inner implementation of ws_check_descriptor_backup — one attempt, no retry.
+async fn ws_check_descriptor_backup_once(
     relay_url: &str,
     pubkeys: &[PublicKey],
     d_tag: &str,
 ) -> Result<(usize, Option<i64>, Option<String>)> {
-    let (mut write, mut read) = ws_open(relay_url).await?.split();
+    let secs = RELAY_TIMEOUT_SECS.load(Ordering::Relaxed);
+    let (mut write, mut read) = ws_open(relay_url, secs).await?.split();
 
     let sub_id = "dbl1";
     // NIP-01 tag filter: `#d` restricts to events whose d-tag matches the
@@ -298,7 +324,7 @@ async fn ws_check_descriptor_backup(
     let mut last_ts: Option<i64> = None;
     let mut last_event_id: Option<String> = None;
 
-    let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
+    let _ = timeout(Duration::from_secs(secs), async {
         while let Some(msg_result) = read.next().await {
             if let Ok(Message::Text(text)) = msg_result {
                 if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -338,13 +364,36 @@ async fn ws_check_descriptor_backup(
     Ok((backed_up, last_ts, last_event_id))
 }
 
-/// Fetch all raw payload blobs for a single xpub from a relay.
-///
-/// Returns one entry per distinct descriptor backed up under this xpub.
-/// No `#d` filter is applied — all kind-30078 events authored by the derived
-/// pubkey are returned, regardless of their d-tag.
-async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Result<Vec<Vec<u8>>> {
-    let (mut write, mut read) = ws_open(relay_url).await?.split();
+/// Check backup status for a relay, retrying on failure.
+/// Total attempts = RELAY_MAX_ATTEMPTS (runtime-configurable).
+async fn ws_check_descriptor_backup(
+    relay_url: &str,
+    pubkeys: &[PublicKey],
+    d_tag: &str,
+) -> Result<(usize, Option<i64>, Option<String>)> {
+    let max_attempts = RELAY_MAX_ATTEMPTS.load(Ordering::Relaxed).max(1);
+    let mut last_err = anyhow!("no attempts made");
+    for attempt in 0..max_attempts {
+        match ws_check_descriptor_backup_once(relay_url, pubkeys, d_tag).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                last_err = e;
+                if attempt + 1 < max_attempts {
+                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                }
+            }
+        }
+    }
+    Err(last_err)
+}
+
+/// Inner implementation of ws_fetch_payloads_for_xpub — one attempt, no retry.
+async fn ws_fetch_payloads_for_xpub_once(
+    relay_url: &str,
+    pubkey: &PublicKey,
+) -> Result<Vec<Vec<u8>>> {
+    let secs = RELAY_TIMEOUT_SECS.load(Ordering::Relaxed);
+    let (mut write, mut read) = ws_open(relay_url, secs).await?.split();
 
     let sub_id = "dbl2";
     // Query by author + kind only — no #d filter so all descriptor backups
@@ -363,7 +412,7 @@ async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Resu
     let mut best_per_dtag: std::collections::HashMap<String, (i64, Option<Vec<u8>>)> =
         std::collections::HashMap::new();
 
-    let _ = timeout(Duration::from_secs(FETCH_TIMEOUT_SECS), async {
+    let _ = timeout(Duration::from_secs(secs), async {
         while let Some(msg_result) = read.next().await {
             if let Ok(Message::Text(text)) = msg_result {
                 if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -412,6 +461,25 @@ async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Resu
         .into_values()
         .filter_map(|(_, payload)| payload)
         .collect())
+}
+
+/// Fetch all payload blobs for a relay, retrying on failure.
+/// Total attempts = RELAY_MAX_ATTEMPTS (runtime-configurable).
+async fn ws_fetch_payloads_for_xpub(relay_url: &str, pubkey: &PublicKey) -> Result<Vec<Vec<u8>>> {
+    let max_attempts = RELAY_MAX_ATTEMPTS.load(Ordering::Relaxed).max(1);
+    let mut last_err = anyhow!("no attempts made");
+    for attempt in 0..max_attempts {
+        match ws_fetch_payloads_for_xpub_once(relay_url, pubkey).await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                last_err = e;
+                if attempt + 1 < max_attempts {
+                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                }
+            }
+        }
+    }
+    Err(last_err)
 }
 
 // ---------------------------------------------------------------------------
@@ -696,19 +764,29 @@ pub async fn fetch_nostr_backup(
     let pubkey = keys.public_key();
 
     // Collect all payload blobs from the first relay that has any.
+    // Track whether at least one relay was reachable so we can distinguish
+    // "no backup exists" from "network error — backup may exist but unreachable".
     let mut all_blobs: Vec<Vec<u8>> = Vec::new();
+    let mut any_relay_reachable = false;
     for relay_url in &relay_urls {
         match ws_fetch_payloads_for_xpub(relay_url, &pubkey).await {
-            Ok(blobs) if !blobs.is_empty() => {
-                all_blobs = blobs;
-                break;
+            Ok(blobs) => {
+                any_relay_reachable = true;
+                if !blobs.is_empty() {
+                    all_blobs = blobs;
+                    break;
+                }
             }
-            _ => continue,
+            Err(_) => continue,
         }
     }
 
     if all_blobs.is_empty() {
-        return Err(anyhow!("No backup found on any of the configured relays"));
+        if any_relay_reachable {
+            return Err(anyhow!("No backup found on any of the configured relays"));
+        } else {
+            return Err(anyhow!("No relay could be reached"));
+        }
     }
 
     let mut responses: Vec<NostrBackupResponse> = Vec::new();

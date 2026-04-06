@@ -1032,6 +1032,9 @@
   "nostrRelayInvalidUrl": "URL must start with wss:// or ws://",
   "nostrRelayDuplicate": "Relay already in list",
   "nostrRelayAddButton": "Add relay",
+  "nostrRelayTimeoutLabel": "Timeout (seconds)",
+  "nostrRelayMaxAttemptsLabel": "Attempts per relay",
+  "nostrSearchNetworkWarning": "Connection issues with some Nostr relays. Some backups may not have been found.",
 
   "nostrBackupMenu": "Nostr Backup",
   "nostrBackupTitle": "Nostr Backup",

@@ -2329,6 +2329,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get nostrRelayAddButton => 'Agregar relay';
 
   @override
+  String get nostrRelayTimeoutLabel => 'Tiempo de espera (segundos)';
+
+  @override
+  String get nostrRelayMaxAttemptsLabel => 'Intentos por relay';
+
+  @override
+  String get nostrSearchNetworkWarning =>
+      'Problemas de conexión con algunos relays Nostr. Es posible que algún backup no se haya encontrado.';
+
+  @override
   String get nostrBackupMenu => 'Respaldo Nostr';
 
   @override

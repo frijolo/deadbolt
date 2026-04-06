@@ -7,7 +7,19 @@ import '../../frb_generated.dart';
 import '../model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `ws_check_descriptor_backup`, `ws_fetch_payloads_for_xpub`, `ws_open`, `ws_publish_event`
+// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `ws_check_descriptor_backup_once`, `ws_check_descriptor_backup`, `ws_fetch_payloads_for_xpub_once`, `ws_fetch_payloads_for_xpub`, `ws_open`, `ws_publish_event_once`, `ws_publish_event`
+
+/// Apply connection settings loaded from persistent storage (e.g. SharedPreferences).
+///
+/// Call this once on app start and whenever the user changes the values.
+/// Thread-safe; changes take effect on the next relay operation.
+Future<void> setNostrRelayConfig({
+  required BigInt timeoutSecs,
+  required int maxAttempts,
+}) => RustLib.instance.api.crateApiWalletNostrBackupSetNostrRelayConfig(
+  timeoutSecs: timeoutSecs,
+  maxAttempts: maxAttempts,
+);
 
 /// Publish an encrypted descriptor backup for every xpub in the wallet to all
 /// configured Nostr relays. One event is published per xpub (each encrypted
