@@ -296,9 +296,9 @@ see your on-chain history but cannot spend funds.
 Deadbolt ships with the following default relay list (configurable in Settings →
 Nostr Relays):
 
-- `wss://relay.damus.io`
-- `wss://relay.primal.net`
 - `wss://nos.lol`
+- `wss://relay.damus.io`
+- `wss://nostr.mom`
 
 ---
 

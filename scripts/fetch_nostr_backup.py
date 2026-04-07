@@ -9,8 +9,8 @@ app, showing every intermediate step and value so you can verify the process.
 
 Usage:
     python fetch_nostr_backup.py --xpub <xpub_or_keyspec> \\
-        --relay wss://relay.damus.io \\
-        [--relay wss://relay.primal.net] \\
+        --relay wss://nos.lol \\
+        [--relay wss://relay.damus.io] \\
         [--verbose]
 
     xpub_or_keyspec:
@@ -435,9 +435,9 @@ Examples:
   # Keyspec with MFP hint, multiple relays
   python fetch_nostr_backup.py \\
       --xpub "[deadbeef/84h/0h/0h]xpub6C5sJJ3..." \\
-      --relay wss://relay.damus.io \\
-      --relay wss://relay.primal.net \\
       --relay wss://nos.lol \\
+      --relay wss://relay.damus.io \\
+      --relay wss://nostr.mom \\
       --verbose
 """,
     )
@@ -478,9 +478,9 @@ Examples:
     relays = args.relays
     if not relays:
         default_relays = [
-            "wss://relay.damus.io",
-            "wss://relay.primal.net",
             "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://nostr.mom",
         ]
         print()
         print("Enter relay URLs one per line (blank line to finish).")

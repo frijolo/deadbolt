@@ -18,9 +18,9 @@ class NostrRelaySettings {
   static const _kMaxAttemptsKey = 'nostrMaxAttempts';
 
   static const defaultRelays = [
-    'wss://relay.damus.io',
     'wss://nos.lol',
-    'wss://relay.nostr.band',
+    'wss://relay.damus.io',
+    'wss://nostr.mom',
   ];
 
   static const defaultTimeoutSecs = 15;
