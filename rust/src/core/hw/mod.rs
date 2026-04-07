@@ -498,14 +498,25 @@ pub async fn btc_register_descriptor(
         ));
     }
 
-    // The BitBox02 only supports policy registration for multi-key wallets
-    // (WSH multisig, taproot script-path, miniscript). Simple single-key wallets
-    // (P2WPKH, P2PKH, single-key P2TR) are handled natively and cannot be registered.
-    if count_unique_xpubs(descriptor) < 2 {
-        return Err(anyhow!(
-            "Single-key wallets (P2WPKH, P2PKH, single-key P2TR) do not need \
-             to be registered on the BitBox02 — the device handles them natively."
-        ));
+    // The BitBox02 handles P2WPKH, P2PKH, P2SH-P2WPKH, and single-key P2TR natively
+    // (no policy registration possible or needed). Policy wallets — including wsh(pk(...)),
+    // wsh(multi(...)), miniscript wsh(...), and taproot with script paths — must be
+    // registered. We detect native types by descriptor prefix / structure rather than
+    // xpub count so that single-xpub policy descriptors like `wsh(pk(...))` are allowed.
+    {
+        let d = descriptor.trim();
+        // Single-key taproot has no comma after the key expression (no script tree).
+        let is_native_tr = d.starts_with("tr(") && !d.contains(',') && count_unique_xpubs(d) == 1;
+        let is_native = d.starts_with("wpkh(")
+            || d.starts_with("pkh(")
+            || d.starts_with("sh(wpkh(")
+            || is_native_tr;
+        if is_native {
+            return Err(anyhow!(
+                "Single-key wallets (P2WPKH, P2PKH, P2SH-P2WPKH, single-key P2TR) do not need \
+                 to be registered on the BitBox02 — the device handles them natively."
+            ));
+        }
     }
 
     // Parse the descriptor into a BtcScriptConfig::Policy.

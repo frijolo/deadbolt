@@ -285,7 +285,7 @@ descriptor      = inner["descriptor"]
 - Wallet name, network, creation timestamp
 
 A relay operator who intercepts the event cannot decrypt it without knowing the
-xpub. The xpub is public information (it appears in the derived Nostr pubkey), so
+xpub. The xpub is semi-public (shared with co-signers and visible in descriptors), so
 the threat model assumes xpubs are semi-public — an attacker with your xpub can
 see your on-chain history but cannot spend funds.
 

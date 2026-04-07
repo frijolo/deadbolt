@@ -1426,6 +1426,9 @@ impl APIWallet {
 }
 
 #[cfg(test)]
+mod bip322_poc;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
