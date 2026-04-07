@@ -11,7 +11,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Nostr restore network warning** — When all relays fail to respond during a wallet restore (network error), a warning banner is shown so users know some backups may not have been found.
-- **Fee presets from mempool blocks** — Priority, normal, and economy fee rates are now derived directly from the live mempool block snapshot (p75/p25 of next block and median of second block), replacing the separate fee-estimation API call.
+- **Fee presets from mempool blocks** — Priority, normal, and economy fee rates are now derived directly from the live mempool block snapshot (median of blocks 0, 1, and 2), replacing the separate fee-estimation API call. Fee values display one decimal place when the rate is not a whole number.
 - **Dismissible Electrum privacy warning** — The privacy warning banner on the wallet detail screen can now be hidden for 7 days via a "Don't show for 7 days" button.
 
 ---

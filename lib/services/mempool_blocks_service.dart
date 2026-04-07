@@ -42,9 +42,9 @@ class MempoolBlocksSnapshot {
       blocks.isNotEmpty ? blocks.first.minFee : null;
 
   /// Derives fee presets from block data using:
-  ///   priority = p75 of block 0
-  ///   normal   = p25 of block 0
-  ///   economy  = median of block 1
+  ///   priority = median of block 0 (next)
+  ///   normal   = median of block 1 (next+1)
+  ///   economy  = median of block 2 (next+2)
   /// [minFee] is used as a floor for all values and as fallback when
   /// a block is unavailable.
   FeePresets presetsFromSnapshot(double minFee) {
@@ -52,10 +52,11 @@ class MempoolBlocksSnapshot {
 
     final b0 = blocks.isNotEmpty ? blocks[0] : null;
     final b1 = blocks.length > 1 ? blocks[1] : null;
+    final b2 = blocks.length > 2 ? blocks[2] : null;
 
-    final priority = floor(b0?.p75Fee ?? minFee);
-    final normal = floor(b0?.p25Fee ?? minFee);
-    final economy = floor(b1?.medianFee ?? minFee);
+    final priority = floor(b0?.medianFee ?? minFee);
+    final normal = floor(b1?.medianFee ?? b0?.medianFee ?? minFee);
+    final economy = floor(b2?.medianFee ?? b1?.medianFee ?? minFee);
 
     return FeePresets(economy: economy, normal: normal, priority: priority);
   }

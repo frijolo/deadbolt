@@ -375,6 +375,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get close => 'Close';
 
   @override
+  String get dismiss => 'Dismiss';
+
+  @override
   String get savedToDownloads => 'File saved';
 
   @override

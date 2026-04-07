@@ -111,7 +111,7 @@ class _FeeHistogramChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(projected.length, (i) {
           final block = projected[i];
-          final fee = block.minFee;
+          final fee = block.medianFee;
           final fraction =
               maxFee > 0 ? (fee / maxFee).clamp(0.0, 1.0) : 1.0;
           final barH =
