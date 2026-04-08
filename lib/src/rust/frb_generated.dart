@@ -6368,8 +6368,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIUtxo dco_decode_api_utxo(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return APIUtxo(
       txid: dco_decode_String(arr[0]),
       vout: dco_decode_u_32(arr[1]),
@@ -6379,11 +6379,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       address: dco_decode_String(arr[5]),
       isConfirmed: dco_decode_bool(arr[6]),
       confirmationHeight: dco_decode_opt_box_autoadd_u_32(arr[7]),
-      label: dco_decode_opt_String(arr[8]),
-      effectiveLabel: dco_decode_opt_String(arr[9]),
-      isAuto: dco_decode_bool(arr[10]),
-      pendingPsbtIds: dco_decode_list_prim_i_64_strict(arr[11]),
-      mempoolSpendingTxid: dco_decode_opt_String(arr[12]),
+      confirmationTime: dco_decode_opt_box_autoadd_u_64(arr[8]),
+      label: dco_decode_opt_String(arr[9]),
+      effectiveLabel: dco_decode_opt_String(arr[10]),
+      isAuto: dco_decode_bool(arr[11]),
+      pendingPsbtIds: dco_decode_list_prim_i_64_strict(arr[12]),
+      mempoolSpendingTxid: dco_decode_opt_String(arr[13]),
     );
   }
 
@@ -7650,6 +7651,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_address = sse_decode_String(deserializer);
     var var_isConfirmed = sse_decode_bool(deserializer);
     var var_confirmationHeight = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_confirmationTime = sse_decode_opt_box_autoadd_u_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
     var var_effectiveLabel = sse_decode_opt_String(deserializer);
     var var_isAuto = sse_decode_bool(deserializer);
@@ -7664,6 +7666,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       address: var_address,
       isConfirmed: var_isConfirmed,
       confirmationHeight: var_confirmationHeight,
+      confirmationTime: var_confirmationTime,
       label: var_label,
       effectiveLabel: var_effectiveLabel,
       isAuto: var_isAuto,
@@ -9075,6 +9078,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.address, serializer);
     sse_encode_bool(self.isConfirmed, serializer);
     sse_encode_opt_box_autoadd_u_32(self.confirmationHeight, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.confirmationTime, serializer);
     sse_encode_opt_String(self.label, serializer);
     sse_encode_opt_String(self.effectiveLabel, serializer);
     sse_encode_bool(self.isAuto, serializer);

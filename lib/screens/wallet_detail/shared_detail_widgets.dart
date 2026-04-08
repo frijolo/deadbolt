@@ -5,6 +5,7 @@ import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
@@ -82,20 +83,26 @@ class StatusBadge extends StatelessWidget {
 }
 
 /// Summary badge shown on the coin tile: unlocked/total spend paths.
+/// When [nearestUnlockBlocks] is provided and paths are locked, appends "· ~Nd" inline.
 class SpendPathSummaryBadge extends StatelessWidget {
   final int unlockedCount;
   final int totalCount;
+  final int? nearestUnlockBlocks;
 
   const SpendPathSummaryBadge({
     super.key,
     required this.unlockedCount,
     required this.totalCount,
+    this.nearestUnlockBlocks,
   });
 
   @override
   Widget build(BuildContext context) {
     final allUnlocked = unlockedCount == totalCount;
     final color = allUnlocked ? Colors.green : AppAccent.color;
+    final suffix = (!allUnlocked && nearestUnlockBlocks != null)
+        ? ' · ${formatCoinAge(nearestUnlockBlocks!)}'
+        : '';
     return Container(
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -114,7 +121,7 @@ class SpendPathSummaryBadge extends StatelessWidget {
           ),
           const SizedBox(width: 3),
           Text(
-            '$unlockedCount/$totalCount',
+            '$unlockedCount/$totalCount$suffix',
             style: TextStyle(
               fontSize: 10,
               color: color,
@@ -135,12 +142,14 @@ class SpendPathStatusRow extends StatelessWidget {
   final APISpendPath path;
   final SpendPathStatus status;
   final Map<String, String> keyLabels;
+  final int tipHeight;
 
   const SpendPathStatusRow({
     super.key,
     required this.path,
     required this.status,
     required this.keyLabels,
+    this.tipHeight = 0,
   });
 
   String _pathName() {
@@ -214,6 +223,15 @@ class SpendPathStatusRow extends StatelessWidget {
                   ),
                 ),
                 Text(subtitle, style: TextStyle(fontSize: 11, color: color)),
+                if (status is SpendPathRelLocked || status is SpendPathAbsLocked)
+                  if (estimatedUnlockDate(status) case final unlock?)
+                    Text(
+                      '~${shortDate(unlock)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color.withAlpha(AppAlpha.secondary),
+                      ),
+                    ),
               ],
             ),
           ),
@@ -223,10 +241,12 @@ class SpendPathStatusRow extends StatelessWidget {
   }
 
   String _formatRemainingTime(int seconds) {
-    if (seconds < 60) return '${seconds}s';
-    if (seconds < 3600) return '${seconds ~/ 60}min';
-    if (seconds < 86400) return '${seconds ~/ 3600}h';
-    return '${seconds ~/ 86400}d';
+    // Minimum granularity is one block (~10 min): timestamp timelocks are
+    // validated against MTP, so sub-block precision is meaningless.
+    final s = seconds < 600 ? 600 : seconds;
+    if (s < 3600) return '${s ~/ 60}min';
+    if (s < 172800) return '${s ~/ 3600}h';
+    return '${s ~/ 86400}d';
   }
 }
 

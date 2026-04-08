@@ -1053,6 +1053,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get coinKeychainChange => 'Cambio';
 
   @override
+  String get coinAgeLabel => 'Antigüedad';
+
+  @override
+  String get coinBlockNumber => 'Bloque';
+
+  @override
+  String get coinConfirmations => 'Confirmaciones';
+
+  @override
   String coinTotalCount(int count) {
     final intl.NumberFormat countNumberFormat =
         intl.NumberFormat.decimalPattern(localeName);
@@ -2470,4 +2479,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get restoreXpubScanButton => 'Escanear';
+
+  @override
+  String get restoreDefaults => 'Restaurar valores por defecto';
 }

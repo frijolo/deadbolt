@@ -7,6 +7,7 @@ import 'package:deadbolt/screens/psbt_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -228,7 +229,7 @@ class _TransactionTile extends StatelessWidget {
               children: [
                 if (tx.confirmationTime != null)
                   Text(
-                    _formatTimestamp(tx.confirmationTime!),
+                    formatTimestamp(tx.confirmationTime!.toInt()),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context)
@@ -273,19 +274,6 @@ class _TransactionTile extends StatelessWidget {
 
   Future<void> _openCpfpTx(BuildContext context) =>
       openCpfpTx(context, walletState, cpfpUtxos);
-
-  String _formatTimestamp(BigInt unixSeconds) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(
-      unixSeconds.toInt() * 1000,
-      isUtc: false,
-    );
-    final y = dt.year.toString();
-    final mo = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final mi = dt.minute.toString().padLeft(2, '0');
-    return '$y/$mo/$d $h:$mi';
-  }
 
   void _showDetails(
     BuildContext context,

@@ -6894,6 +6894,7 @@ impl SseDecode for crate::api::model::APIUtxo {
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_isConfirmed = <bool>::sse_decode(deserializer);
         let mut var_confirmationHeight = <Option<u32>>::sse_decode(deserializer);
+        let mut var_confirmationTime = <Option<u64>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_isAuto = <bool>::sse_decode(deserializer);
@@ -6908,6 +6909,7 @@ impl SseDecode for crate::api::model::APIUtxo {
             address: var_address,
             is_confirmed: var_isConfirmed,
             confirmation_height: var_confirmationHeight,
+            confirmation_time: var_confirmationTime,
             label: var_label,
             effective_label: var_effectiveLabel,
             is_auto: var_isAuto,
@@ -9178,6 +9180,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIUtxo {
             self.address.into_into_dart().into_dart(),
             self.is_confirmed.into_into_dart().into_dart(),
             self.confirmation_height.into_into_dart().into_dart(),
+            self.confirmation_time.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
             self.effective_label.into_into_dart().into_dart(),
             self.is_auto.into_into_dart().into_dart(),
@@ -10015,6 +10018,7 @@ impl SseEncode for crate::api::model::APIUtxo {
         <String>::sse_encode(self.address, serializer);
         <bool>::sse_encode(self.is_confirmed, serializer);
         <Option<u32>>::sse_encode(self.confirmation_height, serializer);
+        <Option<u64>>::sse_encode(self.confirmation_time, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Option<String>>::sse_encode(self.effective_label, serializer);
         <bool>::sse_encode(self.is_auto, serializer);

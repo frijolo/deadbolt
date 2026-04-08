@@ -4,6 +4,21 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### New Features
+- **Coin age and block in detail dialog** — The coin detail dialog now shows confirmation count, approximate age (~3d, ~2mo, ~1y), block number, and confirmation date, using the UTXO's confirmation timestamp from the chain.
+- **Nearest unlock countdown on coin tiles** — The spend-path badge on timelocked coin tiles now appends the time until the nearest locked path unlocks (e.g. "1/2 · ~14d").
+- **Estimated unlock date on spend-path rows** — Each locked spend path in the coin detail dialog now shows an approximate unlock date.
+- **Restore defaults for Electrum and explorer URLs** — When a URL field is cleared, a restore icon appears to fill it back to the built-in default for that network.
+- **Restore defaults for Nostr relays** — A restore button in the Nostr relay settings screen resets the list to the built-in defaults.
+
+### Improvements
+- **Context-free toasts** — Toast helpers now use a global `ScaffoldMessengerKey`, so toasts can be shown from anywhere without requiring a `BuildContext`.
+- **Simplified address and coin tile badges** — Removed `CircleAvatar` backgrounds; status is now conveyed by icon/text colour alone.
+
+---
+
 ## [v1.9.1]
 
 ### New Features

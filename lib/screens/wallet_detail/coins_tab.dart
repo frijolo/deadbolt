@@ -7,6 +7,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
@@ -182,15 +183,9 @@ class _CoinTile extends StatelessWidget {
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: isChange
-                ? Colors.amber.withAlpha(AppAlpha.dim)
-                : Colors.green.withAlpha(AppAlpha.dim),
-            child: Icon(
-              isChange ? Icons.repeat : Icons.arrow_downward,
-              size: 18,
-              color: isChange ? Colors.amber : Colors.green,
-            ),
+          leading: Icon(
+            isChange ? Icons.repeat : Icons.arrow_downward,
+            color: isChange ? Colors.amber : Colors.green,
           ),
           onTap: () => _showDetails(context, statuses),
           title: Column(
@@ -252,25 +247,20 @@ class _CoinTile extends StatelessWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  StatusBadge(
-                    label: isChange
-                        ? l10n.coinKeychainChange
-                        : l10n.coinKeychainReceive,
-                    color: isChange ? Colors.amber : Colors.green,
-                  ),
-                  if (hasTimelocks && spendPaths.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                  if (hasTimelocks && spendPaths.isNotEmpty)
                     SpendPathSummaryBadge(
                       unlockedCount: unlockedCount,
                       totalCount: spendPaths.length,
+                      nearestUnlockBlocks: nearestUnlockBlocks(statuses),
                     ),
-                  ],
                   if (isMempool) ...[
-                    const SizedBox(width: 6),
+                    if (hasTimelocks && spendPaths.isNotEmpty)
+                      const SizedBox(width: 6),
                     StatusBadge(
                         label: l10n.coinMempoolSpend, color: Colors.red),
                   ] else if (utxo.pendingPsbtIds.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    if (hasTimelocks && spendPaths.isNotEmpty)
+                      const SizedBox(width: 6),
                     StatusBadge(
                         label: l10n.coinPendingSpend, color: Colors.orange),
                   ],
@@ -284,6 +274,18 @@ class _CoinTile extends StatelessWidget {
                       tooltip: !isMempool ? l10n.cpfpAccelerate : null,
                     ),
                   ],
+                  const Spacer(),
+                  if (utxo.confirmationTime != null)
+                    Text(
+                      formatTimestamp(utxo.confirmationTime!.toInt()),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(AppAlpha.secondary),
+                      ),
+                    ),
                 ],
               ),
             ],

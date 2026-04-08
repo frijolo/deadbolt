@@ -55,6 +55,11 @@ class _NostrRelaysScreenState extends State<NostrRelaysScreen> {
     setState(() => _relays.remove(url));
   }
 
+  Future<void> _restoreDefaultRelays() async {
+    await _settings.saveRelays(NostrRelaySettings.defaultRelays);
+    setState(() => _relays = List.of(NostrRelaySettings.defaultRelays));
+  }
+
   Future<void> _addRelay() async {
     if (!_formKey.currentState!.validate()) return;
     final url = _controller.text.trim();
@@ -134,11 +139,22 @@ class _NostrRelaysScreenState extends State<NostrRelaysScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
-                          child: Text(
-                            l10n.nostrRelaysSubtitle,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  l10n.nostrRelaysSubtitle,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.restore),
+                                tooltip: l10n.restoreDefaults,
+                                onPressed: _restoreDefaultRelays,
+                              ),
+                            ],
                           ),
                         )
                       else

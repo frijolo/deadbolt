@@ -518,6 +518,8 @@ pub struct APIUtxo {
     pub address: String,
     pub is_confirmed: bool,
     pub confirmation_height: Option<u32>,
+    /// Unix timestamp of the block that confirmed this UTXO; None = unconfirmed.
+    pub confirmation_time: Option<u64>,
     /// Explicit user-set label (use for editing).
     pub label: Option<String>,
     /// Display label — own label if set, otherwise inherited from a related entity.

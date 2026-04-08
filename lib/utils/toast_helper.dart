@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/utils/root_scaffold_messenger.dart';
 
 /// Show a success toast (green with check icon)
 void showSuccessToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
+  rootScaffoldMessengerKey.currentState?.showSnackBar(
     SnackBar(
       content: Row(
         children: [
@@ -29,7 +30,7 @@ void showSuccessToast(BuildContext context, String message) {
 
 /// Show an info toast (amber, neutral status)
 void showInfoToast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
+  rootScaffoldMessengerKey.currentState?.showSnackBar(
     SnackBar(
       content: Row(
         children: [
@@ -84,7 +85,7 @@ void showErrorToastException(BuildContext context, Object e) {
 /// Show an error toast (red with copy button)
 void showErrorToast(BuildContext context, String message) {
   final copiedLabel = context.l10n.errorCopiedToClipboard;
-  ScaffoldMessenger.of(context).showSnackBar(
+  rootScaffoldMessengerKey.currentState?.showSnackBar(
     SnackBar(
       content: Row(
         children: [
@@ -102,7 +103,7 @@ void showErrorToast(BuildContext context, String message) {
             constraints: const BoxConstraints(),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: message));
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
               showSuccessToast(context, copiedLabel);
             },
           ),

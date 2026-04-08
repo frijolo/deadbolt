@@ -1994,6 +1994,24 @@ abstract class AppLocalizations {
   /// **'Change'**
   String get coinKeychainChange;
 
+  /// No description provided for @coinAgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get coinAgeLabel;
+
+  /// No description provided for @coinBlockNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get coinBlockNumber;
+
+  /// No description provided for @coinConfirmations.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmations'**
+  String get coinConfirmations;
+
   /// No description provided for @coinTotalCount.
   ///
   /// In en, this message translates to:
@@ -4507,6 +4525,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan'**
   String get restoreXpubScanButton;
+
+  /// No description provided for @restoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get restoreDefaults;
 }
 
 class _AppLocalizationsDelegate

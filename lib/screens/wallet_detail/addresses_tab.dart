@@ -154,20 +154,15 @@ class _AddressTile extends StatelessWidget {
     final double opacity = isSpent ? 0.45 : 1.0;
 
     final Color badgeColor;
-    final Color badgeBg;
     if (!address.isUsed) {
       badgeColor = Colors.green;
-      badgeBg = Colors.green.withAlpha(AppAlpha.dim);
     } else if (isReused) {
       badgeColor = Colors.red;
-      badgeBg = Colors.red.withAlpha(AppAlpha.dim);
     } else if (hasBalance) {
       badgeColor = Colors.orange;
-      badgeBg = Colors.orange.withAlpha(AppAlpha.dim);
     } else {
       badgeColor =
           Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.pale);
-      badgeBg = Theme.of(context).colorScheme.surfaceContainerHighest;
     }
 
     return Opacity(
@@ -175,15 +170,12 @@ class _AddressTile extends StatelessWidget {
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: badgeBg,
-            child: Text(
-              l10n.addressIndex(address.index.toInt()),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: badgeColor,
-              ),
+          leading: Text(
+            l10n.addressIndex(address.index.toInt()),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: badgeColor,
             ),
           ),
           title: Column(

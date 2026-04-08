@@ -465,6 +465,9 @@
   "coinKeychain": "Llavero",
   "coinKeychainReceive": "Recepción",
   "coinKeychainChange": "Cambio",
+  "coinAgeLabel": "Antigüedad",
+  "coinBlockNumber": "Bloque",
+  "coinConfirmations": "Confirmaciones",
   "coinTotalCount": "{count} monedas",
   "@coinTotalCount": {
     "placeholders": {
@@ -1071,5 +1074,6 @@
   "restoreTabSeed": "Semilla",
   "restoreTabHardware": "Hardware",
   "restoreXpubEnterXpub": "Ingresa una clave pública extendida para escanear cuentas on-chain y buscar backups en Nostr.",
-  "restoreXpubScanButton": "Escanear"
+  "restoreXpubScanButton": "Escanear",
+  "restoreDefaults": "Restaurar valores por defecto"
 }

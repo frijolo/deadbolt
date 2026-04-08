@@ -118,3 +118,41 @@ SpendPathStatus spendPathStatus({
 
   return SpendPathUnlocked();
 }
+
+/// Returns the minimum remaining blocks across all locked paths, or null if none are locked.
+int? nearestUnlockBlocks(List<(APISpendPath, SpendPathStatus)> statuses) {
+  int? best;
+  for (final (_, status) in statuses) {
+    final blocks = switch (status) {
+      SpendPathRelLocked(:final remainingBlocks) when remainingBlocks != null =>
+        remainingBlocks,
+      SpendPathAbsLocked(:final remainingBlocks) when remainingBlocks != null =>
+        remainingBlocks,
+      _ => null,
+    };
+    if (blocks != null && (best == null || blocks < best)) best = blocks;
+  }
+  return best;
+}
+
+/// Estimated unlock [DateTime] for [status], or null if already unlocked / no block info.
+DateTime? estimatedUnlockDate(SpendPathStatus status) {
+  return switch (status) {
+    SpendPathRelLocked(:final remainingBlocks) when remainingBlocks != null =>
+      DateTime.now().add(Duration(minutes: remainingBlocks * 10)),
+    SpendPathAbsLocked(:final remainingBlocks) when remainingBlocks != null =>
+      DateTime.now().add(Duration(minutes: remainingBlocks * 10)),
+    SpendPathAbsLocked(:final unlockAtSeconds) when unlockAtSeconds > 0 =>
+      DateTime.fromMillisecondsSinceEpoch(unlockAtSeconds * 1000),
+    _ => null,
+  };
+}
+
+/// Approximate age label for [ageBlocks]: "~3d", "~2mo", "~1y".
+String formatCoinAge(int ageBlocks) {
+  final days = (ageBlocks * 10 / 60 / 24).round();
+  if (days < 1) return '<1d';
+  if (days < 30) return '~${days}d';
+  if (days < 365) return '~${days ~/ 30}mo';
+  return '~${days ~/ 365}y';
+}

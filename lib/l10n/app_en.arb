@@ -471,6 +471,9 @@
   "coinKeychain": "Keychain",
   "coinKeychainReceive": "Receive",
   "coinKeychainChange": "Change",
+  "coinAgeLabel": "Age",
+  "coinBlockNumber": "Block",
+  "coinConfirmations": "Confirmations",
   "coinTotalCount": "{count} coins",
   "@coinTotalCount": {
     "placeholders": {
@@ -1084,5 +1087,6 @@
   "restoreTabSeed": "Seed",
   "restoreTabHardware": "Hardware",
   "restoreXpubEnterXpub": "Enter an extended public key to scan on-chain accounts and search Nostr backups.",
-  "restoreXpubScanButton": "Scan"
+  "restoreXpubScanButton": "Scan",
+  "restoreDefaults": "Restore defaults"
 }

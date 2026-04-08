@@ -114,6 +114,7 @@ class SettingsScreen extends StatelessWidget {
                         APINetwork.regtest: l10n.electrumNetworkRegtest,
                       },
                       currentUrlFor: settings.electrumUrlForNetwork,
+                      defaultUrlFor: AppSettings.defaultElectrumUrlFor,
                       onSave: cubit.setElectrumUrl,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -128,6 +129,7 @@ class SettingsScreen extends StatelessWidget {
                         APINetwork.regtest: l10n.explorerNetworkRegtest,
                       },
                       currentUrlFor: settings.explorerBaseForNetwork,
+                      defaultUrlFor: AppSettings.defaultExplorerUrlFor,
                       onSave: cubit.setExplorerUrl,
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -218,6 +220,7 @@ class _ConnectivityUrlSection extends StatelessWidget {
   final String hint;
   final Map<APINetwork, String> networkLabels;
   final String Function(APINetwork) currentUrlFor;
+  final String Function(APINetwork) defaultUrlFor;
   final void Function(APINetwork, String) onSave;
 
   const _ConnectivityUrlSection({
@@ -225,6 +228,7 @@ class _ConnectivityUrlSection extends StatelessWidget {
     required this.hint,
     required this.networkLabels,
     required this.currentUrlFor,
+    required this.defaultUrlFor,
     required this.onSave,
   });
 
@@ -239,6 +243,7 @@ class _ConnectivityUrlSection extends StatelessWidget {
           _UrlField(
             label: entry.value,
             currentUrl: currentUrlFor(entry.key),
+            defaultUrl: defaultUrlFor(entry.key),
             hint: hint,
             onSave: (url) => onSave(entry.key, url),
           ),
@@ -255,12 +260,14 @@ class _ConnectivityUrlSection extends StatelessWidget {
 class _UrlField extends StatefulWidget {
   final String label;
   final String currentUrl;
+  final String defaultUrl;
   final String hint;
   final void Function(String) onSave;
 
   const _UrlField({
     required this.label,
     required this.currentUrl,
+    required this.defaultUrl,
     required this.hint,
     required this.onSave,
   });
@@ -308,6 +315,8 @@ class _UrlFieldState extends State<_UrlField> {
 
   @override
   Widget build(BuildContext context) {
+    final showRestore =
+        widget.currentUrl.isEmpty && widget.defaultUrl.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -317,6 +326,13 @@ class _UrlFieldState extends State<_UrlField> {
           labelText: widget.label,
           hintText: widget.hint,
           border: const OutlineInputBorder(),
+          suffixIcon: showRestore
+              ? IconButton(
+                  icon: const Icon(Icons.restore),
+                  tooltip: context.l10n.restoreDefaults,
+                  onPressed: () => widget.onSave(widget.defaultUrl),
+                )
+              : null,
         ),
         onTap: () => setState(() => _editing = true),
         onSubmitted: (_) => _save(),

@@ -36,6 +36,33 @@ class AppSettings {
   final int inheritanceMinTimelockBlocks;
 
   static const kDefaultElectrumMainnet = 'ssl://electrum.blockstream.info:50002';
+  static const kDefaultElectrumTestnet = 'ssl://electrum.blockstream.info:60002';
+  static const kDefaultElectrumTestnet4 = 'ssl://electrum.blockstream.info:60002';
+  static const kDefaultElectrumSignet = 'ssl://mempool.space:60602';
+  static const kDefaultElectrumRegtest = 'tcp://localhost:60401';
+
+  static const kDefaultExplorerMainnet = 'https://mempool.space';
+  static const kDefaultExplorerTestnet = 'https://mempool.space/testnet';
+  static const kDefaultExplorerTestnet4 = 'https://mempool.space/testnet4';
+  static const kDefaultExplorerSignet = 'https://mempool.space/signet';
+  static const kDefaultExplorerRegtest = '';
+
+  static String defaultElectrumUrlFor(APINetwork net) => switch (net) {
+        APINetwork.bitcoin => kDefaultElectrumMainnet,
+        APINetwork.testnet => kDefaultElectrumTestnet,
+        APINetwork.testnet4 => kDefaultElectrumTestnet4,
+        APINetwork.signet => kDefaultElectrumSignet,
+        APINetwork.regtest => kDefaultElectrumRegtest,
+      };
+
+  static String defaultExplorerUrlFor(APINetwork net) => switch (net) {
+        APINetwork.bitcoin => kDefaultExplorerMainnet,
+        APINetwork.testnet => kDefaultExplorerTestnet,
+        APINetwork.testnet4 => kDefaultExplorerTestnet4,
+        APINetwork.signet => kDefaultExplorerSignet,
+        APINetwork.regtest => kDefaultExplorerRegtest,
+      };
+
   static const kDefaultInheritanceMinTimelock = 144; // ~1 day
 
   const AppSettings({
@@ -44,15 +71,15 @@ class AppSettings {
     required this.walletType,
     this.appTheme = AppTheme.system,
     this.electrumMainnet = AppSettings.kDefaultElectrumMainnet,
-    this.electrumTestnet = 'ssl://electrum.blockstream.info:60002',
-    this.electrumTestnet4 = 'ssl://electrum.blockstream.info:60002',
-    this.electrumSignet = 'ssl://mempool.space:60602',
-    this.electrumRegtest = 'tcp://localhost:60401',
-    this.explorerMainnet = 'https://mempool.space',
-    this.explorerTestnet = 'https://mempool.space/testnet',
-    this.explorerTestnet4 = 'https://mempool.space/testnet4',
-    this.explorerSignet = 'https://mempool.space/signet',
-    this.explorerRegtest = '',
+    this.electrumTestnet = AppSettings.kDefaultElectrumTestnet,
+    this.electrumTestnet4 = AppSettings.kDefaultElectrumTestnet4,
+    this.electrumSignet = AppSettings.kDefaultElectrumSignet,
+    this.electrumRegtest = AppSettings.kDefaultElectrumRegtest,
+    this.explorerMainnet = AppSettings.kDefaultExplorerMainnet,
+    this.explorerTestnet = AppSettings.kDefaultExplorerTestnet,
+    this.explorerTestnet4 = AppSettings.kDefaultExplorerTestnet4,
+    this.explorerSignet = AppSettings.kDefaultExplorerSignet,
+    this.explorerRegtest = AppSettings.kDefaultExplorerRegtest,
     this.minFeeRate = 0.1,
     this.fiatEnabled = false,
     this.fiatCurrency = 'usd',

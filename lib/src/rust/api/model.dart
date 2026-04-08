@@ -1206,6 +1206,9 @@ class APIUtxo {
   final bool isConfirmed;
   final int? confirmationHeight;
 
+  /// Unix timestamp of the block that confirmed this UTXO; None = unconfirmed.
+  final BigInt? confirmationTime;
+
   /// Explicit user-set label (use for editing).
   final String? label;
 
@@ -1232,6 +1235,7 @@ class APIUtxo {
     required this.address,
     required this.isConfirmed,
     this.confirmationHeight,
+    this.confirmationTime,
     this.label,
     this.effectiveLabel,
     required this.isAuto,
@@ -1249,6 +1253,7 @@ class APIUtxo {
       address.hashCode ^
       isConfirmed.hashCode ^
       confirmationHeight.hashCode ^
+      confirmationTime.hashCode ^
       label.hashCode ^
       effectiveLabel.hashCode ^
       isAuto.hashCode ^
@@ -1268,6 +1273,7 @@ class APIUtxo {
           address == other.address &&
           isConfirmed == other.isConfirmed &&
           confirmationHeight == other.confirmationHeight &&
+          confirmationTime == other.confirmationTime &&
           label == other.label &&
           effectiveLabel == other.effectiveLabel &&
           isAuto == other.isAuto &&

@@ -223,23 +223,24 @@ impl APIWallet {
             }
         }
 
-        // Build txid → confirmation_height map for all wallet transactions.
+        // Build txid → (confirmation_height, confirmation_time) map for all wallet transactions.
         // Used to determine the original confirmation status of ghost UTXOs.
-        let tx_conf_heights: std::collections::HashMap<bdk_wallet::bitcoin::Txid, Option<u32>> =
-            wallet
-                .transactions()
-                .map(|t| {
-                    let height =
-                        if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                            &t.chain_position
-                        {
-                            Some(anchor.block_id.height)
-                        } else {
-                            None
-                        };
-                    (t.tx_node.txid, height)
-                })
-                .collect();
+        let tx_conf_info: std::collections::HashMap<
+            bdk_wallet::bitcoin::Txid,
+            (Option<u32>, Option<u64>),
+        > = wallet
+            .transactions()
+            .map(|t| {
+                let info = if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                    &t.chain_position
+                {
+                    (Some(anchor.block_id.height), Some(anchor.confirmation_time))
+                } else {
+                    (None, None)
+                };
+                (t.tx_node.txid, info)
+            })
+            .collect();
 
         // Regular UTXOs (unspent per BDK).
         let mut utxos: Vec<APIUtxo> = wallet
@@ -257,13 +258,13 @@ impl APIWallet {
                     &local_output.chain_position,
                     bdk_wallet::chain::ChainPosition::Confirmed { .. }
                 );
-                let confirmation_height =
+                let (confirmation_height, confirmation_time) =
                     if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
                         &local_output.chain_position
                     {
-                        Some(anchor.block_id.height)
+                        (Some(anchor.block_id.height), Some(anchor.confirmation_time))
                     } else {
-                        None
+                        (None, None)
                     };
                 let outpoint_key = format!(
                     "{}:{}",
@@ -282,6 +283,7 @@ impl APIWallet {
                     address,
                     is_confirmed,
                     confirmation_height,
+                    confirmation_time,
                     label,
                     effective_label,
                     is_auto,
@@ -338,10 +340,10 @@ impl APIWallet {
                     .to_string();
 
                 // Determine whether the creating tx was confirmed.
-                let conf_height = tx_conf_heights
+                let (conf_height, conf_time) = tx_conf_info
                     .get(&txin.previous_output.txid)
                     .copied()
-                    .flatten();
+                    .unwrap_or((None, None));
 
                 let (label, effective_label, is_auto) =
                     resolve_label(coin_labels.get(&outpoint_key).cloned());
@@ -356,6 +358,7 @@ impl APIWallet {
                     address,
                     is_confirmed: conf_height.is_some(),
                     confirmation_height: conf_height,
+                    confirmation_time: conf_time,
                     label,
                     effective_label,
                     is_auto,
@@ -980,13 +983,13 @@ impl APIWallet {
             &local_output.chain_position,
             bdk_wallet::chain::ChainPosition::Confirmed { .. }
         );
-        let confirmation_height =
+        let (confirmation_height, confirmation_time) =
             if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
                 &local_output.chain_position
             {
-                Some(anchor.block_id.height)
+                (Some(anchor.block_id.height), Some(anchor.confirmation_time))
             } else {
-                None
+                (None, None)
             };
         let outpoint_key = format!("{}:{}", txid, vout);
 
@@ -1003,6 +1006,7 @@ impl APIWallet {
             address: utxo_address,
             is_confirmed,
             confirmation_height,
+            confirmation_time,
             label,
             effective_label,
             is_auto,

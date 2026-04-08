@@ -315,6 +315,9 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
     final explorerUrl = settings.explorerTxUrl(network, utxo.txid);
     final isChange = utxo.keychain == APIKeychain.internal;
     final outpoint = '${utxo.txid}:${utxo.vout}';
+    final tipHeight =
+        (context.read<WalletDetailCubit>().state as WalletDetailLoaded)
+            .tipHeight;
 
     return AlertDialog(
       titlePadding: kDialogTitlePadding,
@@ -379,26 +382,37 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                     color: Colors.green,
                   ),
                 ),
-                label2: l10n.txConfirmed,
+                label2: l10n.coinConfirmations,
                 child2: Text(
-                  utxo.isConfirmed ? l10n.txConfirmed : l10n.txUnconfirmed,
+                  utxo.isConfirmed && tipHeight > 0
+                      ? BitcoinFormatter.formatNum(
+                          tipHeight - utxo.confirmationHeight!.toInt() + 1)
+                      : l10n.txUnconfirmed,
                   style: TextStyle(
                     color: utxo.isConfirmed ? Colors.green : Colors.grey,
+                    fontWeight:
+                        utxo.isConfirmed ? FontWeight.bold : null,
                   ),
                 ),
               ),
-              if (utxo.confirmationHeight != null)
+              if (utxo.confirmationHeight != null) ...[
                 DetailRowPair(
-                  label1: l10n.txDetailsBlockHeight,
-                  child1: Text('${utxo.confirmationHeight}'),
-                  label2: l10n.coinKeychain,
-                  child2: Text(
+                  label1: l10n.coinKeychain,
+                  child1: Text(
                     isChange
                         ? l10n.coinKeychainChange
                         : l10n.coinKeychainReceive,
                   ),
-                )
-              else
+                  label2: l10n.txDetailsConfirmedAt,
+                  child2: Text(_formatDateOnly(utxo)),
+                ),
+                DetailRowPair(
+                  label1: l10n.coinAgeLabel,
+                  child1: Text(_formatAgeTime(utxo, tipHeight)),
+                  label2: l10n.coinBlockNumber,
+                  child2: Text(_formatConfirmationBlock(utxo)),
+                ),
+              ] else
                 DetailRow(
                   label: l10n.coinKeychain,
                   child: Text(
@@ -533,6 +547,7 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                     path: path,
                     status: status,
                     keyLabels: keyLabels,
+                    tipHeight: tipHeight,
                   ),
               ],
               Builder(builder: (context) {
@@ -585,6 +600,22 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
         ),
       ),
     );
+  }
+
+  static String _formatDateOnly(APIUtxo utxo) {
+    if (utxo.confirmationTime == null) return '—';
+    return formatTimestamp(utxo.confirmationTime!.toInt());
+  }
+
+  static String _formatAgeTime(APIUtxo utxo, int tipHeight) {
+    if (tipHeight == 0 || utxo.confirmationHeight == null) return '—';
+    final blocks = tipHeight - utxo.confirmationHeight!.toInt();
+    return formatCoinAge(blocks);
+  }
+
+  static String _formatConfirmationBlock(APIUtxo utxo) {
+    if (utxo.confirmationHeight == null) return '—';
+    return BitcoinFormatter.formatNum(utxo.confirmationHeight!.toInt());
   }
 }
 
