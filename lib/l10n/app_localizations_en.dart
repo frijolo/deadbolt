@@ -2461,4 +2461,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restoreDefaults => 'Restore defaults';
+
+  @override
+  String get coinSortLabelSize => 'Size';
+
+  @override
+  String get coinSortLabelAge => 'Age';
+
+  @override
+  String get coinSortSizeDesc => 'Size: largest first';
+
+  @override
+  String get coinSortSizeAsc => 'Size: smallest first';
+
+  @override
+  String get coinSortAgeDesc => 'Age: oldest first';
+
+  @override
+  String get coinSortAgeAsc => 'Age: newest first';
 }

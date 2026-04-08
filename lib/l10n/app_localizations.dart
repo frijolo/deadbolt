@@ -4531,6 +4531,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore defaults'**
   String get restoreDefaults;
+
+  /// No description provided for @coinSortLabelSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get coinSortLabelSize;
+
+  /// No description provided for @coinSortLabelAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get coinSortLabelAge;
+
+  /// No description provided for @coinSortSizeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Size: largest first'**
+  String get coinSortSizeDesc;
+
+  /// No description provided for @coinSortSizeAsc.
+  ///
+  /// In en, this message translates to:
+  /// **'Size: smallest first'**
+  String get coinSortSizeAsc;
+
+  /// No description provided for @coinSortAgeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Age: oldest first'**
+  String get coinSortAgeDesc;
+
+  /// No description provided for @coinSortAgeAsc.
+  ///
+  /// In en, this message translates to:
+  /// **'Age: newest first'**
+  String get coinSortAgeAsc;
 }
 
 class _AppLocalizationsDelegate

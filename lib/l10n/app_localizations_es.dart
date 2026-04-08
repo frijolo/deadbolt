@@ -2482,4 +2482,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get restoreDefaults => 'Restaurar valores por defecto';
+
+  @override
+  String get coinSortLabelSize => 'Monto';
+
+  @override
+  String get coinSortLabelAge => 'Edad';
+
+  @override
+  String get coinSortSizeDesc => 'Monto: mayor primero';
+
+  @override
+  String get coinSortSizeAsc => 'Monto: menor primero';
+
+  @override
+  String get coinSortAgeDesc => 'Edad: más antiguo primero';
+
+  @override
+  String get coinSortAgeAsc => 'Edad: más reciente primero';
 }

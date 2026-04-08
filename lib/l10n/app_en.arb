@@ -1088,5 +1088,12 @@
   "restoreTabHardware": "Hardware",
   "restoreXpubEnterXpub": "Enter an extended public key to scan on-chain accounts and search Nostr backups.",
   "restoreXpubScanButton": "Scan",
-  "restoreDefaults": "Restore defaults"
+  "restoreDefaults": "Restore defaults",
+
+  "coinSortLabelSize": "Size",
+  "coinSortLabelAge": "Age",
+  "coinSortSizeDesc": "Size: largest first",
+  "coinSortSizeAsc": "Size: smallest first",
+  "coinSortAgeDesc": "Age: oldest first",
+  "coinSortAgeAsc": "Age: newest first"
 }

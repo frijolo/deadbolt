@@ -1075,5 +1075,12 @@
   "restoreTabHardware": "Hardware",
   "restoreXpubEnterXpub": "Ingresa una clave pública extendida para escanear cuentas on-chain y buscar backups en Nostr.",
   "restoreXpubScanButton": "Escanear",
-  "restoreDefaults": "Restaurar valores por defecto"
+  "restoreDefaults": "Restaurar valores por defecto",
+
+  "coinSortLabelSize": "Monto",
+  "coinSortLabelAge": "Edad",
+  "coinSortSizeDesc": "Monto: mayor primero",
+  "coinSortSizeAsc": "Monto: menor primero",
+  "coinSortAgeDesc": "Edad: más antiguo primero",
+  "coinSortAgeAsc": "Edad: más reciente primero"
 }
