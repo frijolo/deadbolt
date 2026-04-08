@@ -2500,4 +2500,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get coinSortAgeAsc => 'Edad: más reciente primero';
+
+  @override
+  String get reorderWallets => 'Reordenar wallets';
+
+  @override
+  String get done => 'Listo';
 }

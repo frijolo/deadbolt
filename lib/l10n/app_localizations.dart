@@ -4567,6 +4567,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Age: newest first'**
   String get coinSortAgeAsc;
+
+  /// No description provided for @reorderWallets.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder wallets'**
+  String get reorderWallets;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
 }
 
 class _AppLocalizationsDelegate

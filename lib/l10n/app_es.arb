@@ -1082,5 +1082,8 @@
   "coinSortSizeDesc": "Monto: mayor primero",
   "coinSortSizeAsc": "Monto: menor primero",
   "coinSortAgeDesc": "Edad: más antiguo primero",
-  "coinSortAgeAsc": "Edad: más reciente primero"
+  "coinSortAgeAsc": "Edad: más reciente primero",
+
+  "reorderWallets": "Reordenar wallets",
+  "done": "Listo"
 }

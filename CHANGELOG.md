@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Wallet reorder** — A swap-vert button in the wallet list toggles reorder mode; wallets can be dragged to any position and the order is persisted per network via SharedPreferences.
 - **Coin sort control** — The coins tab now has a sort button to order UTXOs by size (largest/smallest first) or age (oldest/newest first); the chosen sort is persisted across sessions.
 - **Coin age and block in detail dialog** — The coin detail dialog now shows confirmation count, approximate age (~3d, ~2mo, ~1y), block number, and confirmation date, using the UTXO's confirmation timestamp from the chain.
 - **Nearest unlock countdown on coin tiles** — The spend-path badge on timelocked coin tiles now appends the time until the nearest locked path unlocks (e.g. "1/2 · ~14d").

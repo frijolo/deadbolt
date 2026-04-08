@@ -2479,4 +2479,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get coinSortAgeAsc => 'Age: newest first';
+
+  @override
+  String get reorderWallets => 'Reorder wallets';
+
+  @override
+  String get done => 'Done';
 }

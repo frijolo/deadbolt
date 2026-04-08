@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
@@ -24,11 +25,68 @@ import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 enum _CreateMode { guided, fromDescriptor, fromProject, fromBackup, restore }
 
-class WalletListScreen extends StatelessWidget {
+class WalletListScreen extends StatefulWidget {
   final int navIndex;
   final void Function(int)? onNavigate;
 
   const WalletListScreen({super.key, this.navIndex = 0, this.onNavigate});
+
+  @override
+  State<WalletListScreen> createState() => _WalletListScreenState();
+}
+
+class _WalletListScreenState extends State<WalletListScreen> {
+  SharedPreferences? _prefs;
+  final Map<String, List<String>> _orderByNetwork = {};
+  bool _reorderMode = false;
+
+  static String _orderKey(APINetwork network) => 'wallet_order_${network.name}';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrder();
+  }
+
+  Future<void> _loadOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final loaded = <String, List<String>>{};
+    for (final net in APINetwork.values) {
+      final saved = prefs.getStringList(_orderKey(net));
+      if (saved != null) loaded[net.name] = saved;
+    }
+    setState(() {
+      _prefs = prefs;
+      _orderByNetwork.addAll(loaded);
+    });
+  }
+
+  List<APIWalletInfo> _orderedWallets(List<APIWalletInfo> all, APINetwork network) {
+    final visible = all.where((w) => w.network == network).toList();
+    final order = _orderByNetwork[network.name];
+    if (order == null || order.isEmpty) return visible;
+    final map = {for (final w in visible) w.walletPath: w};
+    final result = <APIWalletInfo>[];
+    for (final path in order) {
+      final w = map.remove(path);
+      if (w != null) result.add(w);
+    }
+    result.addAll(map.values); // wallets not yet in the saved order go to the end
+    return result;
+  }
+
+  Future<void> _onReorder(
+      APINetwork network, List<APIWalletInfo> current, int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex--;
+    final list = [...current];
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    final paths = list.map((w) => w.walletPath).toList();
+    setState(() => _orderByNetwork[network.name] = paths);
+    final prefs = _prefs ??= await SharedPreferences.getInstance();
+    await prefs.setStringList(_orderKey(network), paths);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +94,8 @@ class WalletListScreen extends StatelessWidget {
     final settings = context.watch<SettingsCubit>().state;
 
     return Scaffold(
-      drawer: onNavigate != null
-          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+      drawer: widget.onNavigate != null
+          ? AppNavDrawer(selectedIndex: widget.navIndex, onNavigate: widget.onNavigate!)
           : null,
       appBar: AppBar(
         title: Text(l10n.walletsTitle),
@@ -54,6 +112,11 @@ class WalletListScreen extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(_reorderMode ? Icons.check : Icons.swap_vert),
+            tooltip: _reorderMode ? l10n.done : l10n.reorderWallets,
+            onPressed: () => setState(() => _reorderMode = !_reorderMode),
           ),
           IconButton(
             icon: const Icon(Icons.add),
@@ -107,11 +170,24 @@ class WalletListScreen extends StatelessWidget {
 
   Widget _buildLoadedBody(BuildContext context,
       WalletListLoaded state, AppSettings settings) {
-    final visibleWallets =
-        state.wallets.where((w) => w.network == settings.network).toList();
+    final visibleWallets = _orderedWallets(state.wallets, settings.network);
 
     if (visibleWallets.isEmpty) {
       return _buildEmptyState(context);
+    }
+
+    if (_reorderMode) {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.all(16),
+        buildDefaultDragHandles: false,
+        itemCount: visibleWallets.length,
+        onReorder: (oldIndex, newIndex) =>
+            _onReorder(settings.network, visibleWallets, oldIndex, newIndex),
+        itemBuilder: (context, index) => KeyedSubtree(
+          key: ValueKey(visibleWallets[index].walletPath),
+          child: _buildWalletCard(context, visibleWallets[index], state, index),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -119,7 +195,7 @@ class WalletListScreen extends StatelessWidget {
       itemCount: visibleWallets.length,
       itemBuilder: (context, index) => KeyedSubtree(
         key: ValueKey(visibleWallets[index].walletPath),
-        child: _buildWalletCard(context, visibleWallets[index], state),
+        child: _buildWalletCard(context, visibleWallets[index], state, index),
       ),
     );
   }
@@ -170,7 +246,7 @@ class WalletListScreen extends StatelessWidget {
   }
 
   Widget _buildWalletCard(
-      BuildContext context, APIWalletInfo wallet, WalletListLoaded state) {
+      BuildContext context, APIWalletInfo wallet, WalletListLoaded state, int index) {
     final l10n = context.l10n;
     final service = context.read<WalletService>();
     final isLocked = wallet.protection.needsPassword &&
@@ -188,6 +264,15 @@ class WalletListScreen extends StatelessWidget {
     final card = Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        leading: _reorderMode
+            ? ReorderableDragStartListener(
+                index: index,
+                child: Icon(
+                  Icons.drag_handle,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.secondary),
+                ),
+              )
+            : null,
         title: Row(
           children: [
             Expanded(
@@ -257,7 +342,7 @@ class WalletListScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => WalletDetailScreen(
                 walletPath: wallet.walletPath,
-                onNavigate: onNavigate,
+                onNavigate: widget.onNavigate,
               ),
             ),
           );
@@ -416,7 +501,7 @@ class WalletListScreen extends StatelessWidget {
           ),
         );
       case _CreateMode.fromProject:
-        onNavigate?.call(1);
+        widget.onNavigate?.call(1);
         return;
       case _CreateMode.fromBackup:
         await _importBackup(context);
