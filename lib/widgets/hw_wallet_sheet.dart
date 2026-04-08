@@ -220,7 +220,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
           Navigator.of(context).pop(returnValue);
         }
         if (state is HwWalletError) {
-          showErrorToast(context, state.message);
+          showErrorToast(state.message);
         }
       },
       builder: (context, state) {
@@ -367,7 +367,6 @@ class _HwWalletSheet<T> extends StatelessWidget {
           );
         } else {
           showErrorToast(
-            context,
             'This device (${rootFingerprint.toUpperCase()}) is not registered for this wallet.',
           );
         }

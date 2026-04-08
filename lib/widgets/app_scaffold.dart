@@ -34,7 +34,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       return;
     }
     _lastBackPress = now;
-    showInfoToast(context, context.l10n.pressBackAgainToExit);
+    showInfoToast(context.l10n.pressBackAgainToExit);
   }
 
   @override

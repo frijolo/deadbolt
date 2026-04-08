@@ -57,7 +57,7 @@ Future<String?> _fromClipboard(BuildContext context) async {
   final data = await Clipboard.getData(Clipboard.kTextPlain);
   final text = data?.text;
   if ((text == null || text.trim().isEmpty) && context.mounted) {
-    showErrorToast(context, context.l10n.clipboardEmpty);
+    showErrorToast(context.l10n.clipboardEmpty);
     return null;
   }
   return text;
@@ -79,12 +79,12 @@ Future<String?> _fromFile(BuildContext context) async {
     if (result == null || result.files.isEmpty) return null;
     final bytes = result.files.first.bytes;
     if (bytes == null) {
-      if (context.mounted) showErrorToast(context, l10n.couldNotReadFile);
+      if (context.mounted) showErrorToast(l10n.couldNotReadFile);
       return null;
     }
     return utf8.decode(bytes, allowMalformed: true);
   } catch (e) {
-    if (context.mounted) showErrorToastException(context, e);
+    if (context.mounted) showErrorToastException(e);
     return null;
   }
 }
@@ -176,7 +176,7 @@ Future<String?> _psbtFromFile(BuildContext context) async {
     if (result == null || result.files.isEmpty) return null;
     final bytes = result.files.first.bytes;
     if (bytes == null) {
-      if (context.mounted) showErrorToast(context, l10n.couldNotReadFile);
+      if (context.mounted) showErrorToast(l10n.couldNotReadFile);
       return null;
     }
     // Try UTF-8 + valid base64 first (text PSBT); fall back to raw bytes → base64.
@@ -188,7 +188,7 @@ Future<String?> _psbtFromFile(BuildContext context) async {
       return base64Encode(bytes);
     }
   } catch (e) {
-    if (context.mounted) showErrorToastException(context, e);
+    if (context.mounted) showErrorToastException(e);
     return null;
   }
 }

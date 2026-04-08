@@ -652,7 +652,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       );
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast(context, 'Signing key added (${result.mfp})');
+        showSuccessToast('Signing key added (${result.mfp})');
         Navigator.pop(context, true);
       }
       // On null: cubit already emitted error toast via BlocListener.
@@ -665,7 +665,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       final result = await widget.onAddXprv!(xprv);
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast(context, 'Signing key added (${result.mfp})');
+        showSuccessToast('Signing key added (${result.mfp})');
         Navigator.pop(context, true);
       }
     }

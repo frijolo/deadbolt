@@ -564,7 +564,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
     if (!mounted) return;
     if (address == null) {
-      showErrorToast(context, l10n.createTxNoUnusedAddress);
+      showErrorToast(l10n.createTxNoUnusedAddress);
       return;
     }
     final entry = _recipients[recipientIndex];
@@ -1023,7 +1023,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   /// validation failed (errors are shown / fields opened inline).
   ({double rate})? _validateTxParams() {
     if (_selectedUtxos.isEmpty) {
-      showErrorToast(context, context.l10n.createTxSelectCoinsFirst);
+      showErrorToast(context.l10n.createTxSelectCoinsFirst);
       return null;
     }
     // All recipients must have a non-empty address.
@@ -1053,7 +1053,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         (m, i) => max(m, i.minFeeRateSatPerVb),
       );
       if (rate <= maxOrigRate) {
-        showErrorToast(context, context.l10n.rbfFeeTooLow(maxOrigRate));
+        showErrorToast(context.l10n.rbfFeeTooLow(maxOrigRate));
         setState(() => _feeEditMode = FeeEditMode.rate);
         return null;
       }
@@ -1063,7 +1063,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         final newVsize = (summary.totalWu / 4.0).ceil();
         final totalConflict = _totalConflictFee(resolvedRbfInfos);
         if (summary.feeSats <= totalConflict + newVsize) {
-          showErrorToast(context, context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
+          showErrorToast(context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
           setState(() => _feeEditMode = FeeEditMode.total);
           return null;
         }
@@ -1113,7 +1113,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
       if (!mounted) return;
       if (psbt != null) {
-        showSuccessToast(context, l10n.createTxSuccess);
+        showSuccessToast(l10n.createTxSuccess);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(
@@ -1124,7 +1124,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         );
       }
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     } finally {
       if (mounted) setState(() => _creating = false);
     }
@@ -1189,11 +1189,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         electrumUrl: electrumUrl,
       );
       if (mounted) {
-        showSuccessToast(context, context.l10n.directSendSuccess(txid));
+        showSuccessToast(context.l10n.directSendSuccess(txid));
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     } finally {
       if (mounted) setState(() => _creating = false);
     }

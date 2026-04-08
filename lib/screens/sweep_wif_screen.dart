@@ -159,7 +159,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
   Future<void> _queryUtxos() async {
     final wif = _wifCtrl.text.trim();
     if (wif.isEmpty) {
-      showErrorToast(context, context.l10n.sweepWifEnterKeyFirst);
+      showErrorToast(context.l10n.sweepWifEnterKeyFirst);
       return;
     }
 
@@ -211,7 +211,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     final feeRate = double.tryParse(_feeRateCtrl.text.trim());
 
     if (wif.isEmpty || dest.isEmpty || feeRate == null || feeRate <= 0) {
-      showErrorToast(context, context.l10n.sweepWifFillFields);
+      showErrorToast(context.l10n.sweepWifFillFields);
       return;
     }
 
@@ -225,13 +225,13 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
         network: _network,
       );
       if (mounted) {
-        showSuccessToast(context, context.l10n.sweepWifSweptToast(txid));
+        showSuccessToast(context.l10n.sweepWifSweptToast(txid));
         widget.onSwept?.call();
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        showErrorToastException(context, e);
+        showErrorToastException(e);
         setState(() => _sweeping = false);
       }
     }
@@ -328,7 +328,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     }
     if (!mounted) return;
     if (address == null) {
-      showErrorToast(context, context.l10n.createTxNoUnusedAddress);
+      showErrorToast(context.l10n.createTxNoUnusedAddress);
       return;
     }
     _setDest(address);

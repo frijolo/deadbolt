@@ -108,7 +108,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           listener: (context, state) async {
             _maybeStartAutoSync(context, state);
             if (state is WalletDetailLoaded) {
-              handleTransientError(context, state.errorMessage,
+              handleTransientError(state.errorMessage,
                   context.read<WalletDetailCubit>().clearError);
             }
             if (state is WalletDetailNeedsPassword) {
@@ -239,7 +239,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final address = await cubit.getNextReceiveAddress();
     if (!context.mounted) return;
     if (address == null) {
-      showErrorToast(context, context.l10n.noUnusedReceiveAddress);
+      showErrorToast(context.l10n.noUnusedReceiveAddress);
       return;
     }
     showWalletDialog(context, ReceiveDialog(address: address));
@@ -300,7 +300,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       );
     } catch (e) {
       if (context.mounted) {
-        showErrorToastException(context, e);
+        showErrorToastException(e);
       }
     }
   }
@@ -387,7 +387,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         securityLevel: opts.securityLevel,
       );
     } catch (e) {
-      if (context.mounted) showErrorToastException(context, e);
+      if (context.mounted) showErrorToastException(e);
       return;
     }
 
@@ -412,7 +412,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           );
         }
       } catch (e) {
-        if (context.mounted) showErrorToastException(context, e);
+        if (context.mounted) showErrorToastException(e);
       }
     } else {
       try {
@@ -426,9 +426,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         if (!File(savedPath).existsSync()) {
           await File(savedPath).writeAsBytes(backupBytes);
         }
-        if (context.mounted) showSuccessToast(context, context.l10n.backupSaved);
+        if (context.mounted) showSuccessToast(context.l10n.backupSaved);
       } catch (e) {
-        if (context.mounted) showErrorToastException(context, e);
+        if (context.mounted) showErrorToastException(e);
       }
     }
   }
@@ -442,7 +442,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final content = await cubit.exportBip329Labels();
     if (!context.mounted) return;
     if (content == null || content.isEmpty) {
-      showErrorToast(context, l10n.exportBip329Empty);
+      showErrorToast(l10n.exportBip329Empty);
       return;
     }
     final safeName = state.walletInfo.name
@@ -526,7 +526,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     if (content == null || content.trim().isEmpty) return;
     if (!context.mounted) return;
     final ok = await context.read<WalletDetailCubit>().importBip329Labels(content);
-    if (context.mounted && ok) showSuccessToast(context, l10n.importBip329Success);
+    if (context.mounted && ok) showSuccessToast(l10n.importBip329Success);
   }
 
   Future<void> _importWithChoice(
@@ -577,12 +577,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       if (imported == null) return;
       if (context.mounted) {
         showSuccessToast(
-          context,
           imported.wasMerged ? l10n.importPsbtMerged : l10n.importPsbtSaved,
         );
       }
     } catch (e) {
-      if (context.mounted) showErrorToastException(context, e);
+      if (context.mounted) showErrorToastException(e);
     }
   }
 

@@ -275,11 +275,11 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
           .mergePsbt(_psbt.id.toInt(), signedBase64);
       if (updated != null) {
         setState(() => _psbt = updated);
-        if (context.mounted) showSuccessToast(context, l10n.psbtMergeSuccess);
+        if (context.mounted) showSuccessToast(l10n.psbtMergeSuccess);
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToastException(context, e);
+        showErrorToastException(e);
       }
     }
   }
@@ -294,7 +294,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
       setState(() => _psbt = updated);
       final analysis = _analysis;
       final signed = analysis?.signers.where((s) => s.hasSigned).length ?? 0;
-      showSuccessToast(context, '$signed of ${_psbt.threshold} signatures applied');
+      showSuccessToast('$signed of ${_psbt.threshold} signatures applied');
     }
   }
 
@@ -309,12 +309,12 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     try {
       final txid = await cubit.broadcastPsbt(_psbt.id.toInt(), electrumUrl);
       if (context.mounted) {
-        showSuccessToast(context, l10n.psbtBroadcastSuccess(txid));
+        showSuccessToast(l10n.psbtBroadcastSuccess(txid));
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToastException(context, e);
+        showErrorToastException(e);
       }
     } finally {
       if (mounted) setState(() => _broadcasting = false);

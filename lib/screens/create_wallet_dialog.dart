@@ -29,7 +29,7 @@ Future<void> createWalletFromProject(
     BuildContext context, Project project,
     {void Function(int)? onNavigate}) async {
   if (project.descriptor.isEmpty) {
-    showErrorToast(context, context.l10n.projectHasNoDescriptor);
+    showErrorToast(context.l10n.projectHasNoDescriptor);
     return;
   }
   final cubit = context.read<WalletListCubit>();
@@ -302,7 +302,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
           network: _selectedNetwork,
         );
       } catch (e) {
-        if (mounted) showErrorToastException(context, e);
+        if (mounted) showErrorToastException(e);
         return;
       }
     }
@@ -333,7 +333,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
       if (mounted) Navigator.pop(context, walletPath);
     } catch (e) {
       setState(() => _isCreating = false);
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     }
   }
 

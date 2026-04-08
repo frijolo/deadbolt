@@ -495,12 +495,15 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
 
       await handle.rescan(electrumUrl: electrumUrl);
 
-      final walletInfo = await handle.getInfo();
-      final balance = await handle.getBalance();
-      final page = await handle.getTransactions(page: 0, pageSize: _pageSize);
+      final (walletInfo, balance, page, tipHeight) = await (
+        handle.getInfo(),
+        handle.getBalance(),
+        handle.getTransactions(page: 0, pageSize: _pageSize),
+        handle.getTipHeight(),
+      ).wait;
 
       final atEmit = state is WalletDetailLoaded ? state as WalletDetailLoaded : current;
-      emit(WalletDetailLoaded(
+      emit(atEmit.copyWith(
         walletHandle: handle,
         walletInfo: walletInfo,
         balance: balance,
@@ -509,14 +512,21 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         hasMore: page.hasMore,
         isSyncing: false,
         currentPage: 0,
-        selectedTab: atEmit.selectedTab,
-        selectedAddressKeychain: atEmit.selectedAddressKeychain,
-        // Reset addresses/coins — rescan may reveal new ones
+        tipHeight: tipHeight,
+        // Reset data and loaded flags — rescan may reveal new addresses/coins
+        receiveAddresses: const [],
+        changeAddresses: const [],
         receiveAddressesLoaded: false,
         changeAddressesLoaded: false,
+        utxos: const [],
         utxosLoaded: false,
-        hotKeys: atEmit.hotKeys,
+        descriptorLoaded: false,
       ));
+      // Eagerly reload descriptor + coins so inheritance section is ready.
+      unawaited(Future.wait([
+        _loadDescriptorAnalysis(),
+        _loadUtxos(),
+      ]));
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.rescan()', e, stackTrace);
       if (state is WalletDetailLoaded) {

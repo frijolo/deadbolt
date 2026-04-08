@@ -70,7 +70,7 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
         }
       });
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -98,9 +98,9 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
           _statusMap[s.url] = s;
         }
       });
-      if (mounted) showSuccessToast(context, context.l10n.nostrBackupPublished);
+      if (mounted) showSuccessToast(context.l10n.nostrBackupPublished);
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
@@ -148,9 +148,9 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
           _statusMap[s.url] = s;
         }
       });
-      if (mounted) showSuccessToast(context, l10n.nostrBackupDeleted);
+      if (mounted) showSuccessToast(l10n.nostrBackupDeleted);
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     }
   }
 

@@ -13,7 +13,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/frb_generated.dart';
 import 'package:deadbolt/theme/app_theme.dart';
-import 'package:deadbolt/utils/root_scaffold_messenger.dart';
+import 'package:deadbolt/utils/root_navigator.dart';
 import 'package:deadbolt/widgets/app_scaffold.dart';
 
 Future<void> main() async {
@@ -75,7 +75,7 @@ class DeadboltApp extends StatelessWidget {
         ],
         child: BlocBuilder<SettingsCubit, AppSettings>(
           builder: (context, settings) => MaterialApp(
-            scaffoldMessengerKey: rootScaffoldMessengerKey,
+            navigatorKey: rootNavigatorKey,
             title: 'Deadbolt',
             debugShowCheckedModeBanner: false,
             locale: settings.locale,

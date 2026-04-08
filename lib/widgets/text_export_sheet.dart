@@ -90,7 +90,7 @@ void showTextExportSheet(
             onTap: () {
               Navigator.pop(ctx);
               Clipboard.setData(ClipboardData(text: text));
-              showSuccessToast(context, copiedMessage);
+              showSuccessToast(copiedMessage);
             },
           ),
           ListTile(
@@ -178,7 +178,7 @@ void showPsbtExportSheet(
             onTap: () {
               Navigator.pop(ctx);
               Clipboard.setData(ClipboardData(text: psbtBase64));
-              showSuccessToast(context, l10n.psbtExportedCopied);
+              showSuccessToast(l10n.psbtExportedCopied);
             },
           ),
           ListTile(
@@ -221,7 +221,7 @@ Future<void> _shareAsFile(
   } catch (e) {
     if (context.mounted) {
       final l10n = context.l10n;
-      showErrorToast(context, l10n.exportFailed(formatRustError(e)));
+      showErrorToast(l10n.exportFailed(formatRustError(e)));
     }
   }
 }
@@ -307,9 +307,9 @@ Future<void> _saveWithFilePicker(
     if (!File(savedPath).existsSync()) {
       await File(savedPath).writeAsBytes(bytes);
     }
-    if (context.mounted) showSuccessToast(context, l10n.savedToDownloads);
+    if (context.mounted) showSuccessToast(l10n.savedToDownloads);
   } catch (e) {
-    if (context.mounted) showErrorToast(context, l10n.exportFailed(formatRustError(e)));
+    if (context.mounted) showErrorToast(l10n.exportFailed(formatRustError(e)));
   }
 }
 

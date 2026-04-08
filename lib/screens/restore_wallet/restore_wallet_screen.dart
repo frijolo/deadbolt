@@ -588,7 +588,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
         if (mounted) await _refreshWalletMap();
       }
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     }
   }
 

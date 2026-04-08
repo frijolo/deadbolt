@@ -454,7 +454,7 @@ class WalletListScreen extends StatelessWidget {
     try {
       backupType = await rust_backup.inspectWalletBackup(backupBytes: bytes);
     } catch (e) {
-      if (context.mounted) showErrorToastException(context, e);
+      if (context.mounted) showErrorToastException(e);
       return;
     }
 
@@ -502,7 +502,7 @@ class WalletListScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      if (context.mounted) showErrorToastException(context, e);
+      if (context.mounted) showErrorToastException(e);
     }
   }
 

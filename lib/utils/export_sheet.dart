@@ -108,11 +108,11 @@ void showProjectExportSheet(
                   if (savedPath == null) return;
                   await File(savedPath).writeAsBytes(utf8.encode(jsonString));
                   if (context.mounted) {
-                    showSuccessToast(context, l10n.savedToDownloads);
+                    showSuccessToast(l10n.savedToDownloads);
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    showErrorToast(context, l10n.exportFailed(formatRustError(e)));
+                    showErrorToast(l10n.exportFailed(formatRustError(e)));
                   }
                 }
               },
@@ -137,12 +137,12 @@ void showProjectExportSheet(
                   );
                   if (result.status == ShareResultStatus.success) {
                     if (context.mounted) {
-                      showSuccessToast(context, l10n.projectExportedSuccess);
+                      showSuccessToast(l10n.projectExportedSuccess);
                     }
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    showErrorToast(context, l10n.exportFailed(formatRustError(e)));
+                    showErrorToast(l10n.exportFailed(formatRustError(e)));
                   }
                 }
               },

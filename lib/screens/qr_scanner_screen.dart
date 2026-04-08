@@ -293,7 +293,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         Navigator.pop(context, result.trim());
       }
     } catch (_) {
-      if (mounted) showErrorToast(context, l10n.qrNotFoundInImage);
+      if (mounted) showErrorToast(l10n.qrNotFoundInImage);
     }
   }
 

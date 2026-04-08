@@ -24,7 +24,7 @@ Future<void> openCpfpTx(
   final address = await cubit.getNextSelfPaymentAddress();
   if (!context.mounted) return;
   if (address == null) {
-    showErrorToast(context, l10n.createTxNoUnusedAddress);
+    showErrorToast(l10n.createTxNoUnusedAddress);
     return;
   }
   await CreateTxScreen.push(
@@ -52,7 +52,7 @@ Future<void> openRevaultTx(
   final address = await cubit.getNextSelfPaymentAddress();
   if (!context.mounted) return;
   if (address == null) {
-    showErrorToast(context, l10n.createTxNoUnusedAddress);
+    showErrorToast(l10n.createTxNoUnusedAddress);
     return;
   }
   await CreateTxScreen.push(

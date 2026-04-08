@@ -343,16 +343,16 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_keyspecs.isEmpty) {
-      showErrorToast(context, context.l10n.addAtLeastOneKey);
+      showErrorToast(context.l10n.addAtLeastOneKey);
       return;
     }
     if (_walletMode == _WalletMode.multisig && _keyspecs.length < 2) {
-      showErrorToast(context, context.l10n.multisigNeedsMinKeys);
+      showErrorToast(context.l10n.multisigNeedsMinKeys);
       return;
     }
     if (_isInheritance) {
       if (_heirs.isEmpty) {
-        showErrorToast(context, context.l10n.inheritanceNeedHeir);
+        showErrorToast(context.l10n.inheritanceNeedHeir);
         return;
       }
     }
@@ -452,7 +452,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         spendPaths: spendPaths,
       );
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
       return;
     }
 
@@ -462,7 +462,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
         network: _selectedNetwork,
       );
     } catch (e) {
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
       return;
     }
 
@@ -537,7 +537,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       if (mounted) Navigator.pop(context, walletPath);
     } catch (e) {
       if (mounted) setState(() => _isCreating = false);
-      if (mounted) showErrorToastException(context, e);
+      if (mounted) showErrorToastException(e);
     }
   }
 

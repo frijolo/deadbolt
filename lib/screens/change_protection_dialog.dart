@@ -97,7 +97,7 @@ class _ChangeProtectionDialogState extends State<_ChangeProtectionDialog> {
     if (ok) {
       final l10n = context.l10n;
       Navigator.of(context).pop();
-      showSuccessToast(context,
+      showSuccessToast(
           l10n.protectionChangedToast(_protectionLabel(l10n, _selected)));
     } else {
       setState(() => _isChanging = false);

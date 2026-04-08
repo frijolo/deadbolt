@@ -435,7 +435,7 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: outpoint));
-                        showSuccessToast(context, l10n.copiedToClipboard);
+                        showSuccessToast(l10n.copiedToClipboard);
                       },
                     ),
                   ],
@@ -743,7 +743,7 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                       tooltip: l10n.copyToClipboard,
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: tx.txid));
-                        showSuccessToast(context, l10n.copiedToClipboard);
+                        showSuccessToast(l10n.copiedToClipboard);
                       },
                     ),
                   ],

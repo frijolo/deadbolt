@@ -265,7 +265,7 @@ class _WifDisplayDialog extends StatelessWidget {
           onPressed: () {
             Clipboard.setData(ClipboardData(text: wif));
             Navigator.of(context).pop();
-            showSuccessToast(context, l10n.copiedToClipboard);
+            showSuccessToast(l10n.copiedToClipboard);
           },
         ),
         TextButton(

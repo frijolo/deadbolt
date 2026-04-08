@@ -51,7 +51,7 @@ class _HwActionsSheet extends StatelessWidget {
     return BlocConsumer<HwWalletCubit, HwWalletState>(
       listener: (context, state) {
         if (state is HwWalletError) {
-          showErrorToast(context, state.message);
+          showErrorToast(state.message);
           // If still connected (operation error), go back to ready.
           if (state.sessionId != null) {
             context.read<HwWalletCubit>().returnToReady();

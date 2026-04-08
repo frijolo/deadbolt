@@ -68,9 +68,9 @@ class _ProjectDetailView extends StatelessWidget {
       listener: (context, state) {
         if (state is! ProjectDetailLoaded) return;
 
-        handleTransientError(context, state.errorMessage,
+        handleTransientError(state.errorMessage,
             context.read<ProjectDetailCubit>().clearError);
-        handleTransientSuccess(context, state.successMessage,
+        handleTransientSuccess(state.successMessage,
             context.read<ProjectDetailCubit>().clearSuccess);
       },
       child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(

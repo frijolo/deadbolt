@@ -410,7 +410,7 @@ class ProjectListScreen extends StatelessWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, context.l10n.exportFailed(formatRustError(e)));
+        showErrorToast(context.l10n.exportFailed(formatRustError(e)));
       }
     }
   }
@@ -428,7 +428,7 @@ class ProjectListScreen extends StatelessWidget {
       final projectId = await cubit.importProject(jsonString);
 
       if (context.mounted) {
-        showSuccessToast(context, context.l10n.projectImportedSuccess);
+        showSuccessToast(context.l10n.projectImportedSuccess);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -442,7 +442,7 @@ class ProjectListScreen extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        showErrorToast(context, context.l10n.importFailed(formatRustError(e)));
+        showErrorToast(context.l10n.importFailed(formatRustError(e)));
       }
     }
   }

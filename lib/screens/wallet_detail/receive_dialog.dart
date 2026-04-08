@@ -81,7 +81,7 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
       });
     } else {
       setState(() => _navigating = false);
-      showErrorToast(context, context.l10n.noUnusedReceiveAddress);
+      showErrorToast(context.l10n.noUnusedReceiveAddress);
     }
   }
 
@@ -176,7 +176,7 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
               label: Text(l10n.copyToClipboard),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: _address.address));
-                showSuccessToast(context, l10n.copiedToClipboard);
+                showSuccessToast(l10n.copiedToClipboard);
               },
             ),
           ),
