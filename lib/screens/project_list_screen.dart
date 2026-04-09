@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
@@ -21,11 +22,106 @@ import 'package:deadbolt/widgets/text_import_sheet.dart';
 
 enum _ProjectCreateMode { fromScratch, fromDescriptor, importProject }
 
-class ProjectListScreen extends StatelessWidget {
+class ProjectListScreen extends StatefulWidget {
   final int navIndex;
   final void Function(int)? onNavigate;
 
   const ProjectListScreen({super.key, this.navIndex = 0, this.onNavigate});
+
+  @override
+  State<ProjectListScreen> createState() => _ProjectListScreenState();
+}
+
+class _ProjectListScreenState extends State<ProjectListScreen> {
+  SharedPreferences? _prefs;
+  final Map<String, List<String>> _orderByTier = {};
+  bool _reorderMode = false;
+
+  static String _orderKey(bool isMainnet) =>
+      isMainnet ? 'project_order_mainnet' : 'project_order_testnet';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrder();
+  }
+
+  Future<void> _loadOrder() async {
+    final prefs = _prefs ??= await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _orderByTier['mainnet'] = prefs.getStringList(_orderKey(true)) ?? [];
+      _orderByTier['testnet'] = prefs.getStringList(_orderKey(false)) ?? [];
+    });
+  }
+
+  List<Project> _applyOrder(List<Project> filtered, bool isMainnet) {
+    final tierKey = isMainnet ? 'mainnet' : 'testnet';
+    final savedOrder = _orderByTier[tierKey] ?? [];
+    if (savedOrder.isEmpty) return filtered;
+
+    final byId = {for (final p in filtered) p.id.toString(): p};
+    final ordered = <Project>[];
+    for (final idStr in savedOrder) {
+      final p = byId.remove(idStr);
+      if (p != null) ordered.add(p);
+    }
+    ordered.addAll(byId.values);
+    return ordered;
+  }
+
+  Future<void> _onReorder(
+      bool isMainnet, List<Project> current, int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex--;
+    final list = [...current];
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    final ids = list.map((p) => p.id.toString()).toList();
+    final tierKey = isMainnet ? 'mainnet' : 'testnet';
+    setState(() => _orderByTier[tierKey] = ids);
+    final prefs = _prefs ??= await SharedPreferences.getInstance();
+    await prefs.setStringList(_orderKey(isMainnet), ids);
+  }
+
+  void _showNetworkTierPicker(BuildContext context, AppSettings settings) {
+    final settingsCubit = context.read<SettingsCubit>();
+    final isCurrentlyMainnet = settings.network == APINetwork.bitcoin;
+    final l10n = context.l10n;
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.selectNetworkTooltip),
+        children: [
+          RadioGroup<bool>(
+            groupValue: isCurrentlyMainnet,
+            onChanged: (value) {
+              if (value == true) {
+                settingsCubit.setNetwork(APINetwork.bitcoin);
+              } else if (!isCurrentlyMainnet) {
+                // Already on testnet — no network change needed.
+              } else {
+                settingsCubit.setNetwork(APINetwork.testnet);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<bool>(
+                  title: Text(l10n.networkMainnet),
+                  value: true,
+                ),
+                RadioListTile<bool>(
+                  title: Text(l10n.networkTestnet),
+                  value: false,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +129,8 @@ class ProjectListScreen extends StatelessWidget {
     final settings = context.watch<SettingsCubit>().state;
 
     return Scaffold(
-      drawer: onNavigate != null
-          ? AppNavDrawer(selectedIndex: navIndex, onNavigate: onNavigate!)
+      drawer: widget.onNavigate != null
+          ? AppNavDrawer(selectedIndex: widget.navIndex, onNavigate: widget.onNavigate!)
           : null,
       appBar: AppBar(
         title: Text(l10n.projectsTitle),
@@ -42,12 +138,22 @@ class ProjectListScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Center(
-              child: MfpBadge(
-                label: localizedNetworkName(context, settings.network),
-                color: AppAccent.color,
-                letterSpacing: 0.0,
+              child: GestureDetector(
+                onTap: () => _showNetworkTierPicker(context, settings),
+                child: MfpBadge(
+                  label: settings.network == APINetwork.bitcoin
+                      ? l10n.networkMainnet
+                      : l10n.networkTestnet,
+                  color: AppAccent.color,
+                  letterSpacing: 0.0,
+                ),
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(_reorderMode ? Icons.check : Icons.swap_vert),
+            tooltip: _reorderMode ? l10n.done : l10n.reorderProjects,
+            onPressed: () => setState(() => _reorderMode = !_reorderMode),
           ),
           IconButton(
             icon: const Icon(Icons.add),
@@ -87,9 +193,13 @@ class ProjectListScreen extends StatelessWidget {
   Widget _buildLoadedBody(BuildContext context,
       List<Project> allProjects, AppSettings settings) {
     final l10n = context.l10n;
-    final visibleProjects = allProjects
-        .where((p) => p.network == settings.network.name)
-        .toList();
+    final currentIsMainnet = settings.network == APINetwork.bitcoin;
+    final visibleProjects = _applyOrder(
+      allProjects
+          .where((p) => (p.network == APINetwork.bitcoin.name) == currentIsMainnet)
+          .toList(),
+      currentIsMainnet,
+    );
     final hiddenCount = allProjects.length - visibleProjects.length;
 
     if (visibleProjects.isEmpty) {
@@ -131,10 +241,8 @@ class ProjectListScreen extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        if (hiddenCount > 0)
-          Padding(
+    final hiddenBanner = hiddenCount > 0
+        ? Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(
               children: [
@@ -161,26 +269,59 @@ class ProjectListScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        Expanded(
-          child: ListView.builder(
+          )
+        : null;
+
+    final list = _reorderMode
+        ? ReorderableListView.builder(
+            padding: const EdgeInsets.all(16),
+            buildDefaultDragHandles: false,
+            itemCount: visibleProjects.length,
+            onReorder: (oldIndex, newIndex) =>
+                _onReorder(currentIsMainnet, visibleProjects, oldIndex, newIndex),
+            itemBuilder: (context, index) => KeyedSubtree(
+              key: ValueKey(visibleProjects[index].id),
+              child: _buildProjectCard(context, visibleProjects[index], index),
+            ),
+          )
+        : ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: visibleProjects.length,
             itemBuilder: (context, index) => KeyedSubtree(
               key: ValueKey(visibleProjects[index].id),
-              child: _buildProjectCard(context, visibleProjects[index]),
+              child: _buildProjectCard(context, visibleProjects[index], index),
             ),
-          ),
-        ),
+          );
+
+    if (hiddenBanner == null) {
+      return list;
+    }
+
+    return Column(
+      children: [
+        hiddenBanner,
+        Expanded(child: list),
       ],
     );
   }
 
-  Widget _buildProjectCard(BuildContext context, Project project) {
+  Widget _buildProjectCard(BuildContext context, Project project, int index) {
     final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        leading: _reorderMode
+            ? ReorderableDragStartListener(
+                index: index,
+                child: Icon(
+                  Icons.drag_handle,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(AppAlpha.secondary),
+                ),
+              )
+            : null,
         title: Text(
           project.name,
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -196,99 +337,103 @@ class ProjectListScreen extends StatelessWidget {
             letterSpacing: 0.0,
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _formatDate(project.updatedAt),
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.muted)),
-            ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, size: 20),
-              tooltip: l10n.moreOptionsTooltip,
-              onSelected: (value) async {
-                final db = context.read<AppDatabase>();
-                if (value == 'edit') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProjectDetailScreen(
-                        db: db,
-                        projectId: project.id,
-                        onNavigate: onNavigate,
+        trailing: _reorderMode
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatDate(project.updatedAt),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.muted)),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    tooltip: l10n.moreOptionsTooltip,
+                    onSelected: (value) async {
+                      final db = context.read<AppDatabase>();
+                      if (value == 'edit') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProjectDetailScreen(
+                              db: db,
+                              projectId: project.id,
+                              onNavigate: widget.onNavigate,
+                            ),
+                          ),
+                        );
+                      } else if (value == 'export') {
+                        await _exportProject(context, project);
+                      } else if (value == 'createWallet') {
+                        await _createWalletFromProject(context, project);
+                      } else if (value == 'delete') {
+                        _confirmDelete(context, project);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_outlined, size: 20),
+                            const SizedBox(width: 12),
+                            Text(l10n.edit),
+                          ],
+                        ),
                       ),
+                      PopupMenuItem(
+                        value: 'export',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.file_upload_outlined, size: 20),
+                            const SizedBox(width: 12),
+                            Text(l10n.export),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'createWallet',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet_outlined, size: 20),
+                            const SizedBox(width: 12),
+                            Text(l10n.createWalletFromProject),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Colors.red.withAlpha(AppAlpha.deleteAction),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              l10n.delete,
+                              style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+        onTap: _reorderMode
+            ? null
+            : () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProjectDetailScreen(
+                      db: context.read<AppDatabase>(),
+                      projectId: project.id,
+                      onNavigate: widget.onNavigate,
                     ),
-                  );
-                } else if (value == 'export') {
-                  await _exportProject(context, project);
-                } else if (value == 'createWallet') {
-                  await _createWalletFromProject(context, project);
-                } else if (value == 'delete') {
-                  _confirmDelete(context, project);
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.edit_outlined, size: 20),
-                      const SizedBox(width: 12),
-                      Text(l10n.edit),
-                    ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'export',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.file_upload_outlined, size: 20),
-                      const SizedBox(width: 12),
-                      Text(l10n.export),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'createWallet',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_outlined, size: 20),
-                      const SizedBox(width: 12),
-                      Text(l10n.createWalletFromProject),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.red.withAlpha(AppAlpha.deleteAction),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        l10n.delete,
-                        style: TextStyle(color: Colors.red.withAlpha(AppAlpha.deleteAction)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProjectDetailScreen(
-              db: context.read<AppDatabase>(),
-              projectId: project.id,
-              onNavigate: onNavigate,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -360,7 +505,7 @@ class ProjectListScreen extends StatelessWidget {
               builder: (_) => ProjectDetailScreen(
                 db: context.read<AppDatabase>(),
                 projectId: projectId,
-                onNavigate: onNavigate,
+                onNavigate: widget.onNavigate,
               ),
             ),
           );
@@ -372,7 +517,7 @@ class ProjectListScreen extends StatelessWidget {
 
   Future<void> _createWalletFromProject(
           BuildContext context, Project project) =>
-      createWalletFromProject(context, project, onNavigate: onNavigate);
+      createWalletFromProject(context, project, onNavigate: widget.onNavigate);
 
   void _confirmDelete(BuildContext context, Project project) {
     final l10n = context.l10n;
@@ -428,14 +573,13 @@ class ProjectListScreen extends StatelessWidget {
       final projectId = await cubit.importProject(jsonString);
 
       if (context.mounted) {
-        showSuccessToast(context.l10n.projectImportedSuccess);
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ProjectDetailScreen(
               db: db,
               projectId: projectId,
-              onNavigate: onNavigate,
+              onNavigate: widget.onNavigate,
             ),
           ),
         );

@@ -791,6 +791,42 @@ class AppLocalizationsEs extends AppLocalizations {
   String get encryptionLabel => 'Cifrado';
 
   @override
+  String get walletSecurityLabel => 'Seguridad';
+
+  @override
+  String get walletSecurityTitle => 'Seguridad del wallet';
+
+  @override
+  String get encryptionSection => 'Cifrado';
+
+  @override
+  String get descriptorSigsSection => 'Firmas de descriptor';
+
+  @override
+  String get manageSignatures => 'Gestionar firmas';
+
+  @override
+  String get goToSecurity => 'Ir a seguridad';
+
+  @override
+  String get noParticipatingKeys => 'No se encontraron claves participantes';
+
+  @override
+  String get descriptorSigAbsent => 'Sin firmas';
+
+  @override
+  String get descriptorSigVerified => 'Firmas verificadas';
+
+  @override
+  String get descriptorSigInvalid => 'Firmas inválidas';
+
+  @override
+  String get descriptorSigOwnerUnsigned => 'Xpub descubridora sin firma';
+
+  @override
+  String get descriptorSigUnknown => 'Estado de firma desconocido';
+
+  @override
   String get walletBalanceUnknown => '–';
 
   @override
@@ -2505,5 +2541,91 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reorderWallets => 'Reordenar wallets';
 
   @override
+  String get reorderProjects => 'Reordenar proyectos';
+
+  @override
   String get done => 'Listo';
+
+  @override
+  String get descriptorSigsTitle => 'Firmas del Descriptor';
+
+  @override
+  String get descriptorSigsSubtitle =>
+      'Prueba la titularidad de cada clave firmando el hash del descriptor. Protege los backups de manipulaciones.';
+
+  @override
+  String descriptorSigsSigned(String date) {
+    return 'Firmado · $date';
+  }
+
+  @override
+  String get descriptorSigsNotSigned => 'Sin firmar';
+
+  @override
+  String get descriptorSigsInvalid => 'Firma inválida';
+
+  @override
+  String get descriptorSigsSignAction => 'Firmar';
+
+  @override
+  String get descriptorSigsDeleteAction => 'Eliminar firma';
+
+  @override
+  String get descriptorSigsMethodHotKey => 'HotKey (automático)';
+
+  @override
+  String get descriptorSigsMethodBB02 => 'BitBox02';
+
+  @override
+  String get descriptorSigsMethodQRMessage => 'QR — Firma de mensaje';
+
+  @override
+  String get descriptorSigsMethodQRBip322 => 'QR — BIP322 PSBT';
+
+  @override
+  String get descriptorSigsVerifyAll => 'Verificar todas';
+
+  @override
+  String get descriptorSigsConnectHw => 'Conectar hardware wallet';
+
+  @override
+  String descriptorSigsSummary(int signed, int total) {
+    return '$signed/$total claves firmadas';
+  }
+
+  @override
+  String get descriptorSigsManage => 'Gestionar firmas';
+
+  @override
+  String get descriptorSigsMessage => 'Mensaje a firmar';
+
+  @override
+  String get descriptorSigsQRMessageHint => 'Firma compacta base64 (65 bytes)';
+
+  @override
+  String get descriptorSigsShowPsbtQr =>
+      'Mostrar QR del PSBT (escanear con hardware wallet)';
+
+  @override
+  String get descriptorSigsQRBip322Hint =>
+      'PSBT firmado (base64 o escanear QR)';
+
+  @override
+  String get descriptorSigsSignSuccess => 'Firma guardada';
+
+  @override
+  String get descriptorSigsDeleteSuccess => 'Firma eliminada';
+
+  @override
+  String get descriptorSigsChooseMethod => 'Elige método de firma';
+
+  @override
+  String descriptorSigsVerified(String date) {
+    return 'Verificado · $date';
+  }
+
+  @override
+  String descriptorSigsVerifyResult(int valid, int total) {
+    return '$valid de $total firmas válidas';
+  }
 }

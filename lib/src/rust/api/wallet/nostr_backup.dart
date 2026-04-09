@@ -7,7 +7,7 @@ import '../../frb_generated.dart';
 import '../model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `ws_check_descriptor_backup_once`, `ws_check_descriptor_backup`, `ws_fetch_payloads_for_xpub_once`, `ws_fetch_payloads_for_xpub`, `ws_open`, `ws_publish_event_once`, `ws_publish_event`
+// These functions are ignored because they are not marked as `pub`: `build_nostr_event`, `build_payload_for_xpub`, `derive_nostr_keypair`, `descriptor_d_tag`, `verify_descriptor_sigs_from_payload`, `ws_check_descriptor_backup_once`, `ws_check_descriptor_backup`, `ws_fetch_payloads_for_xpub_once`, `ws_fetch_payloads_for_xpub`, `ws_open`, `ws_publish_event_once`, `ws_publish_event`, `xpub_entry_bare`
 
 /// Apply connection settings loaded from persistent storage (e.g. SharedPreferences).
 ///
@@ -106,6 +106,45 @@ Future<NostrImportResult> importNostrBackup({
   walletNameOverride: walletNameOverride,
 );
 
+/// Detailed verification result of descriptor signatures embedded in a Nostr backup payload.
+class APIDescriptorSigVerification {
+  /// Number of signatures that verified successfully.
+  final PlatformInt64 validCount;
+
+  /// Total number of xpubs in the descriptor (from descriptor parsing). 0 if parsing failed.
+  final PlatformInt64 totalXpubs;
+
+  /// True when at least one signature present in the payload failed verification.
+  final bool hasInvalid;
+
+  /// True when the xpub that discovered this backup has a valid signature in the payload.
+  final bool ownerXpubSigned;
+
+  const APIDescriptorSigVerification({
+    required this.validCount,
+    required this.totalXpubs,
+    required this.hasInvalid,
+    required this.ownerXpubSigned,
+  });
+
+  @override
+  int get hashCode =>
+      validCount.hashCode ^
+      totalXpubs.hashCode ^
+      hasInvalid.hashCode ^
+      ownerXpubSigned.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIDescriptorSigVerification &&
+          runtimeType == other.runtimeType &&
+          validCount == other.validCount &&
+          totalXpubs == other.totalXpubs &&
+          hasInvalid == other.hasInvalid &&
+          ownerXpubSigned == other.ownerXpubSigned;
+}
+
 /// Response from `fetch_nostr_backup` with full metadata including first address.
 class NostrBackupResponse {
   final Uint8List bytes;
@@ -119,6 +158,10 @@ class NostrBackupResponse {
   /// Can be passed to `scan_descriptor` to fetch on-chain balance/tx count.
   final String? descriptor;
 
+  /// Verification result of any descriptor signatures embedded in the backup.
+  /// `None` only when decryption failed (i.e. `descriptor` is also `None`).
+  final APIDescriptorSigVerification? descriptorSigVerification;
+
   const NostrBackupResponse({
     required this.bytes,
     this.walletName,
@@ -127,6 +170,7 @@ class NostrBackupResponse {
     this.firstAddress,
     this.walletType,
     this.descriptor,
+    this.descriptorSigVerification,
   });
 
   @override
@@ -137,7 +181,8 @@ class NostrBackupResponse {
       createdAt.hashCode ^
       firstAddress.hashCode ^
       walletType.hashCode ^
-      descriptor.hashCode;
+      descriptor.hashCode ^
+      descriptorSigVerification.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -150,7 +195,8 @@ class NostrBackupResponse {
           createdAt == other.createdAt &&
           firstAddress == other.firstAddress &&
           walletType == other.walletType &&
-          descriptor == other.descriptor;
+          descriptor == other.descriptor &&
+          descriptorSigVerification == other.descriptorSigVerification;
 }
 
 /// Return type of `import_nostr_backup`.

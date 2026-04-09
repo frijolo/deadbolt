@@ -6,10 +6,9 @@
 import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'wallet/descriptor_sig.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `build_valid_outpoints`, `cascade_delete_label`, `clear_source_labels`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `is_psbt_self_transfer`, `lock_wallet`, `propagate_label`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_max_utxo_conf_height`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `set_address_if_none`, `set_coin_if_none`, `set_tx_if_none`, `source_entity_id`, `xpub_slots_from_descriptor`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EntityType`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `eq`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `lock_wallet`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `xpub_slots_from_descriptor`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({
@@ -293,6 +292,16 @@ Future<String> stripPsbtForHw({required String psbtBase64}) =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>>
 abstract class ApiWallet implements RustOpaqueInterface {
+  /// Store a compact Bitcoin message signature (QR Variant A — standard HW message signing).
+  ///
+  /// `sig_b64` must be a base64-encoded 65-byte compact signature as produced
+  /// by most hardware wallets' native "sign message" feature.
+  APIDescriptorSig addDescriptorSigFromMessage({
+    required String mfp,
+    required String xpubEntry,
+    required String sigB64,
+  });
+
   /// Import a mnemonic phrase as a signing key. Validates the words, computes
   /// the MFP, and stores the seed in the encrypted wallet database.
   APIHotKeyInfo addMnemonicKey({required String mnemonic, String? passphrase});
@@ -342,6 +351,16 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Delete all stored fiat prices (called when the user changes fiat currency).
   Future<void> clearFiatPrices();
 
+  /// Complete a descriptor signature from a signed BIP322 PSBT (BB02 or QR Variant B).
+  ///
+  /// Extracts the ECDSA signature from the PSBT's `partial_sigs`, verifies it,
+  /// and persists it as `"bip322"`.
+  APIDescriptorSig completeDescriptorSigFromPsbt({
+    required String mfp,
+    required String xpubEntry,
+    required String signedPsbtB64,
+  });
+
   /// Build an unsigned PSBT with optional coin control and spend-path selection.
   ///
   /// * `recipients`           — one or more outputs; each has an address and amount.
@@ -364,6 +383,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required int threshold,
     required List<String> mfps,
   });
+
+  /// Delete a stored descriptor signature.
+  void deleteDescriptorSig({required String mfp});
 
   /// Remove a hot signing key by MFP.
   void deleteHotKey({required String mfp});
@@ -458,6 +480,9 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Otherwise a new record is created with metadata extracted from the PSBT.
   Future<APIImportPsbtResult> importPsbt({required String psbtBase64});
 
+  /// Return all stored descriptor signatures, each with current validity status.
+  List<APIDescriptorSig> listDescriptorSigs();
+
   /// List all hot signing keys stored in this wallet (never exposes the seed).
   List<APIHotKeyInfo> listHotKeys();
 
@@ -472,6 +497,15 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required PlatformInt64 id,
     required String signedPsbtBase64,
   });
+
+  /// Build the BB02-BIP322 PSBT to send to the hardware wallet for signing.
+  ///
+  /// After calling this, pass the returned PSBT base64 to `hw_sign_psbt`
+  /// with descriptor `wsh(pk({xpub_entry}/<0;1>/*))`  and then call
+  /// `complete_descriptor_sig_from_psbt` with the signed result.
+  ///
+  /// Also returns the temporary descriptor string required for BB02 registration.
+  APIPrepareDescriptorSigPsbt prepareDescriptorSigPsbt({required String mfp});
 
   /// Repropagate all existing explicit labels to their related entities.
   /// Useful after imports or migrations. Clears all auto labels first.
@@ -524,6 +558,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Clearing an inherited (auto) label is a no-op.
   void setTxLabel({required String txid, required String label});
 
+  /// Sign the descriptor with a stored HotKey (mnemonic or xprv).
+  ///
+  /// Derives the root xprv from the seed entry for `mfp`, signs the
+  /// canonical descriptor message via the BB02-BIP322 adapted protocol,
+  /// and persists the signature.
+  APIDescriptorSig signDescriptorWithHotkey({required String mfp});
+
   /// Sign a stored PSBT using the hot key identified by `mfp`.
   ///
   /// Only the signer for the given master fingerprint is loaded, so BDK can
@@ -563,6 +604,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// up to the stop gap. Uses incremental sync on subsequent calls to only check
   /// already-revealed script pubkeys, which is much faster.
   Future<void> sync_({required String electrumUrl});
+
+  /// Re-verify all stored descriptor signatures and return updated statuses.
+  ///
+  /// Useful to detect tampering after a backup is restored.
+  List<APIDescriptorSig> verifyDescriptorSigs();
 
   /// Return the network for this wallet.
   APINetwork walletNetwork();

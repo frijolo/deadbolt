@@ -1,4 +1,5 @@
 pub mod address;
+pub mod bip322;
 pub mod descriptor;
 pub mod descriptor_builder;
 pub mod descriptor_parser;

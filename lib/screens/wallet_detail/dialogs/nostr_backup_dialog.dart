@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:deadbolt/cubit/descriptor_sigs_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/nostr_relays_screen.dart';
+import 'package:deadbolt/screens/wallet_security_screen.dart';
 import 'package:deadbolt/services/nostr_relay_settings.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/wallet/nostr_backup.dart';
@@ -39,11 +41,24 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
   Map<String, NostrRelayStatus?> _statusMap = {};
   bool _checking = false;
   bool _publishing = false;
+  DescriptorSigsCubit? _sigsCubit;
 
   @override
   void initState() {
     super.initState();
     _loadRelays();
+    _sigsCubit = DescriptorSigsCubit(
+      wallet: widget.state.walletHandle,
+      participatingKeys: widget.state.descriptorAnalysis?.keys ?? [],
+      hotKeyMfps: widget.state.hotKeyMfpSet,
+      network: widget.state.walletInfo.network,
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _sigsCubit?.close();
+    super.dispose();
   }
 
   Future<void> _loadRelays() async {
@@ -212,6 +227,13 @@ class _NostrBackupSheetState extends State<_NostrBackupSheet> {
           ),
         ),
         const SizedBox(height: 12),
+        // Descriptor signature status
+        if (_sigsCubit != null)
+          _DescriptorSigStatusRow(
+            sigsCubit: _sigsCubit!,
+            walletState: widget.state,
+          ),
+        const SizedBox(height: 4),
         if (_relays.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -348,4 +370,92 @@ class _RelayStatusTile extends StatelessWidget {
           : null,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Descriptor signature status row (embedded in Nostr backup dialog)
+// ---------------------------------------------------------------------------
+
+class _DescriptorSigStatusRow extends StatelessWidget {
+  final DescriptorSigsCubit sigsCubit;
+  final WalletDetailLoaded walletState;
+
+  const _DescriptorSigStatusRow({
+    required this.sigsCubit,
+    required this.walletState,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final ts = Theme.of(context).textTheme;
+    final keys = walletState.descriptorAnalysis?.keys ?? [];
+    final total = keys.length;
+
+    return BlocBuilder<DescriptorSigsCubit, DescriptorSigsState>(
+      bloc: sigsCubit,
+      builder: (ctx, sigsState) {
+        final int signed;
+        final bool anyInvalid;
+        final bool allVerified;
+        if (sigsState is DescriptorSigsLoaded) {
+          signed = sigsState.sigs.length;
+          anyInvalid = sigsState.sigs.any((s) => !s.isValid);
+          allVerified = total > 0 && signed >= total && !anyInvalid;
+        } else {
+          signed = 0;
+          anyInvalid = false;
+          allVerified = false;
+        }
+
+        final (IconData icon, Color color) = anyInvalid
+            ? (Icons.dangerous_outlined, cs.error)
+            : allVerified
+                ? (Icons.verified_outlined, Colors.green)
+                : (Icons.warning_amber_outlined, Colors.orange);
+
+        final statusText = anyInvalid
+            ? l10n.descriptorSigInvalid
+            : allVerified
+                ? l10n.descriptorSigVerified
+                : l10n.descriptorSigsSummary(signed, total > 0 ? total : 1);
+
+        final needsAttention = !allVerified;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  statusText,
+                  style: ts.bodySmall?.copyWith(color: color),
+                ),
+              ),
+              if (needsAttention && total > 0)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => WalletSecurityScreen.push(
+                    context,
+                    cubit: context.read<WalletDetailCubit>(),
+                  ),
+                  icon: const Icon(Icons.security, size: 16),
+                  label: Text(l10n.goToSecurity, style: ts.labelSmall),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+extension on WalletDetailLoaded {
+  Set<String> get hotKeyMfpSet => hotKeys.map((k) => k.mfp).toSet();
 }

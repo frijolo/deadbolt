@@ -1,7 +1,7 @@
 name: deadbolt
 description: "Bitcoin descriptor analyzer"
 publish_to: 'none'
-version: 1.9.1+26040802
+version: 1.9.1+26040901
 
 environment:
   sdk: ^3.10.7
@@ -15,6 +15,7 @@ dependencies:
   rust_lib_deadbolt:
     path: rust_builder
   flutter_rust_bridge: 2.11.1
+  collection: ^1.19.0
   flutter_bloc: ^9.1.1
   drift: ^2.31.0
   sqlite3_flutter_libs: ^0.5.32

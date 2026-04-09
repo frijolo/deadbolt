@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -263,6 +263,51 @@ class APICpfpInfo {
           ancestorVsize == other.ancestorVsize &&
           ancestorFeeRateSatPerVb == other.ancestorFeeRateSatPerVb &&
           ancestorCount == other.ancestorCount;
+}
+
+/// A stored descriptor ownership signature for one participating key.
+class APIDescriptorSig {
+  /// Master fingerprint (8 lowercase hex chars) of the signing key.
+  final String mfp;
+
+  /// Full descriptor key entry, e.g. `[aabbccdd/48'/0'/0'/2']xpub…`
+  final String xpubEntry;
+
+  /// Signature type, determines the verification algorithm: "bip322" | "message"
+  final String sigMethod;
+
+  /// Unix timestamp (seconds) when the signature was created.
+  final PlatformInt64 signedAt;
+
+  /// Whether the signature currently passes verification against the stored descriptor.
+  final bool isValid;
+
+  const APIDescriptorSig({
+    required this.mfp,
+    required this.xpubEntry,
+    required this.sigMethod,
+    required this.signedAt,
+    required this.isValid,
+  });
+
+  @override
+  int get hashCode =>
+      mfp.hashCode ^
+      xpubEntry.hashCode ^
+      sigMethod.hashCode ^
+      signedAt.hashCode ^
+      isValid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIDescriptorSig &&
+          runtimeType == other.runtimeType &&
+          mfp == other.mfp &&
+          xpubEntry == other.xpubEntry &&
+          sigMethod == other.sigMethod &&
+          signedAt == other.signedAt &&
+          isValid == other.isValid;
 }
 
 /// Result of [discover_accounts].

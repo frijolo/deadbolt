@@ -16,6 +16,7 @@ This document describes how Deadbolt stores, encrypts, and backs up wallet data.
 8. [Cryptographic Primitives](#cryptographic-primitives)
 9. [Independent Recovery (Without the App)](#independent-recovery-without-the-app)
 10. [Security Considerations](#security-considerations)
+11. [Descriptor Signatures](#descriptor-signatures)
 
 ---
 
@@ -223,7 +224,7 @@ CREATE TABLE seed_entries (
 );
 ```
 
-Additional Deadbolt-specific tables store labels (`tx_labels`, `address_labels`, `key_labels`, `path_labels`, `coin_labels`), saved unsigned transactions / PSBTs (`unsigned_txs`), and cached fiat prices (`fiat_prices`). All of these are created on demand and remain empty until the relevant feature is used.
+Additional Deadbolt-specific tables store labels (`tx_labels`, `address_labels`, `key_labels`, `path_labels`, `coin_labels`), saved unsigned transactions / PSBTs (`unsigned_txs`), cached fiat prices (`fiat_prices`), and descriptor ownership signatures (`descriptor_sigs`). All of these are created on demand and remain empty until the relevant feature is used.
 
 `wallet_info` stores public metadata only. `seed_entries` holds wallet-level hot signing keys; it is present in all wallets but remains empty unless the user explicitly adds a signing key.
 
@@ -426,6 +427,18 @@ These follow the [BDK SQLite schema](https://github.com/bitcoindevkit/bdk/tree/m
 - The descriptor contains extended public keys (xpubs) from which addresses can be derived, but not private keys.
 
 **Note on project seeds**: The designer (project) mode has a separate `project_seeds.db` file where hot keys can be stored at the project level. Keys can be copied from there into a specific wallet's `seed_entries` table. These are two independent encrypted stores.
+
+---
+
+## Descriptor Signatures
+
+Deadbolt allows each participating key in a wallet to produce a cryptographic proof that the owner of that key has seen and approved the exact descriptor. These proofs are stored in the `descriptor_sigs` table inside the wallet database and are included in Nostr backups.
+
+Verification is stateless — it requires only the stored `(xpub_entry, message, sig)` triple and no network access. When recovering from a Nostr backup, the app verifies any attached signatures against the recovered descriptor before presenting the result to the user.
+
+Four signing methods are supported: **Hot Key** (programmatic), **BitBox02 via USB**, **QR — PSBT** (Variant B, for any air-gapped PSBT signer), and **QR — Message** (Variant A, standard Bitcoin signed message, for Coldcard, BitBox02, Krux, etc.).
+
+For the full protocol, see [DESCRIPTOR_SIGS.md](DESCRIPTOR_SIGS.md). For the BB02-specific BIP-322 adaptation, see [BB02_BIP322.md](BB02_BIP322.md).
 
 **What is not protected**:
 - The `.meta` file is unencrypted and reveals the protection type and, for Type 1 wallets, the Argon2id salt. An attacker with the `.meta` file can launch an offline password-guessing attack against Type 1 wallets if they also have the `.db` file. Type 2 slots also contain a salt per xpub, but the xpub itself provides ~256 bits of entropy, making brute-force infeasible.

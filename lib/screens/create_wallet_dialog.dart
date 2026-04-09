@@ -100,7 +100,15 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
     if (widget.preselectedProject != null) {
       final p = widget.preselectedProject!;
       _nameController.text = p.name;
-      _selectedNetwork = APINetwork.values.byName(p.network);
+      final projectNetwork = APINetwork.values.byName(p.network);
+      if (projectNetwork == APINetwork.bitcoin) {
+        _selectedNetwork = APINetwork.bitcoin;
+      } else {
+        // For testnet projects, prefer the app's current testnet variant.
+        final appNet = context.read<SettingsCubit>().state.network;
+        _selectedNetwork =
+            (appNet != APINetwork.bitcoin) ? appNet : APINetwork.testnet;
+      }
     } else {
       _selectedNetwork = context.read<SettingsCubit>().state.network;
     }
@@ -199,6 +207,31 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
               ] else ...[
                 _buildDescriptorCard(context),
                 const SizedBox(height: 16),
+                // For testnet projects, let the user pick the destination testnet variant.
+                if (widget.preselectedProject!.network != APINetwork.bitcoin.name) ...[
+                  DropdownButtonFormField<APINetwork>(
+                    initialValue: _selectedNetwork,
+                    decoration: InputDecoration(
+                      labelText: l10n.networkLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: [
+                      APINetwork.testnet,
+                      APINetwork.testnet4,
+                      APINetwork.signet,
+                      APINetwork.regtest,
+                    ]
+                        .map((n) => DropdownMenuItem(
+                              value: n,
+                              child: Text(localizedNetworkName(context, n)),
+                            ))
+                        .toList(),
+                    onChanged: (n) {
+                      if (n != null) setState(() => _selectedNetwork = n);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ],
 
               const SizedBox(height: 16),

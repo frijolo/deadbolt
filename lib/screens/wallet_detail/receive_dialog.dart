@@ -176,7 +176,6 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
               label: Text(l10n.copyToClipboard),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: _address.address));
-                showSuccessToast(l10n.copiedToClipboard);
               },
             ),
           ),

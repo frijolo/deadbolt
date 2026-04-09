@@ -346,6 +346,18 @@
   "backupSaved": "Copia de seguridad guardada",
   "changeProtectionMenu": "Cambiar protección",
   "encryptionLabel": "Cifrado",
+  "walletSecurityLabel": "Seguridad",
+  "walletSecurityTitle": "Seguridad del wallet",
+  "encryptionSection": "Cifrado",
+  "descriptorSigsSection": "Firmas de descriptor",
+  "manageSignatures": "Gestionar firmas",
+  "goToSecurity": "Ir a seguridad",
+  "noParticipatingKeys": "No se encontraron claves participantes",
+  "descriptorSigAbsent": "Sin firmas",
+  "descriptorSigVerified": "Firmas verificadas",
+  "descriptorSigInvalid": "Firmas inválidas",
+  "descriptorSigOwnerUnsigned": "Xpub descubridora sin firma",
+  "descriptorSigUnknown": "Estado de firma desconocido",
   "walletBalanceUnknown": "–",
   "notYetSynced": "No sincronizado aún",
   "lastSynced": "Última sincronización: {time}",
@@ -1085,5 +1097,53 @@
   "coinSortAgeAsc": "Edad: más reciente primero",
 
   "reorderWallets": "Reordenar wallets",
-  "done": "Listo"
+  "reorderProjects": "Reordenar proyectos",
+  "done": "Listo",
+
+  "descriptorSigsTitle": "Firmas del Descriptor",
+  "descriptorSigsSubtitle": "Prueba la titularidad de cada clave firmando el hash del descriptor. Protege los backups de manipulaciones.",
+  "descriptorSigsSigned": "Firmado · {date}",
+  "@descriptorSigsSigned": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "descriptorSigsNotSigned": "Sin firmar",
+  "descriptorSigsInvalid": "Firma inválida",
+  "descriptorSigsSignAction": "Firmar",
+  "descriptorSigsDeleteAction": "Eliminar firma",
+  "descriptorSigsMethodHotKey": "HotKey (automático)",
+  "descriptorSigsMethodBB02": "BitBox02",
+  "descriptorSigsMethodQRMessage": "QR — Firma de mensaje",
+  "descriptorSigsMethodQRBip322": "QR — BIP322 PSBT",
+  "descriptorSigsVerifyAll": "Verificar todas",
+  "descriptorSigsConnectHw": "Conectar hardware wallet",
+  "descriptorSigsSummary": "{signed}/{total} claves firmadas",
+  "@descriptorSigsSummary": {
+    "placeholders": {
+      "signed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "descriptorSigsManage": "Gestionar firmas",
+  "descriptorSigsMessage": "Mensaje a firmar",
+  "descriptorSigsQRMessageHint": "Firma compacta base64 (65 bytes)",
+  "descriptorSigsShowPsbtQr": "Mostrar QR del PSBT (escanear con hardware wallet)",
+  "descriptorSigsQRBip322Hint": "PSBT firmado (base64 o escanear QR)",
+  "descriptorSigsSignSuccess": "Firma guardada",
+  "descriptorSigsDeleteSuccess": "Firma eliminada",
+  "descriptorSigsChooseMethod": "Elige método de firma",
+  "descriptorSigsVerified": "Verificado · {date}",
+  "@descriptorSigsVerified": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "descriptorSigsVerifyResult": "{valid} de {total} firmas válidas",
+  "@descriptorSigsVerifyResult": {
+    "placeholders": {
+      "valid": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  }
 }

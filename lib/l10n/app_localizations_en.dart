@@ -790,6 +790,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get encryptionLabel => 'Encryption';
 
   @override
+  String get walletSecurityLabel => 'Security';
+
+  @override
+  String get walletSecurityTitle => 'Wallet Security';
+
+  @override
+  String get encryptionSection => 'Encryption';
+
+  @override
+  String get descriptorSigsSection => 'Descriptor Signatures';
+
+  @override
+  String get manageSignatures => 'Manage Signatures';
+
+  @override
+  String get goToSecurity => 'Go to Security';
+
+  @override
+  String get noParticipatingKeys => 'No participating keys found';
+
+  @override
+  String get descriptorSigAbsent => 'No signatures';
+
+  @override
+  String get descriptorSigVerified => 'Signatures verified';
+
+  @override
+  String get descriptorSigInvalid => 'Invalid signatures';
+
+  @override
+  String get descriptorSigOwnerUnsigned => 'Owner xpub not signed';
+
+  @override
+  String get descriptorSigUnknown => 'Signature status unknown';
+
+  @override
   String get walletBalanceUnknown => '–';
 
   @override
@@ -2196,7 +2232,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.';
 
   @override
-  String get scanTypeAll => 'All types';
+  String get scanTypeAll => 'All';
 
   @override
   String get bip39PassphraseLabel => 'BIP39 passphrase (optional)';
@@ -2484,5 +2520,91 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reorderWallets => 'Reorder wallets';
 
   @override
+  String get reorderProjects => 'Reorder projects';
+
+  @override
   String get done => 'Done';
+
+  @override
+  String get descriptorSigsTitle => 'Descriptor Signatures';
+
+  @override
+  String get descriptorSigsSubtitle =>
+      'Prove ownership of each key by signing the descriptor hash. Protects backups from tampering.';
+
+  @override
+  String descriptorSigsSigned(String date) {
+    return 'Signed · $date';
+  }
+
+  @override
+  String get descriptorSigsNotSigned => 'Not signed';
+
+  @override
+  String get descriptorSigsInvalid => 'Invalid signature';
+
+  @override
+  String get descriptorSigsSignAction => 'Sign';
+
+  @override
+  String get descriptorSigsDeleteAction => 'Delete signature';
+
+  @override
+  String get descriptorSigsMethodHotKey => 'HotKey (automatic)';
+
+  @override
+  String get descriptorSigsMethodBB02 => 'BitBox02';
+
+  @override
+  String get descriptorSigsMethodQRMessage => 'QR — Message signing';
+
+  @override
+  String get descriptorSigsMethodQRBip322 => 'QR — BIP322 PSBT';
+
+  @override
+  String get descriptorSigsVerifyAll => 'Verify all';
+
+  @override
+  String get descriptorSigsConnectHw => 'Connect hardware wallet';
+
+  @override
+  String descriptorSigsSummary(int signed, int total) {
+    return '$signed/$total keys signed';
+  }
+
+  @override
+  String get descriptorSigsManage => 'Manage signatures';
+
+  @override
+  String get descriptorSigsMessage => 'Message to sign';
+
+  @override
+  String get descriptorSigsQRMessageHint =>
+      'Base64 compact signature (65 bytes)';
+
+  @override
+  String get descriptorSigsShowPsbtQr =>
+      'Show PSBT QR (scan with hardware wallet)';
+
+  @override
+  String get descriptorSigsQRBip322Hint => 'Signed PSBT (base64 or scan QR)';
+
+  @override
+  String get descriptorSigsSignSuccess => 'Signature stored';
+
+  @override
+  String get descriptorSigsDeleteSuccess => 'Signature deleted';
+
+  @override
+  String get descriptorSigsChooseMethod => 'Choose signing method';
+
+  @override
+  String descriptorSigsVerified(String date) {
+    return 'Verified · $date';
+  }
+
+  @override
+  String descriptorSigsVerifyResult(int valid, int total) {
+    return '$valid of $total signatures valid';
+  }
 }

@@ -139,6 +139,71 @@ impl CoreWallet {
     }
 }
 
+// ---------------------------------------------------------------------------
+// BDK wallet query utilities (used by the API layer)
+// ---------------------------------------------------------------------------
+
+/// Compute the maximum confirmation height of the UTXOs spent by `psbt`.
+/// Returns `None` if no input UTXO is confirmed.
+pub fn psbt_max_utxo_conf_height(
+    wallet: &bdk_wallet::Wallet,
+    psbt: &bdk_wallet::bitcoin::psbt::Psbt,
+) -> Option<i64> {
+    psbt.unsigned_tx
+        .input
+        .iter()
+        .filter_map(|txin| wallet.get_utxo(txin.previous_output))
+        .filter_map(|utxo| {
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = utxo.chain_position
+            {
+                Some(anchor.block_id.height as i64)
+            } else {
+                None
+            }
+        })
+        .reduce(i64::max)
+}
+
+/// True when `recipient` is one of this wallet's own addresses (self-transfer).
+pub fn is_psbt_self_transfer(wallet: &bdk_wallet::Wallet, recipient: &str) -> bool {
+    use bdk_wallet::bitcoin::Address;
+    use std::str::FromStr;
+    let Ok(addr) = Address::from_str(recipient) else {
+        return false;
+    };
+    let Ok(addr) = addr.require_network(wallet.network()) else {
+        return false;
+    };
+    wallet
+        .spk_index()
+        .index_of_spk(addr.script_pubkey())
+        .is_some()
+}
+
+/// Build the set of outpoints that are still "live": either unspent or being
+/// spent by an unconfirmed (mempool) wallet transaction.  Any PSBT input
+/// absent from this set has been confirmed-spent by another transaction and
+/// can no longer be broadcast.
+pub fn build_valid_outpoints(
+    wallet: &bdk_wallet::Wallet,
+) -> std::collections::HashSet<bdk_wallet::bitcoin::OutPoint> {
+    use bdk_wallet::chain::ChainPosition;
+    let mut valid = std::collections::HashSet::new();
+    for utxo in wallet.list_unspent() {
+        valid.insert(utxo.outpoint);
+    }
+    for tx in wallet.transactions() {
+        if matches!(tx.chain_position, ChainPosition::Unconfirmed { .. }) {
+            for txin in &tx.tx_node.tx.input {
+                if !txin.previous_output.is_null() {
+                    valid.insert(txin.previous_output);
+                }
+            }
+        }
+    }
+    valid
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

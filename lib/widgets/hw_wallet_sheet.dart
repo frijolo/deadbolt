@@ -135,6 +135,59 @@ Future<bool?> showHwVerifyAddressSheet(
   );
 }
 
+/// Shows the hardware wallet bottom sheet in **check-then-register** mode.
+///
+/// Connects the device, silently checks whether [policy] is already registered
+/// under [walletName], and only prompts the user to register on-device if it is
+/// not yet registered. Returns `true` once registered (or if already registered),
+/// or `null` if the user cancelled.
+Future<bool?> showHwCheckAndRegisterSheet(
+  BuildContext context, {
+  required String walletName,
+  required String policy,
+  required APINetwork network,
+}) {
+  return _showHwWalletSheet<bool>(
+    context,
+    mode: _HwMode.checkAndRegister,
+    walletName: walletName,
+    policy: policy,
+    network: network,
+  );
+}
+
+/// Shows the hardware wallet bottom sheet in **check-register-sign** mode.
+///
+/// Single sheet that: connects the device → silently checks registration of
+/// [policy] under [walletName] → registers on-device only if needed → signs
+/// [psbtBase64]. Returns the signed PSBT base64, or `null` if cancelled.
+Future<String?> showHwCheckRegisterAndSignSheet(
+  BuildContext context, {
+  required String psbtBase64,
+  required String walletName,
+  required String policy,
+  required APINetwork network,
+}) {
+  return _showHwWalletSheet<String>(
+    context,
+    mode: _HwMode.checkRegisterAndSign,
+    psbtBase64: psbtBase64,
+    walletName: walletName,
+    policy: policy,
+    network: network,
+  );
+}
+
+/// Shows the hardware wallet bottom sheet in **connect-only** mode.
+///
+/// Guides the user through device detection and unlock, then auto-closes
+/// leaving the active HW session available via [hwActiveSession].
+///
+/// Returns `true` once the device is ready, or `null` if the user cancelled.
+Future<bool?> showHwConnectSheet(BuildContext context) {
+  return _showHwWalletSheet<bool>(context, mode: _HwMode.connect);
+}
+
 Future<T?> _showHwWalletSheet<T>(
   BuildContext context, {
   required _HwMode mode,
@@ -169,7 +222,7 @@ Future<T?> _showHwWalletSheet<T>(
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
-enum _HwMode { sign, xpub, xpubUnlock, register, checkRegistration, verifyAddress }
+enum _HwMode { sign, xpub, xpubUnlock, register, checkRegistration, verifyAddress, connect, checkAndRegister, checkRegisterAndSign }
 
 class _HwWalletSheet<T> extends StatelessWidget {
   final _HwMode mode;
@@ -205,6 +258,63 @@ class _HwWalletSheet<T> extends StatelessWidget {
       listener: (context, state) {
         if (state is HwWalletDone) {
           final result = state.result;
+
+          // checkAndRegister: after the silent check, either pop or register.
+          if (mode == _HwMode.checkAndRegister && result is HwCheckRegistrationResult) {
+            if (result.isRegistered) {
+              Navigator.of(context).pop(true);
+            } else {
+              context.read<HwWalletCubit>().registerDescriptor(
+                sessionId: state.sessionId,
+                productString: state.productString,
+                rootFingerprint: state.rootFingerprint,
+                walletName: walletName!,
+                policy: policy!,
+                network: network,
+              );
+            }
+            return;
+          }
+
+          // checkRegisterAndSign: check → [register if needed] → sign.
+          if (mode == _HwMode.checkRegisterAndSign) {
+            final cubit = context.read<HwWalletCubit>();
+            if (result is HwCheckRegistrationResult) {
+              if (!result.isRegistered) {
+                cubit.registerDescriptor(
+                  sessionId: state.sessionId,
+                  productString: state.productString,
+                  rootFingerprint: state.rootFingerprint,
+                  walletName: walletName!,
+                  policy: policy!,
+                  network: network,
+                );
+              } else {
+                cubit.signPsbt(
+                  sessionId: state.sessionId,
+                  productString: state.productString,
+                  rootFingerprint: state.rootFingerprint,
+                  psbtBase64: psbtBase64!,
+                  network: network,
+                  descriptor: policy,
+                );
+              }
+              return;
+            }
+            if (result is HwRegisteredResult) {
+              cubit.signPsbt(
+                sessionId: state.sessionId,
+                productString: state.productString,
+                rootFingerprint: state.rootFingerprint,
+                psbtBase64: psbtBase64!,
+                network: network,
+                descriptor: policy,
+              );
+              return;
+            }
+            // HwSignedPsbtResult falls through to the generic pop below.
+          }
+
           T? returnValue;
           if (result is HwSignedPsbtResult && T == String) {
             returnValue = result.signedPsbtBase64 as T?;
@@ -256,6 +366,9 @@ class _HwWalletSheet<T> extends StatelessWidget {
         _HwMode.register => 'Register wallet on hardware device',
         _HwMode.checkRegistration => 'Check registration on device',
         _HwMode.verifyAddress => 'Verify address on device',
+        _HwMode.connect => 'Connect hardware wallet',
+        _HwMode.checkAndRegister => 'Register wallet on hardware device',
+        _HwMode.checkRegisterAndSign => 'Sign with hardware wallet',
       };
 
   Widget _buildBody(BuildContext context, HwWalletState state) {
@@ -403,6 +516,30 @@ class _HwWalletSheet<T> extends StatelessWidget {
             index: index!,
           );
         }
+      case _HwMode.connect:
+        Navigator.of(context).pop(true);
+      case _HwMode.checkAndRegister:
+        // Silently check first; the listener handles the register-or-pop logic.
+        if (policy != null) {
+          cubit.checkRegistration(
+            sessionId: sessionId,
+            productString: productString,
+            rootFingerprint: rootFingerprint,
+            descriptor: policy!,
+            network: network,
+          );
+        }
+      case _HwMode.checkRegisterAndSign:
+        // Silently check; the listener chains register (if needed) then sign.
+        if (policy != null) {
+          cubit.checkRegistration(
+            sessionId: sessionId,
+            productString: productString,
+            rootFingerprint: rootFingerprint,
+            descriptor: policy!,
+            network: network,
+          );
+        }
     }
   }
 }
@@ -541,6 +678,9 @@ class _ReadyPanel extends StatelessWidget {
       _HwMode.checkRegistration => 'Check registration',
       _HwMode.verifyAddress => 'Show address on device',
       _HwMode.xpubUnlock => 'Unlock wallet',
+      _HwMode.connect => context.l10n.done,
+      _HwMode.checkAndRegister => 'Register wallet',
+      _HwMode.checkRegisterAndSign => 'Sign',
     };
 
     return Column(

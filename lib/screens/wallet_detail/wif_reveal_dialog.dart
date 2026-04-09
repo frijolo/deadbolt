@@ -6,7 +6,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 /// Shows a confirmation dialog before revealing WIF, then opens [_WifDisplayDialog].
@@ -265,7 +264,6 @@ class _WifDisplayDialog extends StatelessWidget {
           onPressed: () {
             Clipboard.setData(ClipboardData(text: wif));
             Navigator.of(context).pop();
-            showSuccessToast(l10n.copiedToClipboard);
           },
         ),
         TextButton(

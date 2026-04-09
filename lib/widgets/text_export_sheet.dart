@@ -29,6 +29,15 @@ bool get _isMobileExport =>
 // Content byte length above which the animated switch defaults to ON.
 const int _kMaxPlainQrChars = 2800;
 
+final _bcurSeqRe = RegExp(r'/(\d+)-(\d+)/');
+
+(int, int) _parseBcurSeqInfo(String fragment) {
+  final match = _bcurSeqRe.firstMatch(fragment);
+  if (match == null) return (1, 1);
+  return (int.tryParse(match.group(1)!) ?? 1,
+          int.tryParse(match.group(2)!) ?? 1);
+}
+
 // QR version 40 at M error-correction holds 2331 bytes.
 // Above this the data cannot fit in a static QR code at the M level we use.
 const int _kQrHardMax = 2331;
@@ -90,7 +99,6 @@ void showTextExportSheet(
             onTap: () {
               Navigator.pop(ctx);
               Clipboard.setData(ClipboardData(text: text));
-              showSuccessToast(copiedMessage);
             },
           ),
           ListTile(
@@ -178,7 +186,6 @@ void showPsbtExportSheet(
             onTap: () {
               Navigator.pop(ctx);
               Clipboard.setData(ClipboardData(text: psbtBase64));
-              showSuccessToast(l10n.psbtExportedCopied);
             },
           ),
           ListTile(
@@ -314,6 +321,110 @@ Future<void> _saveWithFilePicker(
 }
 
 // ---------------------------------------------------------------------------
+// Inline animated BC-UR QR widget (embeddable in sheets / screens)
+// ---------------------------------------------------------------------------
+
+/// A self-contained animated BC-UR QR code widget.
+///
+/// Starts animating immediately with default density and speed settings.
+/// Suitable for embedding inside bottom sheets or screens where the user
+/// should not need to tap to see the animated frames.
+class BcurQrView extends StatefulWidget {
+  final Uint8List urBytes;
+  final String urType;
+
+  const BcurQrView({
+    super.key,
+    required this.urBytes,
+    required this.urType,
+  });
+
+  @override
+  State<BcurQrView> createState() => _BcurQrViewState();
+}
+
+class _BcurQrViewState extends State<BcurQrView> {
+  BCURFountainEncoder? _encoder;
+  String _currentFrame = '';
+  int _seqIndex = 0;
+  int _seqTotal = 1;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startEncoder();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startEncoder() {
+    _timer?.cancel();
+    final bcur = BCUR.fromData(widget.urType, widget.urBytes);
+    final fragSize =
+        _densityLevel(_kDensityDefault).fragBytes.clamp(1, widget.urBytes.length);
+    _encoder = BCURFountainEncoder(bcur, maxFragmentLength: fragSize);
+    _currentFrame = _encoder!.nextPart();
+    final (_, total) = _parseBcurSeqInfo(_currentFrame);
+    _seqTotal = total;
+    _seqIndex = 0;
+    _timer = Timer.periodic(
+      Duration(milliseconds: _speedLevel(_kSpeedDefault).intervalMs),
+      (_) {
+        if (!mounted) return;
+        final frame = _encoder!.nextPart();
+        final (seqnum, seqtotal) = _parseBcurSeqInfo(frame);
+        setState(() {
+          _currentFrame = frame;
+          _seqIndex = (seqnum - 1) % seqtotal;
+          _seqTotal = seqtotal;
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        LayoutBuilder(
+          builder: (ctx, constraints) {
+            final side = constraints.maxWidth;
+            return QrImageView(
+              data: _currentFrame,
+              version: QrVersions.auto,
+              errorCorrectionLevel: QrErrorCorrectLevel.L,
+              backgroundColor: Colors.white,
+              size: side,
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: (_seqIndex + 1) / _seqTotal,
+          backgroundColor: Colors.white12,
+          color: AppAccent.color,
+          minHeight: 3,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${_seqIndex + 1} / $_seqTotal',
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: AppAccent.color),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // QR dialog (full-screen)
 // ---------------------------------------------------------------------------
 
@@ -371,14 +482,14 @@ class _QrDialogState extends State<_QrDialog> {
     final fragSize = _densityLevel(_densityIdx).fragBytes.clamp(1, bytes.length);
     _encoder = BCURFountainEncoder(bcur, maxFragmentLength: fragSize);
     _currentFrame = _encoder!.nextPart();
-    final (_, total) = _parseSeqInfo(_currentFrame);
+    final (_, total) = _parseBcurSeqInfo(_currentFrame);
     _seqTotal = total;
     _seqIndex = 0;
     final intervalMs = _speedLevel(_speedIdx).intervalMs;
     _timer = Timer.periodic(Duration(milliseconds: intervalMs), (_) {
       if (!mounted) return;
       final frame = _encoder!.nextPart();
-      final (seqnum, seqtotal) = _parseSeqInfo(frame);
+      final (seqnum, seqtotal) = _parseBcurSeqInfo(frame);
       setState(() {
         _currentFrame = frame;
         _seqIndex = (seqnum - 1) % seqtotal;
@@ -397,14 +508,6 @@ class _QrDialogState extends State<_QrDialog> {
       _encoder = null;
       setState(() => _isAnimated = false);
     }
-  }
-
-  (int, int) _parseSeqInfo(String fragment) {
-    final match = RegExp(r'/(\d+)-(\d+)/').firstMatch(fragment);
-    if (match == null) return (1, 1);
-    final n = int.tryParse(match.group(1)!) ?? 1;
-    final m = int.tryParse(match.group(2)!) ?? 1;
-    return (n, m);
   }
 
   /// Slider with a title on the left and always-visible level labels below the track.

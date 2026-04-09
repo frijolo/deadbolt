@@ -203,7 +203,7 @@ class _OverviewViewState extends State<OverviewView> {
           _ActionButton(icon: Icons.upload_outlined, label: l10n.exportBip329Button, onTap: widget.onExportLabelsTap),
           _ActionButton(icon: Icons.download_outlined, label: l10n.importBip329Button, onTap: widget.onImportLabelsTap),
           _ActionButton(icon: Icons.memory, label: l10n.hwWalletTitle, onTap: widget.onHwTap),
-          _ActionButton(icon: Icons.shield_outlined, label: l10n.encryptionLabel, onTap: widget.onChangeProtectionTap),
+          _ActionButton(icon: Icons.security, label: l10n.walletSecurityLabel, onTap: widget.onChangeProtectionTap),
         ]),
 
         // ── Inheritance status card (below actions — advanced info) ─────────

@@ -18,7 +18,9 @@ use crate::core::project_seeds::{
     delete_project_seed_entry, insert_project_seed_entry, list_project_seed_entries,
     open_project_seeds_db, reveal_project_seed_value,
 };
-use crate::core::wallet::CoreWallet;
+use crate::core::wallet::{
+    build_valid_outpoints, is_psbt_self_transfer, psbt_max_utxo_conf_height, CoreWallet,
+};
 use crate::core::wallet_info::{
     add_xpub_slot_to_wallet, build_protection_meta, create_wallet_db, generate_uuid_v4,
     get_wallet_info_from_file, list_wallets_in_dir, refresh_user_password_meta_cache,
@@ -27,20 +29,21 @@ use crate::core::wallet_info::{
 };
 use crate::core::wallet_meta::{delete_meta, read_meta, write_meta};
 use crate::core::wallet_persistence::{
-    address_has_explicit_label, clear_fiat_prices as clear_fiat_prices_db, coin_has_explicit_label,
-    delete_psbt_row, delete_seed_entry, ensure_unsigned_txs_table, get_address_label_with_flag,
+    cascade_delete_label, clear_fiat_prices as clear_fiat_prices_db, delete_psbt_row,
+    delete_seed_entry, ensure_unsigned_txs_table, get_address_label_with_flag,
     get_all_address_labels_with_flag, get_all_coin_labels_with_flag, get_all_key_labels,
     get_all_path_labels, get_all_tx_labels_with_flag, get_coin_label_with_flag,
     get_fiat_prices as get_fiat_prices_db, get_psbt_row, get_psbt_row_by_txid,
     get_tx_label_with_flag, insert_psbt, insert_seed_entry, list_psbt_rows, list_seed_entries,
-    open_encrypted_connection, read_wallet_info, set_address_label as db_set_address_label,
-    set_coin_label as db_set_coin_label, set_key_label as db_set_key_label,
-    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label,
-    store_fiat_price as store_fiat_price_db, touch_last_synced, tx_has_explicit_label,
-    update_psbt_data, update_psbt_label, PsbtRow, WalletInfoRow,
+    open_encrypted_connection, propagate_label, read_wallet_info,
+    set_address_label as db_set_address_label, set_coin_label as db_set_coin_label,
+    set_key_label as db_set_key_label, set_path_label as db_set_path_label,
+    set_tx_label as db_set_tx_label, store_fiat_price as store_fiat_price_db, touch_last_synced,
+    tx_has_explicit_label, update_psbt_data, update_psbt_label, EntityType, PsbtRow, WalletInfoRow,
 };
 
 pub mod backup;
+pub mod descriptor_sig;
 pub mod discovery;
 mod labels;
 pub mod nostr_backup;
@@ -49,6 +52,7 @@ mod psbt;
 mod queries;
 
 pub use backup::*;
+pub use descriptor_sig::APIPrepareDescriptorSigPsbt;
 pub use discovery::*;
 pub use nostr_backup::*;
 
@@ -211,43 +215,6 @@ fn xpub_slots_from_descriptor(descriptor: &str) -> Result<Vec<(String, String, S
         .collect())
 }
 
-/// Compute the maximum confirmation height of the UTXOs spent by `psbt`.
-/// Returns `None` if no input UTXO is confirmed.
-fn psbt_max_utxo_conf_height(
-    wallet: &bdk_wallet::Wallet,
-    psbt: &bdk_wallet::bitcoin::psbt::Psbt,
-) -> Option<i64> {
-    psbt.unsigned_tx
-        .input
-        .iter()
-        .filter_map(|txin| wallet.get_utxo(txin.previous_output))
-        .filter_map(|utxo| {
-            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = utxo.chain_position
-            {
-                Some(anchor.block_id.height as i64)
-            } else {
-                None
-            }
-        })
-        .reduce(i64::max)
-}
-
-/// True when `recipient` is one of this wallet's own addresses (self-transfer).
-fn is_psbt_self_transfer(wallet: &bdk_wallet::Wallet, recipient: &str) -> bool {
-    use bdk_wallet::bitcoin::Address;
-    use std::str::FromStr;
-    let Ok(addr) = Address::from_str(recipient) else {
-        return false;
-    };
-    let Ok(addr) = addr.require_network(wallet.network()) else {
-        return false;
-    };
-    wallet
-        .spk_index()
-        .index_of_spk(addr.script_pubkey())
-        .is_some()
-}
-
 /// Compute the effective display label for a PSBT.
 /// Own label takes priority; falls back to the recipient address label.
 fn psbt_effective_label(
@@ -262,30 +229,6 @@ fn psbt_effective_label(
             (el, ia)
         }
     }
-}
-
-/// Build the set of outpoints that are still "live": either unspent or being
-/// spent by an unconfirmed (mempool) wallet transaction.  Any PSBT input
-/// absent from this set has been confirmed-spent by another transaction and
-/// can no longer be broadcast.
-fn build_valid_outpoints(
-    wallet: &bdk_wallet::Wallet,
-) -> std::collections::HashSet<bdk_wallet::bitcoin::OutPoint> {
-    use bdk_wallet::chain::ChainPosition;
-    let mut valid = std::collections::HashSet::new();
-    for utxo in wallet.list_unspent() {
-        valid.insert(utxo.outpoint);
-    }
-    for tx in wallet.transactions() {
-        if matches!(tx.chain_position, ChainPosition::Unconfirmed { .. }) {
-            for txin in &tx.tx_node.tx.input {
-                if !txin.previous_output.is_null() {
-                    valid.insert(txin.previous_output);
-                }
-            }
-        }
-    }
-    valid
 }
 
 fn row_to_api_psbt(
@@ -390,242 +333,6 @@ fn protection_for_path(wallet_path: &str) -> APIWalletProtection {
             security_level: APISecurityLevel::Standard,
         },
     }
-}
-
-// ---------------------------------------------------------------------------
-// Label propagation helpers
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum EntityType {
-    Tx,
-    Address,
-    Coin,
-}
-
-/// Build a canonical source_entity identifier for the given entity type and id.
-/// Format: `"tx:{txid}"`, `"addr:{address}"`, or `"coin:{txid}:{vout}"`.
-fn source_entity_id(source_type: EntityType, source_id: &str) -> String {
-    match source_type {
-        EntityType::Tx => format!("tx:{}", source_id),
-        EntityType::Address => format!("addr:{}", source_id),
-        EntityType::Coin => format!("coin:{}", source_id),
-    }
-}
-
-/// Set a coin auto-label only if the coin has no explicit label.
-fn set_coin_if_none(
-    conn: &rusqlite::Connection,
-    outpoint: &str,
-    label: &str,
-    source: &str,
-) -> Result<()> {
-    if !coin_has_explicit_label(conn, outpoint)? {
-        db_set_coin_label(conn, outpoint, label, true, Some(source))?;
-    }
-    Ok(())
-}
-
-/// Set an address auto-label only if the address has no explicit label.
-fn set_address_if_none(
-    conn: &rusqlite::Connection,
-    address: &str,
-    label: &str,
-    source: &str,
-) -> Result<()> {
-    if !address_has_explicit_label(conn, address)? {
-        db_set_address_label(conn, address, label, true, Some(source))?;
-    }
-    Ok(())
-}
-
-/// Set a tx auto-label only if the tx has no explicit label.
-fn set_tx_if_none(
-    conn: &rusqlite::Connection,
-    txid: &str,
-    label: &str,
-    source: &str,
-) -> Result<()> {
-    if !tx_has_explicit_label(conn, txid)? {
-        db_set_tx_label(conn, txid, label, true, Some(source))?;
-    }
-    Ok(())
-}
-
-/// Delete all auto-labels that were propagated from `source` across all three label tables.
-fn clear_source_labels(conn: &rusqlite::Connection, source: &str) -> Result<()> {
-    for table in ["tx_labels", "address_labels", "coin_labels"] {
-        conn.execute(
-            &format!("DELETE FROM {table} WHERE source_entity = ?1"),
-            rusqlite::params![source],
-        )?;
-    }
-    Ok(())
-}
-
-/// Propagate a label to related entities as auto-generated labels.
-/// Clears any stale auto-labels previously propagated by this source first,
-/// then writes new ones — skipping targets that already have an explicit label.
-fn propagate_label(
-    conn: &rusqlite::Connection,
-    wallet: &bdk_wallet::Wallet,
-    source_type: EntityType,
-    source_id: &str,
-    label: &str,
-) -> Result<()> {
-    let source = source_entity_id(source_type, source_id);
-
-    // Remove stale auto-labels from this source before re-propagating.
-    clear_source_labels(conn, &source)?;
-
-    match source_type {
-        EntityType::Tx => {
-            let txid = source_id;
-            let spk_index = wallet.spk_index();
-            // Find the tx and propagate to all wallet-owned inputs and outputs.
-            if let Some(canonical_tx) = wallet
-                .transactions()
-                .find(|t| t.tx_node.txid.to_string() == txid)
-            {
-                let tx_ref = &canonical_tx.tx_node.tx;
-                // Outputs owned by our wallet.
-                for (vout_idx, output) in tx_ref.output.iter().enumerate() {
-                    let Some((keychain, derivation_index)) =
-                        spk_index.index_of_spk(output.script_pubkey.clone())
-                    else {
-                        continue;
-                    };
-                    let address = wallet
-                        .peek_address(*keychain, *derivation_index)
-                        .address
-                        .to_string();
-                    let outpoint_str = format!("{}:{}", txid, vout_idx);
-                    set_coin_if_none(conn, &outpoint_str, label, &source)?;
-                    set_address_if_none(conn, &address, label, &source)?;
-                }
-                // Inputs from our wallet (spent coins).
-                for input in tx_ref.input.iter() {
-                    let prev_out = input.previous_output;
-                    let Some(prev_txout) = wallet.tx_graph().get_txout(prev_out) else {
-                        continue;
-                    };
-                    let Some((keychain, derivation_index)) =
-                        spk_index.index_of_spk(prev_txout.script_pubkey.clone())
-                    else {
-                        continue;
-                    };
-                    let address = wallet
-                        .peek_address(*keychain, *derivation_index)
-                        .address
-                        .to_string();
-                    let outpoint_str = format!("{}:{}", prev_out.txid, prev_out.vout);
-                    set_coin_if_none(conn, &outpoint_str, label, &source)?;
-                    set_address_if_none(conn, &address, label, &source)?;
-                }
-            }
-        }
-        EntityType::Address => {
-            use bdk_wallet::KeychainKind;
-            let address = source_id;
-            let spk_index = wallet.spk_index();
-            // Find keychain + index for this address.
-            let maybe_info = [KeychainKind::External, KeychainKind::Internal]
-                .iter()
-                .find_map(|&k| {
-                    spk_index
-                        .revealed_keychain_spks(k)
-                        .find(|(i, _)| wallet.peek_address(k, *i).address.to_string() == address)
-                        .map(|(i, _)| (k, i))
-                });
-            if let Some((keychain, idx)) = maybe_info {
-                // Collect all outpoints at this address (creating txs + coins).
-                let mut our_outpoints: std::collections::HashSet<(String, u32)> =
-                    std::collections::HashSet::new();
-                for canonical_tx in wallet.transactions() {
-                    for (vout_idx, output) in canonical_tx.tx_node.tx.output.iter().enumerate() {
-                        if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
-                            if *k == keychain && *i == idx {
-                                let txid = canonical_tx.tx_node.txid.to_string();
-                                our_outpoints.insert((txid.clone(), vout_idx as u32));
-                                // Label the coin.
-                                let outpoint_str = format!("{}:{}", txid, vout_idx);
-                                set_coin_if_none(conn, &outpoint_str, label, &source)?;
-                                // Label the creating tx.
-                                set_tx_if_none(conn, &txid, label, &source)?;
-                            }
-                        }
-                    }
-                }
-                // Also label any tx that spends our outpoints.
-                for canonical_tx in wallet.transactions() {
-                    for input in canonical_tx.tx_node.tx.input.iter() {
-                        let prev = (
-                            input.previous_output.txid.to_string(),
-                            input.previous_output.vout,
-                        );
-                        if our_outpoints.contains(&prev) {
-                            let spending_txid = canonical_tx.tx_node.txid.to_string();
-                            set_tx_if_none(conn, &spending_txid, label, &source)?;
-                        }
-                    }
-                }
-            }
-        }
-        EntityType::Coin => {
-            let outpoint = source_id;
-            let parts: Vec<&str> = outpoint.split(':').collect();
-            if parts.len() == 2 {
-                let txid = parts[0];
-                // Label the creating tx.
-                set_tx_if_none(conn, txid, label, &source)?;
-                if let Ok(vout) = parts[1].parse::<u32>() {
-                    let spk_index = wallet.spk_index();
-                    // Find the address via tx_graph (works for both spent and unspent).
-                    use bdk_wallet::bitcoin::OutPoint;
-                    use std::str::FromStr;
-                    if let Ok(txid_bitcoin) = bdk_wallet::bitcoin::Txid::from_str(txid) {
-                        let target_outpoint = OutPoint::new(txid_bitcoin, vout);
-                        if let Some(prev_txout) = wallet.tx_graph().get_txout(target_outpoint) {
-                            if let Some((keychain, derivation_index)) =
-                                spk_index.index_of_spk(prev_txout.script_pubkey.clone())
-                            {
-                                let address = wallet
-                                    .peek_address(*keychain, *derivation_index)
-                                    .address
-                                    .to_string();
-                                set_address_if_none(conn, &address, label, &source)?;
-                            }
-                        }
-                        // Label any tx that spends this coin.
-                        for canonical_tx in wallet.transactions() {
-                            if canonical_tx
-                                .tx_node
-                                .tx
-                                .input
-                                .iter()
-                                .any(|i| i.previous_output == target_outpoint)
-                            {
-                                let spending_txid = canonical_tx.tx_node.txid.to_string();
-                                set_tx_if_none(conn, &spending_txid, label, &source)?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Cascade delete: remove all auto-labels that were propagated from the given entity.
-/// Uses source_entity matching — safe even when multiple entities share the same label text.
-fn cascade_delete_label(
-    conn: &rusqlite::Connection,
-    source_type: EntityType,
-    source_id: &str,
-) -> Result<()> {
-    let source = source_entity_id(source_type, source_id);
-    clear_source_labels(conn, &source)
 }
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
@@ -1424,9 +1131,6 @@ impl APIWallet {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod bip322_poc;
 
 #[cfg(test)]
 mod tests {

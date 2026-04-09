@@ -135,6 +135,8 @@ class _ToastOverlayState extends State<_ToastOverlay>
   late final AnimationController _ctrl;
   late final CurvedAnimation _opacity;
   Timer? _timer;
+  Offset _drag = Offset.zero;
+  bool _dismissed = false;
 
   @override
   void initState() {
@@ -146,10 +148,22 @@ class _ToastOverlayState extends State<_ToastOverlay>
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
 
+    _scheduleDismiss();
+  }
+
+  void _scheduleDismiss() {
+    _timer?.cancel();
     final fadeDelay = widget.duration - const Duration(milliseconds: 250);
     _timer = Timer(fadeDelay > Duration.zero ? fadeDelay : widget.duration, () {
-      if (mounted) _ctrl.reverse().then((_) => widget.onDismiss());
+      if (mounted && !_dismissed) _ctrl.reverse().then((_) => widget.onDismiss());
     });
+  }
+
+  void _dismiss() {
+    if (_dismissed) return;
+    _dismissed = true;
+    _timer?.cancel();
+    widget.onDismiss();
   }
 
   @override
@@ -162,46 +176,79 @@ class _ToastOverlayState extends State<_ToastOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.viewInsetsOf(context).bottom + 16.0;
+    // viewInsetsOf covers keyboard; paddingOf covers safe area (home indicator,
+    // nav bar). When keyboard is open paddingOf.bottom collapses to 0, so the
+    // sum is always correct.
+    final bottom = MediaQuery.viewInsetsOf(context).bottom +
+        MediaQuery.paddingOf(context).bottom +
+        16.0;
 
     return Positioned(
       bottom: bottom,
       left: 16,
       right: 16,
-      child: FadeTransition(
-        opacity: _opacity,
-        child: Material(
-          color: widget.backgroundColor,
-          borderRadius: BorderRadius.circular(4),
-          elevation: 6,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(widget.icon, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.message,
-                    style: const TextStyle(color: Colors.white),
-                  ),
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            final dx = _drag.dx + details.delta.dx;
+            // Horizontal: free movement in both directions.
+            // Vertical: only allow downward drag.
+            final dy = (_drag.dy + details.delta.dy).clamp(0.0, double.infinity);
+            _drag = Offset(dx, dy);
+          });
+        },
+        onPanEnd: (details) {
+          final vx = details.velocity.pixelsPerSecond.dx.abs();
+          final vy = details.velocity.pixelsPerSecond.dy;
+          if (_drag.dx.abs() > 80 || vx > 400 || _drag.dy > 48 || vy > 300) {
+            _dismiss();
+          } else {
+            setState(() => _drag = Offset.zero);
+            // Resume auto-dismiss timer on cancelled swipe.
+            _scheduleDismiss();
+          }
+        },
+        child: Transform.translate(
+          offset: _drag,
+          child: FadeTransition(
+            opacity: _opacity,
+            child: Material(
+              color: widget.backgroundColor,
+              borderRadius: BorderRadius.circular(4),
+              elevation: 6,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(widget.icon, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.message,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    if (widget.onCopy != null) ...[
+                      IconButton(
+                        icon: const Icon(Icons.copy,
+                            color: Colors.white, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: widget.onCopy,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    IconButton(
+                      icon: const Icon(Icons.close,
+                          color: Colors.white, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: _dismiss,
+                    ),
+                  ],
                 ),
-                if (widget.onCopy != null) ...[
-                  IconButton(
-                    icon: const Icon(Icons.copy, color: Colors.white, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: widget.onCopy,
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: widget.onDismiss,
-                ),
-              ],
+              ),
             ),
           ),
         ),

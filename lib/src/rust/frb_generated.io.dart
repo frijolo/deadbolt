@@ -9,6 +9,7 @@ import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
 import 'api/wallet/backup.dart';
+import 'api/wallet/descriptor_sig.dart';
 import 'api/wallet/discovery.dart';
 import 'api/wallet/nostr_backup.dart';
 import 'api/wif_sweep.dart';
@@ -117,6 +118,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIDescriptorScanResult dco_decode_api_descriptor_scan_result(dynamic raw);
 
   @protected
+  APIDescriptorSig dco_decode_api_descriptor_sig(dynamic raw);
+
+  @protected
+  APIDescriptorSigVerification dco_decode_api_descriptor_sig_verification(
+    dynamic raw,
+  );
+
+  @protected
   APIDiscoveredAccounts dco_decode_api_discovered_accounts(dynamic raw);
 
   @protected
@@ -151,6 +160,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIPolicyPath dco_decode_api_policy_path(dynamic raw);
+
+  @protected
+  APIPrepareDescriptorSigPsbt dco_decode_api_prepare_descriptor_sig_psbt(
+    dynamic raw,
+  );
 
   @protected
   APIProtectionType dco_decode_api_protection_type(dynamic raw);
@@ -246,6 +260,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAbsoluteTimelock dco_decode_box_autoadd_api_absolute_timelock(dynamic raw);
 
   @protected
+  APIDescriptorSigVerification
+  dco_decode_box_autoadd_api_descriptor_sig_verification(dynamic raw);
+
+  @protected
   APIHwSessionInfo dco_decode_box_autoadd_api_hw_session_info(dynamic raw);
 
   @protected
@@ -292,6 +310,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APICoinControl> dco_decode_list_api_coin_control(dynamic raw);
+
+  @protected
+  List<APIDescriptorSig> dco_decode_list_api_descriptor_sig(dynamic raw);
 
   @protected
   List<APIFiatPrice> dco_decode_list_api_fiat_price(dynamic raw);
@@ -396,6 +417,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  APIDescriptorSigVerification?
+  dco_decode_opt_box_autoadd_api_descriptor_sig_verification(dynamic raw);
 
   @protected
   APIHwSessionInfo? dco_decode_opt_box_autoadd_api_hw_session_info(dynamic raw);
@@ -530,6 +555,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIDescriptorSig sse_decode_api_descriptor_sig(SseDeserializer deserializer);
+
+  @protected
+  APIDescriptorSigVerification sse_decode_api_descriptor_sig_verification(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIDiscoveredAccounts sse_decode_api_discovered_accounts(
     SseDeserializer deserializer,
   );
@@ -570,6 +603,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIPolicyPath sse_decode_api_policy_path(SseDeserializer deserializer);
+
+  @protected
+  APIPrepareDescriptorSigPsbt sse_decode_api_prepare_descriptor_sig_psbt(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIProtectionType sse_decode_api_protection_type(
@@ -685,6 +723,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIDescriptorSigVerification
+  sse_decode_box_autoadd_api_descriptor_sig_verification(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIHwSessionInfo sse_decode_box_autoadd_api_hw_session_info(
     SseDeserializer deserializer,
   );
@@ -739,6 +783,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APICoinControl> sse_decode_list_api_coin_control(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIDescriptorSig> sse_decode_list_api_descriptor_sig(
     SseDeserializer deserializer,
   );
 
@@ -885,6 +934,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  APIDescriptorSigVerification?
+  sse_decode_opt_box_autoadd_api_descriptor_sig_verification(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APIHwSessionInfo? sse_decode_opt_box_autoadd_api_hw_session_info(
@@ -1047,6 +1102,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_descriptor_sig(
+    APIDescriptorSig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_descriptor_sig_verification(
+    APIDescriptorSigVerification self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_discovered_accounts(
     APIDiscoveredAccounts self,
     SseSerializer serializer,
@@ -1096,6 +1163,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_api_policy_path(APIPolicyPath self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_api_prepare_descriptor_sig_psbt(
+    APIPrepareDescriptorSigPsbt self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_api_protection_type(
@@ -1242,6 +1315,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_api_descriptor_sig_verification(
+    APIDescriptorSigVerification self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_api_hw_session_info(
     APIHwSessionInfo self,
     SseSerializer serializer,
@@ -1308,6 +1387,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_coin_control(
     List<APICoinControl> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_descriptor_sig(
+    List<APIDescriptorSig> self,
     SseSerializer serializer,
   );
 
@@ -1505,6 +1590,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_descriptor_sig_verification(
+    APIDescriptorSigVerification? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_api_hw_session_info(

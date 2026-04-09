@@ -352,6 +352,18 @@
   "backupSaved": "Backup saved",
   "changeProtectionMenu": "Change protection",
   "encryptionLabel": "Encryption",
+  "walletSecurityLabel": "Security",
+  "walletSecurityTitle": "Wallet Security",
+  "encryptionSection": "Encryption",
+  "descriptorSigsSection": "Descriptor Signatures",
+  "manageSignatures": "Manage Signatures",
+  "goToSecurity": "Go to Security",
+  "noParticipatingKeys": "No participating keys found",
+  "descriptorSigAbsent": "No signatures",
+  "descriptorSigVerified": "Signatures verified",
+  "descriptorSigInvalid": "Invalid signatures",
+  "descriptorSigOwnerUnsigned": "Owner xpub not signed",
+  "descriptorSigUnknown": "Signature status unknown",
   "walletBalanceUnknown": "–",
   "notYetSynced": "Not yet synced",
   "lastSynced": "Last synced: {time}",
@@ -992,7 +1004,7 @@
   "importFromNostrBackup": "Restore from Nostr",
   "nostrImportTamperTitle": "Verify after import",
   "nostrImportTamperBody": "Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.",
-  "scanTypeAll": "All types",
+  "scanTypeAll": "All",
   "bip39PassphraseLabel": "BIP39 passphrase (optional)",
   "pressBackAgainToExit": "Press back again to exit",
   "feeHistogramTitle": "Next block fees",
@@ -1098,5 +1110,53 @@
   "coinSortAgeAsc": "Age: newest first",
 
   "reorderWallets": "Reorder wallets",
-  "done": "Done"
+  "reorderProjects": "Reorder projects",
+  "done": "Done",
+
+  "descriptorSigsTitle": "Descriptor Signatures",
+  "descriptorSigsSubtitle": "Prove ownership of each key by signing the descriptor hash. Protects backups from tampering.",
+  "descriptorSigsSigned": "Signed · {date}",
+  "@descriptorSigsSigned": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "descriptorSigsNotSigned": "Not signed",
+  "descriptorSigsInvalid": "Invalid signature",
+  "descriptorSigsSignAction": "Sign",
+  "descriptorSigsDeleteAction": "Delete signature",
+  "descriptorSigsMethodHotKey": "HotKey (automatic)",
+  "descriptorSigsMethodBB02": "BitBox02",
+  "descriptorSigsMethodQRMessage": "QR — Message signing",
+  "descriptorSigsMethodQRBip322": "QR — BIP322 PSBT",
+  "descriptorSigsVerifyAll": "Verify all",
+  "descriptorSigsConnectHw": "Connect hardware wallet",
+  "descriptorSigsSummary": "{signed}/{total} keys signed",
+  "@descriptorSigsSummary": {
+    "placeholders": {
+      "signed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "descriptorSigsManage": "Manage signatures",
+  "descriptorSigsMessage": "Message to sign",
+  "descriptorSigsQRMessageHint": "Base64 compact signature (65 bytes)",
+  "descriptorSigsShowPsbtQr": "Show PSBT QR (scan with hardware wallet)",
+  "descriptorSigsQRBip322Hint": "Signed PSBT (base64 or scan QR)",
+  "descriptorSigsSignSuccess": "Signature stored",
+  "descriptorSigsDeleteSuccess": "Signature deleted",
+  "descriptorSigsChooseMethod": "Choose signing method",
+  "descriptorSigsVerified": "Verified · {date}",
+  "@descriptorSigsVerified": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "descriptorSigsVerifyResult": "{valid} of {total} signatures valid",
+  "@descriptorSigsVerifyResult": {
+    "placeholders": {
+      "valid": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  }
 }

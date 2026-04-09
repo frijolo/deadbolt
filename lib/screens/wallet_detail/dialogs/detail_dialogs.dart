@@ -12,7 +12,6 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
-import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
@@ -435,7 +434,6 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: outpoint));
-                        showSuccessToast(l10n.copiedToClipboard);
                       },
                     ),
                   ],
@@ -743,7 +741,6 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                       tooltip: l10n.copyToClipboard,
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: tx.txid));
-                        showSuccessToast(l10n.copiedToClipboard);
                       },
                     ),
                   ],

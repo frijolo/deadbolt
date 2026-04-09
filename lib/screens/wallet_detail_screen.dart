@@ -21,7 +21,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
-import 'package:deadbolt/screens/change_protection_dialog.dart';
+import 'package:deadbolt/screens/wallet_security_screen.dart';
 import 'package:deadbolt/screens/export_backup_dialog.dart'
     show showExportBackupDialog;
 import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
@@ -223,10 +223,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         context.read<WalletDetailCubit>().lockWallet();
         Navigator.of(context).pop();
       case _WalletMenuAction.changeProtection:
-        showChangeProtectionDialog(
+        WalletSecurityScreen.push(
           context,
-          currentProtection: state.walletInfo.protection.protectionType,
-          currentSecurityLevel: state.walletInfo.protection.securityLevel,
+          cubit: context.read<WalletDetailCubit>(),
         );
     }
   }
@@ -652,7 +651,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               const PopupMenuDivider(),
               iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
               const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.shield_outlined, label: l10n.changeProtectionMenu),
+              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.security, label: l10n.walletSecurityLabel),
               if (state.walletInfo.protection.protectionType ==
                       APIProtectionType.userPassword ||
                   state.walletInfo.protection.protectionType ==
@@ -683,10 +682,9 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                     descriptor: state.walletInfo.descriptor,
                     network: state.walletInfo.network,
                   ),
-                  onChangeProtectionTap: () => showChangeProtectionDialog(
+                  onChangeProtectionTap: () => WalletSecurityScreen.push(
                     context,
-                    currentProtection: state.walletInfo.protection.protectionType,
-                    currentSecurityLevel: state.walletInfo.protection.securityLevel,
+                    cubit: context.read<WalletDetailCubit>(),
                   ),
                 ),
                 1 => TransactionsView(state: state),

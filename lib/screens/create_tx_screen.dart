@@ -1093,8 +1093,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     if (params == null) return;
     final rate = params.rate;
 
-    final l10n = context.l10n;
-
     setState(() => _creating = true);
     try {
       final cubit = context.read<WalletDetailCubit>();
@@ -1113,7 +1111,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
       if (!mounted) return;
       if (psbt != null) {
-        showSuccessToast(l10n.createTxSuccess);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => BlocProvider.value(

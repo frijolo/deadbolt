@@ -1538,6 +1538,78 @@ abstract class AppLocalizations {
   /// **'Encryption'**
   String get encryptionLabel;
 
+  /// No description provided for @walletSecurityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get walletSecurityLabel;
+
+  /// No description provided for @walletSecurityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet Security'**
+  String get walletSecurityTitle;
+
+  /// No description provided for @encryptionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Encryption'**
+  String get encryptionSection;
+
+  /// No description provided for @descriptorSigsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor Signatures'**
+  String get descriptorSigsSection;
+
+  /// No description provided for @manageSignatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Signatures'**
+  String get manageSignatures;
+
+  /// No description provided for @goToSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Security'**
+  String get goToSecurity;
+
+  /// No description provided for @noParticipatingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No participating keys found'**
+  String get noParticipatingKeys;
+
+  /// No description provided for @descriptorSigAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'No signatures'**
+  String get descriptorSigAbsent;
+
+  /// No description provided for @descriptorSigVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Signatures verified'**
+  String get descriptorSigVerified;
+
+  /// No description provided for @descriptorSigInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid signatures'**
+  String get descriptorSigInvalid;
+
+  /// No description provided for @descriptorSigOwnerUnsigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner xpub not signed'**
+  String get descriptorSigOwnerUnsigned;
+
+  /// No description provided for @descriptorSigUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature status unknown'**
+  String get descriptorSigUnknown;
+
   /// No description provided for @walletBalanceUnknown.
   ///
   /// In en, this message translates to:
@@ -4025,7 +4097,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanTypeAll.
   ///
   /// In en, this message translates to:
-  /// **'All types'**
+  /// **'All'**
   String get scanTypeAll;
 
   /// No description provided for @bip39PassphraseLabel.
@@ -4574,11 +4646,161 @@ abstract class AppLocalizations {
   /// **'Reorder wallets'**
   String get reorderWallets;
 
+  /// No description provided for @reorderProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder projects'**
+  String get reorderProjects;
+
   /// No description provided for @done.
   ///
   /// In en, this message translates to:
   /// **'Done'**
   String get done;
+
+  /// No description provided for @descriptorSigsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor Signatures'**
+  String get descriptorSigsTitle;
+
+  /// No description provided for @descriptorSigsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prove ownership of each key by signing the descriptor hash. Protects backups from tampering.'**
+  String get descriptorSigsSubtitle;
+
+  /// No description provided for @descriptorSigsSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed · {date}'**
+  String descriptorSigsSigned(String date);
+
+  /// No description provided for @descriptorSigsNotSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed'**
+  String get descriptorSigsNotSigned;
+
+  /// No description provided for @descriptorSigsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid signature'**
+  String get descriptorSigsInvalid;
+
+  /// No description provided for @descriptorSigsSignAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign'**
+  String get descriptorSigsSignAction;
+
+  /// No description provided for @descriptorSigsDeleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete signature'**
+  String get descriptorSigsDeleteAction;
+
+  /// No description provided for @descriptorSigsMethodHotKey.
+  ///
+  /// In en, this message translates to:
+  /// **'HotKey (automatic)'**
+  String get descriptorSigsMethodHotKey;
+
+  /// No description provided for @descriptorSigsMethodBB02.
+  ///
+  /// In en, this message translates to:
+  /// **'BitBox02'**
+  String get descriptorSigsMethodBB02;
+
+  /// No description provided for @descriptorSigsMethodQRMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'QR — Message signing'**
+  String get descriptorSigsMethodQRMessage;
+
+  /// No description provided for @descriptorSigsMethodQRBip322.
+  ///
+  /// In en, this message translates to:
+  /// **'QR — BIP322 PSBT'**
+  String get descriptorSigsMethodQRBip322;
+
+  /// No description provided for @descriptorSigsVerifyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify all'**
+  String get descriptorSigsVerifyAll;
+
+  /// No description provided for @descriptorSigsConnectHw.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect hardware wallet'**
+  String get descriptorSigsConnectHw;
+
+  /// No description provided for @descriptorSigsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{signed}/{total} keys signed'**
+  String descriptorSigsSummary(int signed, int total);
+
+  /// No description provided for @descriptorSigsManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage signatures'**
+  String get descriptorSigsManage;
+
+  /// No description provided for @descriptorSigsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message to sign'**
+  String get descriptorSigsMessage;
+
+  /// No description provided for @descriptorSigsQRMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Base64 compact signature (65 bytes)'**
+  String get descriptorSigsQRMessageHint;
+
+  /// No description provided for @descriptorSigsShowPsbtQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Show PSBT QR (scan with hardware wallet)'**
+  String get descriptorSigsShowPsbtQr;
+
+  /// No description provided for @descriptorSigsQRBip322Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed PSBT (base64 or scan QR)'**
+  String get descriptorSigsQRBip322Hint;
+
+  /// No description provided for @descriptorSigsSignSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature stored'**
+  String get descriptorSigsSignSuccess;
+
+  /// No description provided for @descriptorSigsDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature deleted'**
+  String get descriptorSigsDeleteSuccess;
+
+  /// No description provided for @descriptorSigsChooseMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose signing method'**
+  String get descriptorSigsChooseMethod;
+
+  /// No description provided for @descriptorSigsVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified · {date}'**
+  String descriptorSigsVerified(String date);
+
+  /// No description provided for @descriptorSigsVerifyResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{valid} of {total} signatures valid'**
+  String descriptorSigsVerifyResult(int valid, int total);
 }
 
 class _AppLocalizationsDelegate

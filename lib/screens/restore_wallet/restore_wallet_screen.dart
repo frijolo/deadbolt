@@ -55,6 +55,7 @@ class _NostrFoundBackup {
   final String? firstAddress;
   final APIWalletType? walletType;
   final String? descriptor;
+  final rust_nostr.APIDescriptorSigVerification? descriptorSigVerification;
   int? txCount;
   BigInt? balanceSat;
 
@@ -67,6 +68,7 @@ class _NostrFoundBackup {
     this.firstAddress,
     this.walletType,
     this.descriptor,
+    this.descriptorSigVerification,
   });
 }
 
@@ -517,6 +519,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
             firstAddress: resp.firstAddress,
             walletType: resp.walletType,
             descriptor: resp.descriptor,
+            descriptorSigVerification: resp.descriptorSigVerification,
           ));
         }
       } catch (e) {
@@ -978,6 +981,11 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
                           w.walletName == null ? nostrBackup.walletName : null,
                       l10n: l10n,
                     ),
+                    if (nostrBackup.descriptorSigVerification != null)
+                      _DescriptorSigBadge(
+                        verification: nostrBackup.descriptorSigVerification!,
+                        l10n: l10n,
+                      ),
                   ],
                 ],
               ),
@@ -1105,6 +1113,83 @@ class _ScriptBadge extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: foreground ?? cs.onSecondaryContainer,
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Descriptor signature status badge (restore screen)
+// ---------------------------------------------------------------------------
+
+class _DescriptorSigBadge extends StatelessWidget {
+  final rust_nostr.APIDescriptorSigVerification verification;
+  final AppLocalizations l10n;
+
+  const _DescriptorSigBadge({required this.verification, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasInvalid = verification.hasInvalid;
+    final ownerSigned = verification.ownerXpubSigned;
+    final validCount = verification.validCount;
+    final totalXpubs = verification.totalXpubs;
+    final isMultisig = totalXpubs > 1;
+
+    final IconData icon;
+    final Color color;
+    final String label;
+
+    if (totalXpubs == 0) {
+      // Descriptor parsing failed — signature status cannot be evaluated.
+      icon = Icons.help_outline;
+      color = Colors.grey;
+      label = l10n.descriptorSigUnknown;
+    } else if (hasInvalid) {
+      icon = Icons.dangerous;
+      color = Colors.red;
+      label = l10n.descriptorSigInvalid;
+    } else if (validCount == 0) {
+      icon = Icons.warning_amber;
+      color = Colors.orange;
+      label = l10n.descriptorSigAbsent;
+    } else if (!ownerSigned) {
+      icon = Icons.warning_amber;
+      color = Colors.orange;
+      label = isMultisig
+          ? '$validCount/$totalXpubs · ${l10n.descriptorSigOwnerUnsigned}'
+          : l10n.descriptorSigOwnerUnsigned;
+    } else if (totalXpubs > 0 && validCount < totalXpubs) {
+      icon = Icons.warning_amber;
+      color = Colors.orange;
+      label = '$validCount/$totalXpubs ${l10n.descriptorSigVerified}';
+    } else {
+      icon = Icons.verified;
+      color = Colors.green;
+      label = isMultisig
+          ? '$validCount/$totalXpubs ${l10n.descriptorSigVerified}'
+          : l10n.descriptorSigVerified;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

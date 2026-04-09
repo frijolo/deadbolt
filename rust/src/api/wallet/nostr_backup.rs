@@ -46,6 +46,7 @@ use crate::core::key_protection::{
     wrap_with_xpub, XpubSlot,
 };
 use crate::core::wallet_info::{create_wallet_db, resolve_wallet_key, WalletProtectionRequest};
+use crate::core::wallet_persistence::get_descriptor_sigs_as_json;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -107,6 +108,18 @@ pub struct NostrImportResult {
     pub wallet: crate::api::model::APIWalletInfo,
 }
 
+/// Detailed verification result of descriptor signatures embedded in a Nostr backup payload.
+pub struct APIDescriptorSigVerification {
+    /// Number of signatures that verified successfully.
+    pub valid_count: i64,
+    /// Total number of xpubs in the descriptor (from descriptor parsing). 0 if parsing failed.
+    pub total_xpubs: i64,
+    /// True when at least one signature present in the payload failed verification.
+    pub has_invalid: bool,
+    /// True when the xpub that discovered this backup has a valid signature in the payload.
+    pub owner_xpub_signed: bool,
+}
+
 /// Response from `fetch_nostr_backup` with full metadata including first address.
 pub struct NostrBackupResponse {
     pub bytes: Vec<u8>,
@@ -118,6 +131,90 @@ pub struct NostrBackupResponse {
     /// The decrypted descriptor string. Present when decryption succeeded.
     /// Can be passed to `scan_descriptor` to fetch on-chain balance/tx count.
     pub descriptor: Option<String>,
+    /// Verification result of any descriptor signatures embedded in the backup.
+    /// `None` only when decryption failed (i.e. `descriptor` is also `None`).
+    pub descriptor_sig_verification: Option<APIDescriptorSigVerification>,
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers: descriptor signature verification for backup payloads
+// ---------------------------------------------------------------------------
+
+/// Extract the bare xpub from an `xpub_entry` string like `[mfp/path]xpubXXX`.
+fn xpub_entry_bare(xpub_entry: &str) -> &str {
+    if let Some(pos) = xpub_entry.rfind(']') {
+        &xpub_entry[pos + 1..]
+    } else {
+        xpub_entry
+    }
+}
+
+/// Verify descriptor signatures embedded in a decrypted backup inner payload.
+///
+/// `owner_xpub` is the bare xpub that was used to discover the backup. The
+/// result indicates whether that specific key has a valid signature, how many
+/// keys have signed in total, and whether any signature failed verification.
+fn verify_descriptor_sigs_from_payload(
+    inner: &serde_json::Value,
+    descriptor: &str,
+    owner_xpub: &str,
+) -> APIDescriptorSigVerification {
+    // Count total xpubs expected in the descriptor.
+    let total_xpubs = crate::core::descriptor::DescriptorAnalyzer::analyze(descriptor)
+        .and_then(|a| a.public_keys())
+        .map(|k| k.len() as i64)
+        .unwrap_or(0);
+
+    let Some(arr) = inner.get("descriptor_sigs").and_then(|v| v.as_array()) else {
+        return APIDescriptorSigVerification {
+            valid_count: 0,
+            total_xpubs,
+            has_invalid: false,
+            owner_xpub_signed: false,
+        };
+    };
+    if arr.is_empty() {
+        return APIDescriptorSigVerification {
+            valid_count: 0,
+            total_xpubs,
+            has_invalid: false,
+            owner_xpub_signed: false,
+        };
+    }
+
+    let message = crate::core::bip322::descriptor_sig_message(descriptor);
+    let mut valid_count: i64 = 0;
+    let mut has_invalid = false;
+    let mut owner_xpub_signed = false;
+
+    for sig_val in arr {
+        let (Some(xpub_entry), Some(sig_method), Some(sig_hex)) = (
+            sig_val["xpub_entry"].as_str(),
+            sig_val["sig_method"].as_str(),
+            sig_val["sig_hex"].as_str(),
+        ) else {
+            has_invalid = true;
+            continue;
+        };
+        let is_valid = crate::api::wallet::descriptor_sig::verify_one_sig(
+            &message, xpub_entry, sig_method, sig_hex,
+        );
+        if is_valid {
+            valid_count += 1;
+            if xpub_entry_bare(xpub_entry) == owner_xpub {
+                owner_xpub_signed = true;
+            }
+        } else {
+            has_invalid = true;
+        }
+    }
+
+    APIDescriptorSigVerification {
+        valid_count,
+        total_xpubs,
+        has_invalid,
+        owner_xpub_signed,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -160,8 +257,13 @@ fn build_payload_for_xpub(
     mfp: &str,
     xpub: &str,
     created_at: i64,
+    descriptor_sigs: Option<serde_json::Value>,
 ) -> Result<Vec<u8>> {
-    let inner = serde_json::json!({ "descriptor": descriptor });
+    let inner = if let Some(sigs) = descriptor_sigs {
+        serde_json::json!({ "descriptor": descriptor, "descriptor_sigs": sigs })
+    } else {
+        serde_json::json!({ "descriptor": descriptor })
+    };
     let inner_bytes = serde_json::to_vec(&inner)?;
 
     // Fresh export data key per backup
@@ -501,9 +603,11 @@ pub async fn publish_nostr_backup(
 ) -> Result<Vec<NostrRelayStatus>> {
     let wallet_data_key =
         resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
-    let row = {
+    let (row, descriptor_sigs) = {
         let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
-        read_wallet_info(&conn)?
+        let row = read_wallet_info(&conn)?;
+        let sigs = get_descriptor_sigs_as_json(&conn).unwrap_or(None);
+        (row, sigs)
     };
 
     let xpub_map = super::extract_xpub_mfp_map(&row.descriptor);
@@ -522,6 +626,7 @@ pub async fn publish_nostr_backup(
             mfp,
             xpub,
             row.created_at,
+            descriptor_sigs.clone(),
         )?;
         let keys = derive_nostr_keypair(xpub)?;
         let d_tag = descriptor_d_tag(&row.descriptor);
@@ -845,6 +950,9 @@ pub async fn fetch_nostr_backup(
         let first_address =
             super::discovery::first_address_from_descriptor(descriptor.to_string(), network).ok();
         let wallet_type = super::discovery::wallet_type_from_descriptor(descriptor);
+        let descriptor_sig_verification = Some(verify_descriptor_sigs_from_payload(
+            &inner, descriptor, bare_xpub,
+        ));
 
         responses.push(NostrBackupResponse {
             bytes,
@@ -854,6 +962,7 @@ pub async fn fetch_nostr_backup(
             first_address,
             wallet_type: Some(wallet_type),
             descriptor: Some(descriptor.to_string()),
+            descriptor_sig_verification,
         });
     }
 
@@ -1068,7 +1177,8 @@ mod tests {
         let xpub = "xpub6C5sJJ3iZxbkUDa4zMBGEPfUuQScT6eEJPZGUBJvFrLwS7T6cjvzGTjK9h8hmzXmqVbHD5sS9Kf2hHimLMjMiUZFrCHn5qGVmCNBHHxr1";
         let mfp = "deadbeef";
         let payload_bytes =
-            build_payload_for_xpub(descriptor, "Test Wallet", "bitcoin", mfp, xpub, 0).unwrap();
+            build_payload_for_xpub(descriptor, "Test Wallet", "bitcoin", mfp, xpub, 0, None)
+                .unwrap();
 
         // Verify structure
         let payload: serde_json::Value = serde_json::from_slice(&payload_bytes).unwrap();

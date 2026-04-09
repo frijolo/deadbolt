@@ -101,9 +101,19 @@ The inner plaintext (what ultimately gets encrypted) is a JSON object:
 
 ```json
 {
-  "descriptor": "wpkh([deadbeef/84h/0h/0h]xpub6C5s.../<0;1>/*)"
+  "descriptor": "wpkh([deadbeef/84h/0h/0h]xpub6C5s.../<0;1>/*)",
+  "descriptor_sigs": [
+    {
+      "mfp": "deadbeef",
+      "xpub_entry": "[deadbeef/84h/0h/0h]xpub6C5s...",
+      "sig_method": "bip322",
+      "sig_hex": "3044..."
+    }
+  ]
 }
 ```
+
+`descriptor_sigs` is omitted when no signatures have been stored. Each entry represents one signing key's ownership proof. On recovery, these are verified against the decrypted descriptor and displayed as a per-MFP validity result. See [DESCRIPTOR_SIGS.md](DESCRIPTOR_SIGS.md) for details on how signatures are produced and verified.
 
 ### 2b — Export data key
 
@@ -283,6 +293,7 @@ descriptor      = inner["descriptor"]
 **What IS stored on relays (inside the encrypted payload):**
 - The wallet descriptor (public keys + script template)
 - Wallet name, network, creation timestamp
+- Descriptor ownership signatures (if any have been produced)
 
 A relay operator who intercepts the event cannot decrypt it without knowing the
 xpub. The xpub is semi-public (shared with co-signers and visible in descriptors), so

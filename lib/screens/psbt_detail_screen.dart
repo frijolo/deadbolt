@@ -268,14 +268,12 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   }
 
   Future<void> _mergePsbt(BuildContext context, String signedBase64) async {
-    final l10n = context.l10n;
     try {
       final updated = await context
           .read<WalletDetailCubit>()
           .mergePsbt(_psbt.id.toInt(), signedBase64);
       if (updated != null) {
         setState(() => _psbt = updated);
-        if (context.mounted) showSuccessToast(l10n.psbtMergeSuccess);
       }
     } catch (e) {
       if (context.mounted) {
@@ -292,9 +290,6 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     if (!context.mounted) return;
     if (updated != null) {
       setState(() => _psbt = updated);
-      final analysis = _analysis;
-      final signed = analysis?.signers.where((s) => s.hasSigned).length ?? 0;
-      showSuccessToast('$signed of ${_psbt.threshold} signatures applied');
     }
   }
 

@@ -848,6 +848,25 @@ pub struct APIHotKeyInfo {
     pub created_at: i64,
 }
 
+////////////////////////////
+// APIDescriptorSig       //
+////////////////////////////
+
+/// A stored descriptor ownership signature for one participating key.
+#[derive(Clone)]
+pub struct APIDescriptorSig {
+    /// Master fingerprint (8 lowercase hex chars) of the signing key.
+    pub mfp: String,
+    /// Full descriptor key entry, e.g. `[aabbccdd/48'/0'/0'/2']xpub…`
+    pub xpub_entry: String,
+    /// Signature type, determines the verification algorithm: "bip322" | "message"
+    pub sig_method: String,
+    /// Unix timestamp (seconds) when the signature was created.
+    pub signed_at: i64,
+    /// Whether the signature currently passes verification against the stored descriptor.
+    pub is_valid: bool,
+}
+
 ///////////////////////
 // APIAccountInfo    //
 ///////////////////////
