@@ -366,7 +366,7 @@ class _InheritanceStatusCard extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () =>
-                      context.read<WalletDetailCubit>().selectTab(3),
+                      context.read<WalletDetailCubit>().selectTab(WalletDetailCubit.tabCoins),
                   icon: const Icon(Icons.update, size: 16),
                   label: Text(l10n.revaultNow),
                 ),

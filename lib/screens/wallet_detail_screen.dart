@@ -609,129 +609,135 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final l10n = context.l10n;
     final network = state.walletInfo.network;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(state.walletInfo.name),
-        actions: [
-          MfpBadge(
-            label: localizedNetworkDisplayName(context, network.name),
-            color: AppAccent.color,
-            letterSpacing: 0.0,
-          ),
-          if (state.isSyncing)
-            const SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.sync),
-              tooltip: l10n.syncTooltip,
-              onPressed: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+    return PopScope(
+      canPop: state.selectedTab == WalletDetailCubit.tabOverview,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.read<WalletDetailCubit>().selectTab(WalletDetailCubit.tabOverview);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(state.walletInfo.name),
+          actions: [
+            MfpBadge(
+              label: localizedNetworkDisplayName(context, network.name),
+              color: AppAccent.color,
+              letterSpacing: 0.0,
             ),
-          PopupMenuButton<_WalletMenuAction>(
-            tooltip: l10n.moreOptionsTooltip,
-            onSelected: (action) => _onMenuAction(context, action, state),
-            itemBuilder: (_) => [
-              iconMenuItem(value: _WalletMenuAction.send, icon: Icons.arrow_upward, label: l10n.walletSendButton),
-              iconMenuItem(value: _WalletMenuAction.receive, icon: Icons.arrow_downward, label: l10n.walletReceiveButton),
-              const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.sync, icon: Icons.sync, label: l10n.syncButton, enabled: !state.isSyncing),
-              iconMenuItem(value: _WalletMenuAction.rescan, icon: Icons.manage_search, label: l10n.rescanButton),
-              const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.exportLabels, icon: Icons.upload_outlined, label: l10n.exportBip329Button),
-              iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
-              const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
-              const PopupMenuDivider(),
-              iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.security, label: l10n.walletSecurityLabel),
-              if (state.walletInfo.protection.protectionType ==
-                      APIProtectionType.userPassword ||
-                  state.walletInfo.protection.protectionType ==
-                      APIProtectionType.xpubKey) ...[
-                iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: l10n.lockWallet),
+            if (state.isSyncing)
+              const SizedBox(
+                width: 40,
+                height: 40,
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.sync),
+                tooltip: l10n.syncTooltip,
+                onPressed: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+              ),
+            PopupMenuButton<_WalletMenuAction>(
+              tooltip: l10n.moreOptionsTooltip,
+              onSelected: (action) => _onMenuAction(context, action, state),
+              itemBuilder: (_) => [
+                iconMenuItem(value: _WalletMenuAction.send, icon: Icons.arrow_upward, label: l10n.walletSendButton),
+                iconMenuItem(value: _WalletMenuAction.receive, icon: Icons.arrow_downward, label: l10n.walletReceiveButton),
+                const PopupMenuDivider(),
+                iconMenuItem(value: _WalletMenuAction.sync, icon: Icons.sync, label: l10n.syncButton, enabled: !state.isSyncing),
+                iconMenuItem(value: _WalletMenuAction.rescan, icon: Icons.manage_search, label: l10n.rescanButton),
+                const PopupMenuDivider(),
+                iconMenuItem(value: _WalletMenuAction.exportLabels, icon: Icons.upload_outlined, label: l10n.exportBip329Button),
+                iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
+                const PopupMenuDivider(),
+                iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
+                const PopupMenuDivider(),
+                iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.security, label: l10n.walletSecurityLabel),
+                if (state.walletInfo.protection.protectionType ==
+                        APIProtectionType.userPassword ||
+                    state.walletInfo.protection.protectionType ==
+                        APIProtectionType.xpubKey) ...[
+                  iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: l10n.lockWallet),
+                ],
               ],
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildElectrumPrivacyWarning(context, state),
+              Expanded(
+                child: switch (state.selectedTab) {
+                  WalletDetailCubit.tabOverview => OverviewView(
+                    state: state,
+                    onSendTap: () => _openSendFlow(context, state),
+                    onReceiveTap: () => _openReceiveFlow(context, state),
+                    onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
+                    onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
+                    onExportLabelsTap: () => _exportWithChoice(context, state),
+                    onImportLabelsTap: () => _importWithChoice(context, state),
+                    onHwTap: () => showHwActionsSheet(
+                      context,
+                      walletName: state.walletInfo.name,
+                      descriptor: state.walletInfo.descriptor,
+                      network: state.walletInfo.network,
+                    ),
+                    onChangeProtectionTap: () => WalletSecurityScreen.push(
+                      context,
+                      cubit: context.read<WalletDetailCubit>(),
+                    ),
+                  ),
+                  WalletDetailCubit.tabTransactions => TransactionsView(state: state),
+                  WalletDetailCubit.tabAddresses => AddressesView(state: state),
+                  WalletDetailCubit.tabCoins => CoinsView(state: state),
+                  _ => DescriptorView(state: state),
+                },
+              ),
             ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildElectrumPrivacyWarning(context, state),
-            Expanded(
-              child: switch (state.selectedTab) {
-                0 => OverviewView(
-                  state: state,
-                  onSendTap: () => _openSendFlow(context, state),
-                  onReceiveTap: () => _openReceiveFlow(context, state),
-                  onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
-                  onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
-                  onExportLabelsTap: () => _exportWithChoice(context, state),
-                  onImportLabelsTap: () => _importWithChoice(context, state),
-                  onHwTap: () => showHwActionsSheet(
-                    context,
-                    walletName: state.walletInfo.name,
-                    descriptor: state.walletInfo.descriptor,
-                    network: state.walletInfo.network,
-                  ),
-                  onChangeProtectionTap: () => WalletSecurityScreen.push(
-                    context,
-                    cubit: context.read<WalletDetailCubit>(),
-                  ),
-                ),
-                1 => TransactionsView(state: state),
-                2 => AddressesView(state: state),
-                3 => CoinsView(state: state),
-                _ => DescriptorView(state: state),
-              },
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: state.selectedTab,
+          onDestinationSelected: (index) =>
+              context.read<WalletDetailCubit>().selectTab(index),
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: const Icon(Icons.home),
+              label: l10n.overviewTab,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.swap_horiz_outlined),
+              selectedIcon: const Icon(Icons.swap_horiz),
+              label: l10n.transactionsSection,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: const Icon(Icons.account_balance_wallet),
+              label: l10n.addressesSection,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.toll_outlined),
+              selectedIcon: const Icon(Icons.toll),
+              label: l10n.coinsSection,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.schema_outlined),
+              selectedIcon: const Icon(Icons.schema),
+              label: l10n.descriptorLabel,
             ),
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: state.selectedTab,
-        onDestinationSelected: (index) =>
-            context.read<WalletDetailCubit>().selectTab(index),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: l10n.overviewTab,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.swap_horiz_outlined),
-            selectedIcon: const Icon(Icons.swap_horiz),
-            label: l10n.transactionsSection,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: const Icon(Icons.account_balance_wallet),
-            label: l10n.addressesSection,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.toll_outlined),
-            selectedIcon: const Icon(Icons.toll),
-            label: l10n.coinsSection,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.schema_outlined),
-            selectedIcon: const Icon(Icons.schema),
-            label: l10n.descriptorLabel,
-          ),
-        ],
-      ),
     );
   }
 }
-
 
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
 

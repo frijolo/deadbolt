@@ -209,6 +209,11 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   final WalletSyncService _syncService;
   static const _pageSize = 25;
   static const _revealCount = 20;
+  static const tabOverview = 0;
+  static const tabTransactions = 1;
+  static const tabAddresses = 2;
+  static const tabCoins = 3;
+  static const tabDescriptor = 4;
 
   Timer? _retryTimer;
   StreamSubscription<WalletSyncEvent>? _syncEventSub;
@@ -570,22 +575,21 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     final updated = current.copyWith(selectedTab: tab);
     emit(updated);
 
-    // Tab 0 = Overview, 1 = Transactions, 2 = Addresses, 3 = Coins, 4 = Descriptor
-    if (tab == 2) {
+    if (tab == tabAddresses) {
       if (!current.receiveAddressesLoaded) {
         unawaited(_loadAddresses(APIKeychain.external_));
       }
       if (!current.changeAddressesLoaded) {
         unawaited(_loadAddresses(APIKeychain.internal));
       }
-    } else if (tab == 3) {
+    } else if (tab == tabCoins) {
       if (!current.utxosLoaded) {
         unawaited(_loadUtxos());
       }
       if (!current.descriptorLoaded) {
         unawaited(_loadDescriptorAnalysis());
       }
-    } else if (tab == 4) {
+    } else if (tab == tabDescriptor) {
       if (!current.descriptorLoaded) {
         unawaited(_loadDescriptorAnalysis());
       }

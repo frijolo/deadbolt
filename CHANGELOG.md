@@ -12,6 +12,7 @@ All notable changes to Deadbolt are documented here, newest first.
 - **PSBT confirmation height for ghost UTXOs** — `psbt_max_utxo_conf_height` now falls back to the full wallet transaction history when BDK removes a UTXO from its unspent set (e.g. mempool spend / RBF), fixing nLockTime computation for replace-by-fee transactions.
 
 ### Improvements
+- **Wallet back navigation** — Pressing back from any wallet tab (transactions, addresses, coins, descriptor) now navigates to the Overview tab instead of exiting the wallet; only pressing back from Overview returns to the wallet list.
 - **Fee precision** — Transaction fee is now passed as an absolute satoshi amount (derived from the UI's pre-calculated estimate) instead of a fee rate, eliminating rounding errors from the sat/vB → sat/kwu conversion.
 
 ## [v1.9.2]
