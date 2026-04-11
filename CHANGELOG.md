@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.2]
 
 ### New Features
 - **Seed export screen** — Hot Key mnemonics now open a dedicated export screen with three tabs: word list, SeedQR (standard and compact formats), and a paper backup guide that segments the QR into transcribable chunks and lets the user verify the transcription by scanning.
@@ -392,6 +392,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.2
 [v1.9.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.1
 [v1.9.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.0
 [v1.8.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.8.0
