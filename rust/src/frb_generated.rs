@@ -622,7 +622,7 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
             let api_recipients =
                 <Vec<crate::api::model::APIRecipient>>::sse_decode(&mut deserializer);
             let api_max_recipient_index = <Option<u32>>::sse_decode(&mut deserializer);
-            let api_fee_rate_sat_per_vb = <f64>::sse_decode(&mut deserializer);
+            let api_fee_absolute_sat = <u64>::sse_decode(&mut deserializer);
             let api_selected_utxos =
                 <Vec<crate::api::model::APICoinControl>>::sse_decode(&mut deserializer);
             let api_policy_path =
@@ -651,7 +651,7 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
                         &*api_that_guard,
                         api_recipients,
                         api_max_recipient_index,
-                        api_fee_rate_sat_per_vb,
+                        api_fee_absolute_sat,
                         api_selected_utxos,
                         api_policy_path,
                         api_spend_path_id,

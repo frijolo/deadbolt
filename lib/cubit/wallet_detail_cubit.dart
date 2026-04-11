@@ -961,7 +961,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<APIPsbtInfo?> createPsbt({
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required int feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
@@ -975,7 +975,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       APIPsbtInfo psbt = current.walletHandle.createPsbt(
         recipients: recipients,
         maxRecipientIndex: maxRecipientIndex,
-        feeRateSatPerVb: feeRateSatPerVb,
+        feeAbsoluteSat: BigInt.from(feeAbsoluteSat),
         selectedUtxos: selectedUtxos,
         policyPath: policyPath,
         spendPathId: spendPathId,
@@ -1001,7 +1001,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   Future<String> directSend({
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required int feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
@@ -1015,7 +1015,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     final psbt = await createPsbt(
       recipients: recipients,
       maxRecipientIndex: maxRecipientIndex,
-      feeRateSatPerVb: feeRateSatPerVb,
+      feeAbsoluteSat: feeAbsoluteSat,
       selectedUtxos: selectedUtxos,
       policyPath: policyPath,
       spendPathId: spendPathId,

@@ -147,7 +147,7 @@ abstract class RustLibApi extends BaseApi {
     required ApiWallet that,
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required BigInt feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
@@ -1221,7 +1221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required ApiWallet that,
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required BigInt feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
@@ -1238,7 +1238,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_list_api_recipient(recipients, serializer);
           sse_encode_opt_box_autoadd_u_32(maxRecipientIndex, serializer);
-          sse_encode_f_64(feeRateSatPerVb, serializer);
+          sse_encode_u_64(feeAbsoluteSat, serializer);
           sse_encode_list_api_coin_control(selectedUtxos, serializer);
           sse_encode_list_api_policy_path(policyPath, serializer);
           sse_encode_u_32(spendPathId, serializer);
@@ -1255,7 +1255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           that,
           recipients,
           maxRecipientIndex,
-          feeRateSatPerVb,
+          feeAbsoluteSat,
           selectedUtxos,
           policyPath,
           spendPathId,
@@ -1274,7 +1274,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "that",
           "recipients",
           "maxRecipientIndex",
-          "feeRateSatPerVb",
+          "feeAbsoluteSat",
           "selectedUtxos",
           "policyPath",
           "spendPathId",
@@ -10545,7 +10545,7 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
   APIPsbtInfo createPsbt({
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required BigInt feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,
@@ -10555,7 +10555,7 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
     that: this,
     recipients: recipients,
     maxRecipientIndex: maxRecipientIndex,
-    feeRateSatPerVb: feeRateSatPerVb,
+    feeAbsoluteSat: feeAbsoluteSat,
     selectedUtxos: selectedUtxos,
     policyPath: policyPath,
     spendPathId: spendPathId,

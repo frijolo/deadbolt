@@ -4,6 +4,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Fee precision** — Transaction fee is now passed as an absolute satoshi amount (derived from the UI's pre-calculated estimate) instead of a fee rate, eliminating rounding errors from the sat/vB → sat/kwu conversion.
+
 ## [v1.9.2]
 
 ### New Features

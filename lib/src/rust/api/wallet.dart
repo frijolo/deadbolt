@@ -384,7 +384,7 @@ abstract class ApiWallet implements RustOpaqueInterface {
   APIPsbtInfo createPsbt({
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
-    required double feeRateSatPerVb,
+    required BigInt feeAbsoluteSat,
     required List<APICoinControl> selectedUtxos,
     required List<APIPolicyPath> policyPath,
     required int spendPathId,

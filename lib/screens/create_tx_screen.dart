@@ -1019,9 +1019,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Submit ───────────────────────────────────────────────────────────────
 
-  /// Validates all form inputs. Returns `rate` on success, null if
+  /// Validates all form inputs. Returns `rate` and `feeSats` on success, null if
   /// validation failed (errors are shown / fields opened inline).
-  ({double rate})? _validateTxParams() {
+  ({double rate, int feeSats})? _validateTxParams() {
     if (_selectedUtxos.isEmpty) {
       showErrorToast(context.l10n.createTxSelectCoinsFirst);
       return null;
@@ -1046,6 +1046,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
     // Two independent RBF checks (Bitcoin Core ReplacementChecks):
     final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
+    final summary = _txSummary;
     if (resolvedRbfInfos.isNotEmpty) {
       // 1. ImprovesFeerateDiagram: new_rate must strictly exceed orig_rate.
       final maxOrigRate = resolvedRbfInfos.fold<double>(
@@ -1058,7 +1059,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         return null;
       }
       // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed conflict cluster fee + new_vsize.
-      final summary = _txSummary;
       if (summary != null) {
         final newVsize = (summary.totalWu / 4.0).ceil();
         final totalConflict = _totalConflictFee(resolvedRbfInfos);
@@ -1071,7 +1071,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
     if (!_formKey.currentState!.validate()) return null;
     if (_selectedPath == null) return null;
-    return (rate: rate);
+    if (summary == null || summary.insufficientFunds) return null;
+    return (rate: rate, feeSats: summary.feeSats);
   }
 
   List<APICoinControl> _buildSelectedUtxos() =>
@@ -1091,7 +1092,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   Future<void> _submit() async {
     final params = _validateTxParams();
     if (params == null) return;
-    final rate = params.rate;
 
     setState(() => _creating = true);
     try {
@@ -1100,7 +1100,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       final psbt = await cubit.createPsbt(
         recipients: _buildApiRecipients(),
         maxRecipientIndex: _maxRecipientIndex,
-        feeRateSatPerVb: rate,
+        feeAbsoluteSat: params.feeSats,
         selectedUtxos: _buildSelectedUtxos(),
         policyPath: _selectedPath!.policyPath,
         spendPathId: _selectedPath!.id,
@@ -1160,13 +1160,13 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         feeRateSatPerVb: params.rate,
         onConfirm: () {
           Navigator.pop(sheetCtx);
-          _executeDirectSend(params.rate);
+          _executeDirectSend(params.feeSats);
         },
       );
     });
   }
 
-  Future<void> _executeDirectSend(double rate) async {
+  Future<void> _executeDirectSend(int feeSats) async {
     setState(() => _creating = true);
     try {
       final cubit = context.read<WalletDetailCubit>();
@@ -1176,7 +1176,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       final txid = await cubit.directSend(
         recipients: _buildApiRecipients(),
         maxRecipientIndex: _maxRecipientIndex,
-        feeRateSatPerVb: rate,
+        feeAbsoluteSat: feeSats,
         selectedUtxos: _buildSelectedUtxos(),
         policyPath: _selectedPath!.policyPath,
         spendPathId: _selectedPath!.id,

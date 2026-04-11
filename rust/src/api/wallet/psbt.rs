@@ -53,14 +53,14 @@ impl APIWallet {
         &self,
         recipients: Vec<APIRecipient>,
         max_recipient_index: Option<u32>,
-        fee_rate_sat_per_vb: f64,
+        fee_absolute_sat: u64,
         selected_utxos: Vec<APICoinControl>,
         policy_path: Vec<APIPolicyPath>,
         spend_path_id: u32,
         threshold: u32,
         mfps: Vec<String>,
     ) -> Result<APIPsbtInfo> {
-        use bdk_wallet::bitcoin::{Address, Amount, FeeRate, OutPoint, Txid};
+        use bdk_wallet::bitcoin::{Address, Amount, OutPoint, Txid};
         use bdk_wallet::KeychainKind;
         use std::collections::BTreeMap;
         use std::str::FromStr;
@@ -71,10 +71,6 @@ impl APIWallet {
 
         let mut core = self.lock_wallet()?;
         let network = core.wallet.network();
-
-        // float sat/vB → sat/kwu (1 sat/vB = 250 sat/kwu). Minimum 1 sat/kwu.
-        let sat_per_kwu = ((fee_rate_sat_per_vb * 250.0).ceil() as u64).max(1);
-        let fee_rate = FeeRate::from_sat_per_kwu(sat_per_kwu);
 
         let policy_map: BTreeMap<String, Vec<usize>> = policy_path
             .into_iter()
@@ -150,7 +146,7 @@ impl APIWallet {
         }
 
         let mut builder = core.wallet.build_tx();
-        builder.fee_rate(fee_rate);
+        builder.fee_absolute(Amount::from_sat(fee_absolute_sat));
 
         // Parse recipient addresses into (canonical_address_string, script_pubkey) pairs.
         use bdk_wallet::bitcoin::ScriptBuf;
