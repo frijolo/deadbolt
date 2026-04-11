@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.3]
 
 ### Fixes
 - **QR scanner on mobile** — Fixed an inverted condition that prevented `MobileScannerController` from ever being created; the controller is now properly initialized, stopped when a scan completes, and disposed on screen exit.
@@ -403,6 +403,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.3
 [v1.9.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.2
 [v1.9.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.1
 [v1.9.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.0
