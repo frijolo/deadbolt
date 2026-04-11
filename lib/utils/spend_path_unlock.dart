@@ -99,8 +99,10 @@ SpendPathStatus spendPathStatus({
     if (path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
       final required = path.relTimelock.value;
       final elapsed = tipHeight - confirmedAt;
-      if (elapsed < required) {
-        return SpendPathRelLocked(remainingBlocks: required - elapsed);
+      // Bitcoin Core mempool validates sequence locks against tip+1 (BIP68), so
+      // the tx is broadcastable and minable in the next block when elapsed+1 >= required.
+      if (elapsed + 1 < required) {
+        return SpendPathRelLocked(remainingBlocks: required - elapsed - 1);
       }
     } else {
       // Time-based: value stored in seconds (units × 512)

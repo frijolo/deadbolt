@@ -149,17 +149,35 @@ pub fn psbt_max_utxo_conf_height(
     wallet: &bdk_wallet::Wallet,
     psbt: &bdk_wallet::bitcoin::psbt::Psbt,
 ) -> Option<i64> {
-    psbt.unsigned_tx
-        .input
-        .iter()
-        .filter_map(|txin| wallet.get_utxo(txin.previous_output))
-        .filter_map(|utxo| {
-            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = utxo.chain_position
-            {
-                Some(anchor.block_id.height as i64)
+    // Build txid → confirmation_height for all wallet transactions.
+    // This covers ghost UTXOs that BDK removed from list_unspent() because a
+    // mempool tx is spending them — wallet.get_utxo() misses those.
+    let tx_conf_heights: std::collections::HashMap<bdk_wallet::bitcoin::Txid, i64> = wallet
+        .transactions()
+        .filter_map(|t| {
+            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = &t.chain_position {
+                Some((t.tx_node.txid, anchor.block_id.height as i64))
             } else {
                 None
             }
+        })
+        .collect();
+
+    psbt.unsigned_tx
+        .input
+        .iter()
+        .filter_map(|txin| {
+            // Fast path: UTXO is still in BDK's unspent set (normal spend).
+            if let Some(utxo) = wallet.get_utxo(txin.previous_output) {
+                if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
+                    utxo.chain_position
+                {
+                    return Some(anchor.block_id.height as i64);
+                }
+            }
+            // Fallback: ghost UTXO (being spent in mempool for RBF).
+            // Look up the confirmation height of the tx that created this output.
+            tx_conf_heights.get(&txin.previous_output.txid).copied()
         })
         .reduce(i64::max)
 }

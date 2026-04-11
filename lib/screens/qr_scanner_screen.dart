@@ -73,6 +73,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   _ScanState _scanState = _ScanState.idle;
   int? _lastSeenSeqNum;
 
+  // -- Mobile scanner controller --
+  MobileScannerController? _scannerController;
+
   // -- Desktop camera state --
   FlutterLiteCamera? _camera;
   Timer? _pollTimer;
@@ -85,7 +88,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   @override
   void initState() {
     super.initState();
-    if (!_isCameraSupported) {
+    if (_isCameraSupported) {
+      _scannerController = MobileScannerController();
+    } else {
       _initDesktopCamera();
     }
   }
@@ -94,6 +99,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _camera?.release();
+    _scannerController?.dispose();
     super.dispose();
   }
 
@@ -137,8 +143,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         if (rawBytes != null && rawBytes.isNotEmpty) {
           final mnemonic = decodeSeedQrCompact(rawBytes);
           if (mnemonic != null) {
-            _done = true;
-            if (mounted) Navigator.pop(context, mnemonic);
+            _finishScan(mnemonic);
           }
         }
         if (!_done && mounted) _onQrValue(qrResult.text);
@@ -187,6 +192,14 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     return int.tryParse(parts[1].split('-')[0]);
   }
 
+  /// Stops the camera and pops with [result]. No-op if already done.
+  void _finishScan(String result) {
+    if (_done) return;
+    _done = true;
+    _scannerController?.stop();
+    if (mounted) Navigator.pop(context, result);
+  }
+
   /// Called by both MobileScanner and the desktop polling branch.
   void _onQrValue(String value) {
     if (_done) return;
@@ -194,8 +207,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     // Standard SeedQR: digit-only string (e.g. "0001000200030004...")
     final mnemonic = decodeSeedQrText(value);
     if (mnemonic != null) {
-      _done = true;
-      Navigator.pop(context, mnemonic);
+      _finishScan(mnemonic);
       return;
     }
 
@@ -206,8 +218,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     final rawBytes = Uint8List.fromList(utf8.encode(value));
     final compactMnemonic = decodeSeedQrCompact(rawBytes);
     if (compactMnemonic != null) {
-      _done = true;
-      Navigator.pop(context, compactMnemonic);
+      _finishScan(compactMnemonic);
       return;
     }
 
@@ -251,7 +262,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
           });
           return;
         }
-        _done = true;
         final data = bcur.decodeData() as List<int>;
         // Try UTF-8 first (ur:bytes with text payload, e.g. descriptors).
         // For binary payloads like ur:crypto-psbt, fall back to base64 —
@@ -262,11 +272,10 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         } catch (_) {
           result = base64Encode(data);
         }
-        Navigator.pop(context, result);
+        _finishScan(result);
       }
     } else {
-      _done = true;
-      Navigator.pop(context, value);
+      _finishScan(value);
     }
   }
 
@@ -285,8 +294,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (bytes != null && bytes.isNotEmpty) {
         final mnemonic = decodeSeedQrCompact(bytes);
         if (mnemonic != null) {
-          _done = true;
-          if (mounted) Navigator.pop(context, mnemonic);
+          _finishScan(mnemonic);
           return;
         }
       }
@@ -301,8 +309,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     final l10n = context.l10n;
     try {
       final result = await decodeQrFromImageFile();
-      if (result != null && mounted) {
-        Navigator.pop(context, result.trim());
+      if (result != null) {
+        _finishScan(result.trim());
       }
     } catch (_) {
       if (mounted) showErrorToast(l10n.qrNotFoundInImage);
@@ -334,6 +342,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     return Stack(
       children: [
         MobileScanner(
+          controller: _scannerController,
           onDetect: _onDetect,
           errorBuilder: (context, error) => Center(
             child: Column(

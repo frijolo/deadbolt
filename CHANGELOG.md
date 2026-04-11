@@ -6,6 +6,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### Fixes
+- **QR scanner on mobile** — Fixed an inverted condition that prevented `MobileScannerController` from ever being created; the controller is now properly initialized, stopped when a scan completes, and disposed on screen exit.
+- **Relative timelock unlock threshold (BIP68)** — A UTXO locked with a relative block timelock is now considered broadcastable when `elapsed + 1 ≥ required` (matching Bitcoin Core's tip+1 mempool validation), reducing the displayed remaining-blocks count by one.
+- **PSBT confirmation height for ghost UTXOs** — `psbt_max_utxo_conf_height` now falls back to the full wallet transaction history when BDK removes a UTXO from its unspent set (e.g. mempool spend / RBF), fixing nLockTime computation for replace-by-fee transactions.
+
 ### Improvements
 - **Fee precision** — Transaction fee is now passed as an absolute satoshi amount (derived from the UI's pre-calculated estimate) instead of a fee rate, eliminating rounding errors from the sat/vB → sat/kwu conversion.
 
