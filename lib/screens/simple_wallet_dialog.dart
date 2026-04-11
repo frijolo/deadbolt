@@ -227,6 +227,7 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       onNameSave: (name) => setState(() => _keyNamesByMfp[mfp] = name),
       isHot: isHot,
       onRevealSeed: isHot ? () async => result.mnemonic ?? result.xprv : null,
+      network: isHot && result.mnemonic != null ? _selectedNetwork : null,
     );
   }
 

@@ -33,6 +33,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get discard => 'Descartar';
 
   @override
+  String get previous => 'Anterior';
+
+  @override
+  String get next => 'Siguiente';
+
+  @override
   String get loadingProjects => 'Cargando proyectos...';
 
   @override
@@ -517,6 +523,73 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get seedPhraseCopied => 'Frase semilla copiada';
+
+  @override
+  String get seedExportTitle => 'Exportar semilla';
+
+  @override
+  String get seedExportTabWords => 'Palabras';
+
+  @override
+  String get seedExportTabQr => 'Código QR';
+
+  @override
+  String get seedExportTabGuide => 'Guía papel';
+
+  @override
+  String get seedQrStandard => 'Standard SeedQR';
+
+  @override
+  String get seedQrCompact => 'Compact SeedQR';
+
+  @override
+  String get seedPassphraseWarning =>
+      'Esta semilla tiene una passphrase que no se muestra aquí.';
+
+  @override
+  String get seedPassphraseNotIncluded => 'Passphrase no incluida en el QR';
+
+  @override
+  String get seedMfpSeedOnly => 'Solo semilla';
+
+  @override
+  String get seedMfpWithPassphrase => 'Semilla + passphrase';
+
+  @override
+  String seedGuideSegmentLabel(String label, int total) {
+    return 'Segmento $label de $total';
+  }
+
+  @override
+  String get seedGuideDoneTitle => 'Todos los segmentos transcritos';
+
+  @override
+  String get seedGuideDoneBody =>
+      'Verifica escaneando el QR en papel con una cámara.';
+
+  @override
+  String get seedGuideVerifyQr => 'Verificar QR';
+
+  @override
+  String get seedGuideVerifySuccess => 'QR verificado correctamente.';
+
+  @override
+  String get seedGuideVerifyMismatch => 'El QR no coincide con la semilla.';
+
+  @override
+  String get seedGuideInstructions =>
+      'Transcribe cada segmento al papel. Cuadros rellenos = módulos oscuros.';
+
+  @override
+  String get seedGuideTapToAdvance => 'Toca el QR para avanzar';
+
+  @override
+  String get seedGuideRestart => 'Reiniciar';
+
+  @override
+  String seedQrSize(String format, int size) {
+    return '$format · $size×$size';
+  }
 
   @override
   String get spendPathNameDialogTitle => 'Nombre de ruta de gasto';
@@ -1139,12 +1212,12 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String spendPathLockedBlocks(int blocks) {
+  String spendPathBlocks(int blocks) {
     final intl.NumberFormat blocksNumberFormat =
         intl.NumberFormat.decimalPattern(localeName);
     final String blocksString = blocksNumberFormat.format(blocks);
 
-    return '$blocksString bloques restantes';
+    return '$blocksString bloques';
   }
 
   @override

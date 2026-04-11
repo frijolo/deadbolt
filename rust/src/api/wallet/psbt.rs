@@ -200,7 +200,40 @@ impl APIWallet {
             builder.policy_path(policy_map, KeychainKind::Internal);
         }
 
-        let psbt = builder.finish()?;
+        let mut psbt = builder.finish()?;
+
+        // Fixup: BDK does not apply policy_path nSequence/nLockTime to foreign UTXOs.
+        // Coins in "spending" state (mempool) are added via add_foreign_utxo and receive
+        // the default ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1).
+        // OP_CSV requires bit 31 to be 0 (relative locktime enabled); with bit 31 set,
+        // Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied".
+        //
+        // When any input is foreign and the spend path has a relative/absolute timelock,
+        // we patch the unsigned_tx fields before computing the txid.
+        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
+        if has_foreign && spend_path_id != 0 {
+            use crate::core::descriptor::DescriptorAnalyzer;
+            let info = read_wallet_info(&core.conn)?;
+            if let Ok(analyzer) = DescriptorAnalyzer::analyze(&info.descriptor) {
+                if let Ok(core_sps) = analyzer.spend_paths() {
+                    if let Some(sp) = core_sps.iter().find(|sp| sp.id == spend_path_id) {
+                        if sp.rel_timelock > 0 {
+                            let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
+                            for txin in &mut psbt.unsigned_tx.input {
+                                txin.sequence = seq;
+                            }
+                        }
+                        if sp.abs_timelock > 0 {
+                            psbt.unsigned_tx.lock_time =
+                                bdk_wallet::bitcoin::absolute::LockTime::from_consensus(
+                                    sp.abs_timelock,
+                                );
+                        }
+                    }
+                }
+            }
+        }
+
         let fee_sat = psbt.fee()?.to_sat();
         let txid = psbt.unsigned_tx.compute_txid().to_string();
         let psbt_base64 = psbt_to_base64(&psbt);

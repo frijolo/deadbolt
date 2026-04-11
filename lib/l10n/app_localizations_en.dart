@@ -33,6 +33,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discard => 'Discard';
 
   @override
+  String get previous => 'Previous';
+
+  @override
+  String get next => 'Next';
+
+  @override
   String get loadingProjects => 'Loading projects...';
 
   @override
@@ -517,6 +523,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seedPhraseCopied => 'Seed phrase copied';
+
+  @override
+  String get seedExportTitle => 'Seed Export';
+
+  @override
+  String get seedExportTabWords => 'Words';
+
+  @override
+  String get seedExportTabQr => 'QR Code';
+
+  @override
+  String get seedExportTabGuide => 'Paper Guide';
+
+  @override
+  String get seedQrStandard => 'Standard SeedQR';
+
+  @override
+  String get seedQrCompact => 'Compact SeedQR';
+
+  @override
+  String get seedPassphraseWarning =>
+      'This seed has a passphrase that is not shown here.';
+
+  @override
+  String get seedPassphraseNotIncluded => 'Passphrase not included in QR';
+
+  @override
+  String get seedMfpSeedOnly => 'Seed only';
+
+  @override
+  String get seedMfpWithPassphrase => 'Seed + passphrase';
+
+  @override
+  String seedGuideSegmentLabel(String label, int total) {
+    return 'Segment $label of $total';
+  }
+
+  @override
+  String get seedGuideDoneTitle => 'All segments transcribed';
+
+  @override
+  String get seedGuideDoneBody =>
+      'Verify by scanning your paper QR with a camera.';
+
+  @override
+  String get seedGuideVerifyQr => 'Verify QR';
+
+  @override
+  String get seedGuideVerifySuccess => 'QR verified correctly.';
+
+  @override
+  String get seedGuideVerifyMismatch => 'QR does not match the seed.';
+
+  @override
+  String get seedGuideInstructions =>
+      'Transcribe each segment to paper. Filled squares = dark modules.';
+
+  @override
+  String get seedGuideTapToAdvance => 'Tap QR to advance';
+
+  @override
+  String get seedGuideRestart => 'Restart';
+
+  @override
+  String seedQrSize(String format, int size) {
+    return '$format · $size×$size';
+  }
 
   @override
   String get spendPathNameDialogTitle => 'Spend path name';
@@ -1136,12 +1209,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String spendPathLockedBlocks(int blocks) {
+  String spendPathBlocks(int blocks) {
     final intl.NumberFormat blocksNumberFormat =
         intl.NumberFormat.decimalPattern(localeName);
     final String blocksString = blocksNumberFormat.format(blocks);
 
-    return '$blocksString blocks remaining';
+    return '$blocksString blocks';
   }
 
   @override

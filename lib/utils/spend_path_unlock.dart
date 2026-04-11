@@ -148,10 +148,13 @@ DateTime? estimatedUnlockDate(SpendPathStatus status) {
   };
 }
 
-/// Approximate age label for [ageBlocks]: "~3d", "~2mo", "~1y".
+/// Approximate remaining-time label for [ageBlocks] until unlock.
+/// Switches to hours when < 48 h remain, and to minutes when < 1 h remain.
 String formatCoinAge(int ageBlocks) {
-  final days = (ageBlocks * 10 / 60 / 24).round();
-  if (days < 1) return '<1d';
+  final totalMinutes = ageBlocks * 10; // 1 block ≈ 10 min
+  if (totalMinutes < 60) return '~${totalMinutes < 1 ? 1 : totalMinutes}min';
+  if (totalMinutes < 2880) return '~${totalMinutes ~/ 60}h'; // < 48 h
+  final days = totalMinutes ~/ 1440;
   if (days < 30) return '~${days}d';
   if (days < 365) return '~${days ~/ 30}mo';
   return '~${days ~/ 365}y';

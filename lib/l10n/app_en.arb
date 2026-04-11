@@ -9,6 +9,8 @@
   "edit": "Edit",
   "export": "Export",
   "discard": "Discard",
+  "previous": "Previous",
+  "next": "Next",
 
   "loadingProjects": "Loading projects...",
 
@@ -228,6 +230,39 @@
   "deletePrivateKeyConfirm": "Remove",
   "seedPhraseDialogTitle": "Seed phrase",
   "seedPhraseCopied": "Seed phrase copied",
+
+  "seedExportTitle": "Seed Export",
+  "seedExportTabWords": "Words",
+  "seedExportTabQr": "QR Code",
+  "seedExportTabGuide": "Paper Guide",
+  "seedQrStandard": "Standard SeedQR",
+  "seedQrCompact": "Compact SeedQR",
+  "seedPassphraseWarning": "This seed has a passphrase that is not shown here.",
+  "seedPassphraseNotIncluded": "Passphrase not included in QR",
+  "seedMfpSeedOnly": "Seed only",
+  "seedMfpWithPassphrase": "Seed + passphrase",
+  "seedGuideSegmentLabel": "Segment {label} of {total}",
+  "@seedGuideSegmentLabel": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "total": { "type": "int" }
+    }
+  },
+  "seedGuideDoneTitle": "All segments transcribed",
+  "seedGuideDoneBody": "Verify by scanning your paper QR with a camera.",
+  "seedGuideVerifyQr": "Verify QR",
+  "seedGuideVerifySuccess": "QR verified correctly.",
+  "seedGuideVerifyMismatch": "QR does not match the seed.",
+  "seedGuideInstructions": "Transcribe each segment to paper. Filled squares = dark modules.",
+  "seedGuideTapToAdvance": "Tap QR to advance",
+  "seedGuideRestart": "Restart",
+  "seedQrSize": "{format} · {size}×{size}",
+  "@seedQrSize": {
+    "placeholders": {
+      "format": { "type": "String" },
+      "size": { "type": "int" }
+    }
+  },
 
   "spendPathNameDialogTitle": "Spend path name",
   "keyPathBadge": "KEY PATH",
@@ -510,8 +545,8 @@
       "block": { "type": "int", "format": "decimalPattern" }
     }
   },
-  "spendPathLockedBlocks": "{blocks} blocks remaining",
-  "@spendPathLockedBlocks": {
+  "spendPathBlocks": "{blocks} blocks",
+  "@spendPathBlocks": {
     "placeholders": {
       "blocks": { "type": "int", "format": "decimalPattern" }
     }

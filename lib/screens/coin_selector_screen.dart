@@ -332,14 +332,14 @@ class _TimelockBadge extends StatelessWidget {
           Icons.lock_clock,
           Colors.orange,
           remainingBlocks != null
-              ? l10n.spendPathLockedBlocks(remainingBlocks)
+              ? l10n.spendPathBlocks(remainingBlocks)
               : l10n.spendPathLocked,
         ),
       SpendPathAbsLocked(:final remainingBlocks) => (
           Icons.lock_outline,
           Colors.red,
           remainingBlocks != null
-              ? l10n.spendPathLockedBlocks(remainingBlocks)
+              ? l10n.spendPathBlocks(remainingBlocks)
               : l10n.spendPathLocked,
         ),
     };

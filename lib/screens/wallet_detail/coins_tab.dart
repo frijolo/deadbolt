@@ -53,6 +53,7 @@ class _CoinsViewState extends State<CoinsView> {
         _sortDir = _CoinSortDir.values.byName(
           prefs.getString(_kSortDirKey) ?? _CoinSortDir.desc.name,
         );
+        _cachedSortedUtxos = null;
       });
     });
   }
@@ -122,7 +123,9 @@ class _CoinsViewState extends State<CoinsView> {
         false;
 
     final utxos = widget.state.utxos;
-    final totalSats = utxos.fold<int>(0, (sum, u) => sum + u.valueSat.toInt());
+    final totalSats = utxos
+        .where((u) => u.mempoolSpendingTxid == null && u.pendingPsbtIds.isEmpty)
+        .fold<int>(0, (sum, u) => sum + u.valueSat.toInt());
 
     return ListView(
       padding: const EdgeInsets.all(16),

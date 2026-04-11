@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Seed export screen** — Hot Key mnemonics now open a dedicated export screen with three tabs: word list, SeedQR (standard and compact formats), and a paper backup guide that segments the QR into transcribable chunks and lets the user verify the transcription by scanning.
 - **Descriptor ownership signatures** — Each key in a wallet can sign the descriptor hash to prove ownership. Supports Hot Key (automatic), BitBox02 via USB, QR message signing, and QR BIP-322 PSBT. Signatures are stored per-wallet and included in Nostr backups; the app verifies them on restore.
 - **Wallet Security screen** — A new "Security" entry in the wallet detail menu consolidates encryption info and descriptor-signature management in one place.
 - **Wallet reorder** — A swap-vert button in the wallet list toggles reorder mode; wallets can be dragged to any position and the order is persisted per network via SharedPreferences.
@@ -17,7 +18,14 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Restore defaults for Electrum and explorer URLs** — When a URL field is cleared, a restore icon appears to fill it back to the built-in default for that network.
 - **Restore defaults for Nostr relays** — A restore button in the Nostr relay settings screen resets the list to the built-in defaults.
 
+### Fixes
+- **PSBT timelock for foreign UTXOs** — When building a transaction that spends mempool coins (foreign UTXOs), nSequence and nLockTime are now correctly set from the policy's relative/absolute timelock, fixing "Locktime requirement not satisfied" broadcast failures.
+- **Coins tab total excludes spending coins** — The total balance shown above the coin list no longer counts UTXOs that are already being spent (mempool spend or pending PSBT).
+- **Compact SeedQR format** — Compact SeedQR now stores raw entropy bytes (per SeedSigner/Krux spec) instead of 11-bit packed word indices, restoring compatibility with hardware wallets.
+
 ### Improvements
+- **Spend status badges on coin detail** — The coin detail dialog shows a red "Mempool spend" badge or orange "Pending spend" badge when the UTXO is already being consumed.
+- **Timelock display with date and time** — Locked spend-path rows now display the estimated unlock timestamp inline (e.g. "144 blocks · Apr 12, 2026 14:30") and switch to a time component when less than 48 hours remain.
 - **Context-free toasts** — Toast helpers now use a global `ScaffoldMessengerKey`, so toasts can be shown from anywhere without requiring a `BuildContext`.
 - **Simplified address and coin tile badges** — Removed `CircleAvatar` backgrounds; status is now conveyed by icon/text colour alone.
 

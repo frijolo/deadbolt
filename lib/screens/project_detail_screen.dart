@@ -456,6 +456,12 @@ class _KeysSection extends StatelessWidget {
               ),
       onRevealSeed: isHot ? () => cubit.revealProjectSeed(key.mfp) : null,
       onDeletePrivateInfo: isHot ? () => cubit.deleteProjectHotKey(key.mfp) : null,
+      network: isHot
+          ? APINetwork.values.firstWhere(
+              (n) => n.name == state.project.network,
+              orElse: () => APINetwork.bitcoin,
+            )
+          : null,
     );
   }
 }

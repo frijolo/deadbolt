@@ -1063,6 +1063,18 @@ pub fn bip39_valid_last_words(partial_words: String, prefix: String) -> Vec<Stri
         .collect()
 }
 
+/// Converts raw BIP39 entropy bytes to a mnemonic phrase.
+///
+/// Accepts entropy of 16, 20, 24, 28, or 32 bytes (for 12, 15, 18, 21, or
+/// 24-word mnemonics respectively). Computes the checksum internally.
+/// Used to decode Compact SeedQR payloads, which store only entropy bytes.
+#[frb(sync)]
+pub fn bip39_entropy_to_mnemonic(entropy: Vec<u8>) -> anyhow::Result<String> {
+    use bdk_wallet::keys::bip39::Mnemonic;
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
+    Ok(mnemonic.to_string())
+}
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.

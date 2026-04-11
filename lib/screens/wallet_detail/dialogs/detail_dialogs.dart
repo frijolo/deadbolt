@@ -382,16 +382,28 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                   ),
                 ),
                 label2: l10n.coinConfirmations,
-                child2: Text(
-                  utxo.isConfirmed && tipHeight > 0
-                      ? BitcoinFormatter.formatNum(
-                          tipHeight - utxo.confirmationHeight!.toInt() + 1)
-                      : l10n.txUnconfirmed,
-                  style: TextStyle(
-                    color: utxo.isConfirmed ? Colors.green : Colors.grey,
-                    fontWeight:
-                        utxo.isConfirmed ? FontWeight.bold : null,
-                  ),
+                child2: Row(
+                  children: [
+                    Text(
+                      utxo.isConfirmed && tipHeight > 0
+                          ? BitcoinFormatter.formatNum(
+                              tipHeight - utxo.confirmationHeight!.toInt() + 1)
+                          : l10n.txUnconfirmed,
+                      style: TextStyle(
+                        color: utxo.isConfirmed ? Colors.green : Colors.grey,
+                        fontWeight: utxo.isConfirmed ? FontWeight.bold : null,
+                      ),
+                    ),
+                    if (utxo.mempoolSpendingTxid != null) ...[
+                      const SizedBox(width: 6),
+                      StatusBadge(
+                          label: l10n.coinMempoolSpend, color: Colors.red),
+                    ] else if (utxo.pendingPsbtIds.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      StatusBadge(
+                          label: l10n.coinPendingSpend, color: Colors.orange),
+                    ],
+                  ],
                 ),
               ),
               if (utxo.confirmationHeight != null) ...[

@@ -79,6 +79,7 @@ class DescriptorView extends StatelessWidget {
                   keyLabels: state.keyLabels,
                   hotKeys: state.hotKeys,
                   wallet: state.walletHandle,
+                  network: state.walletInfo.network,
                 ),
                 DescriptorTab(descriptor: analysis.descriptor),
               ],
@@ -99,6 +100,7 @@ class WalletKeysTab extends StatefulWidget {
   final Map<String, String> keyLabels;
   final List<APIHotKeyInfo> hotKeys;
   final ApiWallet wallet;
+  final APINetwork network;
 
   const WalletKeysTab({
     super.key,
@@ -106,6 +108,7 @@ class WalletKeysTab extends StatefulWidget {
     required this.keyLabels,
     required this.hotKeys,
     required this.wallet,
+    required this.network,
   });
 
   @override
@@ -120,34 +123,33 @@ class _WalletKeysTabState extends State<WalletKeysTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
-        for (var i = 0; i < widget.keys.length; i++)
-          KeyCard(
-            key: ValueKey(widget.keys[i].mfp),
-            mfp: widget.keys[i].mfp,
-            derivationPath: widget.keys[i].derivationPath,
-            xpub: widget.keys[i].xpub,
-            label: widget.keyLabels[widget.keys[i].mfp],
+        ...List.generate(widget.keys.length, (i) {
+          final k = widget.keys[i];
+          final isHot = hotMfps.contains(k.mfp);
+          return KeyCard(
+            key: ValueKey(k.mfp),
+            mfp: k.mfp,
+            derivationPath: k.derivationPath,
+            xpub: k.xpub,
+            label: widget.keyLabels[k.mfp],
             mfpColor: walletColorForMfpIndex(context, i),
-            isHot: hotMfps.contains(widget.keys[i].mfp),
-            onNameSave: (name) =>
-                cubit.setWalletKeyLabel(widget.keys[i].mfp, name ?? ''),
-            onMakeHot: !hotMfps.contains(widget.keys[i].mfp)
+            isHot: isHot,
+            onNameSave: (name) => cubit.setWalletKeyLabel(k.mfp, name ?? ''),
+            onMakeHot: !isHot
                 ? () => showAddPrivateKeySheet(
                       context,
                       cubit: cubit,
-                      expectedMfp: widget.keys[i].mfp,
-                      keyLabel: widget.keyLabels[widget.keys[i].mfp],
+                      expectedMfp: k.mfp,
+                      keyLabel: widget.keyLabels[k.mfp],
                     )
                 : null,
-            onRevealSeed: hotMfps.contains(widget.keys[i].mfp)
-                ? () => cubit.revealHotKey(widget.keys[i].mfp)
-                : null,
-            onDeletePrivateInfo: hotMfps.contains(widget.keys[i].mfp)
-                ? () => cubit.deleteHotKey(widget.keys[i].mfp)
-                : null,
-            deletePrivateInfoDisclaimer:
-                context.l10n.deleteWalletPrivateKeyDisclaimer,
-          ),
+            onRevealSeed: isHot ? () => cubit.revealHotKey(k.mfp) : null,
+            onDeletePrivateInfo:
+                isHot ? () => cubit.deleteHotKey(k.mfp) : null,
+            deletePrivateInfoDisclaimer: context.l10n.deleteWalletPrivateKeyDisclaimer,
+            network: isHot ? widget.network : null,
+          );
+        }),
       ],
     );
   }

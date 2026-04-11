@@ -9,6 +9,8 @@
   "edit": "Editar",
   "export": "Exportar",
   "discard": "Descartar",
+  "previous": "Anterior",
+  "next": "Siguiente",
 
   "loadingProjects": "Cargando proyectos...",
 
@@ -222,6 +224,39 @@
   "deletePrivateKeyConfirm": "Eliminar",
   "seedPhraseDialogTitle": "Frase semilla",
   "seedPhraseCopied": "Frase semilla copiada",
+
+  "seedExportTitle": "Exportar semilla",
+  "seedExportTabWords": "Palabras",
+  "seedExportTabQr": "Código QR",
+  "seedExportTabGuide": "Guía papel",
+  "seedQrStandard": "Standard SeedQR",
+  "seedQrCompact": "Compact SeedQR",
+  "seedPassphraseWarning": "Esta semilla tiene una passphrase que no se muestra aquí.",
+  "seedPassphraseNotIncluded": "Passphrase no incluida en el QR",
+  "seedMfpSeedOnly": "Solo semilla",
+  "seedMfpWithPassphrase": "Semilla + passphrase",
+  "seedGuideSegmentLabel": "Segmento {label} de {total}",
+  "@seedGuideSegmentLabel": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "total": { "type": "int" }
+    }
+  },
+  "seedGuideDoneTitle": "Todos los segmentos transcritos",
+  "seedGuideDoneBody": "Verifica escaneando el QR en papel con una cámara.",
+  "seedGuideVerifyQr": "Verificar QR",
+  "seedGuideVerifySuccess": "QR verificado correctamente.",
+  "seedGuideVerifyMismatch": "El QR no coincide con la semilla.",
+  "seedGuideInstructions": "Transcribe cada segmento al papel. Cuadros rellenos = módulos oscuros.",
+  "seedGuideTapToAdvance": "Toca el QR para avanzar",
+  "seedGuideRestart": "Reiniciar",
+  "seedQrSize": "{format} · {size}×{size}",
+  "@seedQrSize": {
+    "placeholders": {
+      "format": { "type": "String" },
+      "size": { "type": "int" }
+    }
+  },
 
   "spendPathNameDialogTitle": "Nombre de ruta de gasto",
   "keyPathBadge": "RUTA CLAVE",
@@ -503,8 +538,8 @@
       "block": { "type": "int", "format": "decimalPattern" }
     }
   },
-  "spendPathLockedBlocks": "{blocks} bloques restantes",
-  "@spendPathLockedBlocks": {
+  "spendPathBlocks": "{blocks} bloques",
+  "@spendPathBlocks": {
     "placeholders": {
       "blocks": { "type": "int", "format": "decimalPattern" }
     }

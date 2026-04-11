@@ -146,6 +146,18 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get discard;
 
+  /// No description provided for @previous.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previous;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
   /// No description provided for @loadingProjects.
   ///
   /// In en, this message translates to:
@@ -1033,6 +1045,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Seed phrase copied'**
   String get seedPhraseCopied;
+
+  /// No description provided for @seedExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed Export'**
+  String get seedExportTitle;
+
+  /// No description provided for @seedExportTabWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Words'**
+  String get seedExportTabWords;
+
+  /// No description provided for @seedExportTabQr.
+  ///
+  /// In en, this message translates to:
+  /// **'QR Code'**
+  String get seedExportTabQr;
+
+  /// No description provided for @seedExportTabGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper Guide'**
+  String get seedExportTabGuide;
+
+  /// No description provided for @seedQrStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard SeedQR'**
+  String get seedQrStandard;
+
+  /// No description provided for @seedQrCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact SeedQR'**
+  String get seedQrCompact;
+
+  /// No description provided for @seedPassphraseWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This seed has a passphrase that is not shown here.'**
+  String get seedPassphraseWarning;
+
+  /// No description provided for @seedPassphraseNotIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase not included in QR'**
+  String get seedPassphraseNotIncluded;
+
+  /// No description provided for @seedMfpSeedOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed only'**
+  String get seedMfpSeedOnly;
+
+  /// No description provided for @seedMfpWithPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed + passphrase'**
+  String get seedMfpWithPassphrase;
+
+  /// No description provided for @seedGuideSegmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment {label} of {total}'**
+  String seedGuideSegmentLabel(String label, int total);
+
+  /// No description provided for @seedGuideDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All segments transcribed'**
+  String get seedGuideDoneTitle;
+
+  /// No description provided for @seedGuideDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify by scanning your paper QR with a camera.'**
+  String get seedGuideDoneBody;
+
+  /// No description provided for @seedGuideVerifyQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify QR'**
+  String get seedGuideVerifyQr;
+
+  /// No description provided for @seedGuideVerifySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'QR verified correctly.'**
+  String get seedGuideVerifySuccess;
+
+  /// No description provided for @seedGuideVerifyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'QR does not match the seed.'**
+  String get seedGuideVerifyMismatch;
+
+  /// No description provided for @seedGuideInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe each segment to paper. Filled squares = dark modules.'**
+  String get seedGuideInstructions;
+
+  /// No description provided for @seedGuideTapToAdvance.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap QR to advance'**
+  String get seedGuideTapToAdvance;
+
+  /// No description provided for @seedGuideRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart'**
+  String get seedGuideRestart;
+
+  /// No description provided for @seedQrSize.
+  ///
+  /// In en, this message translates to:
+  /// **'{format} · {size}×{size}'**
+  String seedQrSize(String format, int size);
 
   /// No description provided for @spendPathNameDialogTitle.
   ///
@@ -2126,11 +2258,11 @@ abstract class AppLocalizations {
   /// **'Locked until block {block}'**
   String spendPathLockedUntilBlock(int block);
 
-  /// No description provided for @spendPathLockedBlocks.
+  /// No description provided for @spendPathBlocks.
   ///
   /// In en, this message translates to:
-  /// **'{blocks} blocks remaining'**
-  String spendPathLockedBlocks(int blocks);
+  /// **'{blocks} blocks'**
+  String spendPathBlocks(int blocks);
 
   /// No description provided for @spendPathNeedsConfirmation.
   ///

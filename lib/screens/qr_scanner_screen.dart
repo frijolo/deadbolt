@@ -199,6 +199,18 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       return;
     }
 
+    // Compact SeedQR fallback: binary-mode QR decoded as UTF-8 string when
+    // rawDecodedBytes is unavailable (ML Kit uses UTF-8 for rawValue).
+    // Re-encoding the string as UTF-8 recovers the original bytes exactly,
+    // because UTF-8 encode/decode is the inverse of itself for valid content.
+    final rawBytes = Uint8List.fromList(utf8.encode(value));
+    final compactMnemonic = decodeSeedQrCompact(rawBytes);
+    if (compactMnemonic != null) {
+      _done = true;
+      Navigator.pop(context, compactMnemonic);
+      return;
+    }
+
     if (value.toLowerCase().startsWith('ur:')) {
       _urDecoder ??= BCURFountainDecoder();
 

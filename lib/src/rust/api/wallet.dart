@@ -282,6 +282,14 @@ List<String> bip39ValidLastWords({
   prefix: prefix,
 );
 
+/// Converts raw BIP39 entropy bytes to a mnemonic phrase.
+///
+/// Accepts entropy of 16, 20, 24, 28, or 32 bytes (for 12, 15, 18, 21, or
+/// 24-word mnemonics respectively). Computes the checksum internally.
+/// Used to decode Compact SeedQR payloads, which store only entropy bytes.
+String bip39EntropyToMnemonic({required List<int> entropy}) =>
+    RustLib.instance.api.crateApiWalletBip39EntropyToMnemonic(entropy: entropy);
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.
@@ -607,7 +615,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Re-verify all stored descriptor signatures and return updated statuses.
   ///
-  /// Useful to detect tampering after a backup is restored.
+  /// Intentionally identical to [`list_descriptor_sigs`]: verification is
+  /// always performed eagerly on every read (see [`verify_one_sig`]).  The
+  /// distinction exists at the Flutter/cubit layer, where calling this method
+  /// sets `hasVerified = true` in the UI state so that "verified" / "invalid"
+  /// labels are shown instead of the neutral "signed" label.
   List<APIDescriptorSig> verifyDescriptorSigs();
 
   /// Return the network for this wallet.

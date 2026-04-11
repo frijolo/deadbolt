@@ -183,22 +183,18 @@ class SpendPathStatusRow extends StatelessWidget {
         Colors.grey,
         l10n.spendPathNeedsSync,
       ),
-      SpendPathAbsLocked(:final remainingBlocks, :final remainingSeconds) => (
+      SpendPathAbsLocked(:final remainingBlocks) => (
         Icons.lock_outline,
         Colors.red,
         remainingBlocks != null
-            ? l10n.spendPathLockedBlocks(remainingBlocks)
-            : remainingSeconds != null
-            ? _formatRemainingTime(remainingSeconds)
+            ? l10n.spendPathBlocks(remainingBlocks)
             : l10n.spendPathLocked,
       ),
-      SpendPathRelLocked(:final remainingBlocks, :final remainingSeconds) => (
+      SpendPathRelLocked(:final remainingBlocks) => (
         Icons.lock_clock,
         Colors.orange,
         remainingBlocks != null
-            ? l10n.spendPathLockedBlocks(remainingBlocks)
-            : remainingSeconds != null
-            ? _formatRemainingTime(remainingSeconds)
+            ? l10n.spendPathBlocks(remainingBlocks)
             : l10n.spendPathLocked,
       ),
     };
@@ -222,16 +218,10 @@ class SpendPathStatusRow extends StatelessWidget {
                     color: cs.onSurface,
                   ),
                 ),
-                Text(subtitle, style: TextStyle(fontSize: 11, color: color)),
-                if (status is SpendPathRelLocked || status is SpendPathAbsLocked)
-                  if (estimatedUnlockDate(status) case final unlock?)
-                    Text(
-                      '~${shortDate(unlock)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: color.withAlpha(AppAlpha.secondary),
-                      ),
-                    ),
+                Text(
+                  _buildStatusLine(subtitle, status),
+                  style: TextStyle(fontSize: 11, color: color),
+                ),
               ],
             ),
           ),
@@ -240,13 +230,14 @@ class SpendPathStatusRow extends StatelessWidget {
     );
   }
 
-  String _formatRemainingTime(int seconds) {
-    // Minimum granularity is one block (~10 min): timestamp timelocks are
-    // validated against MTP, so sub-block precision is meaningless.
-    final s = seconds < 600 ? 600 : seconds;
-    if (s < 3600) return '${s ~/ 60}min';
-    if (s < 172800) return '${s ~/ 3600}h';
-    return '${s ~/ 86400}d';
+  String _buildStatusLine(String subtitle, SpendPathStatus status) {
+    final unlock = estimatedUnlockDate(status);
+    if (unlock == null) return subtitle;
+    final remaining = unlock.difference(DateTime.now());
+    final dateStr =
+        '~${remaining.inHours.abs() < 48 ? shortDateWithTime(unlock) : shortDate(unlock)}';
+    if (subtitle.isEmpty) return dateStr;
+    return '$subtitle · $dateStr';
   }
 }
 

@@ -56,14 +56,13 @@ QrDecodeResult? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) 
   try {
     final result = QRCodeReader()
         .decode(BinaryBitmap(GlobalHistogramBinarizer(source)));
-    final rb = result.rawBytes;
-    final rawBytes = rb != null
-        ? Uint8List.fromList(rb.map((b) => b & 0xFF).toList())
-        : null;
+    // zxing2 rawBytes is the full QR bit stream (mode + count + data +
+    // terminator), not the bare payload. Extract just the data bytes.
+    final rawBytes = _extractQrBytePayload(result.rawBytes);
     return QrDecodeResult(
       result.text,
       version: result.version,
-      rawByteCount: rb?.length,
+      rawByteCount: rawBytes?.length,
       rawBytes: rawBytes,
     );
   } catch (_) {
@@ -83,10 +82,10 @@ Future<String?> decodeQrFromImageFile() async {
   );
   if (result == null || result.files.isEmpty) return null;
 
-  final bytes = result.files.first.bytes;
-  if (bytes == null) return null;
+  final fileBytes = result.files.first.bytes;
+  if (fileBytes == null) return null;
 
-  final image = img.decodeImage(bytes);
+  final image = img.decodeImage(fileBytes);
   if (image == null) throw Exception('Could not decode image');
 
   final source = RGBLuminanceSource(
@@ -104,13 +103,49 @@ Future<String?> decodeQrFromImageFile() async {
   // Throws NotFoundException if no QR code is found.
   final qrResult = reader.decode(bitmap);
 
-  // Compact SeedQR: binary QR whose payload is raw 11-bit packed word indices.
-  final rb = qrResult.rawBytes;
-  if (rb != null) {
-    final bytes = Uint8List.fromList(rb.map((b) => b & 0xFF).toList());
-    final mnemonic = decodeSeedQrCompact(bytes);
+  // Compact SeedQR: binary QR whose payload is raw entropy bytes.
+  final payload = _extractQrBytePayload(qrResult.rawBytes);
+  if (payload != null) {
+    final mnemonic = decodeSeedQrCompact(payload);
     if (mnemonic != null) return mnemonic;
   }
 
   return qrResult.text;
+}
+
+/// Parses the zxing2 raw QR bit stream and returns the data payload for
+/// byte-mode (mode = 0100) QR codes.
+///
+/// zxing2 rawBytes contains: 4-bit mode indicator + 8-bit character count
+/// (for versions 1–9) + data bytes + terminator/padding.
+/// This function strips the 12-bit header and returns only the data bytes.
+///
+/// Returns null if the input is null, not byte-mode, or too short.
+Uint8List? _extractQrBytePayload(List<int>? rawBits) {
+  if (rawBits == null || rawBits.length < 2) return null;
+
+  final b0 = rawBits[0] & 0xFF;
+  final b1 = rawBits[1] & 0xFF;
+
+  // Mode indicator: first 4 bits. Byte mode = 0100 = 4.
+  if ((b0 >> 4) != 4) return null;
+
+  // Character count: bits 4–11 (8 bits, covers QR versions 1–9).
+  final count = ((b0 & 0xF) << 4) | (b1 >> 4);
+  if (count == 0) return null;
+
+  // Verify there are enough bits: 12 header + count * 8 data.
+  if (rawBits.length * 8 < 12 + count * 8) return null;
+
+  // Extract 'count' bytes starting at bit offset 12.
+  final data = Uint8List(count);
+  for (int i = 0; i < count; i++) {
+    final bitStart = 12 + i * 8;
+    final idx = bitStart >> 3;
+    final shift = bitStart & 7;
+    final hi = rawBits[idx] & 0xFF;
+    final lo = (idx + 1 < rawBits.length) ? (rawBits[idx + 1] & 0xFF) : 0;
+    data[i] = shift == 0 ? hi : ((hi << shift) | (lo >> (8 - shift))) & 0xFF;
+  }
+  return data;
 }

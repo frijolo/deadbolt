@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/src/rust/api/model.dart' show APINetwork;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/key_edit_sheet.dart';
@@ -34,6 +35,8 @@ class KeyCard extends StatelessWidget {
   final VoidCallback? onDeletePrivateInfo;
   /// Override for the disclaimer shown before deleting private info.
   final String? deletePrivateInfoDisclaimer;
+  /// Network for mnemonic SeedQR export.
+  final APINetwork? network;
   const KeyCard({
     super.key,
     required this.mfp,
@@ -50,6 +53,7 @@ class KeyCard extends StatelessWidget {
     this.onRevealSeed,
     this.onDeletePrivateInfo,
     this.deletePrivateInfoDisclaimer,
+    this.network,
   });
 
   @override
@@ -148,6 +152,7 @@ class KeyCard extends StatelessWidget {
           onRevealSeed: onRevealSeed,
           onDeletePrivateInfo: onDeletePrivateInfo,
           deletePrivateInfoDisclaimer: deletePrivateInfoDisclaimer,
+          network: network,
         ),
       ),
     );

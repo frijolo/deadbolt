@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/screens/seed_export_screen.dart';
+import 'package:deadbolt/utils/toast_helper.dart' show showSuccessToast;
+import 'package:deadbolt/src/rust/api/model.dart' show APINetwork;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
@@ -32,6 +35,8 @@ void showKeySheet(
   /// Override the disclaimer shown before deleting private info.
   /// When null, [AppLocalizations.deletePrivateKeyDisclaimer] is used.
   String? deletePrivateInfoDisclaimer,
+  /// Network for mnemonic export (enables SeedQR tab when provided).
+  APINetwork? network,
 }) {
   showSheet<void>(context, (_) => _KeySheetContent(
       mfp: mfp,
@@ -48,6 +53,7 @@ void showKeySheet(
       onRevealSeed: onRevealSeed,
       onDeletePrivateInfo: onDeletePrivateInfo,
       deletePrivateInfoDisclaimer: deletePrivateInfoDisclaimer,
+      network: network,
     ),
   );
 }
@@ -67,6 +73,7 @@ class _KeySheetContent extends StatefulWidget {
   final Future<String?> Function()? onRevealSeed;
   final VoidCallback? onDeletePrivateInfo;
   final String? deletePrivateInfoDisclaimer;
+  final APINetwork? network;
 
   const _KeySheetContent({
     required this.mfp,
@@ -83,6 +90,7 @@ class _KeySheetContent extends StatefulWidget {
     this.onRevealSeed,
     this.onDeletePrivateInfo,
     this.deletePrivateInfoDisclaimer,
+    this.network,
   });
 
   @override
@@ -359,6 +367,20 @@ class _KeySheetContentState extends State<_KeySheetContent> {
   }
 
   void _showSeedDialog(BuildContext context, String seed) {
+    final isMnemonic = !seed.startsWith('xprv') && !seed.startsWith('tprv');
+    if (isMnemonic && widget.network != null) {
+      final nav = Navigator.of(context);
+      nav.pop(); // close the bottom sheet first
+      nav.push(MaterialPageRoute<void>(
+        builder: (_) => SeedExportScreen(
+          mnemonic: seed,
+          mfp: widget.mfp,
+          network: widget.network!,
+        ),
+      ));
+      return;
+    }
+    // Fallback: plain-text dialog for xprv keys or when network is not set.
     final l10n = context.l10n;
     showDialog<void>(
       context: context,
@@ -379,9 +401,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: seed));
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.seedPhraseCopied)),
-              );
+              showSuccessToast(l10n.seedPhraseCopied);
             },
             icon: const Icon(Icons.copy, size: 16),
             label: Text(l10n.copyToClipboard),
