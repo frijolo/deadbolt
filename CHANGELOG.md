@@ -4,6 +4,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Bitcoin term normalization in Spanish** — Technical terms (Singlesig, Multisig, Outpoint, Keychain, Key Path, Sweep cost) are now shown in their standard English form in the Spanish locale, consistent with how the Bitcoin community uses them.
+
 ## [v1.9.3]
 
 ### Fixes

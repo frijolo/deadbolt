@@ -2680,4 +2680,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String descriptorSigsVerifyResult(int valid, int total) {
     return '$valid of $total signatures valid';
   }
+
+  @override
+  String get deriveKeyFirst => 'Derive the key first';
+
+  @override
+  String get invalidDerivedKeyspec => 'Invalid derived keyspec';
+
+  @override
+  String get enterValidSeedPhrase => 'Enter a valid seed phrase first';
+
+  @override
+  String get enterXprvKey => 'Enter an xprv key';
+
+  @override
+  String signingKeyAdded(String mfp) {
+    return 'Signing key added ($mfp)';
+  }
+
+  @override
+  String mfpMismatch(String mfp, String expected) {
+    return 'MFP mismatch: got $mfp, expected $expected';
+  }
+
+  @override
+  String wrongKeyMfp(String mfp, String expected) {
+    return 'Wrong key. Got $mfp, expected $expected';
+  }
+
+  @override
+  String get derivedKeyspecLabel => 'Derived keyspec';
 }

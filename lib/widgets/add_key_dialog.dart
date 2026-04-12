@@ -595,12 +595,12 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       case _AddKeyTab.seed:
         if (_derivedKeyspec == null) {
           setState(
-              () => _errorText = _deriveError ?? 'Derive the key first');
+              () => _errorText = _deriveError ?? context.l10n.deriveKeyFirst);
           return;
         }
         final match = kKeyspecPattern.firstMatch(_derivedKeyspec!);
         if (match == null) {
-          setState(() => _errorText = 'Invalid derived keyspec');
+          setState(() => _errorText = context.l10n.invalidDerivedKeyspec);
           return;
         }
         mfp = match.group(1)!.toLowerCase();
@@ -635,13 +635,13 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       if (_walletValidating) return;
       if (_walletMfp == null || _walletMfpError != null) {
         setState(() =>
-            _errorText = _walletMfpError ?? 'Enter a valid seed phrase first');
+            _errorText = _walletMfpError ?? context.l10n.enterValidSeedPhrase);
         return;
       }
       if (widget.expectedMfp != null &&
           _walletMfp!.toLowerCase() != widget.expectedMfp!.toLowerCase()) {
-        setState(() => _errorText =
-            'Wrong key: got $_walletMfp, expected ${widget.expectedMfp}');
+        setState(() => _errorText = context.l10n.mfpMismatch(
+            _walletMfp!, widget.expectedMfp!));
         return;
       }
       final result = await widget.onAddMnemonic!(
@@ -652,20 +652,20 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       );
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast('Signing key added (${result.mfp})');
+        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
         Navigator.pop(context, true);
       }
       // On null: cubit already emitted error toast via BlocListener.
     } else {
       final xprv = _xprvController.text.trim();
       if (xprv.isEmpty) {
-        setState(() => _errorText = 'Enter an xprv key');
+        setState(() => _errorText = context.l10n.enterXprvKey);
         return;
       }
       final result = await widget.onAddXprv!(xprv);
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast('Signing key added (${result.mfp})');
+        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
         Navigator.pop(context, true);
       }
     }
@@ -676,8 +676,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       {String? seedMnemonic, String? seedPassphrase, String? seedXprv}) async {
     // In edit mode validate MFP matches
     if (_isEditMode && mfp != widget.editingKey!.mfp.toLowerCase()) {
-      setState(() => _errorText =
-          'MFP mismatch: got $mfp, expected ${widget.editingKey!.mfp.toLowerCase()}');
+      setState(() => _errorText = context.l10n.mfpMismatch(
+          mfp, widget.editingKey!.mfp.toLowerCase()));
       return;
     }
 
@@ -1199,7 +1199,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       else
         Expanded(
           child: Text(
-            'Wrong key. Got $_walletMfp, expected $expected',
+            context.l10n.wrongKeyMfp(_walletMfp!, expected),
             style: const TextStyle(
                 color: Colors.red, fontSize: 12, fontFamily: 'monospace'),
           ),
@@ -1316,7 +1316,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Derived keyspec',
+                  context.l10n.derivedKeyspecLabel,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,

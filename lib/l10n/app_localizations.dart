@@ -4933,6 +4933,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{valid} of {total} signatures valid'**
   String descriptorSigsVerifyResult(int valid, int total);
+
+  /// No description provided for @deriveKeyFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Derive the key first'**
+  String get deriveKeyFirst;
+
+  /// No description provided for @invalidDerivedKeyspec.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid derived keyspec'**
+  String get invalidDerivedKeyspec;
+
+  /// No description provided for @enterValidSeedPhrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid seed phrase first'**
+  String get enterValidSeedPhrase;
+
+  /// No description provided for @enterXprvKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an xprv key'**
+  String get enterXprvKey;
+
+  /// No description provided for @signingKeyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing key added ({mfp})'**
+  String signingKeyAdded(String mfp);
+
+  /// No description provided for @mfpMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'MFP mismatch: got {mfp}, expected {expected}'**
+  String mfpMismatch(String mfp, String expected);
+
+  /// No description provided for @wrongKeyMfp.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong key. Got {mfp}, expected {expected}'**
+  String wrongKeyMfp(String mfp, String expected);
+
+  /// No description provided for @derivedKeyspecLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Derived keyspec'**
+  String get derivedKeyspecLabel;
 }
 
 class _AppLocalizationsDelegate

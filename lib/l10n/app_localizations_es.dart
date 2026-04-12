@@ -595,10 +595,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spendPathNameDialogTitle => 'Nombre de ruta de gasto';
 
   @override
-  String get keyPathBadge => 'RUTA CLAVE';
+  String get keyPathBadge => 'KEY PATH';
 
   @override
-  String get setAsKeyPath => 'Establecer como ruta clave';
+  String get setAsKeyPath => 'Establecer como key path';
 
   @override
   String get removePathTooltip => 'Eliminar ruta';
@@ -629,7 +629,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get thresholdLabel => 'Umbral';
 
   @override
-  String get sweepCostLabel => 'Coste de barrido';
+  String get sweepCostLabel => 'Sweep cost';
 
   @override
   String get trDepthLabel => 'Profundidad TR';
@@ -1144,7 +1144,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get coinLabelTitle => 'Etiqueta';
 
   @override
-  String get coinOutpoint => 'Punto de salida';
+  String get coinOutpoint => 'Outpoint';
 
   @override
   String get coinValue => 'Valor';
@@ -1153,7 +1153,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get coinAddress => 'Dirección';
 
   @override
-  String get coinKeychain => 'Llavero';
+  String get coinKeychain => 'Keychain';
 
   @override
   String get coinKeychainReceive => 'Recepción';
@@ -1883,10 +1883,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletExportLabel => 'Wallet';
 
   @override
-  String get walletTypeSinglesig => 'Clave única';
+  String get walletTypeSinglesig => 'Singlesig';
 
   @override
-  String get walletTypeMultisig => 'Multifirma';
+  String get walletTypeMultisig => 'Multisig';
 
   @override
   String get walletTypeSinglesigDesc =>
@@ -2701,4 +2701,35 @@ class AppLocalizationsEs extends AppLocalizations {
   String descriptorSigsVerifyResult(int valid, int total) {
     return '$valid de $total firmas válidas';
   }
+
+  @override
+  String get deriveKeyFirst => 'Deriva la clave primero';
+
+  @override
+  String get invalidDerivedKeyspec => 'Keyspec derivado no válido';
+
+  @override
+  String get enterValidSeedPhrase =>
+      'Introduce primero una frase semilla válida';
+
+  @override
+  String get enterXprvKey => 'Introduce una clave xprv';
+
+  @override
+  String signingKeyAdded(String mfp) {
+    return 'Clave de firma añadida ($mfp)';
+  }
+
+  @override
+  String mfpMismatch(String mfp, String expected) {
+    return 'Discordancia MFP: obtenido $mfp, esperado $expected';
+  }
+
+  @override
+  String wrongKeyMfp(String mfp, String expected) {
+    return 'Clave incorrecta. Obtenida $mfp, esperada $expected';
+  }
+
+  @override
+  String get derivedKeyspecLabel => 'Keyspec derivado';
 }

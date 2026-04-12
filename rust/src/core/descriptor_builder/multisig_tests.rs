@@ -1,13 +1,6 @@
 use super::*;
 use crate::api::model::{APIAbsoluteTimelock, APIRelativeTimelock};
 
-fn no_timelock() -> (APIRelativeTimelock, APIAbsoluteTimelock) {
-    (
-        APIRelativeTimelock::from_consensus(0),
-        APIAbsoluteTimelock::from_consensus(0),
-    )
-}
-
 fn make_path(threshold: usize, mfps: &[&str], rel: u32, abs: u32) -> SpendPathDef {
     SpendPathDef {
         threshold,
@@ -59,7 +52,6 @@ fn test_is_simple_multisig_false_when_abs_timelock() {
 
 #[test]
 fn test_build_balanced_or_tree_two_policies() {
-    use std::sync::Arc;
     let p1 = ConcretePolicy::Unsatisfiable;
     let p2 = ConcretePolicy::Unsatisfiable;
     let result = build_balanced_or_tree(vec![p1, p2]);

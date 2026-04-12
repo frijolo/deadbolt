@@ -1193,5 +1193,31 @@
       "valid": { "type": "int" },
       "total": { "type": "int" }
     }
-  }
+  },
+
+  "deriveKeyFirst": "Derive the key first",
+  "invalidDerivedKeyspec": "Invalid derived keyspec",
+  "enterValidSeedPhrase": "Enter a valid seed phrase first",
+  "enterXprvKey": "Enter an xprv key",
+  "signingKeyAdded": "Signing key added ({mfp})",
+  "@signingKeyAdded": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
+  "mfpMismatch": "MFP mismatch: got {mfp}, expected {expected}",
+  "@mfpMismatch": {
+    "placeholders": {
+      "mfp": { "type": "String" },
+      "expected": { "type": "String" }
+    }
+  },
+  "wrongKeyMfp": "Wrong key. Got {mfp}, expected {expected}",
+  "@wrongKeyMfp": {
+    "placeholders": {
+      "mfp": { "type": "String" },
+      "expected": { "type": "String" }
+    }
+  },
+  "derivedKeyspecLabel": "Derived keyspec"
 }
