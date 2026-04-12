@@ -6,7 +6,12 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### Fixes
+- **Desktop QR scanner on Intel ipu6 laptops** — Camera init now tries each V4L2 device index in order and uses the first one that opens successfully, instead of always opening index 0 (which is metadata-only on ipu6 drivers and always fails).
+
 ### Improvements
+- **Desktop QR scan loop** — Replaced the 300 ms `Timer.periodic` poll with a tight async loop; frames are captured and decoded back-to-back without a fixed delay.
+- **Nostr backup recovery script** — `fetch_nostr_backup.py` now verifies descriptor ownership signatures (BIP322 and Bitcoin message) and reports their validity alongside each recovered wallet.
 - **Bitcoin term normalization in Spanish** — Technical terms (Singlesig, Multisig, Outpoint, Keychain, Key Path, Sweep cost) are now shown in their standard English form in the Spanish locale, consistent with how the Bitcoin community uses them.
 
 ## [v1.9.3]

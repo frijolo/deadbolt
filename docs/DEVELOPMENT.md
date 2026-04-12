@@ -9,9 +9,10 @@ deadbolt/
 │   ├── screens/                  # UI screens
 │   │   └── wallet_detail/        # Wallet detail sub-screens (tabs, dialogs)
 │   ├── cubit/                    # BLoC state management (6 cubits)
-│   ├── services/                 # WalletService, ProjectDescriptorService,
-│   │                             #   PriceService, FeeEstimationService,
-│   │                             #   AndroidHwChannel
+│   ├── services/                 # WalletService, WalletSyncService,
+│   │                             #   ProjectDescriptorService, PriceService,
+│   │                             #   FeeEstimationService, MempoolBlocksService,
+│   │                             #   NostrRelaySettings, AndroidHwChannel
 │   ├── data/                     # Drift SQLite database (projects)
 │   ├── models/                   # Shared data models
 │   ├── widgets/                  # Reusable widgets
@@ -32,8 +33,8 @@ deadbolt/
 
 **UI Layer** (Dart/Flutter)
 - Material 3 UI with BLoC state management
-- 6 cubits: `WalletListCubit`, `WalletDetailCubit`, `ProjectListCubit`,
-  `ProjectDetailCubit`, `SettingsCubit`, `HwWalletCubit`
+- Core cubits: `WalletListCubit`, `WalletDetailCubit`, `ProjectListCubit`,
+  `ProjectDetailCubit`, `SettingsCubit`, `HwWalletCubit`; screen-scoped: `DescriptorSigsCubit`
 
 **FFI Bridge** (flutter_rust_bridge 2.11.1)
 - Type-safe Dart ↔ Rust communication

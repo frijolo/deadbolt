@@ -67,7 +67,7 @@ RESET  = "\033[0m"
 verbose = False
 
 
-def step(n: int, title: str):
+def step(n: int | str, title: str):
     print(f"\n{BOLD}{'─' * 60}{RESET}")
     print(f"{BOLD}Step {n}: {title}{RESET}")
     print(f"{BOLD}{'─' * 60}{RESET}")
@@ -230,6 +230,278 @@ def aes_gcm_decrypt(key_bytes: bytes, blob: bytes) -> bytes:
     return AESGCM(key_bytes).decrypt(nonce, ct, None)
 
 
+# ── Descriptor signature verification ────────────────────────────────────────
+#
+# Replicates the verification logic from rust/src/core/bip322.rs and
+# rust/src/api/wallet/descriptor_sig.rs so that the integrity of the
+# ownership proofs stored inside the backup can be checked independently.
+
+_B58_ALPHA = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _b58decode_check(s: str) -> bytes:
+    """Base58check decode. Returns the payload without the 4-byte checksum."""
+    n = 0
+    for ch in s:
+        n = n * 58 + _B58_ALPHA.index(ch)
+    leading = len(s) - len(s.lstrip("1"))
+    nbytes  = (n.bit_length() + 7) // 8
+    raw = b"\x00" * leading + (n.to_bytes(nbytes, "big") if nbytes else b"")
+    if len(raw) < 4:
+        raise ValueError("base58check: too short")
+    payload, chk = raw[:-4], raw[-4:]
+    if hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4] != chk:
+        raise ValueError("base58check: bad checksum")
+    return payload
+
+
+def _parse_xpub(xpub_str: str) -> tuple[bytes, bytes]:
+    """
+    Decode an xpub/tpub string.
+    Layout: version(4) depth(1) fingerprint(4) child_number(4) chain_code(32) key(33)
+    Returns (chain_code[32], compressed_pubkey[33]).
+    """
+    payload = _b58decode_check(xpub_str)   # 78 bytes
+    return payload[13:45], payload[45:78]
+
+
+def _bip32_ckd_pub(chain_code: bytes, pubkey: bytes, index: int) -> tuple[bytes, bytes]:
+    """Non-hardened BIP32 child public key derivation."""
+    data        = pubkey + index.to_bytes(4, "big")
+    mac         = hmac.new(chain_code, data, hashlib.sha512).digest()
+    il, child_cc = mac[:32], mac[32:]
+    il_point    = coincurve.PrivateKey(il).public_key
+    child_pub   = coincurve.PublicKey.combine_keys(
+        [il_point, coincurve.PublicKey(pubkey)]
+    ).format(compressed=True)
+    return child_cc, child_pub
+
+
+def _xpub_derive_pubkey(xpub_str: str, path: list[int]) -> bytes:
+    """Derive a compressed pubkey at the given non-hardened path from an xpub string."""
+    chain_code, pubkey = _parse_xpub(xpub_str)
+    for idx in path:
+        chain_code, pubkey = _bip32_ckd_pub(chain_code, pubkey, idx)
+    return pubkey
+
+
+# ── Low-level Bitcoin serialisation helpers ───────────────────────────────────
+
+def _sha256d(data: bytes) -> bytes:
+    return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+
+def _ser_u32le(n: int) -> bytes:
+    return n.to_bytes(4, "little")
+
+
+def _ser_u64le(n: int) -> bytes:
+    return n.to_bytes(8, "little")
+
+
+def _ser_varint(n: int) -> bytes:
+    if n < 0xFD:
+        return bytes([n])
+    if n <= 0xFFFF:
+        return b"\xfd" + n.to_bytes(2, "little")
+    return b"\xfe" + n.to_bytes(4, "little")
+
+
+def _ser_script(script: bytes) -> bytes:
+    return _ser_varint(len(script)) + script
+
+
+def _make_p2wsh(pubkey: bytes) -> tuple[bytes, bytes]:
+    """
+    Build scripts for wsh(pk(pubkey)).
+    Returns (witness_script, p2wsh_spk).
+
+    witness_script = OP_PUSH33 <pubkey[33]> OP_CHECKSIG (35 bytes)
+    p2wsh_spk      = OP_0 OP_PUSH32 <SHA256(witness_script)>  (34 bytes)
+    """
+    witness_script = bytes([0x21]) + pubkey + bytes([0xAC])        # OP_CHECKSIG = 0xac
+    ws_hash        = hashlib.sha256(witness_script).digest()       # SHA256, not SHA256d
+    p2wsh_spk      = bytes([0x00, 0x20]) + ws_hash
+    return witness_script, p2wsh_spk
+
+
+def _funding_txid_wire(message: str, p2wsh_spk: bytes) -> bytes:
+    """
+    Serialize funding_tx and return its txid in wire byte order.
+
+    funding_tx:
+      version = 2
+      input[0]: prevhash = SHA256(message)[::-1], vout=0, empty script_sig, MAX sequence
+      output[0]: 1 sat → p2wsh_spk
+      locktime = 0
+
+    Rust uses Txid::from_str(&hex::encode(sha256_bytes)) which stores sha256_bytes
+    reversed internally (display ↔ wire byte order flip).  Wire format uses the
+    internal (reversed) representation.
+    """
+    fake_txid_wire = hashlib.sha256(message.encode()).digest()[::-1]   # reversed
+
+    tx = (
+        _ser_u32le(2)           +   # version
+        _ser_varint(1)          +   # input count
+        fake_txid_wire          +   # prevhash (32 bytes, wire order)
+        _ser_u32le(0)           +   # vout = 0
+        _ser_varint(0)          +   # script_sig = empty
+        _ser_u32le(0xFFFFFFFF)  +   # sequence = MAX
+        _ser_varint(1)          +   # output count
+        _ser_u64le(1)           +   # value = 1 sat
+        _ser_script(p2wsh_spk)  +   # scriptPubKey
+        _ser_u32le(0)               # locktime
+    )
+    # txid wire = SHA256d(raw_tx)  (no reversal; display would be SHA256d[::-1])
+    return _sha256d(tx)
+
+
+def _bip143_sighash(
+    funding_txid_wire: bytes,
+    change_p2wsh_spk: bytes,
+    witness_script: bytes,
+) -> bytes:
+    """
+    BIP-143 P2WSH sighash for to_sign_tx (SIGHASH_ALL).
+
+    to_sign_tx:
+      version = 2
+      input[0]:  (funding_txid_wire, 0), empty script_sig, MAX sequence
+      output[0]: 1 sat → change_p2wsh_spk
+      locktime = 0
+    """
+    outpoint      = funding_txid_wire + _ser_u32le(0)
+    sequence      = _ser_u32le(0xFFFFFFFF)
+    hash_prevouts = _sha256d(outpoint)
+    hash_sequence = _sha256d(sequence)
+    hash_outputs  = _sha256d(_ser_u64le(1) + _ser_script(change_p2wsh_spk))
+
+    # scriptCode for P2WSH = varint(len) + witness_script
+    script_code = _ser_varint(len(witness_script)) + witness_script
+
+    preimage = (
+        _ser_u32le(2)   +   # nVersion
+        hash_prevouts   +
+        hash_sequence   +
+        outpoint        +   # the specific outpoint
+        script_code     +
+        _ser_u64le(1)   +   # value being spent
+        sequence        +
+        hash_outputs    +
+        _ser_u32le(0)   +   # nLocktime
+        _ser_u32le(1)       # SIGHASH_ALL
+    )
+    return _sha256d(preimage)
+
+
+# ── High-level signature verifiers ───────────────────────────────────────────
+
+def _descriptor_sig_message(descriptor: str) -> str:
+    """
+    Canonical message for descriptor ownership proofs.
+    Matches descriptor_sig_message() in rust/src/core/bip322.rs.
+    """
+    h = hashlib.sha256(descriptor.encode()).hexdigest()
+    return f"deadbolt-descriptor-v1:\n{h}"
+
+
+def _verify_bip322_sig(xpub_entry: str, message: str, sig_hex: str) -> bool:
+    """
+    Verify a BB02-BIP322 DER ECDSA signature.
+
+    Reconstructs the deterministic transaction chain (funding_tx → to_sign_tx),
+    computes the BIP-143 sighash, and checks the DER signature against xpub/0/0.
+    Mirrors verify_bip322_descriptor_sig() in rust/src/core/bip322.rs.
+    """
+    try:
+        m = re.match(r"^\[([^\]]+)\](.+)$", xpub_entry)
+        bare_xpub = m.group(2) if m else xpub_entry
+
+        signing_pub             = _xpub_derive_pubkey(bare_xpub, [0, 0])
+        change_pub              = _xpub_derive_pubkey(bare_xpub, [1, 0])
+        witness_script, p2wsh   = _make_p2wsh(signing_pub)
+        _, change_p2wsh         = _make_p2wsh(change_pub)
+
+        funding_txid  = _funding_txid_wire(message, p2wsh)
+        sighash       = _bip143_sighash(funding_txid, change_p2wsh, witness_script)
+
+        sig_der = bytes.fromhex(sig_hex)
+        return coincurve.PublicKey(signing_pub).verify(sig_der, sighash, hasher=None)
+    except Exception:
+        return False
+
+
+def _verify_message_sig(xpub_entry: str, message: str, sig_b64: str) -> bool:
+    """
+    Verify a Bitcoin message signature (BIP137 compact 65-byte or Krux DER).
+
+    65-byte compact (BIP137):
+      hash  = SHA256d("\x18Bitcoin Signed Message:\n" + varint + message)
+      key   = xpub/0/0  (recovered via ECDSA recovery)
+    DER without recovery byte (Krux):
+      hash  = SHA256(message)  (no magic prefix)
+      key   = account-level xpub key (no child derivation)
+
+    Mirrors verify_bitcoin_message_sig() in rust/src/core/bip322.rs.
+    """
+    try:
+        m = re.match(r"^\[([^\]]+)\](.+)$", xpub_entry)
+        bare_xpub = m.group(2) if m else xpub_entry
+        msg_bytes = message.encode()
+        raw       = base64.b64decode(sig_b64)
+
+        if len(raw) == 65:
+            # BIP137 compact — recover key and compare to xpub/0/0
+            varint   = _ser_varint(len(msg_bytes))
+            preimage = b"\x18Bitcoin Signed Message:\n" + varint + msg_bytes
+            msg_hash = _sha256d(preimage)
+
+            flag   = raw[0]
+            rec_id = ((flag - 31) if flag >= 31 else (flag - 27)) & 0x03
+            # coincurve recovery format: r(32) || s(32) || rec_id(1)
+            rec_sig   = raw[1:65] + bytes([rec_id])
+            recovered = coincurve.PublicKey.from_signature_and_message(
+                rec_sig, msg_hash, hasher=None
+            )
+            expected = _xpub_derive_pubkey(bare_xpub, [0, 0])
+            return recovered.format(compressed=True) == expected
+        else:
+            # Krux DER — verify against account-level xpub key, plain SHA256
+            _, account_pub = _parse_xpub(bare_xpub)
+            msg_hash = hashlib.sha256(msg_bytes).digest()
+            return coincurve.PublicKey(account_pub).verify(raw, msg_hash, hasher=None)
+    except Exception:
+        return False
+
+
+def _check_descriptor_sigs(descriptor: str, sigs: list) -> list[dict]:
+    """
+    Verify every descriptor ownership proof in the backup payload.
+
+    Returns a list of dicts: {mfp, xpub_entry, sig_method, valid}.
+    """
+    if not sigs:
+        return []
+    message = _descriptor_sig_message(descriptor)
+    results = []
+    for entry in sigs:
+        xpub_entry = entry.get("xpub_entry", "")
+        sig_method = entry.get("sig_method", "")
+        mfp        = entry.get("mfp", "")
+        sig_field  = entry.get("sig_hex", "")
+
+        if sig_method == "bip322":
+            valid = _verify_bip322_sig(xpub_entry, message, sig_field)
+        elif sig_method == "message":
+            valid = _verify_message_sig(xpub_entry, message, sig_field)
+        else:
+            valid = False
+
+        results.append({"mfp": mfp, "xpub_entry": xpub_entry, "sig_method": sig_method, "valid": valid})
+    return results
+
+
 # ── Main recovery flow ────────────────────────────────────────────────────────
 
 async def recover(credential: str, relay_urls: list[str]) -> str:
@@ -280,15 +552,15 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
         fail("No backup events found on any relay.\n"
              "Make sure the xpub is correct and the wallet has been backed up.")
 
-    # ── Steps 4-6 repeated for each event ────────────────────────────────────
+    # ── Steps 4–6 per backup (4.N decode, 5.N unwrap key, 6.N decrypt) ──────
 
     def decrypt_event(ev_index: int, event: dict) -> Optional[tuple[str, dict, str]]:
         """
         Try to decode and decrypt one event.
         Returns (descriptor, payload) on success, None if it can't be decrypted.
         """
-        step(4 if ev_index == 0 else 4 + ev_index * 3,
-             f"Decode event {ev_index + 1}/{len(events)} → payload JSON")
+        n = ev_index + 1
+        step(f"4.{n}", f"Decode backup {n}/{len(events)} → payload JSON")
         print("  The event content is base64(payload_json_bytes).")
 
         d_tag = next((t[1] for t in event.get("tags", []) if t and t[0] == "d"), "(unknown)")
@@ -319,8 +591,7 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
 
         slots: list[dict] = payload["protection"]["slots"]
 
-        sub = ev_index * 2
-        step(5 + sub, f"Unwrap export data key — event {ev_index + 1}")
+        step(f"5.{n}", f"Unwrap export data key — backup {n}/{len(events)}")
         print(f"""
   Argon2id(password=xpub, salt=slot.salt, m_cost={slots[0].get('m_cost',65536)},
            t_cost={slots[0].get('t_cost',3)}, p_cost={slots[0].get('p_cost',1)})
@@ -362,12 +633,13 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
             print("  → Skipped (xpub does not match any slot in this backup)")
             return None
 
-        step(6 + sub, f"Decrypt descriptor — event {ev_index + 1}")
+        step(f"6.{n}", f"Decrypt descriptor — backup {n}/{len(events)}")
         try:
             encrypted_inner = base64.b64decode(payload["data"])
             inner_bytes     = aes_gcm_decrypt(export_data_key, encrypted_inner)
             inner: dict     = json.loads(inner_bytes)
             descriptor: str = inner.get("descriptor", "")
+            raw_sigs: list  = inner.get("descriptor_sigs", [])
         except Exception as exc:
             print(f"  → Decryption failed: {exc}")
             return None
@@ -379,13 +651,15 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
         ok("Descriptor decrypted successfully")
         if matched_mfp:
             info("  Key MFP", matched_mfp)
+        if raw_sigs:
+            info("  Ownership proofs found", str(len(raw_sigs)))
 
-        return descriptor, payload
+        return descriptor, payload, raw_sigs
 
     # Sort events most-recent-first before processing
     events.sort(key=lambda e: e.get("created_at", 0), reverse=True)
 
-    results: list[tuple[str, dict]] = []
+    results: list[tuple[str, dict, list]] = []
     for idx, ev in enumerate(events):
         r = decrypt_event(idx, ev)
         if r:
@@ -401,7 +675,7 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
     print(f"{BOLD}{'=' * 60}{RESET}")
 
     first_descriptor = results[0][0]
-    for i, (descriptor, payload) in enumerate(results):
+    for i, (descriptor, payload, raw_sigs) in enumerate(results):
         if len(results) > 1:
             print(f"\n  {BOLD}── Wallet {i + 1} of {len(results)} ──{RESET}")
         print()
@@ -410,6 +684,23 @@ async def recover(credential: str, relay_urls: list[str]) -> str:
         print()
         print(f"  Descriptor:")
         print(f"    {descriptor}")
+
+        # ── Descriptor ownership signature verification ──────────────────────
+        print()
+        if raw_sigs:
+            print(f"  {BOLD}Descriptor Ownership Signatures:{RESET}")
+            sig_results = _check_descriptor_sigs(descriptor, raw_sigs)
+            for r in sig_results:
+                status = f"{GREEN}✓ VALID{RESET}" if r["valid"] else f"{RED}✗ INVALID{RESET}"
+                print(f"    {status}  [{r['mfp']}]  method={r['sig_method']}")
+            n_valid   = sum(1 for r in sig_results if r["valid"])
+            n_total   = len(sig_results)
+            if n_valid == n_total:
+                ok(f"All {n_total} ownership signature(s) verified")
+            else:
+                print(f"  {YELLOW}⚠ {n_valid}/{n_total} ownership signature(s) valid{RESET}")
+        else:
+            print(f"  {DIM}No ownership signatures in this backup{RESET}")
 
     print()
     print(f"{BOLD}{'=' * 60}{RESET}")

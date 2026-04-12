@@ -78,7 +78,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   // -- Desktop camera state --
   FlutterLiteCamera? _camera;
-  Timer? _pollTimer;
   ui.Image? _previewImage;
   bool _cameraInitFailed = false;
 
@@ -97,7 +96,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
     _camera?.release();
     _scannerController?.dispose();
     super.dispose();
@@ -112,21 +110,29 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     try {
       final devices = await camera.getDeviceList();
       if (devices.isEmpty) throw Exception('No camera devices found');
-      final opened = await camera.open(0);
+      // Some drivers (e.g. ipu6 on Intel laptops) expose several video nodes
+      // where the low-numbered ones are metadata-only and fail to open.
+      // Try each index in order and use the first one that opens successfully.
+      bool opened = false;
+      for (int i = 0; i < devices.length; i++) {
+        opened = await camera.open(i);
+        if (opened) break;
+      }
       if (!opened) throw Exception('Failed to open camera');
       _camera = camera;
-      _pollTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
-        _pollFrame();
-      });
+      _startCameraLoop();
     } catch (e) {
-      // No camera / GStreamer not installed — show file fallback.
-      debugPrint('Desktop camera init failed: $e');
       if (mounted) setState(() => _cameraInitFailed = true);
     }
   }
 
+  Future<void> _startCameraLoop() async {
+    while (!_done && mounted && _camera != null) {
+      await _pollFrame();
+    }
+  }
+
   Future<void> _pollFrame() async {
-    if (_done || _camera == null) return;
     try {
       final frame = await _camera!.captureFrame();
       if (!frame.containsKey('data')) return;
@@ -136,6 +142,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       final int h = frame['height'] as int;
 
       final qrResult = decodeQrFromRgbFrame(w, h, rgbBytes);
+      final uiImage  = await _rgbToUiImage(w, h, rgbBytes);
 
       if (qrResult != null) {
         // Compact SeedQR: try raw bytes before falling back to text.
@@ -151,13 +158,11 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         if (mounted) setState(() => _scanState = _ScanState.noQr);
       }
 
-      // Update preview image.
-      final uiImage = await _rgbToUiImage(w, h, rgbBytes);
       if (mounted) {
         setState(() => _previewImage = uiImage);
       }
-    } catch (e) {
-      debugPrint('Desktop camera frame capture error: $e');
+    } catch (_) {
+      // Transient frame capture error — skip frame and continue polling.
     }
   }
 

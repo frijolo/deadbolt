@@ -90,7 +90,7 @@ Example using `wget`:
 
 ```bash
 # Replace VERSION with the actual version (e.g., v1.0.0)
-VERSION="v1.0.0"
+VERSION="v1.9.3"
 REPO="https://github.com/frijolo/deadbolt/releases/download/${VERSION}"
 
 # Download verification files
@@ -170,7 +170,7 @@ For convenience, save this script as `verify-deadbolt.sh`:
 #!/bin/bash
 set -e
 
-VERSION="${1:-v1.5.2}"
+VERSION="${1:-v1.9.3}"
 PLATFORM="${2:-linux-x64}"
 REPO="https://github.com/frijolo/deadbolt/releases/download"
 
@@ -221,7 +221,7 @@ echo "✅ ${BINARY} is authentic and safe to install"
 Usage:
 ```bash
 chmod +x verify-deadbolt.sh
-./verify-deadbolt.sh v1.0.0 linux-x64
+./verify-deadbolt.sh v1.9.3 linux-x64
 ```
 
 ## Understanding GPG Trust

@@ -234,42 +234,56 @@ BDK tables store addresses, UTXOs, transactions, and descriptor data following t
 
 ## `.deadbolt` Backup Format
 
-A `.deadbolt` backup is a self-contained, password-encrypted JSON file. **The backup password is always required, regardless of the wallet's original protection type.** This means even Type 0 wallets can be exported to a portable backup.
+A `.deadbolt` backup is a self-contained, credential-encrypted JSON file. A credential is always required for export (password or xpub), regardless of the wallet's original protection type. **Type 0 (DeviceKey) wallets cannot be exported** — change the protection type first if a portable backup is needed.
 
 ### JSON Structure
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "wallet_name": "My wallet",
   "network": "bitcoin",
   "created_at": 1710000000,
   "protection": {
     "type": 1,
-    "salt": "<32-char hex = 16 bytes>",
-    "m_cost": 65536,
-    "t_cost": 3,
-    "p_cost": 1
+    "slots": [
+      {
+        "mfp": "deadbeef",
+        "salt": "<32-char hex = 16 bytes>",
+        "m_cost": 65536,
+        "t_cost": 3,
+        "p_cost": 1,
+        "derivation": "",
+        "wrapped_key": "<hex(nonce[12] || AES-GCM-ciphertext+tag of data_key_bytes)>"
+      }
+    ]
   },
   "data_key_wrapped": "<hex(nonce[12] || AES-GCM-ciphertext+tag of data_key_bytes)>",
   "data": "<base64(nonce[12] || AES-GCM-ciphertext+tag of raw_sqlcipher_db_bytes)>"
 }
 ```
 
+`protection.type` is `1` (UserPassword) or `2` (XpubKey). For UserPassword backups, `slots` contains one entry whose `mfp` is the SHA-256 fingerprint of the password. For XpubKey backups, `slots` contains one entry per descriptor xpub; any one slot can decrypt the backup.
+
 ### What is encrypted
 
-- **`data`**: the raw SQLCipher `.db` file bytes, encrypted with AES-256-GCM under `export_key`.
-- **`data_key_wrapped`**: the 32-byte plaintext data key (the SQLCipher key), also encrypted with AES-256-GCM under `export_key`. This allows the importer to re-key the database after decryption.
+- **`data`**: the raw SQLCipher `.db` file bytes, encrypted with AES-256-GCM under `export_data_key`.
+- **`data_key_wrapped`**: the 32-byte SQLCipher data key, also encrypted with AES-256-GCM under `export_data_key`. This allows the importer to re-key the database after decryption.
 
 ### Key derivation (export)
 
+The export credential depends on the backup type:
+
+- **UserPassword**: credential = password; salt from `protection.slots[0]`
+- **XpubKey**: credential = xpub string; salt from the matching slot in `protection.slots`
+
 ```
 export_key = Argon2id(
-    password  = export_password,
-    salt      = protection.salt (16 bytes, from hex),
-    m_cost    = protection.m_cost,   // memory: 65536 KiB = 64 MiB
-    t_cost    = protection.t_cost,   // iterations: 3
-    p_cost    = protection.p_cost,   // parallelism: 1
+    password  = export_credential,
+    salt      = slot.salt (16 bytes, from hex),
+    m_cost    = slot.m_cost,   // memory: 65536 KiB = 64 MiB
+    t_cost    = slot.t_cost,   // iterations: 3
+    p_cost    = slot.p_cost,   // parallelism: 1
     output    = 32 bytes
 )
 ```
@@ -334,20 +348,26 @@ import json, base64, binascii
 with open("my_wallet.deadbolt", "rb") as f:
     backup = json.load(f)
 
+# UserPassword backups: use your password as credential.
+# XpubKey backups: use your xpub string as credential (e.g. "xpub6C5s...").
+# For XpubKey, adjust the slot index to match your key.
 protection = backup["protection"]
-salt_bytes  = binascii.unhexlify(protection["salt"])
-m_cost      = protection["m_cost"]   # 65536
-t_cost      = protection["t_cost"]   # 3
-p_cost      = protection["p_cost"]   # 1
+slot       = protection["slots"][0]
+salt_bytes = binascii.unhexlify(slot["salt"])
+m_cost     = slot["m_cost"]    # 65536
+t_cost     = slot["t_cost"]    # 3
+p_cost     = slot["p_cost"]    # 1
 ```
 
-### Step 2: Derive the export key
+### Step 2: Derive the intermediate wrapping key
 
 ```python
 from argon2.low_level import hash_secret_raw, Type
 
-export_key = hash_secret_raw(
-    secret=b"your export password",
+credential = b"your export password"   # or b"xpub6C5s..." for XpubKey backups
+
+wrapping_key = hash_secret_raw(
+    secret=credential,
     salt=salt_bytes,
     time_cost=t_cost,
     memory_cost=m_cost,
@@ -357,34 +377,32 @@ export_key = hash_secret_raw(
 )
 ```
 
-### Step 3: Decrypt the data key
+### Step 3: Derive the export data key
 
 ```python
 from Crypto.Cipher import AES
 
-data_key_blob = binascii.unhexlify(backup["data_key_wrapped"])
-nonce         = data_key_blob[:12]
-ct_and_tag    = data_key_blob[12:]
-ciphertext    = ct_and_tag[:-16]
-tag           = ct_and_tag[-16:]
+def aes_gcm_decrypt(key, blob_hex_or_bytes, is_hex=True):
+    """Decrypt nonce[12] || ciphertext || tag[16] blob."""
+    blob = binascii.unhexlify(blob_hex_or_bytes) if is_hex else blob_hex_or_bytes
+    nonce, ct_tag = blob[:12], blob[12:]
+    ct, tag = ct_tag[:-16], ct_tag[-16:]
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    return cipher.decrypt_and_verify(ct, tag)
 
-cipher    = AES.new(export_key, AES.MODE_GCM, nonce=nonce)
-data_key  = cipher.decrypt_and_verify(ciphertext, tag)
-# data_key is now 32 bytes — the SQLCipher key
-data_key_hex = data_key.hex()
+export_data_key = aes_gcm_decrypt(wrapping_key, slot["wrapped_key"])
 ```
 
-### Step 4: Decrypt the database
+### Step 4: Decrypt the SQLCipher key and database
 
 ```python
-db_blob    = base64.b64decode(backup["data"])
-nonce      = db_blob[:12]
-ct_and_tag = db_blob[12:]
-ciphertext = ct_and_tag[:-16]
-tag        = ct_and_tag[-16:]
+# Decrypt the SQLCipher data key
+data_key = aes_gcm_decrypt(export_data_key, backup["data_key_wrapped"])
+data_key_hex = data_key.hex()
 
-cipher   = AES.new(export_key, AES.MODE_GCM, nonce=nonce)
-db_bytes = cipher.decrypt_and_verify(ciphertext, tag)
+# Decrypt the database bytes
+db_blob  = base64.b64decode(backup["data"])
+db_bytes = aes_gcm_decrypt(export_data_key, db_blob, is_hex=False)
 
 with open("restored.db", "wb") as f:
     f.write(db_bytes)
@@ -399,8 +417,8 @@ sqlcipher restored.db
 ```
 
 ```sql
-PRAGMA key = "x'<data_key_hex_from_step_3>';
--- Replace <data_key_hex_from_step_3> with the 64-char hex string.
+PRAGMA key = "x'<data_key_hex_from_step_4>'";
+-- Replace <data_key_hex_from_step_4> with the 64-char hex string.
 
 SELECT name, descriptor, network, datetime(created_at, 'unixepoch') FROM wallet_info;
 ```

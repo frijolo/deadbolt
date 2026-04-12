@@ -24,7 +24,8 @@ Built with Flutter (UI) and Rust (BDK core), Deadbolt manages Bitcoin wallets fr
 
 - **Wallet operations**: Build transactions with coin control and RBF; multi-recipient sends; direct sign-and-broadcast for hot wallets (no PSBT round-trip)
 - **Hardware wallet**: Sign PSBTs and export xpubs from a BitBox02 via USB (Android, Linux, Windows) — see [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
-- **Hot signing keys**: Encrypted on-device keys for single-device workflows; WIF export and WIF sweep supported
+- **Hot signing keys**: Encrypted on-device keys for single-device workflows; seed export (word list, SeedQR, paper guide); WIF export and WIF sweep supported
+- **Descriptor ownership proofs**: Each participating key can sign the descriptor hash — proves the key has seen and approved the exact wallet setup. Stored in the wallet and included in Nostr backups. See [docs/DESCRIPTOR_SIGS.md](docs/DESCRIPTOR_SIGS.md)
 - **Wallet recovery** (unified screen with three tabs): restore from a BIP-39 seed phrase with gap-limit account discovery; recover via a connected BitBox02 without revealing your seed; or scan by xpub/keyspec alone — Nostr backups are surfaced automatically alongside on-chain results in all three flows; SeedQR payloads (standard and compact) accepted directly from the camera
 - **Labels**: BIP-329 import/export; Liana-format descriptor export
 - **QR / BC-UR**: Animated QR for descriptors and PSBTs; SeedQR import; compatible with Coldcard, SeedSigner, Krux

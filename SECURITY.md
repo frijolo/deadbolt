@@ -33,9 +33,9 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
-wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/SHA256SUMS
-wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/SHA256SUMS.asc
-wget https://github.com/frijolo/deadbolt/releases/download/v1.5.2/deadbolt-<platform>.<ext>
+wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/SHA256SUMS
+wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/SHA256SUMS.asc
+wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/deadbolt-<platform>.<ext>
 
 # 3. Verify GPG signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -174,10 +174,10 @@ git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Verify latest signed tag
-git tag -v v1.5.2
+git tag -v v1.9.3
 
 # Checkout verified tag
-git checkout v1.5.2
+git checkout v1.9.3
 
 # Build
 flutter pub get
@@ -257,5 +257,5 @@ Published security advisories will be available at:
 
 ---
 
-**Last updated**: 2026-04-05
+**Last updated**: 2026-04-12
 **GPG Fingerprint**: `A629 277A 6EFC 89EC 035D  3788 593F BBED 4849 293C`

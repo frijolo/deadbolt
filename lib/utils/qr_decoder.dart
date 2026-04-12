@@ -10,61 +10,36 @@ import 'package:deadbolt/utils/seed_qr.dart';
 class QrDecodeResult {
   final String text;
 
-  /// QR version (1–40). Modules = version * 4 + 17.
-  final int? version;
-
-  /// Raw payload bytes (before text encoding).
-  final int? rawByteCount;
-
   /// Raw payload bytes as unsigned bytes — populated for binary-mode QR codes.
   final Uint8List? rawBytes;
 
-  const QrDecodeResult(this.text, {this.version, this.rawByteCount, this.rawBytes});
-
-  /// Human-readable size summary, e.g. "v10 · 57×57 · 32 bytes".
-  String get sizeDescription {
-    final parts = <String>[];
-    if (version != null) {
-      final modules = version! * 4 + 17;
-      parts.add('v$version · $modules×$modules');
-    }
-    if (rawByteCount != null) parts.add('$rawByteCount bytes');
-    return parts.join(' · ');
-  }
+  const QrDecodeResult(this.text, {this.rawBytes});
 }
 
 /// Decodes a QR code from a raw RGB888 frame.
 ///
 /// Returns the decoded result, or `null` if no QR code is found in the frame.
 QrDecodeResult? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) {
-  final rawImage = img.Image.fromBytes(
-    width: width,
-    height: height,
-    bytes: rgbBytes.buffer,
-    order: img.ChannelOrder.rgb,
-    numChannels: 3,
-  );
-  final source = RGBLuminanceSource(
-    width,
-    height,
-    rawImage
-        .convert(numChannels: 4)
-        .getBytes(order: img.ChannelOrder.abgr)
-        .buffer
-        .asInt32List(),
-  );
+  // Build the ARGB Int32List that RGBLuminanceSource expects directly from the
+  // RGB888 bytes — avoids creating two full-image intermediate buffers via the
+  // img library. RGBLuminanceSource expects each Int32 to encode the pixel as
+  // ABGR bytes in little-endian order, i.e. Int32 = R<<24 | G<<16 | B<<8 | A.
+  final argb = Int32List(width * height);
+  for (int i = 0; i < width * height; i++) {
+    final src = i * 3;
+    argb[i] = (rgbBytes[src] << 24) |
+        (rgbBytes[src + 1] << 16) |
+        (rgbBytes[src + 2] << 8) |
+        0xFF;
+  }
+  final source = RGBLuminanceSource(width, height, argb);
   try {
     final result = QRCodeReader()
         .decode(BinaryBitmap(GlobalHistogramBinarizer(source)));
     // zxing2 rawBytes is the full QR bit stream (mode + count + data +
     // terminator), not the bare payload. Extract just the data bytes.
     final rawBytes = _extractQrBytePayload(result.rawBytes);
-    return QrDecodeResult(
-      result.text,
-      version: result.version,
-      rawByteCount: rawBytes?.length,
-      rawBytes: rawBytes,
-    );
+    return QrDecodeResult(result.text, rawBytes: rawBytes);
   } catch (_) {
     return null; // NotFoundException — no QR in frame
   }

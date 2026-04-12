@@ -55,11 +55,11 @@ Integration tests require a running display. Prepare the test build once after e
 # Prepare test build (patches Rust bindings for headless use)
 DISPLAY=:0 bash scripts/prepare_test_build.sh
 
-# Run regression scripts (repeat for 01 through 08)
+# Run regression scripts (repeat for 01 through 09)
 DISPLAY=:0 python3 scripts/regression_01_singlesig.py
-DISPLAY=:0 python3 scripts/regression_02_multisig.py
+DISPLAY=:0 python3 scripts/regression_02_multisig_wsh.py
 # ...
-DISPLAY=:0 python3 scripts/regression_08_labels_backup.py
+DISPLAY=:0 python3 scripts/regression_09_restore_backup.py
 ```
 
 ## Regenerating FFI Bindings

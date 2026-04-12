@@ -33,7 +33,7 @@ dependencies:
   flutter_lite_camera:
     git:
       url: https://github.com/frijolo/flutter_lite_camera.git
-      ref: cf71213fcd4bb68dfb05c67a59a1ca5fa8103f35
+      ref: cda412b19a206333981f00c1f34855dd682ae2c0
   zxing2: ^0.2.4
   image: ^4.0.0
   http: ^1.2.2
