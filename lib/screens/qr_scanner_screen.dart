@@ -112,16 +112,29 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       if (devices.isEmpty) throw Exception('No camera devices found');
       // Some drivers (e.g. ipu6 on Intel laptops) expose several video nodes
       // where the low-numbered ones are metadata-only and fail to open.
-      // Try each index in order and use the first one that opens successfully.
-      bool opened = false;
+      // Virtual cameras (v4l2loopback) may open successfully but block on
+      // frame capture when no writer feeds them — probe each device with a
+      // test capture and advance to the next one on failure.
+      bool foundCamera = false;
       for (int i = 0; i < devices.length; i++) {
-        opened = await camera.open(i);
-        if (opened) break;
+        final opened = await camera.open(i);
+        if (!opened) continue;
+        try {
+          await camera.captureFrame();
+          foundCamera = true;
+          break;
+        } catch (_) {
+          // captureFrame() timed out or errored — this device has no active
+          // frame producer (e.g. v4l2loopback with no writer). Try the next one.
+          await camera.release();
+        }
       }
-      if (!opened) throw Exception('Failed to open camera');
+      if (!foundCamera) throw Exception('No working camera found');
       _camera = camera;
       _startCameraLoop();
     } catch (e) {
+      // Release the camera if initialization failed before _camera was assigned.
+      await camera.release();
       if (mounted) setState(() => _cameraInitFailed = true);
     }
   }
