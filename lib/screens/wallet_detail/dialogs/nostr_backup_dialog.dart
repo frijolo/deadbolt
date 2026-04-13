@@ -441,10 +441,13 @@ class _DescriptorSigStatusRow extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
-                  onPressed: () => WalletSecurityScreen.push(
-                    context,
-                    cubit: context.read<WalletDetailCubit>(),
-                  ),
+                  onPressed: () async {
+                    await WalletSecurityScreen.push(
+                      context,
+                      cubit: context.read<WalletDetailCubit>(),
+                    );
+                    if (context.mounted) sigsCubit.load();
+                  },
                   icon: const Icon(Icons.security, size: 16),
                   label: Text(l10n.goToSecurity, style: ts.labelSmall),
                 ),
