@@ -795,6 +795,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get initializingCamera => 'Iniciando cámara…';
 
   @override
+  String get switchCamera => 'Cambiar cámara';
+
+  @override
   String get deleteWalletTitle => 'Eliminar billetera';
 
   @override

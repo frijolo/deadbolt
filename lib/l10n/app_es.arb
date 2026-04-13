@@ -346,6 +346,7 @@
   "loadingAddresses": "Cargando direcciones…",
   "loadingCoins": "Cargando monedas…",
   "initializingCamera": "Iniciando cámara…",
+  "switchCamera": "Cambiar cámara",
   "deleteWalletTitle": "Eliminar billetera",
   "deleteWalletConfirm": "¿Eliminar \"{name}\"?",
   "@deleteWalletConfirm": {

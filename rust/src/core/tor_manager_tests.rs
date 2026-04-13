@@ -1,12 +1,12 @@
+use super::{is_tor_running, set_tor_data_dir, start_tor, tor_socks_addr};
+use bdk_electrum::electrum_client::{Client, ConfigBuilder, ElectrumApi, Socks5Config};
+
 /// Integration test: Tor bootstrap + Electrum connectivity through onion service.
 ///
 /// Run with:
 ///   ELECTRUM_ONION_URL=tcp://... cargo test tor_onion -- --nocapture --ignored
 ///
 /// The URL is intentionally read from the environment so it never appears in git.
-use bdk_electrum::electrum_client::{Client, ConfigBuilder, ElectrumApi, Socks5Config};
-use rust_lib_deadbolt::core::tor_manager;
-
 #[test]
 #[ignore]
 fn tor_onion_electrum_ping() {
@@ -15,15 +15,15 @@ fn tor_onion_electrum_ping() {
 
     // Set a temp data dir so the test doesn't pollute the app state.
     let data_dir = std::env::temp_dir().join("deadbolt_tor_test");
-    tor_manager::set_tor_data_dir(data_dir.to_str().unwrap());
+    set_tor_data_dir(data_dir.to_str().unwrap());
 
     println!("Starting Tor bootstrap...");
-    tor_manager::start_tor().expect("start_tor failed");
+    start_tor().expect("start_tor failed");
 
     // Wait up to 120 s for bootstrap.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
     loop {
-        if tor_manager::is_tor_running() {
+        if is_tor_running() {
             break;
         }
         assert!(
@@ -34,7 +34,7 @@ fn tor_onion_electrum_ping() {
         print!(".");
     }
 
-    let socks_addr = tor_manager::tor_socks_addr().expect("SOCKS5 addr missing after bootstrap");
+    let socks_addr = tor_socks_addr().expect("SOCKS5 addr missing after bootstrap");
     println!("\nTor ready — SOCKS5 at {socks_addr}");
     println!("Connecting to {url} via Tor...");
 

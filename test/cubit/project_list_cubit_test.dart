@@ -8,7 +8,7 @@ import 'package:deadbolt/services/project_descriptor_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 
-import '../test_utils.dart';
+import '../fixtures/sqlite_setup.dart';
 
 class MockProjectDescriptorService extends Mock
     implements ProjectDescriptorService {}

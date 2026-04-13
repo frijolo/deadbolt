@@ -359,8 +359,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "30ce804bbb069eb686e5ea1500834664325fe05a"
-      resolved-ref: "30ce804bbb069eb686e5ea1500834664325fe05a"
+      ref: "3d23a15d05a2a67e1f231023c57fd372255ed64b"
+      resolved-ref: "3d23a15d05a2a67e1f231023c57fd372255ed64b"
       url: "https://github.com/frijolo/flutter_lite_camera.git"
     source: git
     version: "0.0.2"

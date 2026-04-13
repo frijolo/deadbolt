@@ -80,6 +80,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   FlutterLiteCamera? _camera;
   ui.Image? _previewImage;
   bool _cameraInitFailed = false;
+  List<int> _workingCameraIndices = [];
+  int _activeCameraIndex = 0;
+  int _cameraGeneration = 0;
 
   double get _progress =>
       _expectedCount > 0 ? _receivedCount / _expectedCount : 0.0;
@@ -96,6 +99,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   @override
   void dispose() {
+    _previewImage?.dispose();
     _camera?.release();
     _scannerController?.dispose();
     super.dispose();
@@ -110,37 +114,76 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     try {
       final devices = await camera.getDeviceList();
       if (devices.isEmpty) throw Exception('No camera devices found');
-      // Some drivers (e.g. ipu6 on Intel laptops) expose several video nodes
-      // where the low-numbered ones are metadata-only and fail to open.
-      // Virtual cameras (v4l2loopback) may open successfully but block on
-      // frame capture when no writer feeds them — probe each device with a
-      // test capture and advance to the next one on failure.
-      bool foundCamera = false;
+      // Probe every device: some drivers (e.g. ipu6) expose metadata-only nodes
+      // at low indices, and virtual cameras (v4l2loopback) open but block on
+      // captureFrame. Collect all indices that actually produce frames.
+      final List<int> working = [];
       for (int i = 0; i < devices.length; i++) {
         final opened = await camera.open(i);
         if (!opened) continue;
-        try {
-          await camera.captureFrame();
-          foundCamera = true;
-          break;
-        } catch (_) {
-          // captureFrame() timed out or errored — this device has no active
-          // frame producer (e.g. v4l2loopback with no writer). Try the next one.
-          await camera.release();
+        // Some drivers (e.g. VirtualBox MJPEG) need several poll cycles to
+        // produce the first frame after STREAMON. Retry up to 6 times with a
+        // short delay so we don't miss real cameras due to a warm-up period.
+        // v4l2loopback virtual cameras with no active writer will consistently
+        // fail all retries, so this doesn't regress that detection.
+        bool producesFrames = false;
+        for (int attempt = 0; attempt < 6 && !producesFrames; attempt++) {
+          try {
+            await camera.captureFrame();
+            producesFrames = true;
+          } catch (_) {
+            await Future.delayed(const Duration(milliseconds: 200));
+          }
         }
+        if (producesFrames) working.add(i);
+        await camera.release();
       }
-      if (!foundCamera) throw Exception('No working camera found');
+      if (working.isEmpty) throw Exception('No working camera found');
+      await camera.open(working.first);
       _camera = camera;
+      _workingCameraIndices = working;
       _startCameraLoop();
     } catch (e) {
-      // Release the camera if initialization failed before _camera was assigned.
       await camera.release();
       if (mounted) setState(() => _cameraInitFailed = true);
     }
   }
 
+  Future<void> _switchDesktopCamera() async {
+    if (_workingCameraIndices.length <= 1 || _camera == null) return;
+    // Bump generation so the running loop exits after its current poll.
+    _cameraGeneration++;
+    final cam = _camera!;
+    _camera = null;
+    if (mounted) {
+      setState(() {
+        _previewImage?.dispose();
+        _previewImage = null;
+      });
+    }
+    // Allow any in-flight captureFrame() to complete or throw before releasing.
+    await Future.delayed(const Duration(milliseconds: 150));
+    await cam.release();
+    // Re-open the same FlutterLiteCamera instance on a different device —
+    // the plugin's Camera class resets fd on Release() so Open() is valid again.
+    for (int attempt = 1; attempt <= _workingCameraIndices.length; attempt++) {
+      final candidateIndex =
+          (_activeCameraIndex + attempt) % _workingCameraIndices.length;
+      final opened = await cam.open(_workingCameraIndices[candidateIndex]);
+      if (opened) {
+        if (!mounted) return;
+        _activeCameraIndex = candidateIndex;
+        _camera = cam;
+        _startCameraLoop();
+        return;
+      }
+    }
+    if (mounted) setState(() => _cameraInitFailed = true);
+  }
+
   Future<void> _startCameraLoop() async {
-    while (!_done && mounted && _camera != null) {
+    final generation = _cameraGeneration;
+    while (!_done && mounted && _camera != null && _cameraGeneration == generation) {
       await _pollFrame();
     }
   }
@@ -155,7 +198,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       final int h = frame['height'] as int;
 
       final qrResult = decodeQrFromRgbFrame(w, h, rgbBytes);
-      final uiImage  = await _rgbToUiImage(w, h, rgbBytes);
 
       if (qrResult != null) {
         // Compact SeedQR: try raw bytes before falling back to text.
@@ -171,8 +213,18 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         if (mounted) setState(() => _scanState = _ScanState.noQr);
       }
 
-      if (mounted) {
-        setState(() => _previewImage = uiImage);
+      // Skip image conversion after a successful scan — the widget is being
+      // popped and the resulting ui.Image would be created but never disposed.
+      if (!_done && mounted) {
+        final uiImage = await _rgbToUiImage(w, h, rgbBytes);
+        if (mounted) {
+          setState(() {
+            _previewImage?.dispose();
+            _previewImage = uiImage;
+          });
+        } else {
+          uiImage.dispose();
+        }
       }
     } catch (_) {
       // Transient frame capture error — skip frame and continue polling.
@@ -348,7 +400,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     } else if (_cameraInitFailed) {
       body = _buildFileFallback(l10n);
     } else {
-      body = _buildDesktopCamera(l10n);
+      body = _buildDesktopCamera();
     }
     return Scaffold(
       appBar: AppBar(title: Text(l10n.scanQrCode)),
@@ -373,12 +425,15 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             ),
           ),
         ),
+        _buildSwitchCameraButton(
+          onPressed: () => _scannerController?.switchCamera(),
+        ),
         if (_isAnimated) _buildUrOverlay(),
       ],
     );
   }
 
-  Widget _buildDesktopCamera(AppLocalizations l10n) {
+  Widget _buildDesktopCamera() {
     return Stack(
       children: [
         // Camera preview
@@ -390,9 +445,29 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 ),
               )
             : LoadingIndicator(message: context.l10n.initializingCamera),
-        // BC-UR overlay
+        if (_workingCameraIndices.length > 1)
+          _buildSwitchCameraButton(onPressed: _switchDesktopCamera),
+        // BC-UR overlay — rendered last so it sits above the switch button.
         if (_isAnimated) _buildUrOverlay(),
       ],
+    );
+  }
+
+  /// Camera-switch button pinned to the top-right, below any overlay content.
+  Widget _buildSwitchCameraButton({required VoidCallback onPressed}) {
+    return Positioned(
+      top: 40,
+      right: 8,
+      child: IconButton(
+        icon: const Icon(Icons.switch_camera),
+        tooltip: context.l10n.switchCamera,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.black54,
+          foregroundColor: Colors.white,
+          shape: const CircleBorder(),
+        ),
+      ),
     );
   }
 

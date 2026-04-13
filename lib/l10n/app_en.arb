@@ -352,6 +352,7 @@
   "loadingAddresses": "Loading addresses…",
   "loadingCoins": "Loading coins…",
   "initializingCamera": "Initializing camera…",
+  "switchCamera": "Switch camera",
   "deleteWalletTitle": "Delete wallet",
   "deleteWalletConfirm": "Delete \"{name}\"?",
   "@deleteWalletConfirm": {

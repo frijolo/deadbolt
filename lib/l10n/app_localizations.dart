@@ -1556,6 +1556,12 @@ abstract class AppLocalizations {
   /// **'Initializing camera…'**
   String get initializingCamera;
 
+  /// No description provided for @switchCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch camera'**
+  String get switchCamera;
+
   /// No description provided for @deleteWalletTitle.
   ///
   /// In en, this message translates to:

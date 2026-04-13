@@ -794,6 +794,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get initializingCamera => 'Initializing camera…';
 
   @override
+  String get switchCamera => 'Switch camera';
+
+  @override
   String get deleteWalletTitle => 'Delete wallet';
 
   @override

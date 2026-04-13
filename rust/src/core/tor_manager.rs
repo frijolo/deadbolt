@@ -352,3 +352,7 @@ pub fn take_tor_connection_error() -> Option<String> {
 pub fn tor_bootstrap_progress() -> (f32, String) {
     TOR_MANAGER.bootstrap_progress()
 }
+
+#[cfg(test)]
+#[path = "tor_manager_tests.rs"]
+mod tests;
