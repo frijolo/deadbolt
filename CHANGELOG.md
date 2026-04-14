@@ -4,12 +4,13 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.4]
 
 ### New Features
 - **Switch camera button in QR scanner** — When multiple working cameras are detected on desktop, a camera-switch button appears in the top-right corner of the scanner overlay, allowing the user to cycle through available cameras without leaving the screen.
 
 ### Fixes
+- **Descriptor signatures reload** — Returning from the Security screen now triggers a fresh reload of descriptor signatures so tile states reflect any signing just completed.
 - **Desktop QR scanner with multiple cameras** — The app no longer hangs when virtual cameras (v4l2loopback with no writer) are present. The C++ plugin now uses `poll()` with a 500 ms timeout before `VIDIOC_DQBUF` so unproductive devices return immediately instead of blocking forever. Camera selection probes each device with a test frame and advances to the next one on failure, ensuring the real camera is found even when virtual devices appear first.
 - **Desktop QR scanner on Intel ipu6 laptops** — Camera init now tries each V4L2 device index in order and uses the first one that opens successfully, instead of always opening index 0 (which is metadata-only on ipu6 drivers and always fails).
 
@@ -417,6 +418,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.4]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.4
 [v1.9.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.3
 [v1.9.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.2
 [v1.9.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.1
