@@ -109,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIBalance dco_decode_api_balance(dynamic raw);
 
   @protected
+  APIBiometricSlot dco_decode_api_biometric_slot(dynamic raw);
+
+  @protected
   APICoinControl dco_decode_api_coin_control(dynamic raw);
 
   @protected
@@ -307,6 +310,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIAddress> dco_decode_list_api_address(dynamic raw);
+
+  @protected
+  List<APIBiometricSlot> dco_decode_list_api_biometric_slot(dynamic raw);
 
   @protected
   List<APICoinControl> dco_decode_list_api_coin_control(dynamic raw);
@@ -542,6 +548,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIBalance sse_decode_api_balance(SseDeserializer deserializer);
+
+  @protected
+  APIBiometricSlot sse_decode_api_biometric_slot(SseDeserializer deserializer);
 
   @protected
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
@@ -780,6 +789,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIAddress> sse_decode_list_api_address(SseDeserializer deserializer);
+
+  @protected
+  List<APIBiometricSlot> sse_decode_list_api_biometric_slot(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<APICoinControl> sse_decode_list_api_coin_control(
@@ -1087,6 +1101,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_balance(APIBalance self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_biometric_slot(
+    APIBiometricSlot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_coin_control(
     APICoinControl self,
     SseSerializer serializer,
@@ -1381,6 +1401,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_address(
     List<APIAddress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_biometric_slot(
+    List<APIBiometricSlot> self,
     SseSerializer serializer,
   );
 

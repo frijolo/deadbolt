@@ -84,7 +84,7 @@ fn test_device_key_wallet_opens_without_password() -> anyhow::Result<()> {
         WalletProtectionRequest::DeviceKey,
     )?;
 
-    let key = resolve_wallet_key(&path, DEVICE_KEY, None)?;
+    let key = resolve_wallet_key(&path, DEVICE_KEY, None, None)?;
     let conn = open_encrypted_connection(&path, &key)?;
     let row = read_wallet_info(&conn)?;
     assert_eq!(row.name, "NoPass");
@@ -109,7 +109,7 @@ fn test_user_password_wallet_opens_with_correct_password() -> anyhow::Result<()>
         },
     )?;
 
-    let key = resolve_wallet_key(&path, DEVICE_KEY, Some("my-secret"))?;
+    let key = resolve_wallet_key(&path, DEVICE_KEY, Some("my-secret"), None)?;
     let conn = open_encrypted_connection(&path, &key)?;
     let row = read_wallet_info(&conn)?;
     assert_eq!(row.name, "PassWallet");
@@ -134,7 +134,7 @@ fn test_user_password_wallet_fails_with_wrong_password() -> anyhow::Result<()> {
         },
     )?;
 
-    let result = resolve_wallet_key(&path, DEVICE_KEY, Some("wrong"));
+    let result = resolve_wallet_key(&path, DEVICE_KEY, Some("wrong"), None);
     assert!(result.is_err(), "Should fail with wrong password");
     Ok(())
 }
@@ -157,7 +157,7 @@ fn test_user_password_wallet_fails_without_password() -> anyhow::Result<()> {
         },
     )?;
 
-    let result = resolve_wallet_key(&path, DEVICE_KEY, None);
+    let result = resolve_wallet_key(&path, DEVICE_KEY, None, None);
     assert!(result.is_err(), "Should require password");
     let msg = result.unwrap_err().to_string();
     assert!(msg.contains("Password required"), "Error: {}", msg);

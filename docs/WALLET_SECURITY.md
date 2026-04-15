@@ -10,13 +10,14 @@ This document describes how Deadbolt stores, encrypts, and backs up wallet data.
 2. [Device Key](#device-key)
 3. [Key-Envelope Architecture](#key-envelope-architecture)
 4. [Protection Types](#protection-types)
-5. [`.meta` Sidecar File Format](#meta-sidecar-file-format)
-6. [SQLCipher Database](#sqlcipher-database)
-7. [`.deadbolt` Backup Format](#deadbolt-backup-format)
-8. [Cryptographic Primitives](#cryptographic-primitives)
-9. [Independent Recovery (Without the App)](#independent-recovery-without-the-app)
-10. [Security Considerations](#security-considerations)
-11. [Descriptor Signatures](#descriptor-signatures)
+5. [Biometric Unlock](#biometric-unlock)
+6. [`.meta` Sidecar File Format](#meta-sidecar-file-format)
+7. [SQLCipher Database](#sqlcipher-database)
+8. [`.deadbolt` Backup Format](#deadbolt-backup-format)
+9. [Cryptographic Primitives](#cryptographic-primitives)
+10. [Independent Recovery (Without the App)](#independent-recovery-without-the-app)
+11. [Security Considerations](#security-considerations)
+12. [Descriptor Signatures](#descriptor-signatures)
 
 ---
 
@@ -80,8 +81,23 @@ Each wallet has a unique **data key** (32 random bytes). This is the key that SQ
 │   wrapped_data_key    wrapped_data_key          wrapped_data_key[0..N]       │
 │   (in .meta)          (in .meta)                (in .meta, one per xpub)    │
 │         │                   │                          │                     │
+│         │    ╔══════════════╪══════════════════════════╪═══════════╗        │
+│         │    ║  Optional biometric slot (Type 1 or 2 only)         ║        │
+│         │    ║                                                      ║        │
+│         │    ║  biometric_key (random 32 bytes)                     ║        │
+│         │    ║  stored in platform keystore,                        ║        │
+│         │    ║  released only after hardware biometric auth         ║        │
+│         │    ║         │                                            ║        │
+│         │    ║         ▼                                            ║        │
+│         │    ║   AES-256-GCM wrap (no KDF)                          ║        │
+│         │    ║         │                                            ║        │
+│         │    ║         ▼                                            ║        │
+│         │    ║  biometric_slots[i].wrapped_key (in .meta)           ║        │
+│         │    ╚══════════════╪══════════════════════════════════════╝        │
+│         │                   │                          │                     │
 │    unwrap with         unwrap with              unwrap with any              │
-│    device_key          Argon2id key             matching xpub                │
+│    device_key          Argon2id key or          matching xpub or             │
+│                        biometric_key            biometric_key                │
 │         │                   │                          │                     │
 │         └─────────────┬─────┘──────────────────────────┘                    │
 │                       ▼                                                      │
@@ -117,9 +133,75 @@ Each wallet has a unique **data key** (32 random bytes). This is the key that SQ
 - These wallets are **portable**: they do not depend on the device key and can be unlocked on any device by anyone who possesses a registered xpub.
 - Slots can be added or removed after creation (requires presenting a currently-registered xpub).
 
+### Biometric Unlock (optional add-on for Type 1 and Type 2)
+
+Type 1 and Type 2 wallets can optionally have one or more **biometric slots** registered. A biometric slot wraps the same `data_key` with a randomly generated 32-byte key that is stored in the platform's hardware-backed keystore. This allows the wallet to be opened with a fingerprint or face scan instead of typing the password or xpub — the biometric key is released by the hardware only after authentication passes (see [Biometric Unlock](#biometric-unlock)).
+
+Biometric slots are entirely optional. Removing all slots, reinstalling the app, or restoring the wallet on a new device reverts to the primary protection type transparently — the wallet can always be opened with the original password or xpub.
+
 ### Changing Protection
 
 Any protection type can be changed to any other at any time using the **Encryption** button in the wallet overview or the wallet menu. The operation re-encrypts the database in-place via `PRAGMA rekey` on the existing connection — no export or import is required, and the wallet remains accessible throughout. A fresh data key is generated on every protection change for forward secrecy.
+
+---
+
+## Biometric Unlock
+
+Biometric unlock is an optional layer that can be added to any Type 1 (UserPassword) or Type 2 (XpubKey) wallet on devices that have enrolled biometrics. It is **not a protection type** — it is a supplementary slot that wraps the same data key with a randomly generated key stored in the platform's hardware security module.
+
+### How it works
+
+When biometric unlock is enabled for a wallet, Deadbolt:
+
+1. Generates a 32-byte random key (`biometric_key`) in Flutter using `Random.secure()`.
+2. Sends it to Rust, which wraps the wallet's `data_key` with `biometric_key` via AES-256-GCM (no KDF — the key is already 256 bits of entropy) and stores the resulting `BiometricSlot` in the `.meta` file.
+3. Stores `biometric_key` in the platform's hardware-backed keystore under the slot ID (a UUID v4 generated by Rust), protected so it can only be read after biometric authentication.
+
+On subsequent opens, the app reads `biometric_key` from the keystore — which triggers the hardware biometric prompt — then passes it to Rust to unwrap the `data_key` and open the wallet. If biometric authentication fails or is cancelled, the wallet falls back to the primary credential prompt.
+
+### Platform keystore locations
+
+The `biometric_key` is stored by the [`biometric_storage`](https://pub.dev/packages/biometric_storage) plugin, which uses the platform's hardware security module:
+
+| Platform | Storage mechanism | Biometric binding |
+|----------|-------------------|--------------------|
+| Android  | Android Keystore (AES-256-GCM) | `setUserAuthenticationRequired(true)` — the hardware enforces biometric authentication before the decryption cipher is authorized; the key cannot be used without passing through the hardware biometric stack |
+| iOS      | Keychain with `kSecAccessControlBiometryCurrentSet` | The entry is invalidated if enrolled biometrics change (new fingerprint added) |
+| macOS    | Keychain with `kSecAccessControlBiometryCurrentSet` | Same as iOS |
+| Linux    | GNOME Keyring via libsecret | No biometric support — the option is hidden on Linux |
+
+**On Android specifically**: the decryption cipher is initialized only inside a `BiometricPrompt.CryptoObject` session. The Android OS hardware (or Trusted Execution Environment) verifies the biometric and authorizes the cipher as an atomic operation — there is no separate app-level authentication step that could be bypassed by a compromised process.
+
+### Wrapping scheme
+
+```
+biometric_key = 32 random bytes (Dart Random.secure)
+wrapped_key   = hex(nonce[12] || AES-256-GCM_encrypt(key=biometric_key, plaintext=data_key_bytes))
+```
+
+No KDF is applied between `biometric_key` and the AES-256-GCM key because `biometric_key` already contains 256 bits of entropy. The `wrapped_key` format is identical to other slot types in the `.meta` file.
+
+### Loss and recovery
+
+| Event | Effect |
+|-------|--------|
+| App reinstalled / data cleared | `biometric_key` is lost (keystore cleared). Rust `.meta` slot remains but cannot be unwrapped. Wallet opens normally with password/xpub. |
+| New biometric enrolled (iOS/macOS) | Keychain entry invalidated by `kSecAccessControlBiometryCurrentSet`. Biometric unlock stops working; wallet falls back to password. Re-enable biometric to create a new slot. |
+| Biometric disabled in OS settings | Authentication fails; wallet falls back to password. |
+| Wallet restored from `.deadbolt` backup | Biometric slots are not included in backups. Re-enable after restore. |
+| Wallet restored on a new device | Same as backup restore — no biometric slot on the new device. |
+
+The wallet's primary credential (password or xpub) is **always sufficient** to open the wallet, regardless of biometric slot state.
+
+### Security properties and limitations
+
+**Hardware enforcement (Android)**: The `biometric_key` cannot be read from the Android Keystore without a successful biometric operation at the hardware level. A compromised process cannot bypass this by calling `read()` without authentication.
+
+**App-sandbox protection**: On a non-rooted device, the keystore is isolated to the Deadbolt app. Other apps cannot access `biometric_key`.
+
+**RAM exposure**: After successful authentication, `biometric_key` exists in Dart heap memory as a `String` for the duration of the wallet open operation. Dart strings are GC-managed and cannot be explicitly zeroed. On a device where an attacker can dump process memory (rooted Android, jailbroken iOS), the key could theoretically be extracted. This is equivalent to the risk of extracting a cached password from RAM, and is disclosed in the app UI.
+
+**Device with unlocked bootloader or custom OS**: Hardware security guarantees may be reduced. The Trusted Execution Environment (TEE) that enforces `setUserAuthenticationRequired` can be replaced on devices with an unlocked bootloader. This limitation is inherent to the Android security model and applies to all apps that use Android Keystore biometric binding.
 
 ---
 
@@ -150,11 +232,19 @@ Each `.db` file has a companion `<uuid>.db.meta` file containing JSON. This file
   "wrapped_key": "<hex>",
   "display_name": "My Wallet",
   "network": "bitcoin",
-  "last_synced_at": 1710000000
+  "last_synced_at": 1710000000,
+  "biometric_slots": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "wrapped_key": "<hex>"
+    }
+  ]
 }
 ```
 
 `display_name`, `network`, and `last_synced_at` are cached in the sidecar so locked wallets can be shown in the list without opening them. They are refreshed on every successful open and sync.
+
+`biometric_slots` is omitted from the JSON entirely when no biometric unlock has been registered (`#[serde(default)]` on the Rust side ensures backward compatibility with older `.meta` files).
 
 ### Type 2 — XpubKey
 
@@ -175,13 +265,23 @@ Each `.db` file has a companion `<uuid>.db.meta` file containing JSON. This file
   ],
   "display_name": "My Wallet",
   "network": "bitcoin",
-  "last_synced_at": 1710000000
+  "last_synced_at": 1710000000,
+  "biometric_slots": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "wrapped_key": "<hex>"
+    }
+  ]
 }
 ```
 
 Each entry in `slots` corresponds to one xpub from the descriptor. `mfp` is the 8-hex-char master fingerprint used for fast slot lookup. `derivation` is a display hint for the UI only; it does not affect key derivation. `wrapped_key` format is identical to Type 1.
 
-**`wrapped_key` format**: `hex(nonce[12] || ciphertext[32] || tag[16])` — 60 bytes total, encoded as 120 hex characters.
+**`biometric_slots[i].id`**: A UUID v4 generated by Rust when the slot is created. This ID is used as the key name in the platform keystore (stored as `deadbolt_biometric_<id>` by the [`biometric_storage`](https://pub.dev/packages/biometric_storage) plugin). The ID has no security significance — it is a pointer to the keystore entry, not a secret.
+
+**`biometric_slots[i].wrapped_key`**: The wallet's `data_key` wrapped with the `biometric_key` via AES-256-GCM. The `biometric_key` is the secret held by the platform keystore; without it, `wrapped_key` cannot be decrypted. A wallet with biometric slots can always be opened by ignoring `biometric_slots` entirely and using the primary credential (`wrapped_key` / `slots`).
+
+**`wrapped_key` format (all types)**: `hex(nonce[12] || ciphertext[32] || tag[16])` — 60 bytes total, encoded as 120 hex characters.
 
 The 12-byte nonce is randomly generated on every wrap operation (including migrations and re-keys).
 
@@ -313,6 +413,9 @@ On import, the original wallet protection type is preserved:
 | AES-256-GCM | `aes-gcm` crate (RustCrypto) | Key wrapping, backup encryption |
 | Argon2id | `argon2` crate (RustCrypto) | Password KDF for Type 1 wallets and backups |
 | OS CSPRNG | `rand::OsRng` (Rust) | All random generation (keys, nonces, salts) |
+| OS CSPRNG | Dart `Random.secure()` | Biometric key generation |
+| Android Keystore AES-256-GCM | `biometric_storage` plugin / Android OS | Hardware-backed biometric key storage and decryption |
+| iOS/macOS Keychain | `biometric_storage` plugin / Apple OS | Hardware-backed biometric key storage |
 | SQLCipher | BDK's bundled SQLCipher | Database encryption (AES-256-CBC, raw key mode) |
 | SHA-256 | BDK | Spend path identifiers (internal) |
 
@@ -460,8 +563,10 @@ For the full protocol, see [DESCRIPTOR_SIGS.md](DESCRIPTOR_SIGS.md). For the BB0
 
 **What is not protected**:
 - The `.meta` file is unencrypted and reveals the protection type and, for Type 1 wallets, the Argon2id salt. An attacker with the `.meta` file can launch an offline password-guessing attack against Type 1 wallets if they also have the `.db` file. Type 2 slots also contain a salt per xpub, but the xpub itself provides ~256 bits of entropy, making brute-force infeasible.
+- The `.meta` file also stores `biometric_slots[i].wrapped_key` in plaintext. This is a ciphertext that wraps the `data_key` using `biometric_key`. Without `biometric_key` from the platform keystore, this ciphertext cannot be decrypted — it provides no information about the wallet data. The `id` fields are UUIDs with no secret value.
 - The `.wallet_key` file is protected by filesystem permissions only (mode 600). On Android, it is in app-private storage. If the device is compromised (rooted Android, physical access to Linux home dir), the device key is exposed, compromising all Type 0 wallets. Type 1 and Type 2 wallets are unaffected.
-- The `.deadbolt` backup file is fully self-contained. Its security depends entirely on the strength of the export password and the computational hardness of Argon2id with the specified parameters.
+- The `.deadbolt` backup file is fully self-contained. Its security depends entirely on the strength of the export password and the computational hardness of Argon2id with the specified parameters. Biometric slots are never included in `.deadbolt` backups.
+- **Biometric unlock on rooted Android**: on a device with a compromised OS or unlocked bootloader, the Trusted Execution Environment (TEE) that enforces `setUserAuthenticationRequired(true)` may be bypassed or replaced. An attacker could potentially access the platform keystore without biometric authentication, then use the recovered `biometric_key` to unwrap the `data_key` from `.meta`. This is disclosed in the app UI. On a stock, non-rooted device, this attack path is not available.
 
 **Backup recommendations**:
 - Use a strong, unique export password (≥16 random characters) when creating `.deadbolt` backups.

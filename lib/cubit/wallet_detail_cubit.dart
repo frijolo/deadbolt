@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:biometric_storage/biometric_storage.dart';
+
+import 'package:deadbolt/services/biometric_keystore_service.dart';
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
@@ -79,6 +82,9 @@ class WalletDetailLoaded extends WalletDetailState {
   // Transient error to show as toast (cleared after display)
   final String? errorMessage;
 
+  // Whether this wallet has at least one biometric unlock slot registered.
+  final bool hasBiometricSlot;
+
   WalletDetailLoaded({
     required this.walletInfo,
     required this.balance,
@@ -98,6 +104,7 @@ class WalletDetailLoaded extends WalletDetailState {
     this.utxosLoaded = false,
     this.tipHeight = 0,
     this.descriptorAnalysis,
+    this.hasBiometricSlot = false,
     this.keyLabels = const {},
     this.pathLabels = const {},
     this.descriptorLoaded = false,
@@ -138,6 +145,7 @@ class WalletDetailLoaded extends WalletDetailState {
     bool? psbtsLoaded,
     List<APIHotKeyInfo>? hotKeys,
     Map<String, double>? fiatPrices,
+    bool? hasBiometricSlot,
     Object? currentBtcPrice = _keep,
     Object? fiatCurrency = _keep,
     Object? errorMessage = _keep,
@@ -172,6 +180,7 @@ class WalletDetailLoaded extends WalletDetailState {
       psbtsLoaded: psbtsLoaded ?? this.psbtsLoaded,
       hotKeys: hotKeys ?? this.hotKeys,
       fiatPrices: fiatPrices ?? this.fiatPrices,
+      hasBiometricSlot: hasBiometricSlot ?? this.hasBiometricSlot,
       currentBtcPrice: currentBtcPrice == _keep
           ? this.currentBtcPrice
           : currentBtcPrice as double?,
@@ -207,6 +216,7 @@ class WalletDetailError extends WalletDetailState {
 class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   final WalletService _service;
   final WalletSyncService _syncService;
+  final BiometricKeystoreService _keystoreService;
   static const _pageSize = 25;
   static const _revealCount = 20;
   static const tabOverview = 0;
@@ -226,9 +236,13 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
   // re-fetch after the current one completes (e.g. currency changed mid-fetch).
   bool _needsFiatRefetch = false;
 
-  WalletDetailCubit({WalletService? service, required WalletSyncService syncService})
-      : _service = service ?? WalletService(),
+  WalletDetailCubit({
+    WalletService? service,
+    required WalletSyncService syncService,
+    BiometricKeystoreService? biometricKeystoreService,
+  })  : _service = service ?? WalletService(),
         _syncService = syncService,
+        _keystoreService = biometricKeystoreService ?? BiometricKeystoreService(),
         super(WalletDetailInitial());
 
   @override
@@ -365,13 +379,14 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     }
   }
 
-  /// Evict the cached password so the wallet will require re-authentication
+  /// Evict all cached credentials so the wallet will require re-authentication
   /// on next open. The caller is responsible for navigating away.
   void lockWallet() {
     final current = state;
     if (current is! WalletDetailLoaded) return;
     final path = current.walletInfo.walletPath;
     _service.evictPassword(path);
+    _service.evictBiometricKey(path);
     _syncService.untrack(path);
   }
 
@@ -380,32 +395,42 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
     String? password,
     String? openingMessage,
     String? loadingDataMessage,
+    // Localized reason string shown in the biometric prompt.
+    // When provided and the wallet has biometric slots, biometric unlock is
+    // attempted before falling back to the password prompt.
+    String? biometricUnlockReason,
   }) async {
     emit(WalletDetailLoading(message: openingMessage));
     try {
       if (password != null) _service.cachePassword(walletPath, password);
-      // If no password is available (provided or cached), check upfront whether
-      // one is required — avoids brittle string matching on the Rust error.
-      final effectivePassword =
-          password ?? _service.getCachedPassword(walletPath);
-      if (effectivePassword == null) {
+      // If no credential is cached yet, check upfront whether one is required
+      // — avoids brittle string matching on the Rust error.
+      ApiWallet? handle;
+      if (!_service.isUnlocked(walletPath)) {
         // Check both flags in parallel — each reads the .meta sidecar once.
         final (needsPassword, isXpubKey) = await (
           _service.walletRequiresPassword(walletPath),
           _service.walletRequiresXpub(walletPath),
         ).wait;
         if (needsPassword) {
-          APINetwork? network;
-          if (isXpubKey) {
-            final hint = await getWalletNetworkHint(walletPath: walletPath);
-            network = hint != null ? APINetwork.values.where((n) => n.name == hint).firstOrNull : null;
+          // Attempt hardware biometric unlock before showing the password prompt.
+          if (biometricUnlockReason != null) {
+            handle = await _tryBiometricUnlock(walletPath, biometricUnlockReason);
           }
-          emit(WalletDetailNeedsPassword(walletPath,
-              isXpubKey: isXpubKey, network: network));
-          return;
+          if (handle == null) {
+            // No credential available — ask for password.
+            APINetwork? network;
+            if (isXpubKey) {
+              final hint = await getWalletNetworkHint(walletPath: walletPath);
+              network = hint != null ? APINetwork.values.where((n) => n.name == hint).firstOrNull : null;
+            }
+            emit(WalletDetailNeedsPassword(walletPath,
+                isXpubKey: isXpubKey, network: network));
+            return;
+          }
         }
       }
-      final handle = await _service.openWallet(walletPath, password: effectivePassword);
+      handle ??= await _service.openWallet(walletPath);
       if (loadingDataMessage != null) emit(WalletDetailLoading(message: loadingDataMessage));
       // Load all local data in parallel before sync starts — avoids the BDK
       // mutex contention that would block address/UTXO reads during sync.
@@ -440,6 +465,12 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         loadWarning ??= formatRustError(e);
       }
 
+      // Check biometric slot status (fast .meta read, non-critical)
+      bool hasBioSlot = false;
+      try {
+        hasBioSlot = await _service.hasBiometricSlots(walletPath);
+      } catch (_) {}
+
       emit(WalletDetailLoaded(
         walletHandle: handle,
         walletInfo: walletInfo,
@@ -459,6 +490,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbtAnalyses: psbtAnalyses,
         psbtsLoaded: true,
         hotKeys: hotKeys,
+        hasBiometricSlot: hasBioSlot,
         errorMessage: loadWarning,
       ));
       // Eagerly load descriptor analysis so PSBT navigation works from the
@@ -469,7 +501,107 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Evict any cached credential so the prompt re-appears on next open
       // instead of failing silently with a cached bad credential.
       _service.evictPassword(walletPath);
+      _service.evictBiometricKey(walletPath);
       emit(WalletDetailError(formatRustError(e)));
+    }
+  }
+
+  /// Attempts to open the wallet using a registered biometric slot.
+  ///
+  /// Authentication is hardware-enforced: [BiometricKeystoreService.retrieveKey]
+  /// triggers the platform's biometric prompt internally (Android Keystore /
+  /// iOS Keychain). There is no separate app-level authentication step.
+  /// Returns null if biometrics are unavailable, the user cancels, or no
+  /// matching key is found in the hardware keystore.
+  Future<ApiWallet?> _tryBiometricUnlock(
+    String walletPath,
+    String localizedReason,
+  ) async {
+    try {
+      if (!await _keystoreService.isAvailable()) return null;
+      if (!await _service.hasBiometricSlots(walletPath)) return null;
+      final slots = await _service.listBiometricSlots(walletPath);
+      final promptInfo = PromptInfo(
+        androidPromptInfo: AndroidPromptInfo(
+          title: localizedReason,
+          negativeButton: 'Cancel',
+        ),
+        iosPromptInfo: IosPromptInfo(accessTitle: localizedReason),
+        macOsPromptInfo: IosPromptInfo(accessTitle: localizedReason),
+      );
+      for (final slot in slots) {
+        final key = await _keystoreService.retrieveKey(slot.id, promptInfo);
+        if (key == null) continue;
+        try {
+          _service.cacheBiometricKey(walletPath, key);
+          return await _service.openWallet(walletPath);
+        } catch (_) {
+          _service.evictBiometricKey(walletPath);
+          continue;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Enables biometric unlock for the currently loaded wallet.
+  ///
+  /// Flow:
+  /// 1. Generate a random 32-byte key via [BiometricKeystoreService.generateKey].
+  /// 2. Register a new biometric slot in the wallet's .meta file via Rust,
+  ///    which returns the slot ID (UUID v4).
+  /// 3. Store the key in the hardware-backed keystore under that ID.
+  ///    The platform shows a biometric prompt at this point — [promptInfo]
+  ///    provides the localized strings shown in that prompt.
+  ///
+  /// If Rust fails in step 2, nothing is written to the keystore.
+  /// If the keystore write fails in step 3 (e.g. user cancels the prompt),
+  /// the orphan slot in .meta is removed to keep state consistent.
+  Future<void> enableBiometricSlot(PromptInfo promptInfo) async {
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+    final walletPath = s.walletInfo.walletPath;
+    try {
+      final keyHex = _keystoreService.generateKey();
+      final slotId = await _service.addBiometricSlot(
+        walletPath: walletPath,
+        biometricKeyHex: keyHex,
+      );
+      try {
+        await _keystoreService.storeKey(slotId, keyHex, promptInfo);
+      } catch (e, _) {
+        // Rollback: remove the Rust slot so .meta stays consistent.
+        await _service.removeBiometricSlot(
+          walletPath: walletPath,
+          biometricId: slotId,
+        );
+        rethrow;
+      }
+      emit(s.copyWith(hasBiometricSlot: true));
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.enableBiometricSlot()', e, st);
+    }
+  }
+
+  /// Disables all biometric unlock slots for the currently loaded wallet.
+  /// Removes every slot from the .meta file and deletes the corresponding
+  /// keys from the platform keystore.
+  Future<void> disableAllBiometricSlots() async {
+    final s = state;
+    if (s is! WalletDetailLoaded) return;
+    final walletPath = s.walletInfo.walletPath;
+    try {
+      final slots = await _service.listBiometricSlots(walletPath);
+      for (final slot in slots) {
+        await _service.removeBiometricSlot(
+          walletPath: walletPath,
+          biometricId: slot.id,
+        );
+        await _keystoreService.deleteKey(slot.id);
+      }
+      emit(s.copyWith(hasBiometricSlot: false));
+    } catch (e, st) {
+      _emitError('WalletDetailCubit.disableAllBiometricSlots()', e, st);
     }
   }
 
@@ -1299,14 +1431,25 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       );
 
       // Update credential cache.
+      // Changing protection always invalidates all biometric slots in Rust,
+      // so evict the biometric key regardless of the new protection type.
       final walletPath = current.walletInfo.walletPath;
+      _service.evictBiometricKey(walletPath);
       switch (newProtectionType) {
         case APIProtectionType.deviceKey:
           _service.evictPassword(walletPath);
         case APIProtectionType.userPassword:
           if (newPassword != null) _service.cachePassword(walletPath, newPassword);
         case APIProtectionType.xpubKey:
-          _service.evictPassword(walletPath);
+          // Cache the first xpub so biometric enrollment works in this session.
+          // Mirrors UserPassword behaviour: the wallet stays open until app restart.
+          // If descriptor analysis is unavailable, evict and let the user re-enter.
+          final xpubKeys = current.descriptorAnalysis?.keys;
+          if (xpubKeys != null && xpubKeys.isNotEmpty) {
+            _service.cachePassword(walletPath, xpubKeys.first.xpub);
+          } else {
+            _service.evictPassword(walletPath);
+          }
       }
 
       // Update walletInfo in-place — no need to re-open the wallet (which

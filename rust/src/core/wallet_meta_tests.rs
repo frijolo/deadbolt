@@ -45,6 +45,7 @@ fn test_write_read_user_password_meta() -> Result<()> {
         display_name: Some("Test".to_string()),
         network: Some("bitcoin".to_string()),
         last_synced_at: None,
+        biometric_slots: vec![],
     };
     write_meta(&wallet_path, &meta)?;
 

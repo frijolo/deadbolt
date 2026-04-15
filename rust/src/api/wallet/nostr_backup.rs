@@ -601,8 +601,12 @@ pub async fn publish_nostr_backup(
     open_password: Option<String>,
     relay_urls: Vec<String>,
 ) -> Result<Vec<NostrRelayStatus>> {
-    let wallet_data_key =
-        resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
+    let wallet_data_key = resolve_wallet_key(
+        &wallet_path,
+        &device_key_hex,
+        open_password.as_deref(),
+        None,
+    )?;
     let (row, descriptor_sigs) = {
         let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
         let row = read_wallet_info(&conn)?;

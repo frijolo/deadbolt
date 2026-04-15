@@ -482,6 +482,132 @@ abstract class AppLocalizations {
   /// **'Dark'**
   String get themeDark;
 
+  /// No description provided for @screenshotProtectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot Protection'**
+  String get screenshotProtectionLabel;
+
+  /// No description provided for @screenshotProtectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prevent screenshots and screen recording'**
+  String get screenshotProtectionSubtitle;
+
+  /// No description provided for @settingsSectionSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get settingsSectionSecurity;
+
+  /// No description provided for @biometricLockLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Lock'**
+  String get biometricLockLabel;
+
+  /// No description provided for @biometricLockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Require biometrics to open the app'**
+  String get biometricLockSubtitle;
+
+  /// No description provided for @biometricLockInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Lock'**
+  String get biometricLockInfoTitle;
+
+  /// No description provided for @biometricLockInfoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.'**
+  String get biometricLockInfoBody;
+
+  /// No description provided for @biometricLockInfoEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get biometricLockInfoEnable;
+
+  /// No description provided for @biometricTimeoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock after'**
+  String get biometricTimeoutLabel;
+
+  /// No description provided for @biometricTimeoutImmediate.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediately'**
+  String get biometricTimeoutImmediate;
+
+  /// No description provided for @biometricTimeout1Min.
+  ///
+  /// In en, this message translates to:
+  /// **'1 minute'**
+  String get biometricTimeout1Min;
+
+  /// No description provided for @biometricTimeout5Min.
+  ///
+  /// In en, this message translates to:
+  /// **'5 minutes'**
+  String get biometricTimeout5Min;
+
+  /// No description provided for @biometricUnlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to access Deadbolt'**
+  String get biometricUnlockReason;
+
+  /// No description provided for @biometricUnlockButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get biometricUnlockButton;
+
+  /// No description provided for @biometricSetupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed. Biometric lock was not enabled.'**
+  String get biometricSetupFailed;
+
+  /// No description provided for @biometricWalletSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock'**
+  String get biometricWalletSectionTitle;
+
+  /// No description provided for @biometricWalletSectionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Use fingerprint or face ID to open this wallet without typing your password.'**
+  String get biometricWalletSectionBody;
+
+  /// No description provided for @biometricWalletUnlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to open wallet'**
+  String get biometricWalletUnlockReason;
+
+  /// No description provided for @biometricWalletEnableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not enable biometric unlock. Try again.'**
+  String get biometricWalletEnableFailed;
+
+  /// No description provided for @biometricWalletDisableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not disable biometric unlock.'**
+  String get biometricWalletDisableFailed;
+
+  /// No description provided for @biometricWalletRootedWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.'**
+  String get biometricWalletRootedWarning;
+
   /// No description provided for @discardChangesTooltip.
   ///
   /// In en, this message translates to:
@@ -781,6 +907,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{current} / {total}'**
   String qrPart(int current, int total);
+
+  /// No description provided for @enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get enable;
 
   /// No description provided for @close.
   ///

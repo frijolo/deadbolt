@@ -91,6 +91,29 @@
   "themeSystem": "System default",
   "themeLight": "Light",
   "themeDark": "Dark",
+  "screenshotProtectionLabel": "Screenshot Protection",
+  "screenshotProtectionSubtitle": "Prevent screenshots and screen recording",
+
+  "settingsSectionSecurity": "Security",
+  "biometricLockLabel": "Biometric Lock",
+  "biometricLockSubtitle": "Require biometrics to open the app",
+  "biometricLockInfoTitle": "Biometric Lock",
+  "biometricLockInfoBody": "When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.",
+  "biometricLockInfoEnable": "Enable",
+  "biometricTimeoutLabel": "Lock after",
+  "biometricTimeoutImmediate": "Immediately",
+  "biometricTimeout1Min": "1 minute",
+  "biometricTimeout5Min": "5 minutes",
+  "biometricUnlockReason": "Authenticate to access Deadbolt",
+  "biometricUnlockButton": "Unlock",
+  "biometricSetupFailed": "Authentication failed. Biometric lock was not enabled.",
+
+  "biometricWalletSectionTitle": "Biometric unlock",
+  "biometricWalletSectionBody": "Use fingerprint or face ID to open this wallet without typing your password.",
+  "biometricWalletUnlockReason": "Authenticate to open wallet",
+  "biometricWalletEnableFailed": "Could not enable biometric unlock. Try again.",
+  "biometricWalletDisableFailed": "Could not disable biometric unlock.",
+  "biometricWalletRootedWarning": "Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.",
 
   "discardChangesTooltip": "Discard changes",
   "moreOptionsTooltip": "More options",
@@ -163,6 +186,7 @@
       "total": { "type": "int" }
     }
   },
+  "enable": "Enable",
   "close": "Close",
   "dismiss": "Dismiss",
   "savedToDownloads": "File saved",

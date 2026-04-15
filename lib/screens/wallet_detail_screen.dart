@@ -65,7 +65,8 @@ class WalletDetailScreen extends StatelessWidget {
           syncService: ctx.read<WalletSyncService>(),
         )..load(walletPath,
             openingMessage: l10n.openingWallet,
-            loadingDataMessage: l10n.loadingWalletData);
+            loadingDataMessage: l10n.loadingWalletData,
+            biometricUnlockReason: l10n.biometricWalletUnlockReason);
       },
       child: _WalletDetailView(onNavigate: onNavigate),
     );

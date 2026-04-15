@@ -46,6 +46,17 @@ class _WalletListScreenState extends State<WalletListScreen> {
   void initState() {
     super.initState();
     _loadOrder();
+    // If the wallet list was already loaded before this screen mounted
+    // (e.g. after biometric unlock), the BlocConsumer listener will not fire
+    // for the current state. Trigger initFromList here so wallets sync.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final walletState = context.read<WalletListCubit>().state;
+      if (walletState is WalletListLoaded) {
+        final settings = context.read<SettingsCubit>().state;
+        context.read<WalletSyncService>().initFromList(walletState.wallets, settings);
+      }
+    });
   }
 
   Future<void> _loadOrder() async {
@@ -249,8 +260,8 @@ class _WalletListScreenState extends State<WalletListScreen> {
       BuildContext context, APIWalletInfo wallet, WalletListLoaded state, int index) {
     final l10n = context.l10n;
     final service = context.read<WalletService>();
-    final isLocked = wallet.protection.needsPassword &&
-        service.getCachedPassword(wallet.walletPath) == null;
+    final isLocked =
+        wallet.protection.needsPassword && !service.isUnlocked(wallet.walletPath);
     final lastSynced = wallet.lastSyncedAt != null
         ? DateTime.fromMillisecondsSinceEpoch(wallet.lastSyncedAt! * 1000)
         : null;
@@ -374,6 +385,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
             context.read<WalletListCubit>().syncWallet(wallet.walletPath);
           case 'lock':
             service.evictPassword(wallet.walletPath);
+            service.evictBiometricKey(wallet.walletPath);
             context.read<WalletSyncService>().untrack(wallet.walletPath);
             context.read<WalletListCubit>().refresh();
           case 'delete':

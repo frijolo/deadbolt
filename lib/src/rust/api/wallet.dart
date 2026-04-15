@@ -75,14 +75,18 @@ Future<void> deleteWallet({required String walletPath}) =>
 /// Reads descriptor and network from wallet_info inside the encrypted file,
 /// then opens the BDK wallet in a single SQLite connection.
 /// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
+/// Pass `biometric_key_hex` to unlock via a registered biometric slot instead of
+/// the normal credential; biometric slots are tried first when this is `Some`.
 Future<ApiWallet> openWallet({
   required String walletPath,
   required String deviceKeyHex,
   String? password,
+  String? biometricKeyHex,
 }) => RustLib.instance.api.crateApiWalletOpenWallet(
   walletPath: walletPath,
   deviceKeyHex: deviceKeyHex,
   password: password,
+  biometricKeyHex: biometricKeyHex,
 );
 
 /// Check whether a wallet requires a credential (password or xpub) to open.
@@ -135,6 +139,49 @@ Future<void> removeXpubSlot({
 /// List all registered xpub slots for a XpubKey-protected wallet, including derivation hints.
 Future<List<APIXpubSlot>> listXpubSlots({required String walletPath}) =>
     RustLib.instance.api.crateApiWalletListXpubSlots(walletPath: walletPath);
+
+/// Add a biometric slot to a UserPassword or XpubKey wallet.
+///
+/// The Flutter layer generates a random 32-byte `biometric_key_hex` and stores it
+/// in the platform's secure storage (gated behind `local_auth`). This function wraps
+/// the wallet data key with that random key and records the slot in the `.meta` sidecar.
+///
+/// Returns the slot ID (UUID v4) that the Flutter layer must use as the keystore key name.
+/// `current_credential` is the existing password/xpub needed to derive the data key.
+Future<String> addBiometricSlot({
+  required String walletPath,
+  required String deviceKeyHex,
+  String? currentCredential,
+  required String biometricKeyHex,
+}) => RustLib.instance.api.crateApiWalletAddBiometricSlot(
+  walletPath: walletPath,
+  deviceKeyHex: deviceKeyHex,
+  currentCredential: currentCredential,
+  biometricKeyHex: biometricKeyHex,
+);
+
+/// Remove a biometric slot by ID from a UserPassword or XpubKey wallet.
+Future<void> removeBiometricSlot({
+  required String walletPath,
+  required String biometricId,
+}) => RustLib.instance.api.crateApiWalletRemoveBiometricSlot(
+  walletPath: walletPath,
+  biometricId: biometricId,
+);
+
+/// List all registered biometric slot IDs for this wallet.
+/// Returns an empty list for DeviceKey wallets.
+Future<List<APIBiometricSlot>> listBiometricSlots({
+  required String walletPath,
+}) => RustLib.instance.api.crateApiWalletListBiometricSlots(
+  walletPath: walletPath,
+);
+
+/// Returns true if the wallet has at least one registered biometric slot.
+Future<bool> walletHasBiometricSlots({required String walletPath}) => RustLib
+    .instance
+    .api
+    .crateApiWalletWalletHasBiometricSlots(walletPath: walletPath);
 
 /// Validate a mnemonic phrase and return its MFP without storing anything.
 Future<APIHotKeyInfo> validateMnemonic({

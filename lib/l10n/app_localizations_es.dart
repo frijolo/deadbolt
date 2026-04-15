@@ -217,6 +217,76 @@ class AppLocalizationsEs extends AppLocalizations {
   String get themeDark => 'Oscuro';
 
   @override
+  String get screenshotProtectionLabel => 'Protección de pantalla';
+
+  @override
+  String get screenshotProtectionSubtitle =>
+      'Evita capturas y grabación de pantalla';
+
+  @override
+  String get settingsSectionSecurity => 'Seguridad';
+
+  @override
+  String get biometricLockLabel => 'Bloqueo biométrico';
+
+  @override
+  String get biometricLockSubtitle => 'Requiere biometría para abrir la app';
+
+  @override
+  String get biometricLockInfoTitle => 'Bloqueo biométrico';
+
+  @override
+  String get biometricLockInfoBody =>
+      'Al activarlo, Deadbolt requerirá huella dactilar, reconocimiento facial o el PIN/patrón del dispositivo cada vez que abras la app o vuelvas de segundo plano.\n\nAsegúrate de tener biometría o bloqueo de pantalla configurado antes de activarlo.';
+
+  @override
+  String get biometricLockInfoEnable => 'Activar';
+
+  @override
+  String get biometricTimeoutLabel => 'Bloquear tras';
+
+  @override
+  String get biometricTimeoutImmediate => 'Inmediatamente';
+
+  @override
+  String get biometricTimeout1Min => '1 minuto';
+
+  @override
+  String get biometricTimeout5Min => '5 minutos';
+
+  @override
+  String get biometricUnlockReason => 'Autentícate para acceder a Deadbolt';
+
+  @override
+  String get biometricUnlockButton => 'Desbloquear';
+
+  @override
+  String get biometricSetupFailed =>
+      'Autenticación fallida. El bloqueo biométrico no se activó.';
+
+  @override
+  String get biometricWalletSectionTitle => 'Desbloqueo biométrico';
+
+  @override
+  String get biometricWalletSectionBody =>
+      'Usa huella dactilar o Face ID para abrir esta wallet sin escribir tu contraseña.';
+
+  @override
+  String get biometricWalletUnlockReason => 'Autentícate para abrir la wallet';
+
+  @override
+  String get biometricWalletEnableFailed =>
+      'No se pudo activar el desbloqueo biométrico. Inténtalo de nuevo.';
+
+  @override
+  String get biometricWalletDisableFailed =>
+      'No se pudo desactivar el desbloqueo biométrico.';
+
+  @override
+  String get biometricWalletRootedWarning =>
+      'Aviso: en dispositivos rooteados o con jailbreak, la clave de desbloqueo almacenada en el almacenamiento seguro podría ser extraída.';
+
+  @override
   String get discardChangesTooltip => 'Descartar cambios';
 
   @override
@@ -376,6 +446,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String qrPart(int current, int total) {
     return '$current / $total';
   }
+
+  @override
+  String get enable => 'Habilitar';
 
   @override
   String get close => 'Cerrar';

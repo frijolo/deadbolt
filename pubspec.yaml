@@ -1,7 +1,7 @@
 name: deadbolt
 description: "Bitcoin descriptor analyzer"
 publish_to: 'none'
-version: 1.9.4+26041406
+version: 1.9.4+26041501
 
 environment:
   sdk: ^3.10.7
@@ -38,6 +38,8 @@ dependencies:
   image: ^4.0.0
   http: ^1.2.2
   socks5_proxy: ^2.1.1
+  local_auth: ^2.3.0
+  biometric_storage: ^5.0.1
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,6 +31,11 @@ class AppSettings {
   final String fiatCurrency;
   final PriceProviderType fiatProvider;
   final bool torEnabled;
+  final bool screenshotProtection;
+  final bool biometricLockEnabled;
+
+  /// Minutes of background time before the app locks. 0 means immediately.
+  final int biometricTimeoutMinutes;
 
   /// Minimum relative timelock (in blocks) for a spend path to be considered
   /// an inheritance path and shown in the inheritance status panel.
@@ -85,6 +93,9 @@ class AppSettings {
     this.fiatCurrency = 'usd',
     this.fiatProvider = PriceProviderType.coinGecko,
     this.torEnabled = false,
+    this.screenshotProtection = true,
+    this.biometricLockEnabled = false,
+    this.biometricTimeoutMinutes = 1,
     this.inheritanceMinTimelockBlocks = AppSettings.kDefaultInheritanceMinTimelock,
   });
 
@@ -156,6 +167,9 @@ class AppSettings {
     String? fiatCurrency,
     PriceProviderType? fiatProvider,
     bool? torEnabled,
+    bool? screenshotProtection,
+    bool? biometricLockEnabled,
+    int? biometricTimeoutMinutes,
     int? inheritanceMinTimelockBlocks,
   }) {
     return AppSettings(
@@ -178,6 +192,9 @@ class AppSettings {
       fiatCurrency: fiatCurrency ?? this.fiatCurrency,
       fiatProvider: fiatProvider ?? this.fiatProvider,
       torEnabled: torEnabled ?? this.torEnabled,
+      screenshotProtection: screenshotProtection ?? this.screenshotProtection,
+      biometricLockEnabled: biometricLockEnabled ?? this.biometricLockEnabled,
+      biometricTimeoutMinutes: biometricTimeoutMinutes ?? this.biometricTimeoutMinutes,
       inheritanceMinTimelockBlocks:
           inheritanceMinTimelockBlocks ?? this.inheritanceMinTimelockBlocks,
     );
@@ -204,7 +221,12 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _fiatCurrencyKey = 'fiatCurrency';
   static const _fiatProviderKey = 'fiatProvider';
   static const _torEnabledKey = 'torEnabled';
+  static const _screenshotProtectionKey = 'screenshotProtection';
+  static const _biometricLockKey = 'biometricLockEnabled';
+  static const _biometricTimeoutKey = 'biometricTimeoutMinutes';
   static const _inheritanceMinTimelockKey = 'inheritanceMinTimelock';
+
+  static const _securityChannel = MethodChannel('deadbolt/security');
 
   SharedPreferences? _prefs;
 
@@ -281,6 +303,12 @@ class SettingsCubit extends Cubit<AppSettings> {
       fiatProvider: PriceProviderType.values.byName(
           prefs.getString(_fiatProviderKey) ?? defaults.fiatProvider.name),
       torEnabled: prefs.getBool(_torEnabledKey) ?? defaults.torEnabled,
+      screenshotProtection:
+          prefs.getBool(_screenshotProtectionKey) ?? defaults.screenshotProtection,
+      biometricLockEnabled:
+          prefs.getBool(_biometricLockKey) ?? defaults.biometricLockEnabled,
+      biometricTimeoutMinutes:
+          prefs.getInt(_biometricTimeoutKey) ?? defaults.biometricTimeoutMinutes,
       inheritanceMinTimelockBlocks:
           prefs.getInt(_inheritanceMinTimelockKey) ??
               defaults.inheritanceMinTimelockBlocks,
@@ -289,6 +317,14 @@ class SettingsCubit extends Cubit<AppSettings> {
     // Restore Tor state across restarts.
     if (prefs.getBool(_torEnabledKey) ?? false) {
       _applyTorEnabled(true);
+    }
+
+    // If the user has screenshot protection disabled, clear the default FLAG_SECURE
+    // that MainActivity sets on startup.
+    final screenshotEnabled =
+        prefs.getBool(_screenshotProtectionKey) ?? true;
+    if (!screenshotEnabled) {
+      _applyScreenshotProtection(false);
     }
   }
 
@@ -368,6 +404,30 @@ class SettingsCubit extends Cubit<AppSettings> {
     final prefs = await _getPrefs();
     await prefs.setInt(_inheritanceMinTimelockKey, value);
     emit(state.copyWith(inheritanceMinTimelockBlocks: value));
+  }
+
+  Future<void> _applyScreenshotProtection(bool enabled) async {
+    if (!Platform.isAndroid) return;
+    await _securityChannel.invokeMethod<void>('setScreenshotProtection', enabled);
+  }
+
+  Future<void> setScreenshotProtection(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_screenshotProtectionKey, enabled);
+    await _applyScreenshotProtection(enabled);
+    emit(state.copyWith(screenshotProtection: enabled));
+  }
+
+  Future<void> setBiometricLockEnabled(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_biometricLockKey, enabled);
+    emit(state.copyWith(biometricLockEnabled: enabled));
+  }
+
+  Future<void> setBiometricTimeoutMinutes(int minutes) async {
+    final prefs = await _getPrefs();
+    await prefs.setInt(_biometricTimeoutKey, minutes);
+    emit(state.copyWith(biometricTimeoutMinutes: minutes));
   }
 
   Future<void> setFiatProvider(PriceProviderType provider) async {

@@ -4,12 +4,12 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APICoinControl, APICpfpInfo, APIFiatPrice,
-    APIHotKeyInfo, APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
-    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRecipient, APIRelatedAddress,
-    APIRelatedTx, APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage,
-    APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection,
-    APIXpubSlot,
+    APIAddress, APIAddressDetails, APIBalance, APIBiometricSlot, APICoinControl, APICpfpInfo,
+    APIFiatPrice, APIHotKeyInfo, APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath,
+    APIProtectionType, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRecipient,
+    APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APISecurityLevel, APITransaction,
+    APITransactionPage, APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo,
+    APIWalletProtection, APIXpubSlot,
 };
 use crate::core::key_protection::{
     decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
@@ -22,8 +22,9 @@ use crate::core::wallet::{
     build_valid_outpoints, is_psbt_self_transfer, psbt_max_utxo_conf_height, CoreWallet,
 };
 use crate::core::wallet_info::{
-    add_xpub_slot_to_wallet, build_protection_meta, create_wallet_db, generate_uuid_v4,
-    get_wallet_info_from_file, list_wallets_in_dir, refresh_user_password_meta_cache,
+    add_biometric_slot_to_wallet, add_xpub_slot_to_wallet, build_protection_meta, create_wallet_db,
+    generate_uuid_v4, get_wallet_info_from_file, list_biometric_slot_ids, list_wallets_in_dir,
+    refresh_user_password_meta_cache, remove_biometric_slot_from_wallet,
     remove_xpub_slot_from_wallet, rename_wallet_in_file, resolve_wallet_key, wallet_needs_password,
     wallet_needs_xpub, wallet_network_hint, WalletProtectionRequest,
 };
@@ -424,12 +425,20 @@ pub fn delete_wallet(wallet_path: String) -> Result<()> {
 /// Reads descriptor and network from wallet_info inside the encrypted file,
 /// then opens the BDK wallet in a single SQLite connection.
 /// Pass `password` for UserPassword wallets, `None` for DeviceKey wallets.
+/// Pass `biometric_key_hex` to unlock via a registered biometric slot instead of
+/// the normal credential; biometric slots are tried first when this is `Some`.
 pub fn open_wallet(
     wallet_path: String,
     device_key_hex: String,
     password: Option<String>,
+    biometric_key_hex: Option<String>,
 ) -> Result<APIWallet> {
-    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, password.as_deref())?;
+    let data_key = resolve_wallet_key(
+        &wallet_path,
+        &device_key_hex,
+        password.as_deref(),
+        biometric_key_hex.as_deref(),
+    )?;
     let (descriptor, network, api_network, last_synced_at) = {
         let conn = open_encrypted_connection(&wallet_path, &data_key)?;
         let row = read_wallet_info(&conn)?;
@@ -477,7 +486,7 @@ pub fn add_xpub_slot(
     device_key_hex: String,
     current_xpub: String,
 ) -> Result<()> {
-    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, Some(&current_xpub))?;
+    let data_key = resolve_wallet_key(&wallet_path, &device_key_hex, Some(&current_xpub), None)?;
     // Read the descriptor to find the derivation path for new_mfp.
     let conn = open_encrypted_connection(&wallet_path, &data_key)?;
     let row = read_wallet_info(&conn)?;
@@ -509,6 +518,45 @@ pub fn list_xpub_slots(wallet_path: String) -> Result<Vec<APIXpubSlot>> {
             .collect()),
         _ => Ok(vec![]),
     }
+}
+
+/// Add a biometric slot to a UserPassword or XpubKey wallet.
+///
+/// The Flutter layer generates a random 32-byte `biometric_key_hex` and stores it
+/// in the platform's secure storage (gated behind `local_auth`). This function wraps
+/// the wallet data key with that random key and records the slot in the `.meta` sidecar.
+///
+/// Returns the slot ID (UUID v4) that the Flutter layer must use as the keystore key name.
+/// `current_credential` is the existing password/xpub needed to derive the data key.
+pub fn add_biometric_slot(
+    wallet_path: String,
+    device_key_hex: String,
+    current_credential: Option<String>,
+    biometric_key_hex: String,
+) -> Result<String> {
+    add_biometric_slot_to_wallet(
+        &wallet_path,
+        &device_key_hex,
+        current_credential.as_deref(),
+        &biometric_key_hex,
+    )
+}
+
+/// Remove a biometric slot by ID from a UserPassword or XpubKey wallet.
+pub fn remove_biometric_slot(wallet_path: String, biometric_id: String) -> Result<()> {
+    remove_biometric_slot_from_wallet(&wallet_path, &biometric_id)
+}
+
+/// List all registered biometric slot IDs for this wallet.
+/// Returns an empty list for DeviceKey wallets.
+pub fn list_biometric_slots(wallet_path: String) -> Result<Vec<APIBiometricSlot>> {
+    let ids = list_biometric_slot_ids(&wallet_path)?;
+    Ok(ids.into_iter().map(|id| APIBiometricSlot { id }).collect())
+}
+
+/// Returns true if the wallet has at least one registered biometric slot.
+pub fn wallet_has_biometric_slots(wallet_path: String) -> bool {
+    crate::core::wallet_info::wallet_has_biometric_slots(&wallet_path)
 }
 
 /// Live wallet handle. Open once with [open_wallet], then call methods directly.
@@ -998,7 +1046,12 @@ pub fn copy_project_keys_to_wallet(
     let proj_conn = open_project_seeds_db(&app_support_dir, &device_key_hex)?;
     let entries = list_project_seed_entries(&proj_conn, project_id)?;
 
-    let wallet_key = resolve_wallet_key(&wallet_path, &device_key_hex, wallet_password.as_deref())?;
+    let wallet_key = resolve_wallet_key(
+        &wallet_path,
+        &device_key_hex,
+        wallet_password.as_deref(),
+        None,
+    )?;
     let wallet_conn = open_encrypted_connection(&wallet_path, &wallet_key)?;
 
     let mut copied = 0u32;

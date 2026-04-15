@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_lite_camera
+  local_auth_windows
   share_plus
   sqlite3_flutter_libs
   url_launcher_windows

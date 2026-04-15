@@ -50,8 +50,12 @@ pub fn export_wallet_backup(
         ));
     }
 
-    let wallet_data_key =
-        resolve_wallet_key(&wallet_path, &device_key_hex, open_password.as_deref())?;
+    let wallet_data_key = resolve_wallet_key(
+        &wallet_path,
+        &device_key_hex,
+        open_password.as_deref(),
+        None,
+    )?;
     let row = {
         let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
         read_wallet_info(&conn)?

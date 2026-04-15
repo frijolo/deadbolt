@@ -14,6 +14,12 @@ class WalletService {
   /// Cleared when the app is terminated; never persisted to disk.
   final Map<String, String> _passwordCache = {};
 
+  /// In-session cache: walletPath → biometric key hex.
+  /// Allows re-opening a biometrically-protected wallet within the same session
+  /// without triggering the hardware biometric prompt again.
+  /// Same RAM-exposure risk as password caching; cleared on app termination.
+  final Map<String, String> _biometricKeyCache = {};
+
   Future<File> _keyFile() async {
     final dir = await getApplicationSupportDirectory();
     return File(p.join(dir.path, _keyFileName));
@@ -73,6 +79,27 @@ class WalletService {
   void evictPassword(String walletPath) {
     _passwordCache.remove(walletPath);
   }
+
+  // ---------------------------------------------------------------------------
+  // Biometric key cache
+  // ---------------------------------------------------------------------------
+
+  void cacheBiometricKey(String walletPath, String keyHex) {
+    _biometricKeyCache[walletPath] = keyHex;
+  }
+
+  String? getCachedBiometricKey(String walletPath) =>
+      _biometricKeyCache[walletPath];
+
+  void evictBiometricKey(String walletPath) {
+    _biometricKeyCache.remove(walletPath);
+  }
+
+  /// Returns true if a credential of any kind is cached for this wallet,
+  /// meaning the wallet is already unlocked in this session.
+  bool isUnlocked(String walletPath) =>
+      _passwordCache.containsKey(walletPath) ||
+      _biometricKeyCache.containsKey(walletPath);
 
   // ---------------------------------------------------------------------------
   // Wallet CRUD
@@ -136,20 +163,26 @@ class WalletService {
   }
 
   /// Open a wallet once — returns a live handle for balance/tx/sync calls.
-  /// If the wallet requires a password and none is cached, throws.
-  /// Callers should catch the error and request the password from the user,
-  /// then call `cachePassword` and retry.
+  ///
+  /// Credential resolution order:
+  ///   1. Explicit [password] (also stored in cache for subsequent calls).
+  ///   2. Cached password (UserPassword / XpubKey wallets).
+  ///   3. Cached biometric key (wallets unlocked via hardware keystore this session).
+  ///
+  /// If no credential is available and the wallet requires one, Rust throws —
+  /// callers should catch that, prompt the user, then call [cachePassword] or
+  /// [cacheBiometricKey] and retry.
   Future<rust_wallet.ApiWallet> openWallet(
     String walletPath, {
     String? password,
   }) async {
     final keyHex = await getOrCreateEncryptionKey();
-    // Use explicitly provided password, or fall back to cache.
-    final pwd = password ?? getCachedPassword(walletPath);
+    if (password != null) cachePassword(walletPath, password);
     return rust_wallet.openWallet(
       walletPath: walletPath,
       deviceKeyHex: keyHex,
-      password: pwd,
+      password: getCachedPassword(walletPath),
+      biometricKeyHex: getCachedBiometricKey(walletPath),
     );
   }
 
@@ -162,6 +195,47 @@ class WalletService {
   Future<bool> walletRequiresXpub(String walletPath) async {
     return rust_wallet.walletRequiresXpub(walletPath: walletPath);
   }
+
+  // ---------------------------------------------------------------------------
+  // Biometric wallet slots
+  // ---------------------------------------------------------------------------
+
+  /// Adds a biometric slot to the wallet's .meta file.
+  /// [biometricKeyHex] is the random 32-byte key already stored in secure
+  /// storage. [currentCredential] is the wallet's existing password or xpub
+  /// (may be omitted if already cached).
+  /// Returns the slot ID to be used as the keystore key name.
+  Future<String> addBiometricSlot({
+    required String walletPath,
+    required String biometricKeyHex,
+    String? currentCredential,
+  }) async {
+    final keyHex = await getOrCreateEncryptionKey();
+    return rust_wallet.addBiometricSlot(
+      walletPath: walletPath,
+      deviceKeyHex: keyHex,
+      currentCredential: currentCredential ?? getCachedPassword(walletPath),
+      biometricKeyHex: biometricKeyHex,
+    );
+  }
+
+  /// Removes a biometric slot from the wallet's .meta file by ID.
+  Future<void> removeBiometricSlot({
+    required String walletPath,
+    required String biometricId,
+  }) =>
+      rust_wallet.removeBiometricSlot(
+        walletPath: walletPath,
+        biometricId: biometricId,
+      );
+
+  /// Lists the biometric slot IDs registered for this wallet.
+  Future<List<APIBiometricSlot>> listBiometricSlots(String walletPath) =>
+      rust_wallet.listBiometricSlots(walletPath: walletPath);
+
+  /// Returns true if the wallet has at least one biometric slot registered.
+  Future<bool> hasBiometricSlots(String walletPath) =>
+      rust_wallet.walletHasBiometricSlots(walletPath: walletPath);
 
   /// Add a new xpub slot to a XpubKey-protected wallet.
   Future<void> addXpubSlot({

@@ -1,9 +1,13 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
+import 'package:deadbolt/services/biometric_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/nostr_relays_screen.dart';
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/widgets/wallet_type_picker.dart';
@@ -60,6 +64,8 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (Platform.isAndroid)
+                  _SecuritySection(settings: settings, cubit: cubit),
                 _SectionCard(
                   title: l10n.settingsSectionDefaults,
                   icon: Icons.tune_outlined,
@@ -676,6 +682,95 @@ class _FiatSection extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Security section (Android-only): screenshot protection + biometric lock
+// ─────────────────────────────────────────────────────────────
+
+class _SecuritySection extends StatefulWidget {
+  final AppSettings settings;
+  final SettingsCubit cubit;
+
+  const _SecuritySection({required this.settings, required this.cubit});
+
+  @override
+  State<_SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends State<_SecuritySection> {
+  late Future<bool> _biometricAvailableFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _biometricAvailableFuture =
+        context.read<BiometricService>().isAvailable();
+  }
+
+  Future<void> _onBiometricToggle(BuildContext context, bool value) async {
+    if (!value) {
+      await widget.cubit.setBiometricLockEnabled(false);
+      return;
+    }
+    final l10n = context.l10n;
+    // Require a successful authentication challenge before enabling the lock.
+    // This guarantees the user can unlock the app once it is locked.
+    final service = context.read<BiometricService>();
+    final success = await service.authenticate(l10n.biometricUnlockReason);
+    if (!context.mounted) return;
+
+    if (success) {
+      await widget.cubit.setBiometricLockEnabled(true);
+    } else {
+      showErrorToast(l10n.biometricSetupFailed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return FutureBuilder<bool>(
+      future: _biometricAvailableFuture,
+      builder: (context, snapshot) {
+        final biometricAvailable = snapshot.data == true;
+        return _SectionCard(
+          title: l10n.settingsSectionSecurity,
+          icon: Icons.lock_outline,
+          children: [
+            SwitchListTile(
+              title: Text(l10n.screenshotProtectionLabel),
+              subtitle: Text(l10n.screenshotProtectionSubtitle),
+              value: widget.settings.screenshotProtection,
+              onChanged: widget.cubit.setScreenshotProtection,
+            ),
+            if (biometricAvailable) ...[
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              SwitchListTile(
+                title: Text(l10n.biometricLockLabel),
+                subtitle: Text(l10n.biometricLockSubtitle),
+                value: widget.settings.biometricLockEnabled,
+                onChanged: (v) => _onBiometricToggle(context, v),
+              ),
+              if (widget.settings.biometricLockEnabled) ...[
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                _SettingsDropdown<int>(
+                  label: l10n.biometricTimeoutLabel,
+                  value: widget.settings.biometricTimeoutMinutes,
+                  items: [
+                    (0, l10n.biometricTimeoutImmediate),
+                    (1, l10n.biometricTimeout1Min),
+                    (5, l10n.biometricTimeout5Min),
+                  ],
+                  onChanged: widget.cubit.setBiometricTimeoutMinutes,
+                ),
+              ],
+            ],
+          ],
+        );
+      },
     );
   }
 }

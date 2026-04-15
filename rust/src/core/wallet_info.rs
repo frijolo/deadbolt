@@ -4,8 +4,9 @@ use rand::TryRngCore;
 
 use crate::api::model::{APINetwork, APISecurityLevel};
 use crate::core::key_protection::{
-    generate_data_key, generate_salt, resolve_data_key, resolve_xpub_data_key, wrap_key,
-    wrap_with_xpub, ProtectionMeta, DEFAULT_P_COST,
+    generate_data_key, generate_salt, resolve_data_key, resolve_xpub_data_key,
+    unwrap_biometric_slots, wrap_key, wrap_with_xpub, BiometricSlot, ProtectionMeta,
+    DEFAULT_P_COST,
 };
 use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
@@ -140,6 +141,7 @@ pub fn build_protection_meta(
                 display_name: display_name.map(|s| s.to_string()),
                 network: network.map(|s| s.to_string()),
                 last_synced_at: None,
+                biometric_slots: vec![],
             })
         }
         WalletProtectionRequest::XpubKey {
@@ -164,6 +166,7 @@ pub fn build_protection_meta(
                 display_name: display_name.map(|s| s.to_string()),
                 network: network.map(|s| s.to_string()),
                 last_synced_at: None,
+                biometric_slots: vec![],
             })
         }
     }
@@ -173,12 +176,33 @@ pub fn build_protection_meta(
 /// - For DeviceKey wallets: pass `password = None`.
 /// - For UserPassword wallets: pass `password = Some("user-password")`.
 /// - For XpubKey wallets: pass `password = Some("xpub or [mfp/path]xpub")`.
+/// - `biometric_key`: optional 32-byte hex key retrieved from the platform keystore.
+///   When provided, biometric slots are tried first before falling back to the
+///   password/xpub credential.
 pub fn resolve_wallet_key(
     wallet_path: &str,
     device_key_hex: &str,
     password: Option<&str>,
+    biometric_key: Option<&str>,
 ) -> Result<String> {
     let meta = read_meta(wallet_path)?;
+
+    // Try biometric slots first when a key is provided.
+    if let Some(bio_key) = biometric_key {
+        let bio_slots: &[BiometricSlot] = match &meta {
+            ProtectionMeta::UserPassword {
+                biometric_slots, ..
+            } => biometric_slots,
+            ProtectionMeta::XpubKey {
+                biometric_slots, ..
+            } => biometric_slots,
+            _ => &[],
+        };
+        if !bio_slots.is_empty() {
+            return unwrap_biometric_slots(bio_key, bio_slots);
+        }
+    }
+
     match &meta {
         ProtectionMeta::DeviceKey { .. } => resolve_data_key(&meta, device_key_hex),
         ProtectionMeta::UserPassword { .. } => {
@@ -315,7 +339,7 @@ pub fn get_wallet_info_from_file(
     device_key_hex: &str,
     password: Option<&str>,
 ) -> Result<WalletInfoRow> {
-    let key = resolve_wallet_key(wallet_path, device_key_hex, password)?;
+    let key = resolve_wallet_key(wallet_path, device_key_hex, password, None)?;
     let conn = open_encrypted_connection(wallet_path, &key)?;
     read_wallet_info(&conn)
 }
@@ -328,7 +352,7 @@ pub fn rename_wallet_in_file(
     device_key_hex: &str,
     password: Option<&str>,
 ) -> Result<()> {
-    let key = resolve_wallet_key(wallet_path, device_key_hex, password)?;
+    let key = resolve_wallet_key(wallet_path, device_key_hex, password, None)?;
     let conn = open_encrypted_connection(wallet_path, &key)?;
     conn.execute(
         "UPDATE wallet_info SET name = ?1 WHERE id = 1",
@@ -452,6 +476,103 @@ pub fn list_xpub_mfps(wallet_path: &str) -> Result<Vec<String>> {
         Ok(slots.into_iter().map(|s| s.mfp).collect())
     } else {
         Err(anyhow::anyhow!("Wallet is not XpubKey protected"))
+    }
+}
+
+/// Add a biometric slot to a UserPassword or XpubKey wallet.
+/// Resolves the data key using `device_key_hex` + `current_credential`, then wraps
+/// it with the provided `biometric_key_hex` (a 32-byte random key from the platform
+/// keystore). Returns the new slot ID (UUID v4) to be stored alongside the key.
+pub fn add_biometric_slot_to_wallet(
+    wallet_path: &str,
+    device_key_hex: &str,
+    current_credential: Option<&str>,
+    biometric_key_hex: &str,
+) -> Result<String> {
+    let data_key = resolve_wallet_key(wallet_path, device_key_hex, current_credential, None)?;
+    let wrapped_key = wrap_key(&data_key, biometric_key_hex)?;
+    let id = generate_uuid_v4();
+
+    let mut meta = read_meta(wallet_path)?;
+    match &mut meta {
+        ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        } => {
+            biometric_slots.push(BiometricSlot {
+                id: id.clone(),
+                wrapped_key,
+            });
+        }
+        ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        } => {
+            biometric_slots.push(BiometricSlot {
+                id: id.clone(),
+                wrapped_key,
+            });
+        }
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Biometric slots are only supported for UserPassword and XpubKey wallets"
+            ))
+        }
+    }
+    write_meta(wallet_path, &meta)?;
+    Ok(id)
+}
+
+/// Remove a biometric slot by ID from a UserPassword or XpubKey wallet.
+pub fn remove_biometric_slot_from_wallet(wallet_path: &str, biometric_id: &str) -> Result<()> {
+    let mut meta = read_meta(wallet_path)?;
+    let removed = match &mut meta {
+        ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        } => {
+            let before = biometric_slots.len();
+            biometric_slots.retain(|s| s.id != biometric_id);
+            biometric_slots.len() < before
+        }
+        ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        } => {
+            let before = biometric_slots.len();
+            biometric_slots.retain(|s| s.id != biometric_id);
+            biometric_slots.len() < before
+        }
+        _ => return Err(anyhow::anyhow!("Wallet does not support biometric slots")),
+    };
+    if !removed {
+        return Err(anyhow::anyhow!("Biometric slot {} not found", biometric_id));
+    }
+    write_meta(wallet_path, &meta)
+}
+
+/// List the biometric slot IDs for a UserPassword or XpubKey wallet.
+/// Returns an empty Vec for DeviceKey wallets.
+pub fn list_biometric_slot_ids(wallet_path: &str) -> Result<Vec<String>> {
+    let meta = read_meta(wallet_path)?;
+    let ids = match &meta {
+        ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        } => biometric_slots.iter().map(|s| s.id.clone()).collect(),
+        ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        } => biometric_slots.iter().map(|s| s.id.clone()).collect(),
+        _ => vec![],
+    };
+    Ok(ids)
+}
+
+/// Returns true if the wallet has at least one biometric slot registered.
+pub fn wallet_has_biometric_slots(wallet_path: &str) -> bool {
+    match read_meta(wallet_path) {
+        Ok(ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        }) => !biometric_slots.is_empty(),
+        Ok(ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        }) => !biometric_slots.is_empty(),
+        _ => false,
     }
 }
 

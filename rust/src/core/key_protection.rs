@@ -141,6 +141,18 @@ pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
 /// Always 1 — mobile devices have limited memory bandwidth.
 pub const DEFAULT_P_COST: u32 = 1;
 
+/// A biometric-derived slot that wraps the wallet data key with a platform-stored random key.
+/// The random key lives in the platform's secure storage (Android Keystore / iOS Keychain),
+/// gated behind biometric authentication in the Flutter layer.
+/// No KDF is used: the biometric key is already 32 bytes of random entropy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BiometricSlot {
+    /// Unique identifier (UUID v4) used as the key name in the platform keystore.
+    pub id: String,
+    /// Wallet data key wrapped with the biometric key via AES-256-GCM.
+    pub wrapped_key: String,
+}
+
 /// One xpub-derived wrapping slot for `ProtectionMeta::XpubKey`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XpubSlot {
@@ -249,6 +261,10 @@ pub enum ProtectionMeta {
         /// successfully opened.
         #[serde(default)]
         last_synced_at: Option<i64>,
+        /// Optional biometric slots — each wraps the same data key with a different
+        /// platform-keystore-backed random key. Any slot can unlock the wallet.
+        #[serde(default)]
+        biometric_slots: Vec<BiometricSlot>,
     },
     /// Each xpub in the descriptor gets its own slot; any one can unlock.
     XpubKey {
@@ -260,7 +276,22 @@ pub enum ProtectionMeta {
         network: Option<String>,
         #[serde(default)]
         last_synced_at: Option<i64>,
+        /// Optional biometric slots — each wraps the same data key with a different
+        /// platform-keystore-backed random key. Any slot can unlock the wallet.
+        #[serde(default)]
+        biometric_slots: Vec<BiometricSlot>,
     },
+}
+
+/// Try `biometric_key_hex` against all biometric slots and return the data key on first match.
+/// The biometric key is used directly as the AES-256-GCM wrapping key (no KDF).
+pub fn unwrap_biometric_slots(biometric_key_hex: &str, slots: &[BiometricSlot]) -> Result<String> {
+    for slot in slots {
+        if let Ok(data_key) = unwrap_key(&slot.wrapped_key, biometric_key_hex) {
+            return Ok(data_key);
+        }
+    }
+    Err(anyhow!("biometric key does not match any registered slot"))
 }
 
 /// Resolve the data key from protection metadata.

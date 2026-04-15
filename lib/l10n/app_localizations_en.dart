@@ -217,6 +217,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeDark => 'Dark';
 
   @override
+  String get screenshotProtectionLabel => 'Screenshot Protection';
+
+  @override
+  String get screenshotProtectionSubtitle =>
+      'Prevent screenshots and screen recording';
+
+  @override
+  String get settingsSectionSecurity => 'Security';
+
+  @override
+  String get biometricLockLabel => 'Biometric Lock';
+
+  @override
+  String get biometricLockSubtitle => 'Require biometrics to open the app';
+
+  @override
+  String get biometricLockInfoTitle => 'Biometric Lock';
+
+  @override
+  String get biometricLockInfoBody =>
+      'When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.';
+
+  @override
+  String get biometricLockInfoEnable => 'Enable';
+
+  @override
+  String get biometricTimeoutLabel => 'Lock after';
+
+  @override
+  String get biometricTimeoutImmediate => 'Immediately';
+
+  @override
+  String get biometricTimeout1Min => '1 minute';
+
+  @override
+  String get biometricTimeout5Min => '5 minutes';
+
+  @override
+  String get biometricUnlockReason => 'Authenticate to access Deadbolt';
+
+  @override
+  String get biometricUnlockButton => 'Unlock';
+
+  @override
+  String get biometricSetupFailed =>
+      'Authentication failed. Biometric lock was not enabled.';
+
+  @override
+  String get biometricWalletSectionTitle => 'Biometric unlock';
+
+  @override
+  String get biometricWalletSectionBody =>
+      'Use fingerprint or face ID to open this wallet without typing your password.';
+
+  @override
+  String get biometricWalletUnlockReason => 'Authenticate to open wallet';
+
+  @override
+  String get biometricWalletEnableFailed =>
+      'Could not enable biometric unlock. Try again.';
+
+  @override
+  String get biometricWalletDisableFailed =>
+      'Could not disable biometric unlock.';
+
+  @override
+  String get biometricWalletRootedWarning =>
+      'Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.';
+
+  @override
   String get discardChangesTooltip => 'Discard changes';
 
   @override
@@ -376,6 +446,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String qrPart(int current, int total) {
     return '$current / $total';
   }
+
+  @override
+  String get enable => 'Enable';
 
   @override
   String get close => 'Close';

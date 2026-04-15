@@ -103,6 +103,13 @@ pub struct APIXpubSlot {
     pub derivation_hint: String,
 }
 
+/// One registered biometric slot in a UserPassword or XpubKey wallet.
+#[derive(Debug, Clone)]
+pub struct APIBiometricSlot {
+    /// UUID v4 — used as the key identifier in the platform keystore.
+    pub id: String,
+}
+
 /// Protection information returned as part of `APIWalletInfo`.
 #[derive(Debug, Clone)]
 pub struct APIWalletProtection {
