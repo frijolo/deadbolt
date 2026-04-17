@@ -81,7 +81,10 @@ class DescriptorView extends StatelessWidget {
                   wallet: state.walletHandle,
                   network: state.walletInfo.network,
                 ),
-                DescriptorTab(descriptor: analysis.descriptor),
+                DescriptorTab(
+                  descriptor: analysis.descriptor,
+                  keyLabels: descriptorState.keyLabels,
+                ),
               ],
             ),
           ),

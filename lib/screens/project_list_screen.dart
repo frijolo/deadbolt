@@ -328,13 +328,18 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: MfpBadge(
-            label: localizedWalletTypeName(
-              context,
-              APIWalletType.values.byName(project.walletType),
-            ),
-            color: AppAccent.color,
-            letterSpacing: 0.0,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MfpBadge(
+                label: localizedWalletTypeName(
+                  context,
+                  APIWalletType.values.byName(project.walletType),
+                ),
+                color: AppAccent.color,
+                letterSpacing: 0.0,
+              ),
+            ],
           ),
         ),
         trailing: _reorderMode

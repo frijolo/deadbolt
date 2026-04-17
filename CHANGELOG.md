@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. In Alias mode, master-key fingerprints are replaced with the user-defined key labels, making descriptors easier to read at a glance.
 - **Screenshot protection (Android)** — `FLAG_SECURE` is set by default on app start, preventing the screen from appearing in the recent-apps thumbnail and blocking screenshots. A toggle in Settings → Security lets the user disable it.
 - **Biometric app lock (Android)** — When enabled, Deadbolt shows a lock screen on every cold start and whenever the app returns from background past the configured timeout (immediately, 1 min, or 5 min). Enabling the lock requires a successful biometric challenge to ensure the device is enrolled.
 - **Biometric wallet unlock** — Type 1 (Password) and Type 2 (XPub) wallets can now register a biometric slot. The wallet's data key is wrapped with a random 32-byte key stored in the hardware-backed keystore; the hardware enforces biometric authentication before releasing the key. Biometric unlock is attempted automatically on wallet open; falling back to the password prompt if cancelled or unavailable. Slots are managed from the wallet Security screen.

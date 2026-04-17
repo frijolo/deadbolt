@@ -199,6 +199,11 @@ class _ProjectDetailView extends StatelessWidget {
                     DescriptorTab(
                       descriptor: project.descriptor,
                       isDirty: state.isDirty,
+                      keyLabels: {
+                        for (final k in state.editedKeys ?? <EditableKey>[])
+                          if (k.customName != null && k.customName!.isNotEmpty)
+                            k.mfp: k.customName!,
+                      },
                     ),
                   ],
                 ),
