@@ -39,10 +39,7 @@ Future<T?> showSheet<T>(
     isScrollControlled: true,
     isDismissible: isDismissible,
     enableDrag: isDismissible,
-    builder: (ctx) => SafeArea(
-      top: false,
-      child: builder(ctx),
-    ),
+    builder: (ctx) => SafeArea(top: false, child: builder(ctx)),
   );
 }
 

@@ -6,6 +6,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### Fixes
+- **Biometric lock on hidden state** — The inactivity timer now starts when the app enters `AppLifecycleState.hidden` (e.g. app switcher on iOS), not only on `paused`, so the lock triggers correctly on all platforms.
+- **Receive addresses after sync** — After a sync cycle, `WalletDetailLoaded` now re-emits with the latest receive/change addresses from `WalletReceiveCubit`, so the receive tab reflects new addresses without a manual reload.
+- **Bottom sheet safe area** — `showSheet` now wraps content in `SafeArea(top: false)` instead of `useSafeArea: true`, eliminating the empty gap below the home indicator on iOS/Android.
+
 ### New Features
 - **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. In Alias mode, master-key fingerprints are replaced with the user-defined key labels, making descriptors easier to read at a glance.
 - **Screenshot protection (Android)** — `FLAG_SECURE` is set by default on app start, preventing the screen from appearing in the recent-apps thumbnail and blocking screenshots. A toggle in Settings → Security lets the user disable it.
