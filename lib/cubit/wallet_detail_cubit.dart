@@ -447,22 +447,28 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       // Load PSBTs eagerly
       List<APIPsbtInfo> psbts = [];
       Map<int, APIPsbtAnalysis> psbtAnalyses = {};
-      String? loadWarning;
+      List<String> loadWarnings = [];
       try {
         psbts = await handle.listPsbts();
         psbtAnalyses = await _analyzePsbts(handle, psbts);
       } catch (e, st) {
         logError('WalletDetailCubit.load() PSBTs', e, st);
-        loadWarning = formatRustError(e);
+        loadWarnings.add(formatRustError(e));
       }
 
       // Load hot keys
       List<APIHotKeyInfo> hotKeys = [];
       try {
-        hotKeys = handle.listHotKeys();
+        final result = handle.listHotKeys();
+        hotKeys = result.keys;
+        if (result.corruptRows.isNotEmpty) {
+          loadWarnings.add(
+            'Lost ${result.corruptRows.length} signing key(s) due to database corruption',
+          );
+        }
       } catch (e, st) {
         logError('WalletDetailCubit.load() hotKeys', e, st);
-        loadWarning ??= formatRustError(e);
+        loadWarnings.add(formatRustError(e));
       }
 
       // Check biometric slot status (fast .meta read, non-critical)
@@ -491,7 +497,9 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
         psbtsLoaded: true,
         hotKeys: hotKeys,
         hasBiometricSlot: hasBioSlot,
-        errorMessage: loadWarning,
+        errorMessage: loadWarnings.isNotEmpty
+            ? loadWarnings.join('\n')
+            : null,
       ));
       // Eagerly load descriptor analysis so PSBT navigation works from the
       // Transactions tab without needing to visit the Descriptor tab first.

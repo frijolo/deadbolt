@@ -624,7 +624,7 @@ impl APIWallet {
         let mut core = self.lock_wallet()?;
 
         // Find the seed entry for this MFP.
-        let seeds = list_seed_entries(&core.conn)?;
+        let (seeds, _corrupt) = list_seed_entries(&core.conn)?;
         let seed = seeds
             .iter()
             .find(|s| s.mfp == mfp)

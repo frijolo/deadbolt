@@ -13,21 +13,77 @@ use crate::core::wallet::WalletType;
 
 static XPUB_REGEX: OnceLock<Regex> = OnceLock::new();
 static SINGLE_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+static XPUB_MFP_KEY_REGEX: OnceLock<Regex> = OnceLock::new();
+static XPUB_DERIVATION_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// Returns true if the descriptor uses a single derivation path (e.g. /0/*) instead of <0;1>/*.
 fn is_single_path(descriptor: &str) -> bool {
-    let re = SINGLE_PATH_REGEX
-        .get_or_init(|| Regex::new(r"/\d+/\*").expect("single path regex is valid"));
+    let re = SINGLE_PATH_REGEX.get_or_init(|| Regex::new(r"/\d+/\*").expect("static regex"));
     re.is_match(descriptor)
 }
 
 /// Returns a compiled regex for matching xpub-like prefixes, compiled once.
 fn xpub_regex() -> &'static Regex {
     XPUB_REGEX.get_or_init(|| {
-        Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b").expect("xpub regex is valid")
+        Regex::new(r"\b([xyztvu]pub[1-9A-HJ-NP-Za-km-z]+)\b").expect("static regex")
     })
 }
 
+/// Extract a mfp→xpub map from a descriptor string.
+/// Matches `[deadbeef/44'/0'/0']xpub6C...` style key expressions.
+pub fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, String> {
+    let re = xpub_mfp_key_regex();
+    let mut map = std::collections::HashMap::new();
+    for cap in re.captures_iter(descriptor) {
+        map.insert(cap[1].to_lowercase(), cap[2].to_string());
+    }
+    map
+}
+
+fn xpub_mfp_key_regex() -> &'static Regex {
+    XPUB_MFP_KEY_REGEX.get_or_init(|| {
+        Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\]([A-Za-z]{1,4}pub[A-Za-z0-9]+)")
+            .expect("static regex")
+    })
+}
+
+/// Extract a mfp→derivation map from a descriptor string.
+/// Matches `[deadbeef/48h/0h/0h/2h]xpub...` and returns the path suffix after the MFP.
+pub fn extract_xpub_derivation_map(descriptor: &str) -> std::collections::HashMap<String, String> {
+    let re = xpub_derivation_regex();
+    let mut map = std::collections::HashMap::new();
+    for cap in re.captures_iter(descriptor) {
+        map.entry(cap[1].to_lowercase())
+            .or_insert_with(|| cap[2].to_string());
+    }
+    map
+}
+
+fn xpub_derivation_regex() -> &'static Regex {
+    XPUB_DERIVATION_REGEX
+        .get_or_init(|| Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]").expect("static regex"))
+}
+
+/// Extract `(mfp, xpub, derivation_hint)` triples from a descriptor.
+/// Returns an error if the descriptor contains no xpubs.
+pub fn xpub_slots_from_descriptor(
+    descriptor: &str,
+) -> anyhow::Result<Vec<(String, String, String)>> {
+    let xpub_map = extract_xpub_mfp_map(descriptor);
+    let deriv_map = extract_xpub_derivation_map(descriptor);
+    if xpub_map.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No xpubs found in descriptor for xpub extraction"
+        ));
+    }
+    Ok(xpub_map
+        .into_iter()
+        .map(|(mfp, xpub)| {
+            let derivation = deriv_map.get(&mfp).cloned().unwrap_or_default();
+            (mfp, xpub, derivation)
+        })
+        .collect())
+}
 /// Lightweight descriptor parser that works without creating wallets
 pub struct DescriptorParser {
     descriptor_str: String,

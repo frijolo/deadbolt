@@ -539,7 +539,7 @@ abstract class ApiWallet implements RustOpaqueInterface {
   List<APIDescriptorSig> listDescriptorSigs();
 
   /// List all hot signing keys stored in this wallet (never exposes the seed).
-  List<APIHotKeyInfo> listHotKeys();
+  APIHotKeyList listHotKeys();
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
   Future<List<APIPsbtInfo>> listPsbts();

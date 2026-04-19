@@ -3,7 +3,7 @@ use rusqlite::Connection;
 
 use super::{
     address_has_explicit_label, coin_has_explicit_label, set_address_label, set_coin_label,
-    set_tx_label, tx_has_explicit_label,
+    set_tx_label, tx_has_explicit_label, validate_table_name,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -46,6 +46,7 @@ fn set_tx_if_none(conn: &Connection, txid: &str, label: &str, source: &str) -> R
 
 fn clear_source_labels(conn: &Connection, source: &str) -> Result<()> {
     for table in ["tx_labels", "address_labels", "coin_labels"] {
+        validate_table_name(table)?;
         conn.execute(
             &format!("DELETE FROM {table} WHERE source_entity = ?1"),
             rusqlite::params![source],

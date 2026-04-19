@@ -71,7 +71,7 @@ impl CoreWallet {
         self.wallet
             .set_keymap(KeychainKind::Internal, Default::default());
 
-        let seeds = list_seed_entries(&self.conn)?;
+        let (seeds, _corrupt) = list_seed_entries(&self.conn)?;
         let secp = Secp256k1::new();
 
         for seed in &seeds {

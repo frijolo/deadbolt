@@ -81,7 +81,7 @@ pub fn export_wallet_backup(
         let _ = std::fs::remove_file(&temp_path);
         bytes?
     };
-    let export_data_key = generate_data_key();
+    let export_data_key = generate_data_key()?;
     let m_cost = security_level.m_cost();
     let t_cost = security_level.t_cost();
 
@@ -89,7 +89,7 @@ pub fn export_wallet_backup(
         APIProtectionType::UserPassword => {
             let password = export_password
                 .ok_or_else(|| anyhow::anyhow!("Export password required for UserPassword"))?;
-            let salt = generate_salt();
+            let salt = generate_salt()?;
             let wrapping_key = Zeroizing::new(derive_key_from_password(
                 &password,
                 &salt,
@@ -248,14 +248,14 @@ pub fn import_wallet_backup(
     let db_bytes = decrypt_bytes(&export_data_key, &encrypted_db)?;
 
     std::fs::create_dir_all(&wallets_dir)?;
-    let uuid = generate_uuid_v4();
+    let uuid = generate_uuid_v4()?;
     let path = std::path::Path::new(&wallets_dir)
         .join(format!("{}.db", uuid))
         .to_string_lossy()
         .to_string();
     std::fs::write(&path, &db_bytes)?;
 
-    let new_data_key = generate_data_key();
+    let new_data_key = generate_data_key()?;
     crate::core::wallet_persistence::rekey_database(&path, &wallet_data_key, &new_data_key)?;
 
     let wrapped_key = wrap_key(&new_data_key, &device_key_hex)?;

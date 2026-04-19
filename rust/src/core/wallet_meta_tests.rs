@@ -17,7 +17,7 @@ fn test_write_read_device_key_meta() -> Result<()> {
 
     let meta = ProtectionMeta::DeviceKey {
         version: 1,
-        wrapped_key: generate_data_key(),
+        wrapped_key: generate_data_key().unwrap(),
     };
     write_meta(&wallet_path, &meta)?;
     assert!(meta_exists(&wallet_path));
@@ -37,11 +37,11 @@ fn test_write_read_user_password_meta() -> Result<()> {
 
     let meta = ProtectionMeta::UserPassword {
         version: 1,
-        salt: generate_salt(),
+        salt: generate_salt().unwrap(),
         m_cost: 65536,
         t_cost: 3,
         p_cost: 1,
-        wrapped_key: generate_data_key(),
+        wrapped_key: generate_data_key().unwrap(),
         display_name: Some("Test".to_string()),
         network: Some("bitcoin".to_string()),
         last_synced_at: None,
@@ -73,7 +73,7 @@ fn test_delete_meta() -> Result<()> {
 
     let meta = ProtectionMeta::DeviceKey {
         version: 1,
-        wrapped_key: generate_data_key(),
+        wrapped_key: generate_data_key().unwrap(),
     };
     write_meta(&wallet_path, &meta)?;
     assert!(meta_exists(&wallet_path));

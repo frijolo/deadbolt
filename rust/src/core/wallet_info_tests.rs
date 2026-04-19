@@ -8,7 +8,7 @@ const DEVICE_KEY: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b
 
 #[test]
 fn test_uuid_v4_format() {
-    let uuid = generate_uuid_v4();
+    let uuid = generate_uuid_v4().unwrap();
     assert_eq!(uuid.len(), 36);
     let parts: Vec<&str> = uuid.split('-').collect();
     assert_eq!(parts.len(), 5);
@@ -19,7 +19,7 @@ fn test_uuid_v4_format() {
 
 #[test]
 fn test_uuid_v4_unique() {
-    assert_ne!(generate_uuid_v4(), generate_uuid_v4());
+    assert_ne!(generate_uuid_v4().unwrap(), generate_uuid_v4().unwrap());
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn test_legacy_migration() -> anyhow::Result<()> {
     let wallets_dir = dir.path().to_string_lossy().to_string();
 
     // Create a legacy wallet (encrypted directly with device key, no .meta)
-    let uuid = generate_uuid_v4();
+    let uuid = generate_uuid_v4().unwrap();
     let path = dir
         .path()
         .join(format!("{}.db", uuid))

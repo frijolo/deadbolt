@@ -859,6 +859,17 @@ pub struct APIHotKeyInfo {
     pub created_at: i64,
 }
 
+////////////////////
+// APIHotKeyList  //
+////////////////////
+
+pub struct APIHotKeyList {
+    /// Successfully loaded hot keys.
+    pub keys: Vec<APIHotKeyInfo>,
+    /// Error messages for seed entries that could not be loaded from the database.
+    pub corrupt_rows: Vec<String>,
+}
+
 ////////////////////////////
 // APIDescriptorSig       //
 ////////////////////////////

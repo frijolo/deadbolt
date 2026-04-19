@@ -31,7 +31,7 @@ pub fn open_project_seeds_db(app_support_dir: &str, device_key_hex: &str) -> Res
             }
         }
     } else {
-        let data_key = Zeroizing::new(generate_data_key());
+        let data_key = Zeroizing::new(generate_data_key()?);
         let wrapped = wrap_key(&data_key, device_key_hex)?;
         let meta = ProtectionMeta::DeviceKey {
             version: 1,

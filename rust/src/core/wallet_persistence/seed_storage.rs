@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::warn;
 use rusqlite::Connection;
 
 pub struct SeedEntry {
@@ -44,24 +45,31 @@ pub fn insert_seed_entry(
     Ok(now)
 }
 
-pub fn list_seed_entries(conn: &Connection) -> Result<Vec<SeedEntry>> {
+pub fn list_seed_entries(conn: &Connection) -> Result<(Vec<SeedEntry>, Vec<String>)> {
     let mut stmt = conn.prepare(
         "SELECT mfp, seed_type, mnemonic, passphrase, xprv, created_at FROM seed_entries ORDER BY created_at ASC",
     )?;
-    let entries = stmt
-        .query_map([], |row| {
-            Ok(SeedEntry {
-                mfp: row.get(0)?,
-                seed_type: row.get(1)?,
-                mnemonic: row.get(2)?,
-                passphrase: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                xprv: row.get(4)?,
-                created_at: row.get(5)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(entries)
+    let mut entries = Vec::new();
+    let mut corrupt_rows = Vec::new();
+    for result in stmt.query_map([], |row| {
+        Ok(SeedEntry {
+            mfp: row.get(0)?,
+            seed_type: row.get(1)?,
+            mnemonic: row.get(2)?,
+            passphrase: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            xprv: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })? {
+        match result {
+            Ok(entry) => entries.push(entry),
+            Err(e) => {
+                warn!("list_seed_entries: corrupt row ignored: {e}");
+                corrupt_rows.push(format!("Corrupt seed entry #{}", corrupt_rows.len() + 1));
+            }
+        }
+    }
+    Ok((entries, corrupt_rows))
 }
 
 pub fn delete_seed_entry(conn: &Connection, mfp: &str) -> Result<()> {

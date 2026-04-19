@@ -22,7 +22,7 @@ fn xpub_entry_for_mfp(descriptor: &str, mfp: &str) -> Result<String> {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
         regex::Regex::new(r"(\[[0-9a-fA-F]{8}[^\]]*\][A-Za-z]{1,4}pub[A-Za-z0-9]+)")
-            .expect("xpub_entry regex is valid")
+            .expect("static regex")
     });
     for cap in re.captures_iter(descriptor) {
         let entry = cap[1].to_string();
@@ -113,7 +113,7 @@ impl APIWallet {
         let xpub_entry = xpub_entry_for_mfp(&info.descriptor, &mfp)?;
 
         // Load seed entry for this MFP
-        let seeds = list_seed_entries(&core.conn)?;
+        let (seeds, _corrupt) = list_seed_entries(&core.conn)?;
         let seed = seeds
             .iter()
             .find(|s| s.mfp == mfp)

@@ -5,11 +5,14 @@ use flutter_rust_bridge::frb;
 
 use crate::api::model::{
     APIAddress, APIAddressDetails, APIBalance, APIBiometricSlot, APICoinControl, APICpfpInfo,
-    APIFiatPrice, APIHotKeyInfo, APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath,
-    APIProtectionType, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRecipient,
-    APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APISecurityLevel, APITransaction,
-    APITransactionPage, APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails, APIWalletInfo,
-    APIWalletProtection, APIXpubSlot,
+    APIFiatPrice, APIHotKeyInfo, APIHotKeyList, APIImportPsbtResult, APIKeychain, APINetwork,
+    APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus,
+    APIRbfInfo, APIRecipient, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APISecurityLevel,
+    APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails,
+    APIWalletInfo, APIWalletProtection, APIXpubSlot,
+};
+use crate::core::descriptor_parser::{
+    extract_xpub_derivation_map, extract_xpub_mfp_map, xpub_slots_from_descriptor,
 };
 use crate::core::key_protection::{
     decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
@@ -609,7 +612,7 @@ impl APIWallet {
         let mut core = self.lock_wallet()?;
 
         // 1. Generate a fresh data key for forward secrecy.
-        let new_data_key = generate_data_key();
+        let new_data_key = generate_data_key()?;
 
         // 2. Re-encrypt the database on the EXISTING connection — no close needed.
         core.rekey(&new_data_key)?;
@@ -715,18 +718,21 @@ impl APIWallet {
 
     /// List all hot signing keys stored in this wallet (never exposes the seed).
     #[frb(sync)]
-    pub fn list_hot_keys(&self) -> Result<Vec<APIHotKeyInfo>> {
+    pub fn list_hot_keys(&self) -> Result<APIHotKeyList> {
         let core = self.lock_wallet()?;
 
-        let entries = list_seed_entries(&core.conn)?;
-        Ok(entries
-            .into_iter()
-            .map(|e| APIHotKeyInfo {
-                mfp: e.mfp,
-                seed_type: e.seed_type,
-                created_at: e.created_at,
-            })
-            .collect())
+        let (entries, corrupt_rows) = list_seed_entries(&core.conn)?;
+        Ok(APIHotKeyList {
+            keys: entries
+                .into_iter()
+                .map(|e| APIHotKeyInfo {
+                    mfp: e.mfp,
+                    seed_type: e.seed_type,
+                    created_at: e.created_at,
+                })
+                .collect(),
+            corrupt_rows,
+        })
     }
 
     /// Remove a hot signing key by MFP.
@@ -775,7 +781,7 @@ impl APIWallet {
             .ok_or_else(|| anyhow::anyhow!("Address '{}' not found in this wallet", address))?;
 
         // Load the seed entry for this MFP.
-        let seeds = list_seed_entries(&core.conn)?;
+        let (seeds, _corrupt) = list_seed_entries(&core.conn)?;
         let seed = seeds
             .iter()
             .find(|s| s.mfp == mfp)

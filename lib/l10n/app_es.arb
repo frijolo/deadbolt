@@ -1231,5 +1231,25 @@
       "expected": { "type": "String" }
     }
   },
-  "derivedKeyspecLabel": "Keyspec derivado"
+  "derivedKeyspecLabel": "Keyspec derivado",
+
+  "mustMatchMfp": "Debe coincidir con MFP: {mfp}",
+  "@mustMatchMfp": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
+  "keyWithMfp": "Clave: {mfp}",
+  "@keyWithMfp": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
+
+  "loadWarningCorruptKeys": "Se perdieron {count} clave(s) de firma por corrupción de la base de datos",
+  "@loadWarningCorruptKeys": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

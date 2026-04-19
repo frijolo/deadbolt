@@ -24,9 +24,9 @@ static NUMS_PUBKEY: OnceLock<PublicKey> = OnceLock::new();
 /// Panics if NUMS_PUBKEY_HEX is invalid (should never happen as it's a hardcoded constant)
 fn get_nums_pubkey() -> &'static PublicKey {
     NUMS_PUBKEY.get_or_init(|| {
-        let bytes = hex::decode(NUMS_PUBKEY_HEX).expect("NUMS_PUBKEY_HEX should be valid hex");
+        let bytes = hex::decode(NUMS_PUBKEY_HEX).expect("hardcoded NUMS constant is valid hex");
         PublicKey::from_slice(&bytes)
-            .expect("NUMS_PUBKEY_HEX should be a valid compressed public key")
+            .expect("NUMS_PUBKEY_HEX decodes to a valid compressed public key")
     })
 }
 

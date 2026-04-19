@@ -138,6 +138,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIHotKeyInfo dco_decode_api_hot_key_info(dynamic raw);
 
   @protected
+  APIHotKeyList dco_decode_api_hot_key_list(dynamic raw);
+
+  @protected
   APIHwConnectResult dco_decode_api_hw_connect_result(dynamic raw);
 
   @protected
@@ -581,6 +584,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIHotKeyInfo sse_decode_api_hot_key_info(SseDeserializer deserializer);
+
+  @protected
+  APIHotKeyList sse_decode_api_hot_key_list(SseDeserializer deserializer);
 
   @protected
   APIHwConnectResult sse_decode_api_hw_connect_result(
@@ -1145,6 +1151,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_hot_key_info(
     APIHotKeyInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_hot_key_list(
+    APIHotKeyList self,
     SseSerializer serializer,
   );
 

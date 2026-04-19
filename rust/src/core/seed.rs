@@ -49,8 +49,7 @@ pub fn make_private_descriptor(
     let re = RE.get_or_init(|| {
         // Matches [8hexchars/path]xpub_or_xprv...
         // Stops at '/' (multipath), '<', ')', or '#' to not grab the separator
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)")
-            .expect("hard-coded key expression regex is valid")
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)").expect("static regex")
     });
 
     let my_mfp = root_xprv_to_mfp(root_xprv, secp);
@@ -82,7 +81,7 @@ pub fn make_private_descriptor(
             .derive_priv(secp, &path)
             .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
 
-        let full_match = cap.get(0).expect("regex match always has group 0");
+        let full_match = cap.get(0).expect("group 0 always present in captures");
         let replacement = format!("[{}/{}]{}", &cap[1], &cap[2], child_xprv);
         replacements.push((full_match.start(), full_match.end(), replacement));
     }
@@ -134,8 +133,7 @@ pub fn extract_account_path_for_mfp(descriptor: &str, mfp: &str) -> Result<Strin
     use std::sync::OnceLock;
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)")
-            .expect("hard-coded key expression regex is valid")
+        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]([A-Za-z0-9]+)").expect("static regex")
     });
 
     let mfp_lower = mfp.to_lowercase();

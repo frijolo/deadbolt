@@ -2786,4 +2786,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get derivedKeyspecLabel => 'Derived keyspec';
+
+  @override
+  String mustMatchMfp(String mfp) {
+    return 'Must match MFP: $mfp';
+  }
+
+  @override
+  String keyWithMfp(String mfp) {
+    return 'Key: $mfp';
+  }
+
+  @override
+  String loadWarningCorruptKeys(int count) {
+    return 'Lost $count signing key(s) due to database corruption';
+  }
 }

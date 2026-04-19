@@ -262,9 +262,7 @@ abstract class RustLibApi extends BaseApi {
     required ApiWallet that,
   });
 
-  List<APIHotKeyInfo> crateApiWalletApiWalletListHotKeys({
-    required ApiWallet that,
-  });
+  APIHotKeyList crateApiWalletApiWalletListHotKeys({required ApiWallet that});
 
   Future<List<APIPsbtInfo>> crateApiWalletApiWalletListPsbts({
     required ApiWallet that,
@@ -2127,9 +2125,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  List<APIHotKeyInfo> crateApiWalletApiWalletListHotKeys({
-    required ApiWallet that,
-  }) {
+  APIHotKeyList crateApiWalletApiWalletListHotKeys({required ApiWallet that}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -2141,7 +2137,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_api_hot_key_info,
+          decodeSuccessData: sse_decode_api_hot_key_list,
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiWalletApiWalletListHotKeysConstMeta,
@@ -6559,6 +6555,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  APIHotKeyList dco_decode_api_hot_key_list(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return APIHotKeyList(
+      keys: dco_decode_list_api_hot_key_info(arr[0]),
+      corruptRows: dco_decode_list_String(arr[1]),
+    );
+  }
+
+  @protected
   APIHwConnectResult dco_decode_api_hw_connect_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7880,6 +7888,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       seedType: var_seedType,
       createdAt: var_createdAt,
     );
+  }
+
+  @protected
+  APIHotKeyList sse_decode_api_hot_key_list(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keys = sse_decode_list_api_hot_key_info(deserializer);
+    var var_corruptRows = sse_decode_list_String(deserializer);
+    return APIHotKeyList(keys: var_keys, corruptRows: var_corruptRows);
   }
 
   @protected
@@ -9528,6 +9544,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_hot_key_list(
+    APIHotKeyList self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_api_hot_key_info(self.keys, serializer);
+    sse_encode_list_String(self.corruptRows, serializer);
+  }
+
+  @protected
   void sse_encode_api_hw_connect_result(
     APIHwConnectResult self,
     SseSerializer serializer,
@@ -10982,7 +11008,7 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
       .crateApiWalletApiWalletListDescriptorSigs(that: this);
 
   /// List all hot signing keys stored in this wallet (never exposes the seed).
-  List<APIHotKeyInfo> listHotKeys() =>
+  APIHotKeyList listHotKeys() =>
       RustLib.instance.api.crateApiWalletApiWalletListHotKeys(that: this);
 
   /// Return all saved unsigned PSBTs for this wallet, newest-first.

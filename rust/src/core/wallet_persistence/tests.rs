@@ -204,3 +204,111 @@ fn test_wrong_key_cannot_open_existing_db() -> Result<()> {
     assert!(result.is_err(), "Opening with wrong key should fail");
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// S2.5 — validate_table_name allowlist tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_validate_table_name_accepts_all_known_tables() -> Result<()> {
+    for table in [
+        "tx_labels",
+        "address_labels",
+        "key_labels",
+        "path_labels",
+        "coin_labels",
+    ] {
+        validate_table_name(table)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn test_validate_table_name_rejects_invalid_names() -> Result<()> {
+    let invalid = [
+        "",
+        "users",
+        "sqlite_master",
+        "tx_labels; DROP TABLE tx_labels;",
+        " tx_labels",
+        "tx_labels ",
+        "0tx_labels",
+        "coin_labelsx",
+    ];
+    for name in &invalid {
+        assert!(
+            validate_table_name(name).is_err(),
+            "expected reject for '{name}'"
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// S2.3 — list_seed_entries with corrupt rows
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_list_seed_entries_returns_corrupt_rows() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("test.db").to_string_lossy().to_string();
+    let conn = open_encrypted_connection(&path, KEY_HEX)?;
+
+    ensure_seed_entries_table(&conn)?;
+
+    // Insert a valid entry
+    insert_seed_entry(&conn, "abcd1234", "mnemonic", Some("testseed"), "", None)?;
+
+    // Corrupt a row by inserting a non-numeric created_at
+    conn.execute(
+        "INSERT INTO seed_entries (mfp, seed_type, mnemonic, passphrase, xprv, created_at) \
+         VALUES ('corrupt1', 'mnemonic', 'bad', '', '', 'not_a_number')",
+        [],
+    )?;
+
+    let (entries, corrupt_rows) = list_seed_entries(&conn)?;
+
+    // Valid entry should be returned
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].mfp, "abcd1234");
+
+    // Corrupt row should be reported, not propagated as error
+    assert_eq!(corrupt_rows.len(), 1);
+    assert!(corrupt_rows[0].starts_with("Corrupt seed entry #"));
+
+    Ok(())
+}
+
+#[test]
+fn test_list_seed_entries_multiple_corrupt_rows() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("test.db").to_string_lossy().to_string();
+    let conn = open_encrypted_connection(&path, KEY_HEX)?;
+
+    ensure_seed_entries_table(&conn)?;
+
+    // Insert two valid entries
+    insert_seed_entry(&conn, "abcd1234", "mnemonic", Some("seed1"), "", None)?;
+    insert_seed_entry(&conn, "efgh5678", "xprv", None, "xprv1", None)?;
+
+    // Corrupt two rows with different issues
+    conn.execute(
+        "INSERT INTO seed_entries (mfp, seed_type, mnemonic, passphrase, xprv, created_at) \
+         VALUES ('bad1', 'mnemonic', 'x', '', '', 'NaN')",
+        [],
+    )?;
+    conn.execute(
+        "INSERT INTO seed_entries (mfp, seed_type, mnemonic, passphrase, xprv, created_at) \
+         VALUES ('bad2', 'mnemonic', 'y', '', '', 'abc')",
+        [],
+    )?;
+
+    let (entries, corrupt_rows) = list_seed_entries(&conn)?;
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(corrupt_rows.len(), 2);
+    assert!(corrupt_rows[0].starts_with("Corrupt seed entry #1"));
+    assert!(corrupt_rows[1].starts_with("Corrupt seed entry #2"));
+
+    Ok(())
+}

@@ -7,9 +7,15 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### Fixes
+- **Addresses tab empty on first switch** — Switching to the Addresses tab now correctly propagates the loaded address lists into `WalletDetailLoaded`; previously the tab could appear empty until a sync or manual reload.
+- **Wallet-mode seed submission** — The Add Key sheet in wallet mode now correctly reads the mnemonic/xprv entered in the Seed tab and calls `onAddMnemonic`/`onAddXprv`; previously the button did nothing because the state was never captured.
 - **Biometric lock on hidden state** — The inactivity timer now starts when the app enters `AppLifecycleState.hidden` (e.g. app switcher on iOS), not only on `paused`, so the lock triggers correctly on all platforms.
 - **Receive addresses after sync** — After a sync cycle, `WalletDetailLoaded` now re-emits with the latest receive/change addresses from `WalletReceiveCubit`, so the receive tab reflects new addresses without a manual reload.
 - **Bottom sheet safe area** — `showSheet` now wraps content in `SafeArea(top: false)` instead of `useSafeArea: true`, eliminating the empty gap below the home indicator on iOS/Android.
+
+### Improvements
+- **Corrupt hot-key rows surfaced as warnings** — If the `seed_entries` table contains a corrupt row on wallet open, the affected entry is skipped and a warning toast is shown instead of silently losing the key or failing to load the wallet.
+- **In-memory credential zeroing** — Cached passwords and biometric keys in `WalletService` are now stored as `Uint8List` and overwritten with zeros before eviction, reducing plaintext exposure in heap dumps.
 
 ### New Features
 - **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. In Alias mode, master-key fingerprints are replaced with the user-defined key labels, making descriptors easier to read at a glance.

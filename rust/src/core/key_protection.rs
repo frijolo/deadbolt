@@ -10,17 +10,21 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 /// Generate 32 random bytes and return them as lowercase hex (64 chars).
-pub fn generate_data_key() -> String {
+pub fn generate_data_key() -> Result<String> {
     let mut bytes = Zeroizing::new([0u8; 32]);
-    OsRng.try_fill_bytes(bytes.as_mut()).expect("OS RNG failed");
-    hex::encode(&bytes[..])
+    OsRng
+        .try_fill_bytes(bytes.as_mut())
+        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
+    Ok(hex::encode(&bytes[..]))
 }
 
 /// Generate 16 random bytes and return them as lowercase hex (32 chars).
-pub fn generate_salt() -> String {
+pub fn generate_salt() -> Result<String> {
     let mut bytes = Zeroizing::new([0u8; 16]);
-    OsRng.try_fill_bytes(bytes.as_mut()).expect("OS RNG failed");
-    hex::encode(&bytes[..])
+    OsRng
+        .try_fill_bytes(bytes.as_mut())
+        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
+    Ok(hex::encode(&bytes[..]))
 }
 
 /// AES-256-GCM wrap: encrypt `data_key_hex` under `wrapping_key_hex`.
@@ -43,7 +47,7 @@ pub fn wrap_key(data_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
     let mut nonce_bytes = Zeroizing::new([0u8; 12]);
     OsRng
         .try_fill_bytes(nonce_bytes.as_mut())
-        .expect("OS RNG failed");
+        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
     let nonce = Nonce::from_slice(nonce_bytes.as_ref());
 
     let ciphertext = cipher
@@ -120,7 +124,7 @@ pub fn encrypt_bytes(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
     let mut nonce_bytes = Zeroizing::new([0u8; 12]);
     OsRng
         .try_fill_bytes(nonce_bytes.as_mut())
-        .expect("OS RNG failed");
+        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
     let nonce = Nonce::from_slice(nonce_bytes.as_ref());
     let ct = cipher
         .encrypt(nonce, plaintext)
@@ -188,7 +192,7 @@ pub fn wrap_with_xpub(
     t_cost: u32,
     derivation: &str,
 ) -> Result<XpubSlot> {
-    let salt = generate_salt();
+    let salt = generate_salt()?;
     let wrapping_key = Zeroizing::new(derive_key_from_password(
         xpub,
         &salt,
@@ -351,6 +355,32 @@ pub fn resolve_data_key(meta: &ProtectionMeta, credential: &str) -> Result<Strin
 pub fn resolve_xpub_data_key(credential: &str, slots: &[XpubSlot]) -> Result<String> {
     let (mfp_hint, xpub) = parse_xpub_credential(credential);
     unwrap_xpub_slots(xpub, mfp_hint, slots).map(|(data_key, _)| data_key)
+}
+
+/// Return a reference to biometric_slots for UserPassword and XpubKey variants.
+pub fn biometric_slots(meta: &ProtectionMeta) -> Option<&[BiometricSlot]> {
+    match meta {
+        ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        }
+        | ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        } => Some(biometric_slots),
+        _ => None,
+    }
+}
+
+/// Return a mutable reference to biometric_slots for UserPassword and XpubKey variants.
+pub fn biometric_slots_mut(meta: &mut ProtectionMeta) -> Option<&mut Vec<BiometricSlot>> {
+    match meta {
+        ProtectionMeta::UserPassword {
+            biometric_slots, ..
+        }
+        | ProtectionMeta::XpubKey {
+            biometric_slots, ..
+        } => Some(biometric_slots),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

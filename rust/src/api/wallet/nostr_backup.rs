@@ -269,7 +269,7 @@ fn build_payload_for_xpub(
     let inner_bytes = serde_json::to_vec(&inner)?;
 
     // Fresh export data key per backup
-    let export_data_key = generate_data_key();
+    let export_data_key = generate_data_key()?;
 
     // AES-256-GCM encrypt the inner plaintext
     let encrypted_inner = encrypt_bytes(&export_data_key, &inner_bytes)?;
@@ -977,7 +977,7 @@ pub async fn fetch_nostr_backup(
     }
 
     // Sort most-recently-published first.
-    responses.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    responses.sort_by_key(|r| std::cmp::Reverse(r.created_at));
 
     Ok(responses)
 }

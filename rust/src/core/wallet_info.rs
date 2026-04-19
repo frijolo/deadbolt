@@ -1,12 +1,13 @@
 use anyhow::Result;
 use rand::rngs::OsRng;
 use rand::TryRngCore;
+use zeroize::Zeroizing;
 
 use crate::api::model::{APINetwork, APISecurityLevel};
 use crate::core::key_protection::{
-    generate_data_key, generate_salt, resolve_data_key, resolve_xpub_data_key,
-    unwrap_biometric_slots, wrap_key, wrap_with_xpub, BiometricSlot, ProtectionMeta,
-    DEFAULT_P_COST,
+    biometric_slots, biometric_slots_mut, generate_data_key, generate_salt, resolve_data_key,
+    resolve_xpub_data_key, unwrap_biometric_slots, wrap_key, wrap_with_xpub, BiometricSlot,
+    ProtectionMeta, DEFAULT_P_COST,
 };
 use crate::core::wallet_meta::{read_meta, write_meta};
 use crate::core::wallet_persistence::{
@@ -14,20 +15,32 @@ use crate::core::wallet_persistence::{
     upsert_wallet_info, WalletInfoRow,
 };
 
-pub fn generate_uuid_v4() -> String {
+/// Format 16 bytes as a UUID v4 string (8-4-4-4-12 hex groups).
+fn bytes_to_uuid(bytes: &[u8; 16]) -> String {
+    let hex = hex::encode(bytes);
+    let mut uuid = String::with_capacity(36);
+    // UUID layout: 8-4-4-4-12. Insert dashes after these hex char counts.
+    let dash_after = [8, 12, 16, 20];
+    let mut di = 0;
+    for (i, c) in hex.chars().enumerate() {
+        if di < dash_after.len() && i == dash_after[di] {
+            uuid.push('-');
+            di += 1;
+        }
+        uuid.push(c);
+    }
+    uuid
+}
+
+pub fn generate_uuid_v4() -> Result<String> {
     let mut bytes = [0u8; 16];
-    OsRng.try_fill_bytes(&mut bytes).expect("OS RNG failed");
+    OsRng
+        .try_fill_bytes(&mut bytes)
+        .map_err(|e| anyhow::anyhow!("OS RNG failed: {e}"))?;
     // Set version 4 and RFC 4122 variant bits
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    format!(
-        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        bytes[0], bytes[1], bytes[2], bytes[3],
-        bytes[4], bytes[5],
-        bytes[6], bytes[7],
-        bytes[8], bytes[9],
-        bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
-    )
+    Ok(bytes_to_uuid(&bytes))
 }
 
 /// How to protect the per-wallet data key.
@@ -64,7 +77,7 @@ pub fn create_wallet_db(
 
     std::fs::create_dir_all(wallets_dir)?;
 
-    let uuid = generate_uuid_v4();
+    let uuid = generate_uuid_v4()?;
     let path = Path::new(wallets_dir).join(format!("{}.db", uuid));
     let path_str = path.to_string_lossy().to_string();
 
@@ -77,7 +90,7 @@ pub fn create_wallet_db(
     let addr_hash = hash_first_address(descriptor, api_network);
 
     // Generate a unique per-wallet data key
-    let data_key = generate_data_key();
+    let data_key = Zeroizing::new(generate_data_key()?);
 
     // Initialize BDK tables in the encrypted SQLite file using the data key
     let (_wallet, conn) = load_or_create_wallet(&path_str, descriptor, network, &data_key)?;
@@ -131,7 +144,7 @@ pub fn build_protection_meta(
             t_cost,
         } => {
             use crate::core::key_protection::derive_key_from_password;
-            let salt = generate_salt();
+            let salt = generate_salt()?;
             let wrapping_key =
                 derive_key_from_password(&password, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
             let wrapped_key = wrap_key(data_key, &wrapping_key)?;
@@ -329,7 +342,7 @@ pub fn list_wallets_in_dir(
     }
 
     // Newest first
-    results.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
+    results.sort_by_key(|r| std::cmp::Reverse(r.1.created_at));
     results
 }
 
@@ -337,7 +350,7 @@ pub fn list_wallets_in_dir(
 /// Re-keys the database with a fresh data key, then writes a DeviceKey .meta sidecar.
 fn migrate_legacy_wallet(wallet_path: &str, device_key_hex: &str) -> Result<()> {
     // Generate a fresh data key and re-key the database (fails fast if key is wrong)
-    let data_key = generate_data_key();
+    let data_key = Zeroizing::new(generate_data_key()?);
     rekey_database(wallet_path, device_key_hex, &data_key)?;
 
     // Write the DeviceKey meta sidecar
@@ -530,31 +543,18 @@ pub fn add_biometric_slot_to_wallet(
 ) -> Result<String> {
     let data_key = resolve_wallet_key(wallet_path, device_key_hex, current_credential, None)?;
     let wrapped_key = wrap_key(&data_key, biometric_key_hex)?;
-    let id = generate_uuid_v4();
+    let id = generate_uuid_v4()?;
 
     let mut meta = read_meta(wallet_path)?;
-    match &mut meta {
-        ProtectionMeta::UserPassword {
-            biometric_slots, ..
-        } => {
-            biometric_slots.push(BiometricSlot {
-                id: id.clone(),
-                wrapped_key,
-            });
-        }
-        ProtectionMeta::XpubKey {
-            biometric_slots, ..
-        } => {
-            biometric_slots.push(BiometricSlot {
-                id: id.clone(),
-                wrapped_key,
-            });
-        }
-        _ => {
-            return Err(anyhow::anyhow!(
-                "Biometric slots are only supported for UserPassword and XpubKey wallets"
-            ))
-        }
+    if let Some(slots) = biometric_slots_mut(&mut meta) {
+        slots.push(BiometricSlot {
+            id: id.clone(),
+            wrapped_key,
+        });
+    } else {
+        return Err(anyhow::anyhow!(
+            "Biometric slots are only supported for UserPassword and XpubKey wallets"
+        ));
     }
     write_meta(wallet_path, &meta)?;
     Ok(id)
@@ -563,24 +563,12 @@ pub fn add_biometric_slot_to_wallet(
 /// Remove a biometric slot by ID from a UserPassword or XpubKey wallet.
 pub fn remove_biometric_slot_from_wallet(wallet_path: &str, biometric_id: &str) -> Result<()> {
     let mut meta = read_meta(wallet_path)?;
-    let removed = match &mut meta {
-        ProtectionMeta::UserPassword {
-            biometric_slots, ..
-        } => {
-            let before = biometric_slots.len();
-            biometric_slots.retain(|s| s.id != biometric_id);
-            biometric_slots.len() < before
-        }
-        ProtectionMeta::XpubKey {
-            biometric_slots, ..
-        } => {
-            let before = biometric_slots.len();
-            biometric_slots.retain(|s| s.id != biometric_id);
-            biometric_slots.len() < before
-        }
-        _ => return Err(anyhow::anyhow!("Wallet does not support biometric slots")),
+    let Some(slots) = biometric_slots_mut(&mut meta) else {
+        return Err(anyhow::anyhow!("Wallet does not support biometric slots"));
     };
-    if !removed {
+    let before = slots.len();
+    slots.retain(|s| s.id != biometric_id);
+    if slots.len() == before {
         return Err(anyhow::anyhow!("Biometric slot {} not found", biometric_id));
     }
     write_meta(wallet_path, &meta)
@@ -590,29 +578,19 @@ pub fn remove_biometric_slot_from_wallet(wallet_path: &str, biometric_id: &str) 
 /// Returns an empty Vec for DeviceKey wallets.
 pub fn list_biometric_slot_ids(wallet_path: &str) -> Result<Vec<String>> {
     let meta = read_meta(wallet_path)?;
-    let ids = match &meta {
-        ProtectionMeta::UserPassword {
-            biometric_slots, ..
-        } => biometric_slots.iter().map(|s| s.id.clone()).collect(),
-        ProtectionMeta::XpubKey {
-            biometric_slots, ..
-        } => biometric_slots.iter().map(|s| s.id.clone()).collect(),
-        _ => vec![],
-    };
+    let ids = biometric_slots(&meta)
+        .map(|slots| slots.iter().map(|s| s.id.clone()).collect())
+        .unwrap_or_default();
     Ok(ids)
 }
 
 /// Returns true if the wallet has at least one biometric slot registered.
 pub fn wallet_has_biometric_slots(wallet_path: &str) -> bool {
-    match read_meta(wallet_path) {
-        Ok(ProtectionMeta::UserPassword {
-            biometric_slots, ..
-        }) => !biometric_slots.is_empty(),
-        Ok(ProtectionMeta::XpubKey {
-            biometric_slots, ..
-        }) => !biometric_slots.is_empty(),
-        _ => false,
-    }
+    read_meta(wallet_path)
+        .ok()
+        .as_ref()
+        .and_then(biometric_slots)
+        .is_some_and(|s| !s.is_empty())
 }
 
 #[cfg(test)]

@@ -1,5 +1,35 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use rusqlite::Connection;
+
+// ===========================================================================
+// Table-name allowlist
+// ===========================================================================
+
+const TABLES: &[&str] = &[
+    "tx_labels",
+    "address_labels",
+    "key_labels",
+    "path_labels",
+    "coin_labels",
+];
+
+/// Validate that `name` is an allowed label-table name.
+///
+/// This is a defensive guard against accidental SQL injection via table names.
+/// All callers insert the table name directly into `format!` strings; the
+/// identifier itself is never user input (it's always a literal from Rust
+/// source), so this is a fuzzing / refactor safety net rather than a
+/// runtime exploit prevention.
+pub fn validate_table_name(name: &str) -> Result<()> {
+    if TABLES.contains(&name) {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "unknown label table '{name}'; expected one of {}",
+            TABLES.join(", ")
+        ))
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Migration helper
@@ -14,6 +44,7 @@ pub(super) fn ensure_column(
     column: &str,
     col_def: &str,
 ) -> Result<()> {
+    validate_table_name(table)?;
     let exists: i32 = conn
         .query_row(
             &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}'"),
@@ -47,6 +78,7 @@ fn set_simple_label(
     key: &dyn rusqlite::types::ToSql,
     label: &str,
 ) -> Result<()> {
+    validate_table_name(table)?;
     if label.is_empty() {
         conn.execute(&format!("DELETE FROM {table} WHERE {key_col} = ?1"), [key])?;
     } else {
@@ -67,6 +99,7 @@ fn set_entity_label(
     is_auto: bool,
     source: Option<&str>,
 ) -> Result<()> {
+    validate_table_name(table)?;
     if label.is_empty() {
         conn.execute(
             &format!("DELETE FROM {table} WHERE {key_col} = ?1"),
@@ -89,6 +122,7 @@ fn get_all_entity_labels(
     table: &str,
     key_col: &str,
 ) -> Result<std::collections::HashMap<String, String>> {
+    validate_table_name(table)?;
     let mut stmt = conn.prepare(&format!("SELECT {key_col}, label FROM {table}"))?;
     let map = stmt
         .query_map([], |row| {
@@ -104,6 +138,7 @@ fn get_all_entity_labels_with_flag(
     table: &str,
     key_col: &str,
 ) -> Result<std::collections::HashMap<String, (String, bool)>> {
+    validate_table_name(table)?;
     let mut stmt = conn.prepare(&format!("SELECT {key_col}, label, is_auto FROM {table}"))?;
     let map = stmt
         .query_map([], |row| {
@@ -124,6 +159,7 @@ fn get_entity_label(
     key_col: &str,
     key: &str,
 ) -> Result<Option<String>> {
+    validate_table_name(table)?;
     let mut stmt = conn.prepare(&format!("SELECT label FROM {table} WHERE {key_col} = ?1"))?;
     let result = stmt.query_row([key], |row| row.get::<_, String>(0)).ok();
     Ok(result)
@@ -135,6 +171,7 @@ fn get_entity_label_with_flag(
     key_col: &str,
     key: &str,
 ) -> Result<Option<(String, bool)>> {
+    validate_table_name(table)?;
     let mut stmt = conn.prepare(&format!(
         "SELECT label, is_auto FROM {table} WHERE {key_col} = ?1"
     ))?;
@@ -153,6 +190,7 @@ fn entity_has_explicit_label(
     key_col: &str,
     key: &str,
 ) -> Result<bool> {
+    validate_table_name(table)?;
     let mut stmt = conn.prepare(&format!(
         "SELECT 1 FROM {table} WHERE {key_col} = ?1 AND is_auto = 0"
     ))?;

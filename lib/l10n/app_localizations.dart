@@ -5119,6 +5119,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Derived keyspec'**
   String get derivedKeyspecLabel;
+
+  /// No description provided for @mustMatchMfp.
+  ///
+  /// In en, this message translates to:
+  /// **'Must match MFP: {mfp}'**
+  String mustMatchMfp(String mfp);
+
+  /// No description provided for @keyWithMfp.
+  ///
+  /// In en, this message translates to:
+  /// **'Key: {mfp}'**
+  String keyWithMfp(String mfp);
+
+  /// No description provided for @loadWarningCorruptKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost {count} signing key(s) due to database corruption'**
+  String loadWarningCorruptKeys(int count);
 }
 
 class _AppLocalizationsDelegate

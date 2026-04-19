@@ -248,8 +248,7 @@ fn count_unique_xpubs(descriptor: &str) -> usize {
     // Same pattern as async_hwi::bitbox::extract_script_config_policy
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        Regex::new(r"(\[.+?\])?[xyYzZtuUvV]pub[1-9A-HJ-NP-Za-km-z]{79,108}")
-            .expect("hard-coded xpub-like pattern regex is valid")
+        Regex::new(r"(\[.+?\])?[xyYzZtuUvV]pub[1-9A-HJ-NP-Za-km-z]{79,108}").expect("static regex")
     });
     re.find_iter(descriptor)
         .map(|m| m.as_str())
