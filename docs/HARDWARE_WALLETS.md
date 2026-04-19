@@ -64,6 +64,8 @@ The BitBox02 reports vendor ID `03eb` (`HID_ID=0003:000003EB:...`).
 
 No extra setup required. The BitBox02 HID driver is built into Windows.
 
+> **Note:** Windows support has not been exhaustively audited. If you encounter issues, please report them at https://github.com/frijolo/deadbolt/issues.
+
 ## Troubleshooting
 
 **"Cannot open device: Permission denied"** (Linux)

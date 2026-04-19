@@ -120,7 +120,7 @@ The inner plaintext (what ultimately gets encrypted) is a JSON object:
 A fresh 32-byte random key is generated using the OS CSPRNG:
 
 ```
-export_data_key = random_bytes(32)   // 64-char lowercase hex string internally
+export_data_key = random_bytes(32)   // 32 raw bytes in memory; serialized as 64-char lowercase hex string when stored or transmitted
 ```
 
 ### 2c — AES-256-GCM encryption of the inner plaintext
@@ -299,6 +299,57 @@ A relay operator who intercepts the event cannot decrypt it without knowing the
 xpub. The xpub is semi-public (shared with co-signers and visible in descriptors), so
 the threat model assumes xpubs are semi-public — an attacker with your xpub can
 see your on-chain history but cannot spend funds.
+
+---
+
+## Privacy Considerations
+
+### xpub ↔ Nostr identity correlation
+
+**By design**, the Nostr keypair used to author backup events is derived
+deterministically from your xpub:
+
+```
+nostr_privkey = HMAC-SHA256(key="deadbolt-nostr-backup-v1", data=xpub)
+```
+
+This means that **anyone who knows your xpub can**:
+
+1. Compute your deterministic Nostr pubkey.
+2. Query any relay with `{"kinds":[30078],"authors":["<derived_pubkey>"]}` and
+   enumerate all of your Deadbolt backup events.
+3. Enumerate every backup event, learn how many distinct descriptors you have backed
+   up, and read the `d`-tag fingerprints for each one.
+4. Decrypt and read the full descriptor content of every backup — the xpub is the
+   single credential for both discovery and decryption.
+
+**Threat model**: xpubs are treated as semi-public. They are shared with co-signers,
+visible inside descriptors, and often derivable from on-chain analysis. The Nostr
+backup system does not add new exposure beyond what the xpub already grants:
+an attacker with your xpub can already reconstruct your on-chain history independently
+of Nostr.
+
+**What this is NOT**: The Nostr pubkey used here is not linked to any other Nostr
+identity unless you explicitly share both. No persistent Nostr profile is created.
+The events carry no `petname`, `nip05`, or personal metadata.
+
+### Relay metadata leakage
+
+Relay operators can observe:
+- That an event of kind 30078 was published at a given timestamp.
+- The derived Nostr pubkey (linkable to your xpub if leaked elsewhere).
+- The number of distinct `d` tags per pubkey (number of wallets backed up).
+- The event size (rough proxy for descriptor complexity).
+
+They cannot observe the wallet descriptor, wallet name, or any private key material
+without knowing the xpub.
+
+### Mitigation
+
+- Use a Nostr relay operated by yourself or a trusted party.
+- Enable Tor in Deadbolt Settings so backup publishes and fetches do not reveal your IP to relay operators.
+- Treat your xpub with the same care as your on-chain privacy: once shared, assume
+  the correlation is permanent.
 
 ---
 

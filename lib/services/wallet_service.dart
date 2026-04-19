@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -18,7 +19,7 @@ class WalletService {
   /// Allows re-opening a biometrically-protected wallet within the same session
   /// without triggering the hardware biometric prompt again.
   /// Same RAM-exposure risk as password caching; cleared on app termination.
-  final Map<String, String> _biometricKeyCache = {};
+  final Map<String, Uint8List> _biometricKeyCache = {};
 
   Future<File> _keyFile() async {
     final dir = await getApplicationSupportDirectory();
@@ -85,15 +86,35 @@ class WalletService {
   // ---------------------------------------------------------------------------
 
   void cacheBiometricKey(String walletPath, String keyHex) {
-    _biometricKeyCache[walletPath] = keyHex;
+    evictBiometricKey(walletPath);
+    // Decode once to binary so we store 32 bytes, not 64 ASCII chars.
+    final bytes = Uint8List(keyHex.length ~/ 2);
+    for (var i = 0; i < bytes.length; i++) {
+      bytes[i] = int.parse(keyHex.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    _biometricKeyCache[walletPath] = bytes;
   }
 
-  String? getCachedBiometricKey(String walletPath) =>
-      _biometricKeyCache[walletPath];
+  String? getCachedBiometricKey(String walletPath) {
+    final cached = _biometricKeyCache[walletPath];
+    if (cached == null) return null;
+    return cached.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
 
   void evictBiometricKey(String walletPath) {
     _biometricKeyCache.remove(walletPath);
   }
+
+  /// Securely clears all cached passwords and biometric keys for all wallets.
+  void clearAllCredentials() {
+    for (final key in [..._passwordCache.keys]) {
+      evictPassword(key);
+    }
+    for (final key in [..._biometricKeyCache.keys]) {
+      evictBiometricKey(key);
+    }
+  }
+
 
   /// Returns true if a credential of any kind is cached for this wallet,
   /// meaning the wallet is already unlocked in this session.

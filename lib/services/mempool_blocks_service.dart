@@ -1,11 +1,23 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
-import 'package:deadbolt/services/fee_estimation_service.dart';
+import 'package:flutter/foundation.dart';
+
+import 'package:deadbolt/errors.dart' show sanitizeForLog;
+import 'package:deadbolt/services/tor_http_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
-import 'package:socks5_proxy/socks.dart';
+
+class FeePresets {
+  final double economy; // hourFee — ~1 hora
+  final double normal; // halfHourFee — ~30 min
+  final double priority; // fastestFee — ~10 min
+
+  const FeePresets({
+    required this.economy,
+    required this.normal,
+    required this.priority,
+  });
+}
 
 /// Fee data for one projected mempool block (not yet mined).
 /// index 0 = next block to be mined, index 1 = the one after, etc.
@@ -128,23 +140,12 @@ class MempoolBlocksService {
       } finally {
         client.close();
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('ERROR in MempoolBlocksService.getMempoolSnapshot: ${sanitizeForLog(e.toString())}\n${sanitizeForLog(st.toString())}');
       return null;
     }
   }
 
-  static http.Client _buildClient(String? socksAddr) {
-    if (socksAddr == null) return http.Client();
-    final parts = socksAddr.split(':');
-    if (parts.length != 2) return http.Client();
-    final host = parts[0];
-    final port = int.tryParse(parts[1]);
-    if (port == null) return http.Client();
-
-    final httpClient = HttpClient();
-    SocksTCPClient.assignToHttpClient(httpClient, [
-      ProxySettings(InternetAddress(host), port),
-    ]);
-    return IOClient(httpClient);
-  }
+  static http.Client _buildClient(String? socksAddr) =>
+      buildTorAwareClient(socksAddr);
 }

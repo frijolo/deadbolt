@@ -1,6 +1,11 @@
 package com.deadbolt.deadbolt
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -35,6 +40,19 @@ class MainActivity : FlutterFragmentActivity() {
                                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                             }
                         }
+                        result.success(null)
+                    }
+                    "setSensitiveClipboard" -> {
+                        val text = call.arguments as String
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("", text)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            val extras = PersistableBundle()
+                            extras.putBoolean("android.content.extra.IS_SENSITIVE", true)
+                            clip.description.extras = extras
+                        }
+                        runOnUiThread { clipboard.setPrimaryClip(clip) }
                         result.success(null)
                     }
                     else -> result.notImplemented()

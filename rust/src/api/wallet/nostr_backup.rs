@@ -16,9 +16,11 @@ use super::*;
 //     one slot for the owning xpub only.
 //   - Content: only the descriptor (no seeds, no full DB).
 //
-// Discovery: fetching all events for an xpub requires only the derived pubkey —
-// no d-tag knowledge needed. A single REQ (kinds=[30078], authors=[pubkey])
-// returns every descriptor backed up under that xpub.
+// Discovery and decryption both require the xpub: the derived pubkey (computed
+// from the xpub via HMAC-SHA256) is used for the relay REQ filter, and the raw
+// xpub is the Argon2id password that unwraps the data key. A single REQ
+// (kinds=[30078], authors=[derived_pubkey]) returns every descriptor backed up
+// under that xpub.
 //
 // Payload JSON format (stored in event content as base64):
 // {

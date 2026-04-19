@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
+use zeroize::Zeroizing;
 
 use crate::core::key_protection::{generate_data_key, unwrap_key, wrap_key, ProtectionMeta};
 use crate::core::wallet_meta::{meta_exists, read_meta, write_meta};
@@ -17,11 +18,11 @@ pub fn project_seeds_db_path(app_support_dir: &str) -> String {
 pub fn open_project_seeds_db(app_support_dir: &str, device_key_hex: &str) -> Result<Connection> {
     let db_path = project_seeds_db_path(app_support_dir);
 
-    let data_key = if meta_exists(&db_path) {
+    let data_key: Zeroizing<String> = if meta_exists(&db_path) {
         let meta = read_meta(&db_path)?;
         match meta {
             ProtectionMeta::DeviceKey { wrapped_key, .. } => {
-                unwrap_key(&wrapped_key, device_key_hex)?
+                Zeroizing::new(unwrap_key(&wrapped_key, device_key_hex)?)
             }
             _ => {
                 return Err(anyhow!(
@@ -30,7 +31,7 @@ pub fn open_project_seeds_db(app_support_dir: &str, device_key_hex: &str) -> Res
             }
         }
     } else {
-        let data_key = generate_data_key();
+        let data_key = Zeroizing::new(generate_data_key());
         let wrapped = wrap_key(&data_key, device_key_hex)?;
         let meta = ProtectionMeta::DeviceKey {
             version: 1,

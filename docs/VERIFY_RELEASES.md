@@ -287,9 +287,10 @@ If you encounter:
 - Suspicious or unexpected verification results
 
 **Report immediately**:
-- GitHub Issues: https://github.com/frijolo/deadbolt/issues
 - Email: frijolin@proton.me
 - Do NOT use the binary
+
+> **Security vulnerabilities**: Do NOT open a public GitHub Issue. Instead, follow the responsible disclosure process in [SECURITY.md — How to Report](../SECURITY.md#how-to-report).
 
 ## Additional Security Measures
 

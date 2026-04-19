@@ -37,6 +37,8 @@ flutter build windows --release   # Windows
 ```bash
 # Dart/Flutter unit tests
 flutter test
+# NOTE: if you modified rust/src/api/, regenerate FFI bindings first:
+#   flutter_rust_bridge_codegen generate
 
 # Rust unit tests
 cd rust && cargo test

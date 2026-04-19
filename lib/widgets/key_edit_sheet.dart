@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/seed_export_screen.dart';
-import 'package:deadbolt/utils/toast_helper.dart' show showSuccessToast;
+import 'package:deadbolt/utils/toast_helper.dart'
+    show copySecretAndScheduleClear;
 import 'package:deadbolt/src/rust/api/model.dart' show APINetwork;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -398,10 +398,12 @@ class _KeySheetContentState extends State<_KeySheetContent> {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: seed));
-              Navigator.pop(ctx);
-              showSuccessToast(l10n.seedPhraseCopied);
+            onPressed: () async {
+              await copySecretAndScheduleClear(
+                seed,
+                successMessage: l10n.seedPhraseCopied,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
             },
             icon: const Icon(Icons.copy, size: 16),
             label: Text(l10n.copyToClipboard),

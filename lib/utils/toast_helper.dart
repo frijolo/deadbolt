@@ -1,11 +1,47 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/root_navigator.dart';
+import 'package:deadbolt/utils/security_channel.dart';
+
+Timer? _secretClipboardTimer;
+
+/// Copies [secret] to clipboard; clears after 30 s and marks sensitive on Android 13+.
+Future<void> copySecretAndScheduleClear(
+  String secret, {
+  required String successMessage,
+}) async {
+  _secretClipboardTimer?.cancel();
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    try {
+      await securityChannel.invokeMethod<void>('setSensitiveClipboard', secret);
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: secret));
+    }
+  } else {
+    await Clipboard.setData(ClipboardData(text: secret));
+  }
+
+  showSuccessToast(successMessage);
+
+  _secretClipboardTimer = Timer(const Duration(seconds: 30), () {
+    Clipboard.setData(const ClipboardData(text: ''));
+  });
+}
+
+/// Cancels the pending clipboard-clear timer and wipes the clipboard immediately.
+/// Call when the app locks so secrets don't linger after lock.
+void cancelSecretClipboard() {
+  _secretClipboardTimer?.cancel();
+  _secretClipboardTimer = null;
+  Clipboard.setData(const ClipboardData(text: ''));
+}
 
 /// Show a success toast (green with check icon)
 void showSuccessToast(String message) {

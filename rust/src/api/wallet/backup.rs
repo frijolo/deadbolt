@@ -1,4 +1,5 @@
 use super::*;
+use zeroize::Zeroizing;
 
 // ---------------------------------------------------------------------------
 // Backup functions (.deadbolt format)
@@ -89,8 +90,13 @@ pub fn export_wallet_backup(
             let password = export_password
                 .ok_or_else(|| anyhow::anyhow!("Export password required for UserPassword"))?;
             let salt = generate_salt();
-            let wrapping_key =
-                derive_key_from_password(&password, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
+            let wrapping_key = Zeroizing::new(derive_key_from_password(
+                &password,
+                &salt,
+                m_cost,
+                t_cost,
+                DEFAULT_P_COST,
+            )?);
             let wrapped_key =
                 crate::core::key_protection::wrap_key(&export_data_key, &wrapping_key)?;
             let slot = serde_json::json!({
@@ -127,7 +133,8 @@ pub fn export_wallet_backup(
     let encrypted_db = encrypt_bytes(&export_data_key, &db_bytes)?;
     let data_b64 = general_purpose::STANDARD.encode(&encrypted_db);
 
-    let wallet_data_key_bytes = hex::decode(&wallet_data_key)?;
+    let wallet_data_key_bytes =
+        Zeroizing::new(hex::decode(&wallet_data_key).map_err(|e| anyhow::anyhow!(e))?);
     let encrypted_wallet_key = encrypt_bytes(&export_data_key, &wallet_data_key_bytes)?;
     let data_key_wrapped = hex::encode(&encrypted_wallet_key);
 
@@ -212,13 +219,13 @@ pub fn import_wallet_backup(
             let slot = xpub_slots
                 .first()
                 .ok_or_else(|| anyhow::anyhow!("No slots in v2 UserPassword backup"))?;
-            let wrapping_key = derive_key_from_password(
+            let wrapping_key = Zeroizing::new(derive_key_from_password(
                 &import_credential,
                 &slot.salt,
                 slot.m_cost,
                 slot.t_cost,
                 slot.p_cost,
-            )?;
+            )?);
             crate::core::key_protection::unwrap_key(&slot.wrapped_key, &wrapping_key)?
         } else if ptype == 2 {
             // XpubKey: try each slot with the provided xpub/keyspec credential.

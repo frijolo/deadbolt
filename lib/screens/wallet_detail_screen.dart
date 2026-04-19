@@ -19,6 +19,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
+import 'package:deadbolt/errors.dart' show sanitizeForLog;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/wallet_security_screen.dart';
@@ -327,7 +328,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         }
       }
     } catch (e, st) {
-      debugPrint('Failed to copy wallet labels to project: $e\n$st');
+      debugPrint('Failed to copy wallet labels to project: ${sanitizeForLog(e.toString())}\n${sanitizeForLog(st.toString())}');
     }
   }
 

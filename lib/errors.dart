@@ -1,5 +1,23 @@
 import 'dart:convert';
 
+// Patterns that may carry key material in error messages from Rust.
+final _sensitivePatterns = [
+  // Extended keys: xpub/xprv/ypub/yprv/zpub/zprv and BIP32 test-net variants.
+  RegExp(r'[xyztuvXYZTUV]p(?:ub|rv)[a-km-zA-HJ-NP-Z1-9]{100,115}'),
+  // Bech32 / Bech32m addresses (mainnet, testnet, regtest).
+  RegExp(r'(?:bc1|tb1|bcrt1)[a-z0-9]{25,90}'),
+];
+
+/// Redacts key material (extended keys, bech32 addresses) from [s] so the
+/// result is safe to pass to [debugPrint].
+String sanitizeForLog(String s) {
+  var result = s;
+  for (final pattern in _sensitivePatterns) {
+    result = result.replaceAll(pattern, '[REDACTED]');
+  }
+  return result;
+}
+
 String formatRustError(Object e) {
   String errorStr = e.toString();
   // Strip AnyhowException(...) wrapper — remove prefix and matching closing paren.

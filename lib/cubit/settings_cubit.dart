@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +9,7 @@ import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/tor.dart' as tor_api;
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/utils/security_channel.dart';
 
 class AppSettings {
   final Locale locale;
@@ -226,8 +226,6 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _biometricTimeoutKey = 'biometricTimeoutMinutes';
   static const _inheritanceMinTimelockKey = 'inheritanceMinTimelock';
 
-  static const _securityChannel = MethodChannel('deadbolt/security');
-
   SharedPreferences? _prefs;
 
   Future<SharedPreferences> _getPrefs() async =>
@@ -408,7 +406,7 @@ class SettingsCubit extends Cubit<AppSettings> {
 
   Future<void> _applyScreenshotProtection(bool enabled) async {
     if (!Platform.isAndroid) return;
-    await _securityChannel.invokeMethod<void>('setScreenshotProtection', enabled);
+    await securityChannel.invokeMethod<void>('setScreenshotProtection', enabled);
   }
 
   Future<void> setScreenshotProtection(bool enabled) async {

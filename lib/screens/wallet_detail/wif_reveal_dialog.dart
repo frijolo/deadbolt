@@ -1,11 +1,11 @@
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 /// Shows a confirmation dialog before revealing WIF, then opens [_WifDisplayDialog].
@@ -261,9 +261,12 @@ class _WifDisplayDialog extends StatelessWidget {
         TextButton.icon(
           icon: const Icon(Icons.copy, size: 16),
           label: Text(l10n.copyToClipboard),
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: wif));
-            Navigator.of(context).pop();
+          onPressed: () async {
+            await copySecretAndScheduleClear(
+              wif,
+              successMessage: context.l10n.keyCopied,
+            );
+            if (context.mounted) Navigator.of(context).pop();
           },
         ),
         TextButton(

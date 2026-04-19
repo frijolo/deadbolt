@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
@@ -161,10 +162,10 @@ class _WordsTab extends StatelessWidget {
           ],
 
           OutlinedButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: mnemonic));
-              showSuccessToast(l10n.seedPhraseCopied);
-            },
+            onPressed: () => copySecretAndScheduleClear(
+              mnemonic,
+              successMessage: l10n.seedPhraseCopied,
+            ),
             icon: const Icon(Icons.copy_outlined, size: 18),
             label: Text(l10n.copyToClipboard),
             style: OutlinedButton.styleFrom(

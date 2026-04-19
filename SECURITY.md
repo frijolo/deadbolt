@@ -201,7 +201,7 @@ flutter build <platform> --release
 - ✅ **XPub key protection** - Wallets can be unlocked by any registered xpub from the descriptor; brute-force infeasible due to xpub entropy (~256 bits)
 - ✅ **Selectable Argon2id levels** - Standard / High / Extreme presets calibrated on real mobile hardware (300 ms / 1.6 s / 5.5 s)
 - ✅ **Encrypted backups** - `.deadbolt` backup format uses Argon2id + AES-256-GCM; self-contained and portable
-- ✅ **Nostr encrypted backup** - Wallet descriptors encrypted per-xpub (Argon2id + AES-256-GCM) and published to Nostr relays; only the owner's xpub can decrypt
+- ✅ **Nostr encrypted backup** - Wallet descriptors encrypted per-xpub (Argon2id + AES-256-GCM) and published to Nostr relays; the xpub is the sole credential to both locate and decrypt each event
 - ✅ **Tor routing** - Optional embedded Tor client (arti) routes all Electrum traffic through the Tor network, hiding the user's IP from the Electrum server
 
 ### Planned Improvements
@@ -242,6 +242,7 @@ We follow these practices:
 - **Descriptor privacy**: Descriptors contain public keys and wallet structure. While not as sensitive as private keys, they should still be handled carefully.
 - **Platform security**: Deadbolt's security depends on the underlying OS and device security.
 - **Side channels**: Like any software, Deadbolt may be vulnerable to side-channel attacks (timing, memory) on compromised systems.
+- **Nostr backup — xpub ↔ identity correlation**: The Nostr keypair used to author encrypted backup events is derived deterministically from your xpub via `HMAC-SHA256("deadbolt-nostr-backup-v1", xpub)`. Anyone who knows your xpub can compute the matching Nostr pubkey, query any relay to enumerate your backup events, and decrypt their contents — the xpub is the single credential for all three operations. Since xpubs are semi-public by Bitcoin's threat model (visible in descriptors, shared with co-signers, derivable from on-chain data), this does not add new exposure — but users should be aware that Nostr relay operators can correlate backup activity to an xpub if that xpub is known. Enable Tor (Settings → Tor) to hide your IP from relay operators during backup operations. See [docs/NOSTR_BACKUP.md — Privacy Considerations](docs/NOSTR_BACKUP.md) for full details.
 
 ## Security Advisories
 

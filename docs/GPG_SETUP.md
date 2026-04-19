@@ -37,7 +37,7 @@ gpg --full-generate-key
 
 ### 2.2 Answer Prompts
 
-1. **Key type**: Select `(1) RSA and RSA` (default)
+1. **Key type**: Select `(1) RSA and RSA` (default) — or `(10) EdDSA (Ed25519)` for a more modern and compact key
 2. **Key size**: Enter `4096` (maximum security)
 3. **Expiration**: Enter `2y` (2 years - recommended for signing keys)
    - You'll be prompted to renew before expiration

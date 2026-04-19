@@ -5,9 +5,9 @@ mixin CubitErrorLogger {
   void logError(String context, Object error, StackTrace stackTrace) {
     debugPrint('════════════════════════════════════════════════════════════');
     debugPrint('ERROR in $context:');
-    debugPrint('$error');
+    debugPrint(sanitizeForLog(error.toString()));
     debugPrint('Stack trace:');
-    debugPrint('$stackTrace');
+    debugPrint(sanitizeForLog(stackTrace.toString()));
     debugPrint('════════════════════════════════════════════════════════════');
   }
 }

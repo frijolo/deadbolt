@@ -7,28 +7,31 @@ use argon2::{Algorithm, Argon2, Params, Version};
 use rand::rngs::OsRng;
 use rand::TryRngCore;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 /// Generate 32 random bytes and return them as lowercase hex (64 chars).
 pub fn generate_data_key() -> String {
-    let mut bytes = [0u8; 32];
-    OsRng.try_fill_bytes(&mut bytes).expect("OS RNG failed");
-    hex::encode(bytes)
+    let mut bytes = Zeroizing::new([0u8; 32]);
+    OsRng.try_fill_bytes(bytes.as_mut()).expect("OS RNG failed");
+    hex::encode(&bytes[..])
 }
 
 /// Generate 16 random bytes and return them as lowercase hex (32 chars).
 pub fn generate_salt() -> String {
-    let mut bytes = [0u8; 16];
-    OsRng.try_fill_bytes(&mut bytes).expect("OS RNG failed");
-    hex::encode(bytes)
+    let mut bytes = Zeroizing::new([0u8; 16]);
+    OsRng.try_fill_bytes(bytes.as_mut()).expect("OS RNG failed");
+    hex::encode(&bytes[..])
 }
 
 /// AES-256-GCM wrap: encrypt `data_key_hex` under `wrapping_key_hex`.
 /// Returns hex(nonce || ciphertext || tag) where nonce is 12 random bytes.
 pub fn wrap_key(data_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
-    let data_key_bytes =
-        hex::decode(data_key_hex).map_err(|e| anyhow!("Invalid data key hex: {}", e))?;
-    let wrapping_key_bytes =
-        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?;
+    let data_key_bytes = Zeroizing::new(
+        hex::decode(data_key_hex).map_err(|e| anyhow!("Invalid data key hex: {}", e))?,
+    );
+    let wrapping_key_bytes = Zeroizing::new(
+        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?,
+    );
     if wrapping_key_bytes.len() != 32 {
         return Err(anyhow!("Wrapping key must be 32 bytes"));
     }
@@ -37,11 +40,11 @@ pub fn wrap_key(data_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
         .map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
 
     // Random 12-byte nonce
-    let mut nonce_bytes = [0u8; 12];
+    let mut nonce_bytes = Zeroizing::new([0u8; 12]);
     OsRng
-        .try_fill_bytes(&mut nonce_bytes)
+        .try_fill_bytes(nonce_bytes.as_mut())
         .expect("OS RNG failed");
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = Nonce::from_slice(nonce_bytes.as_ref());
 
     let ciphertext = cipher
         .encrypt(nonce, data_key_bytes.as_ref())
@@ -56,14 +59,16 @@ pub fn wrap_key(data_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
 /// AES-256-GCM unwrap: decrypt the wrapped key produced by `wrap_key`.
 /// Input: hex(nonce || ciphertext || tag). Returns the original `data_key_hex`.
 pub fn unwrap_key(wrapped_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
-    let combined =
-        hex::decode(wrapped_key_hex).map_err(|e| anyhow!("Invalid wrapped key hex: {}", e))?;
+    let combined = Zeroizing::new(
+        hex::decode(wrapped_key_hex).map_err(|e| anyhow!("Invalid wrapped key hex: {}", e))?,
+    );
     if combined.len() < 12 {
         return Err(anyhow!("Wrapped key too short"));
     }
 
-    let wrapping_key_bytes =
-        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?;
+    let wrapping_key_bytes = Zeroizing::new(
+        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?,
+    );
     if wrapping_key_bytes.len() != 32 {
         return Err(anyhow!("Wrapping key must be 32 bytes"));
     }
@@ -74,11 +79,13 @@ pub fn unwrap_key(wrapped_key_hex: &str, wrapping_key_hex: &str) -> Result<Strin
     let cipher = Aes256Gcm::new_from_slice(&wrapping_key_bytes)
         .map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
 
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| anyhow!("AES-GCM decrypt failed — wrong key or corrupted data"))?;
+    let plaintext = Zeroizing::new(
+        cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|_| anyhow!("AES-GCM decrypt failed — wrong key or corrupted data"))?,
+    );
 
-    Ok(hex::encode(plaintext))
+    Ok(hex::encode(&*plaintext))
 }
 
 /// Argon2id KDF: derive a 32-byte key hex from a password and a salt hex.
@@ -95,25 +102,26 @@ pub fn derive_key_from_password(
         .map_err(|e| anyhow!("Argon2 params: {}", e))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
-    let mut output = [0u8; 32];
+    let mut output = Zeroizing::new([0u8; 32]);
     argon2
-        .hash_password_into(password.as_bytes(), &salt, &mut output)
+        .hash_password_into(password.as_bytes(), &salt, output.as_mut())
         .map_err(|e| anyhow!("Argon2id hash: {}", e))?;
 
-    Ok(hex::encode(output))
+    Ok(hex::encode(&output[..]))
 }
 
 /// AES-256-GCM encrypt arbitrary bytes under `key_hex`.
 /// Returns `nonce[12] || ciphertext || tag`.
 pub fn encrypt_bytes(key_hex: &str, plaintext: &[u8]) -> Result<Vec<u8>> {
-    let key_bytes = hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?;
+    let key_bytes =
+        Zeroizing::new(hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?);
     let cipher =
         Aes256Gcm::new_from_slice(&key_bytes).map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
-    let mut nonce_bytes = [0u8; 12];
+    let mut nonce_bytes = Zeroizing::new([0u8; 12]);
     OsRng
-        .try_fill_bytes(&mut nonce_bytes)
+        .try_fill_bytes(nonce_bytes.as_mut())
         .expect("OS RNG failed");
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = Nonce::from_slice(nonce_bytes.as_ref());
     let ct = cipher
         .encrypt(nonce, plaintext)
         .map_err(|e| anyhow!("AES-GCM encrypt: {}", e))?;
@@ -128,7 +136,8 @@ pub fn decrypt_bytes(key_hex: &str, ciphertext: &[u8]) -> Result<Vec<u8>> {
     if ciphertext.len() < 12 {
         return Err(anyhow!("Ciphertext too short"));
     }
-    let key_bytes = hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?;
+    let key_bytes =
+        Zeroizing::new(hex::decode(key_hex).map_err(|e| anyhow!("Invalid key hex: {}", e))?);
     let cipher =
         Aes256Gcm::new_from_slice(&key_bytes).map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
     let nonce = Nonce::from_slice(&ciphertext[..12]);
@@ -180,7 +189,13 @@ pub fn wrap_with_xpub(
     derivation: &str,
 ) -> Result<XpubSlot> {
     let salt = generate_salt();
-    let wrapping_key = derive_key_from_password(xpub, &salt, m_cost, t_cost, DEFAULT_P_COST)?;
+    let wrapping_key = Zeroizing::new(derive_key_from_password(
+        xpub,
+        &salt,
+        m_cost,
+        t_cost,
+        DEFAULT_P_COST,
+    )?);
     let wrapped_key = wrap_key(data_key, &wrapping_key)?;
     Ok(XpubSlot {
         mfp: mfp.to_string(),
@@ -225,8 +240,13 @@ pub fn unwrap_xpub_slots(
                 continue;
             }
         }
-        let wrapping_key =
-            derive_key_from_password(xpub, &slot.salt, slot.m_cost, slot.t_cost, slot.p_cost)?;
+        let wrapping_key = Zeroizing::new(derive_key_from_password(
+            xpub,
+            &slot.salt,
+            slot.m_cost,
+            slot.t_cost,
+            slot.p_cost,
+        )?);
         if let Ok(data_key) = unwrap_key(&slot.wrapped_key, &wrapping_key) {
             return Ok((data_key, slot.mfp.clone()));
         }
@@ -317,8 +337,9 @@ pub fn resolve_data_key(meta: &ProtectionMeta, credential: &str) -> Result<Strin
             wrapped_key,
             ..
         } => {
-            let wrapping_key =
-                derive_key_from_password(credential, salt, *m_cost, *t_cost, *p_cost)?;
+            let wrapping_key = Zeroizing::new(derive_key_from_password(
+                credential, salt, *m_cost, *t_cost, *p_cost,
+            )?);
             unwrap_key(wrapped_key, &wrapping_key)
         }
         ProtectionMeta::XpubKey { slots, .. } => resolve_xpub_data_key(credential, slots),

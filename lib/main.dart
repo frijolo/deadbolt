@@ -15,6 +15,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/frb_generated.dart';
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/utils/root_navigator.dart';
 import 'package:deadbolt/widgets/app_scaffold.dart';
 import 'package:deadbolt/widgets/biometric_lock_screen.dart';
@@ -32,9 +33,9 @@ Future<void> main() async {
         FlutterError.presentError(details);
         debugPrint('════════════════════════════════════════════════════════════');
         debugPrint('FLUTTER ERROR:');
-        debugPrint('${details.exception}');
+        debugPrint(sanitizeForLog(details.exception.toString()));
         debugPrint('Stack trace:');
-        debugPrint('${details.stack}');
+        debugPrint(sanitizeForLog(details.stack.toString()));
         debugPrint('════════════════════════════════════════════════════════════');
       };
 
@@ -44,9 +45,9 @@ Future<void> main() async {
     (error, stackTrace) {
       debugPrint('════════════════════════════════════════════════════════════');
       debugPrint('UNCAUGHT ASYNC ERROR:');
-      debugPrint('$error');
+      debugPrint(sanitizeForLog(error.toString()));
       debugPrint('Stack trace:');
-      debugPrint('$stackTrace');
+      debugPrint(sanitizeForLog(stackTrace.toString()));
       debugPrint('════════════════════════════════════════════════════════════');
     },
   );
@@ -72,7 +73,10 @@ class DeadboltApp extends StatelessWidget {
         providers: [
           BlocProvider(create: (_) => SettingsCubit()),
           BlocProvider(
-            create: (c) => BiometricLockCubit(c.read<SettingsCubit>()),
+            create: (c) => BiometricLockCubit(
+              c.read<SettingsCubit>(),
+              c.read<WalletService>(),
+            ),
           ),
           BlocProvider(create: (_) => ProjectListCubit(db)),
           BlocProvider(create: (c) => WalletListCubit(
@@ -92,8 +96,14 @@ class DeadboltApp extends StatelessWidget {
             darkTheme: AppThemeManager.getDarkThemeData(),
             themeMode: AppThemeManager.getThemeMode(settings.appTheme),
             home: BlocBuilder<BiometricLockCubit, bool>(
-              builder: (context, isLocked) =>
-                  isLocked ? const BiometricLockScreen() : const AppScaffold(),
+              builder: (context, isLocked) => isLocked
+                  ? const BiometricLockScreen()
+                  : Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: (_) =>
+                          context.read<BiometricLockCubit>().resetInactivityTimer(),
+                      child: const AppScaffold(),
+                    ),
             ),
           ),
         ),

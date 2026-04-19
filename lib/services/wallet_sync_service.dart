@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:deadbolt/cubit/settings_cubit.dart';
-import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/errors.dart' show sanitizeForLog, formatRustError;
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
@@ -88,7 +88,7 @@ class WalletSyncService {
         await _startTracking(path, handle, url);
       } catch (e) {
         // Log and continue — a single bad wallet must not block the others.
-        debugPrint('[WalletSyncService] initFromList($path): $e');
+        debugPrint('[WalletSyncService] initFromList($path): ${sanitizeForLog(e.toString())}');
       }
     }
   }

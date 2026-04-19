@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
+import 'package:deadbolt/services/tor_http_client.dart';
 import 'package:intl/intl.dart';
 
 enum PriceProviderType { coinGecko, mempoolSpace }
@@ -35,8 +35,10 @@ abstract class PriceProvider {
   PriceProviderType get type;
 
   /// Return the BTC price in [currency] at [time].
+  /// Pass [torSocksAddr] (e.g. "127.0.0.1:9150") to route via SOCKS5.
   /// Returns null when the provider doesn't have data for that time/currency.
-  Future<double?> getBtcPrice(String currency, DateTime time);
+  Future<double?> getBtcPrice(String currency, DateTime time,
+      {String? torSocksAddr});
 }
 
 // ---------------------------------------------------------------------------
@@ -60,14 +62,16 @@ class CoinGeckoPriceProvider implements PriceProvider {
   PriceProviderType get type => PriceProviderType.coinGecko;
 
   @override
-  Future<double?> getBtcPrice(String currency, DateTime time) async {
+  Future<double?> getBtcPrice(String currency, DateTime time,
+      {String? torSocksAddr}) async {
     final age = DateTime.now().difference(time);
     return age < _currentThreshold
-        ? _fetchCurrent(currency)
-        : _fetchDaily(currency, time);
+        ? _fetchCurrent(currency, torSocksAddr: torSocksAddr)
+        : _fetchDaily(currency, time, torSocksAddr: torSocksAddr);
   }
 
-  Future<double?> _fetchCurrent(String currency) async {
+  Future<double?> _fetchCurrent(String currency,
+      {String? torSocksAddr}) async {
     final cur = currency.toLowerCase();
     final cacheAge = _currentCachedAt != null
         ? DateTime.now().difference(_currentCachedAt!)
@@ -82,19 +86,26 @@ class CoinGeckoPriceProvider implements PriceProvider {
       'ids': 'bitcoin',
       'vs_currencies': cur,
     });
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) return null;
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final price = (data['bitcoin']?[cur] as num?)?.toDouble();
-    if (price != null) {
-      _currentCache ??= {};
-      _currentCache![cur] = price;
-      _currentCachedAt = DateTime.now();
+    final client = buildTorAwareClient(torSocksAddr);
+    try {
+      final response =
+          await client.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final price = (data['bitcoin']?[cur] as num?)?.toDouble();
+      if (price != null) {
+        _currentCache ??= {};
+        _currentCache![cur] = price;
+        _currentCachedAt = DateTime.now();
+      }
+      return price;
+    } finally {
+      client.close();
     }
-    return price;
   }
 
-  Future<double?> _fetchDaily(String currency, DateTime date) async {
+  Future<double?> _fetchDaily(String currency, DateTime date,
+      {String? torSocksAddr}) async {
     final cur = currency.toLowerCase();
     final dateKey = _dateFormat.format(date.toUtc());
     if (_dailyCache[dateKey]?[cur] != null) return _dailyCache[dateKey]![cur];
@@ -103,20 +114,26 @@ class CoinGeckoPriceProvider implements PriceProvider {
       'date': dateKey,
       'localization': 'false',
     });
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) return null;
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final prices =
-        (data['market_data']?['current_price'] as Map<String, dynamic>?);
-    final price = (prices?[cur] as num?)?.toDouble();
-    if (price != null) {
-      if (_dailyCache.length >= _maxCacheEntries) {
-        _dailyCache.remove(_dailyCache.keys.first);
+    final client = buildTorAwareClient(torSocksAddr);
+    try {
+      final response =
+          await client.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final prices =
+          (data['market_data']?['current_price'] as Map<String, dynamic>?);
+      final price = (prices?[cur] as num?)?.toDouble();
+      if (price != null) {
+        if (_dailyCache.length >= _maxCacheEntries) {
+          _dailyCache.remove(_dailyCache.keys.first);
+        }
+        _dailyCache[dateKey] ??= {};
+        _dailyCache[dateKey]![cur] = price;
       }
-      _dailyCache[dateKey] ??= {};
-      _dailyCache[dateKey]![cur] = price;
+      return price;
+    } finally {
+      client.close();
     }
-    return price;
   }
 }
 
@@ -131,7 +148,8 @@ class MempoolSpacePriceProvider implements PriceProvider {
   PriceProviderType get type => PriceProviderType.mempoolSpace;
 
   @override
-  Future<double?> getBtcPrice(String currency, DateTime time) async {
+  Future<double?> getBtcPrice(String currency, DateTime time,
+      {String? torSocksAddr}) async {
     final cur = currency.toUpperCase();
     final ts = (time.millisecondsSinceEpoch / 1000).truncate();
     final uri =
@@ -139,12 +157,18 @@ class MempoolSpacePriceProvider implements PriceProvider {
       'currency': cur,
       'timestamp': ts.toString(),
     });
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) return null;
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final prices = data['prices'] as List<dynamic>?;
-    if (prices == null || prices.isEmpty) return null;
-    return (prices.last[cur] as num?)?.toDouble();
+    final client = buildTorAwareClient(torSocksAddr);
+    try {
+      final response =
+          await client.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final prices = data['prices'] as List<dynamic>?;
+      if (prices == null || prices.isEmpty) return null;
+      return (prices.last[cur] as num?)?.toDouble();
+    } finally {
+      client.close();
+    }
   }
 }
 
@@ -169,6 +193,7 @@ class PriceService {
     _provider = _makeProvider(type);
   }
 
-  Future<double?> getBtcPrice(String currency, DateTime time) =>
-      _provider.getBtcPrice(currency, time);
+  Future<double?> getBtcPrice(String currency, DateTime time,
+          {String? torSocksAddr}) =>
+      _provider.getBtcPrice(currency, time, torSocksAddr: torSocksAddr);
 }

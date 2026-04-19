@@ -17,6 +17,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/errors.dart' show sanitizeForLog;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -383,7 +384,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         walletPassword: password,
       );
     } catch (e, st) {
-      debugPrint('Failed to copy project keys to wallet: $e\n$st');
+      debugPrint('Failed to copy project keys to wallet: ${sanitizeForLog(e.toString())}\n${sanitizeForLog(st.toString())}');
     }
   }
 
@@ -410,7 +411,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         handle.setPathLabel(rustId: path.rustId, label: path.customName!);
       }
     } catch (e, st) {
-      debugPrint('Failed to copy project labels to wallet: $e\n$st');
+      debugPrint('Failed to copy project labels to wallet: ${sanitizeForLog(e.toString())}\n${sanitizeForLog(st.toString())}');
     }
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:deadbolt/services/fee_estimation_service.dart';
+import 'package:deadbolt/services/mempool_blocks_service.dart' show FeePresets;
 
 String _formatFee(double fee) {
   if (fee == fee.truncate()) return fee.toStringAsFixed(0);
