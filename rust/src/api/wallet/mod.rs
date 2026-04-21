@@ -167,57 +167,6 @@ fn psbt_from_base64(s: &str) -> Result<bdk_wallet::bitcoin::psbt::Psbt> {
     Psbt::deserialize(&bytes).map_err(|e| anyhow::anyhow!("PSBT deserialize: {}", e))
 }
 
-/// Extract a mfp→xpub map from a descriptor string.
-/// Matches `[deadbeef/44'/0'/0']xpub6C...` style key expressions.
-fn extract_xpub_mfp_map(descriptor: &str) -> std::collections::HashMap<String, String> {
-    use std::sync::OnceLock;
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})[^\]]*\]([A-Za-z]{1,4}pub[A-Za-z0-9]+)")
-            .expect("hard-coded xpub regex is valid")
-    });
-    let mut map = std::collections::HashMap::new();
-    for cap in re.captures_iter(descriptor) {
-        map.insert(cap[1].to_lowercase(), cap[2].to_string());
-    }
-    map
-}
-
-/// Extract a mfp→derivation map from a descriptor string.
-/// Matches `[deadbeef/48h/0h/0h/2h]xpub...` and returns the path suffix after the MFP.
-fn extract_xpub_derivation_map(descriptor: &str) -> std::collections::HashMap<String, String> {
-    use std::sync::OnceLock;
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        regex::Regex::new(r"\[([0-9a-fA-F]{8})/([^\]]+)\]")
-            .expect("hard-coded derivation regex is valid")
-    });
-    let mut map = std::collections::HashMap::new();
-    for cap in re.captures_iter(descriptor) {
-        map.entry(cap[1].to_lowercase())
-            .or_insert_with(|| cap[2].to_string());
-    }
-    map
-}
-
-/// Extract `(mfp, xpub, derivation_hint)` triples from a descriptor for XpubKey protection.
-/// Returns an error if the descriptor contains no xpubs.
-fn xpub_slots_from_descriptor(descriptor: &str) -> Result<Vec<(String, String, String)>> {
-    let xpub_map = extract_xpub_mfp_map(descriptor);
-    let deriv_map = extract_xpub_derivation_map(descriptor);
-    if xpub_map.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No xpubs found in descriptor for XpubKey protection"
-        ));
-    }
-    Ok(xpub_map
-        .into_iter()
-        .map(|(mfp, xpub)| {
-            let derivation = deriv_map.get(&mfp).cloned().unwrap_or_default();
-            (mfp, xpub, derivation)
-        })
-        .collect())
-}
 
 /// Compute the effective display label for a PSBT.
 /// Own label takes priority; falls back to the recipient address label.

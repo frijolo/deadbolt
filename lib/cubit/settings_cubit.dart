@@ -222,7 +222,7 @@ class SettingsCubit extends Cubit<AppSettings> {
   static const _fiatProviderKey = 'fiatProvider';
   static const _torEnabledKey = 'torEnabled';
   static const _screenshotProtectionKey = 'screenshotProtection';
-  static const _biometricLockKey = 'biometricLockEnabled';
+  static const biometricLockKey = 'biometricLockEnabled';
   static const _biometricTimeoutKey = 'biometricTimeoutMinutes';
   static const _inheritanceMinTimelockKey = 'inheritanceMinTimelock';
 
@@ -304,7 +304,7 @@ class SettingsCubit extends Cubit<AppSettings> {
       screenshotProtection:
           prefs.getBool(_screenshotProtectionKey) ?? defaults.screenshotProtection,
       biometricLockEnabled:
-          prefs.getBool(_biometricLockKey) ?? defaults.biometricLockEnabled,
+          prefs.getBool(biometricLockKey) ?? defaults.biometricLockEnabled,
       biometricTimeoutMinutes:
           prefs.getInt(_biometricTimeoutKey) ?? defaults.biometricTimeoutMinutes,
       inheritanceMinTimelockBlocks:
@@ -418,7 +418,7 @@ class SettingsCubit extends Cubit<AppSettings> {
 
   Future<void> setBiometricLockEnabled(bool enabled) async {
     final prefs = await _getPrefs();
-    await prefs.setBool(_biometricLockKey, enabled);
+    await prefs.setBool(biometricLockKey, enabled);
     emit(state.copyWith(biometricLockEnabled: enabled));
   }
 

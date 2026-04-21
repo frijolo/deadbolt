@@ -3339,6 +3339,7 @@ dependencies = [
  "hex",
  "hidapi",
  "hmac",
+ "log",
  "nostr",
  "rand 0.9.3",
  "regex",

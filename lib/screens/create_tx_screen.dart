@@ -11,7 +11,6 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
-import 'package:deadbolt/services/fee_estimation_service.dart' show FeePresets;
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';

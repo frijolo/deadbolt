@@ -403,6 +403,27 @@ class APIHotKeyInfo {
           createdAt == other.createdAt;
 }
 
+class APIHotKeyList {
+  /// Successfully loaded hot keys.
+  final List<APIHotKeyInfo> keys;
+
+  /// Error messages for seed entries that could not be loaded from the database.
+  final List<String> corruptRows;
+
+  const APIHotKeyList({required this.keys, required this.corruptRows});
+
+  @override
+  int get hashCode => keys.hashCode ^ corruptRows.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIHotKeyList &&
+          runtimeType == other.runtimeType &&
+          keys == other.keys &&
+          corruptRows == other.corruptRows;
+}
+
 /// Result of [`connect_hw_device`] / [`connect_hw_device_android`].
 class APIHwConnectResult {
   /// Opaque session identifier used in subsequent hw_* calls.
