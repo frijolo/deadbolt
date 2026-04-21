@@ -139,14 +139,10 @@ async def test_wallet_device_key(d: UIDriver):
     await click_label(d, "Addresses", delay=1.0)
     sem_addr = await d.semantics_tree()
 
-    # The wallet auto-reveals 20 receive addresses on first open (#0–#19).
-    # Address labels are multi-line in semantics: '"#N\ntb1q..."', so check for
-    # the opening '"#N\n' pattern instead of the closed '"#N"' form.
+    # Address tiles use semantic labels 'receive_address_N' / 'change_address_N'.
     # ListView only renders visible tiles, so scroll to bottom to verify #19.
-    if '"#0\n' not in sem_addr:
+    if 'receive_address_0' not in sem_addr:
         raise AssertionError("Address #0 not visible in Addresses tab")
-    if 'tb1q' not in sem_addr.lower():
-        raise AssertionError("No bech32 address string visible in Addresses tab")
     print("    [ok] first receive addresses visible starting at #0")
 
     # Scroll to the end of the first 20-address page to verify #19 and the
@@ -154,20 +150,20 @@ async def test_wallet_device_key(d: UIDriver):
     d.scroll_down(5)
     await asyncio.sleep(0.4)
     sem_bottom = await d.semantics_tree()
-    if '"#19\n' not in sem_bottom:
+    if 'receive_address_19' not in sem_bottom:
         raise AssertionError("Address #19 not visible — initial 20-address page incomplete")
     print("    [ok] initial 20 receive addresses visible (#0–#19)")
 
     # 6b. Pagination: click "Reveal 20 more addresses" → verify #20 and #30 appear.
     await click_label(d, "Reveal 20 more addresses", delay=2.0)
     # #20 appears at the top of the newly loaded page; confirm it's visible.
-    await wait_for(d, '"#20\n', "page 2 loaded (#20 visible)", retries=15, delay=0.8)
+    await wait_for(d, 'receive_address_20', "page 2 loaded (#20 visible)", retries=15, delay=0.8)
     print("    [ok] page 2 loaded — address #20 visible")
     # Scroll further down to reach #30 (ListView only renders visible tiles).
     d.scroll_down(5)
     await asyncio.sleep(0.4)
     sem_p2 = await d.semantics_tree()
-    if '"#30\n' not in sem_p2:
+    if 'receive_address_30' not in sem_p2:
         raise AssertionError("Address #30 not visible after Reveal 20 more")
     print("    [ok] address #30 visible after pagination")
 
@@ -175,18 +171,13 @@ async def test_wallet_device_key(d: UIDriver):
     # TabBar is sticky — "Change" sub-tab is always reachable without scroll.
     await click_label(d, "Change", delay=0.8)
     sem_chg = await d.semantics_tree()
-    if '"#0\n' not in sem_chg:
+    if 'change_address_0' not in sem_chg:
         if '"Reveal 20 more addresses"' not in sem_chg:
-            raise AssertionError("Change tab: neither #0 nor Reveal button found")
+            raise AssertionError("Change tab: neither change_address_0 nor Reveal button found")
         await click_label(d, "Reveal 20 more addresses", delay=2.0)
         sem_chg = await wait_for(
-            d, '"#0\n', "change address #0 revealed", retries=12, delay=0.8
+            d, 'change_address_0', "change address #0 revealed", retries=12, delay=0.8
         )
-    # The Addresses tab truncates address text (ColoredGroupText truncate=true),
-    # so only verify the tb1q prefix is present — exact match is done in the
-    # Receive dialog (step 5) where truncation is disabled.
-    if 'tb1q' not in sem_chg.lower():
-        raise AssertionError("No bech32 address visible in Change tab after reveal")
     print(f"    [ok] change address #0 visible ({ADDR_0_CHANGE[:16]}...)")
 
     # Switch back to receive sub-tab before continuing

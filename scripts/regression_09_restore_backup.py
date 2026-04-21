@@ -215,7 +215,7 @@ async def _verify_address_label(d: UIDriver):
 
     sem = await d.semantics_tree()
     if '"Loading addresses' in sem:
-        await wait_for(d, '"#0', "address loading complete",
+        await wait_for(d, 'receive_address_0', "address loading complete",
                        retries=15, delay=0.8)
 
     await asyncio.sleep(0.8)
@@ -224,11 +224,11 @@ async def _verify_address_label(d: UIDriver):
     sem = await d.semantics_tree()
     if '"Reveal 20 more addresses"' in sem:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
-        await wait_for(d, '"#0', "addresses revealed", retries=10, delay=0.6)
+        await wait_for(d, 'receive_address_0', "addresses revealed", retries=10, delay=0.6)
         sem = await d.semantics_tree()
 
     # 1. At least one address must exist
-    if '"#0' not in sem:
+    if 'receive_address_0' not in sem:
         raise AssertionError(
             "No addresses found after restore — expected address #0 to be present."
         )

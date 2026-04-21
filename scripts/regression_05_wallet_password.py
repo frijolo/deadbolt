@@ -30,14 +30,16 @@ Prerequisites:
 """
 
 import asyncio
+import os
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ui_driver import UIDriver                          # noqa: E402
 from regression_helpers import (                       # noqa: E402
-    wait_for,
-    click_label,
+    wait_for, wait_absent,
+    click_label, click_tooltip,
     fill_field,
     dismiss_startup_dialogs,
     create_project, go_back,
@@ -65,6 +67,11 @@ DESCRIPTOR = (
     "/<0;1>/*)"
 )
 
+# Pre-derived addresses from the descriptor above (BIP84 / native segwit, testnet).
+# Derived from tpub at path /<0;1>/0: receive branch 0/0, change branch 1/0.
+ADDR_0_RECEIVE = "tb1qkyemuvfvgtjwzvfsefskpvu9d2qsx4tgcnkhrv"
+ADDR_0_CHANGE  = "tb1qttxvvjh890zuzz4yl6tys64346jaapaqz9dxsx"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -87,6 +94,94 @@ async def _assert_wallet_needs_password(d, wallet_name: str, context: str):
         retries=8, delay=0.8,
     )
     return sem
+
+
+async def _copy_address_from_tile(d: UIDriver, semantic_label: str, description: str) -> str:
+    """Open address tile → AddressDetailDialog → copy to clipboard → return address."""
+    rect = await d.find_semantic_rect(semantic_label)
+    if rect is None:
+        raise AssertionError(f"'{semantic_label}' tile not found in Addresses tab ({description})")
+    d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2)
+    await asyncio.sleep(1.0)
+    await wait_for(d, '"Address details"', f"AddressDetailDialog opened ({description})",
+                   retries=10, delay=0.5)
+
+    share_rect = await d.find_semantic_rect_by_tooltip("Copy to clipboard")
+    if share_rect is None:
+        raise AssertionError(f"'Copy to clipboard' button not found ({description})")
+    d.flutter_click((share_rect[0] + share_rect[2]) // 2,
+                    (share_rect[1] + share_rect[3]) // 2)
+    await asyncio.sleep(0.3)
+
+    await wait_for(d, "Copy to clipboard", f"export sheet opened ({description})",
+                   retries=8, delay=0.5)
+    copy_rect = await d.find_semantic_rect("Copy to clipboard")
+    if copy_rect is None:
+        raise AssertionError(f"'Copy to clipboard' item not found in export sheet ({description})")
+    d.flutter_click((copy_rect[0] + copy_rect[2]) // 2,
+                    (copy_rect[1] + copy_rect[3]) // 2)
+    await asyncio.sleep(0.5)
+
+    _env = {**os.environ, "DISPLAY": ":0"}
+    addr = subprocess.check_output(
+        ["xclip", "-selection", "clipboard", "-o"], env=_env,
+    ).decode().strip()
+
+    await click_tooltip(d, "Close", delay=0.5)
+    await wait_absent(d, '"Address details"', "dialog closed", retries=5, delay=0.5)
+    return addr
+
+
+async def _assert_addresses_post_unlock(d: UIDriver):
+    """Navigate to Addresses tab and verify receive #0 and change #0 via clipboard."""
+    await click_label(d, "Addresses", delay=1.0)
+
+    sem_addr = await d.semantics_tree()
+    if '"Reveal 20 more addresses"' in sem_addr:
+        await click_label(d, "Reveal 20 more addresses", delay=1.5)
+        await wait_for(d, "receive_address_0", "receive address #0 visible",
+                       retries=12, delay=0.8)
+    else:
+        await wait_for(d, "receive_address_0", "receive address #0 visible",
+                       retries=10, delay=0.6)
+    await asyncio.sleep(0.5)
+
+    addr_receive = await _copy_address_from_tile(d, "receive_address_0", "receive #0")
+    if not addr_receive.startswith("tb1q"):
+        raise AssertionError(
+            f"Receive address #0 is not a valid testnet bech32 address.\nGot: {addr_receive}"
+        )
+    if addr_receive != ADDR_0_RECEIVE:
+        raise AssertionError(
+            f"Receive address #0 mismatch.\n"
+            f"  expected: {ADDR_0_RECEIVE}\n"
+            f"  got:      {addr_receive}"
+        )
+    print(f"    [ok] receive address #0 correct: {addr_receive[:22]}...")
+
+    await click_label(d, "Change", delay=0.8)
+    sem_chg = await d.semantics_tree()
+    if '"Reveal 20 more addresses"' in sem_chg:
+        await click_label(d, "Reveal 20 more addresses", delay=1.5)
+        await wait_for(d, "change_address_0", "change address #0 visible",
+                       retries=12, delay=0.8)
+    else:
+        await wait_for(d, "change_address_0", "change address #0 visible",
+                       retries=10, delay=0.6)
+    await asyncio.sleep(0.5)
+
+    addr_change = await _copy_address_from_tile(d, "change_address_0", "change #0")
+    if not addr_change.startswith("tb1q"):
+        raise AssertionError(
+            f"Change address #0 is not a valid testnet bech32 address.\nGot: {addr_change}"
+        )
+    if addr_change != ADDR_0_CHANGE:
+        raise AssertionError(
+            f"Change address #0 mismatch.\n"
+            f"  expected: {ADDR_0_CHANGE}\n"
+            f"  got:      {addr_change}"
+        )
+    print(f"    [ok] change address #0 correct: {addr_change[:22]}...")
 
 
 # ---------------------------------------------------------------------------
@@ -178,13 +273,7 @@ async def test_wallet_password_lifecycle(d: UIDriver):
     print(f"    [ok] wallet unlocked successfully after lock/re-unlock cycle")
 
     # Verify addresses are still accessible after the lock/unlock cycle.
-    await click_label(d, "Addresses", delay=1.0)
-    sem_addrs = await d.semantics_tree()
-    if '"#0\n' not in sem_addrs:
-        raise AssertionError("Address #0 not visible after unlock")
-    if 'tb1q' not in sem_addrs.lower():
-        raise AssertionError("No bech32 address visible after unlock")
-    print("    [ok] address #0 visible post-unlock")
+    await _assert_addresses_post_unlock(d)
     await go_back(d)
 
     print(f"\n    [PASS] {WALLET_NAME}")

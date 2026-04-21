@@ -120,6 +120,9 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   // HW-specific progress during deriving phase
   int _derivedCount = 0;
   int _totalToDeriving = 0;
+  // Seed credentials from the last seed scan; null when using xpub/HW tab.
+  String? _lastSeedMnemonic;
+  String? _lastSeedPassphrase;
 
   // ── Results ────────────────────────────────────────────────────────────────
   List<APIAccountInfo> _accounts = [];
@@ -164,6 +167,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     bool searchNostr,
   ) async {
     _lastActiveTab = 1;
+    _lastSeedMnemonic = mnemonic;
+    _lastSeedPassphrase = passphrase;
     setState(() {
       _phase = _ScanPhase.scanning;
       _errorMessage = null;
@@ -239,6 +244,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     bool searchNostr,
   ) async {
     _lastActiveTab = 0;
+    _lastSeedMnemonic = null;
+    _lastSeedPassphrase = null;
     setState(() {
       _phase = _ScanPhase.scanning;
       _errorMessage = null;
@@ -299,6 +306,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   Future<void> _onHwScan(
       String sessionId, bool searchNostr, bool skipLegacy) async {
     _lastActiveTab = 2;
+    _lastSeedMnemonic = null;
+    _lastSeedPassphrase = null;
     setState(() {
       _phase = _ScanPhase.deriving;
       _errorMessage = null;
@@ -1008,8 +1017,11 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
                 icon: const Icon(Icons.account_balance_wallet_outlined),
                 tooltip: l10n.scanAccountsCreateWallet,
                 visualDensity: VisualDensity.compact,
-                onPressed: () =>
-                    _openWizard(_accountByAddress[w.firstAddress!]!),
+                onPressed: () => _openWizard(
+                  _accountByAddress[w.firstAddress!]!,
+                  mnemonic: _lastSeedMnemonic,
+                  passphrase: _lastSeedPassphrase,
+                ),
               )
             else if (foundOnChain && w.hasNostrBackup)
               Row(
@@ -1019,8 +1031,11 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
                     icon: const Icon(Icons.account_balance_wallet_outlined),
                     tooltip: l10n.scanAccountsCreateWallet,
                     visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        _openWizard(_accountByAddress[w.firstAddress!]!),
+                    onPressed: () => _openWizard(
+                      _accountByAddress[w.firstAddress!]!,
+                      mnemonic: _lastSeedMnemonic,
+                      passphrase: _lastSeedPassphrase,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.cloud_download_outlined),

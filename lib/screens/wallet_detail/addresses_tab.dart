@@ -165,61 +165,74 @@ class _AddressTile extends StatelessWidget {
           Theme.of(context).colorScheme.onSurface.withAlpha(AppAlpha.pale);
     }
 
+    final String semanticLabel;
+    if (keychain == APIKeychain.external_) {
+      semanticLabel = 'receive_address_${address.index.toInt()}';
+    } else {
+      semanticLabel = 'change_address_${address.index.toInt()}';
+    }
+
     return Opacity(
       opacity: opacity,
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          leading: Text(
-            l10n.addressIndex(address.index.toInt()),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: badgeColor,
+        child: Semantics(
+          label: semanticLabel,
+          child: ListTile(
+            leading: Semantics(
+              label: l10n.addressIndex(address.index.toInt()),
+              child: Text(
+                l10n.addressIndex(address.index.toInt()),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: badgeColor,
+                ),
+              ),
             ),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (label != null)
-                Row(
-                  children: [
-                    Icon(
-                      isInherited ? Icons.label_outline : Icons.label,
-                      size: 12,
-                      color: isInherited
-                          ? Theme.of(context).colorScheme.outline
-                          : null,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontWeight: isInherited ? null : FontWeight.w500,
-                          fontStyle: isInherited ? FontStyle.italic : null,
-                          color: isInherited
-                              ? Theme.of(context).colorScheme.outline
-                              : null,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (label != null)
+                  Row(
+                    children: [
+                      Icon(
+                        isInherited ? Icons.label_outline : Icons.label,
+                        size: 12,
+                        color: isInherited
+                            ? Theme.of(context).colorScheme.outline
+                            : null,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: isInherited ? null : FontWeight.w500,
+                            fontStyle: isInherited ? FontStyle.italic : null,
+                            color: isInherited
+                                ? Theme.of(context).colorScheme.outline
+                                : null,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ColoredGroupText(text: address.address, truncate: true),
-            ],
-          ),
-          subtitle: hasBalance
-              ? Text(
-                  l10n.addressBalanceSats(balanceSats),
-                  style: TextStyle(
-                    color: isReused ? Colors.red : Colors.orange,
-                    fontWeight: FontWeight.w600,
+                    ],
                   ),
-                )
-              : null,
-          trailing: const Icon(Icons.chevron_right, size: 18),
-          onTap: () => _showDetails(context),
+                ColoredGroupText(text: address.address, truncate: true),
+              ],
+            ),
+            subtitle: hasBalance
+                ? Text(
+                    l10n.addressBalanceSats(balanceSats),
+                    style: TextStyle(
+                      color: isReused ? Colors.red : Colors.orange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : null,
+            trailing: const Icon(Icons.chevron_right, size: 18),
+            onTap: () => _showDetails(context),
+          ),
         ),
       ),
     );

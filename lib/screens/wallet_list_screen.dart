@@ -116,10 +116,14 @@ class _WalletListScreenState extends State<WalletListScreen> {
             child: Center(
               child: GestureDetector(
                 onTap: () => _showNetworkPicker(context),
-                child: MfpBadge(
-                  label: localizedNetworkName(context, settings.network),
-                  color: AppAccent.color,
-                  letterSpacing: 0.0,
+                child: Semantics(
+                  label: 'Select network',
+                  button: true,
+                  child: MfpBadge(
+                    label: localizedNetworkName(context, settings.network),
+                    color: AppAccent.color,
+                    letterSpacing: 0.0,
+                  ),
                 ),
               ),
             ),

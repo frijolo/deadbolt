@@ -983,9 +983,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     required VoidCallback onEditTap,
     required VoidCallback onDone,
     String? errorText,
+    String? semanticsId,
   }) {
+    final Widget field;
     if (_feeEditMode == thisMode) {
-      return TextFormField(
+      field = TextFormField(
         controller: controller,
         focusNode: isDecimal ? _rateFocusNode : _totalFocusNode,
         decoration: InputDecoration(
@@ -1001,19 +1003,22 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         onEditingComplete: onDone,
         onTapOutside: (_) => onDone(),
       );
-    }
-    return InkWell(
-      onTap: onEditTap,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: labelText,
-          suffixText: suffixText,
-          errorText: errorText,
+    } else {
+      field = InkWell(
+        onTap: onEditTap,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: labelText,
+            suffixText: suffixText,
+            errorText: errorText,
+          ),
+          isEmpty: false,
+          child: Text(displayValue),
         ),
-        isEmpty: false,
-        child: Text(displayValue),
-      ),
-    );
+      );
+    }
+    if (semanticsId == null) return field;
+    return Semantics(label: semanticsId, child: field);
   }
 
   // ─── Submit ───────────────────────────────────────────────────────────────
@@ -1372,6 +1377,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       displayValue: feeRateDisplay,
                       isDecimal: true,
                       errorText: rateErrorText,
+                      semanticsId: 'fee_rate_display',
                       onEditTap: () {
                         final rate = double.tryParse(feeRateDisplay) ?? 0.0;
                         _feeRateCtrl.text = rate < effectiveMinRate
@@ -1396,6 +1402,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                       displayValue: totalFeeDisplay,
                       isDecimal: false,
                       errorText: feeErrorText,
+                      semanticsId: 'total_fee_display',
                       onEditTap: () {
                         final feeSats = summary?.feeSats ?? 0;
                         _totalFeeCtrl.text = rbfMinFeeSats > 0 && feeSats < rbfMinFeeSats

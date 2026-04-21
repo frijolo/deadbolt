@@ -197,16 +197,13 @@ async def _label_first_address(d: UIDriver):
         print("    [step] revealing first 20 addresses")
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
 
-    # Find the first address tile by its CircleAvatar index badge "#0"
-    # The label value appears on a separate line in the semantics dump, so
-    # search for the opening quote + prefix rather than the fully quoted string.
-    await wait_for(d, '"#0', "address #0 visible", retries=10, delay=0.6)
-    rect = await d.find_semantic_rect("#0")
+    # Find the first address tile by its semantic label 'receive_address_0'.
+    await wait_for(d, 'receive_address_0', "address #0 visible", retries=10, delay=0.6)
+    rect = await d.find_semantic_rect("receive_address_0")
     if rect is None:
         raise AssertionError("Could not find address tile #0 in semantics tree")
 
-    # Click to the right of the avatar to hit the tile body
-    cx = (rect[0] + rect[2]) // 2 + 80
+    cx = (rect[0] + rect[2]) // 2
     cy = (rect[1] + rect[3]) // 2
     print(f"    [step] tapping address #0 at flutter ({cx},{cy})")
     d.flutter_click(cx, cy)

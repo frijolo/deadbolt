@@ -439,7 +439,10 @@ pub fn refresh_user_password_meta_cache(
 
 /// SHA-256 hex digest of the first external receive address derived from `descriptor`.
 /// Returns `None` when the descriptor cannot be parsed (e.g. multisig with unknown keys).
-pub fn hash_first_address(descriptor: &str, network: crate::api::model::APINetwork) -> Option<String> {
+pub fn hash_first_address(
+    descriptor: &str,
+    network: crate::api::model::APINetwork,
+) -> Option<String> {
     let addr = crate::api::wallet::discovery::first_address_from_descriptor(
         descriptor.to_string(),
         network,

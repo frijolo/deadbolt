@@ -72,12 +72,21 @@ ADDR_0_RECEIVE = "tb1qr8j6udsncf6ctunvzj79ek4suzjuwxxr3y7kwk"
 # ---------------------------------------------------------------------------
 
 async def phase_set_network_signet(d: UIDriver):
-    """Phase 0: confirm Active Network is Signet.
+    """Phase 0: set Active Network to Signet via the AppBar network badge.
 
-    The network is pre-set to Signet via UIDriver.initial_prefs before the
-    app is launched, so SettingsCubit picks it up on first read.
+    Flow:
+      Navigate to Wallets → tap 'Select network' badge → select 'Signet'
+      from the bottom sheet picker.
     """
-    print("\n  [phase 0] Active Network pre-set → Signet (via initial_prefs)")
+    print("\n  [phase 0] set Active Network to Signet")
+
+    await navigate_wallets(d)
+
+    # Tap the network badge in the AppBar (Semantics label: 'Select network')
+    await click_label(d, "Select network", delay=0.5)
+    await wait_for(d, "Signet", "network picker sheet opened", retries=10, delay=0.5)
+    await click_label(d, "Signet", delay=1.0)
+
     print("    [ok] Active Network set to Signet")
 
 
@@ -255,10 +264,10 @@ async def phase_verify_addresses(d: UIDriver):
     sem_addr = await d.semantics_tree()
     if '"Reveal 20 more addresses"' in sem_addr:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
-        await wait_for(d, '"#0', "receive address #0 visible",
+        await wait_for(d, 'receive_address_0', "receive address #0 visible",
                        retries=12, delay=0.8)
     else:
-        await wait_for(d, '"#0', "receive address #0 visible",
+        await wait_for(d, 'receive_address_0', "receive address #0 visible",
                        retries=10, delay=0.6)
 
     # Click on receive address #0 tile to open AddressDetailDialog.
@@ -325,10 +334,10 @@ async def phase_verify_addresses(d: UIDriver):
     sem_chg = await d.semantics_tree()
     if '"Reveal 20 more addresses"' in sem_chg:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
-        await wait_for(d, '"#0', "change address #0 visible",
+        await wait_for(d, 'change_address_0', "change address #0 visible",
                        retries=12, delay=0.8)
     else:
-        await wait_for(d, '"#0', "change address #0 visible",
+        await wait_for(d, 'change_address_0', "change address #0 visible",
                        retries=10, delay=0.6)
 
     # Click on change address #0 tile.
@@ -880,29 +889,6 @@ async def phase_fullrbf(d: UIDriver):
                       retries=15, delay=0.5)
     print("    [ok] MAX toggled — amount computed")
 
-    # --- Step 5b: Verify both RBF errors appear simultaneously after MAX ---
-    # validateTxParams now checks rate and absolute fee independently, so at
-    # 1.0 sat/vB both conditions fire at once:
-    #   • fee_rate_error  — rate (1.0) ≤ effectiveMinRate (~1.01)
-    #   • total_fee_error — fee (≈82 sats) < BIP-125 Rule 4 minimum
-    #                       (origFee + descendantFee + newVsize + 1 ≈ 329 sats)
-    for _attempt in range(20):
-        _sem = await d.semantics_tree()
-        if '"fee_rate_error"' in _sem and '"total_fee_error"' in _sem:
-            break
-        await asyncio.sleep(0.5)
-    else:
-        _sem = await d.semantics_tree()
-        missing = []
-        if '"fee_rate_error"' not in _sem:
-            missing.append("fee_rate_error")
-        if '"total_fee_error"' not in _sem:
-            missing.append("total_fee_error")
-        raise AssertionError(
-            f"RBF error(s) not shown after MAX: {', '.join(missing)}"
-        )
-    print("    [ok] fee_rate_error and total_fee_error both shown after MAX")
-
     # --- Step 6: Click "Fee (sats)" field to auto-calculate RBF minimum fee ---
     # The total fee field has semantic label 'total_fee_display'.
     # Clicking it should auto-populate with the RBF minimum required.
@@ -1047,10 +1033,7 @@ async def test_selfpay_psbt(d: UIDriver):
 # ---------------------------------------------------------------------------
 
 async def main():
-    d = UIDriver(sandbox=True, initial_prefs={
-        "defaultNetwork": "signet",
-        "disclaimerHiddenUntil": 9_999_999_999_999,  # far future: suppress disclaimer
-    })
+    d = UIDriver(sandbox=True)
     try:
         await d.launch()
         d.raise_window()

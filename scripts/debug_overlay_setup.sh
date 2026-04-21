@@ -133,11 +133,11 @@ import sys, re
 path = sys.argv[1]
 src = open(path).read()
 
-IMPORT_MARKER  = "import 'package:deadbolt/widgets/app_scaffold.dart';"
+IMPORT_MARKER  = "import 'package:deadbolt/widgets/biometric_lock_screen.dart';"
 BUILDER_MARKER = "            themeMode: AppThemeManager.getThemeMode(settings.appTheme),"
 
 IMPORT_INJECT = """\
-import 'package:deadbolt/widgets/app_scaffold.dart';
+import 'package:deadbolt/widgets/biometric_lock_screen.dart';
 import 'dart:io';
 import 'package:deadbolt/widgets/debug_mouse_overlay.dart';
 

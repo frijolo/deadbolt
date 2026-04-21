@@ -167,7 +167,6 @@ fn psbt_from_base64(s: &str) -> Result<bdk_wallet::bitcoin::psbt::Psbt> {
     Psbt::deserialize(&bytes).map_err(|e| anyhow::anyhow!("PSBT deserialize: {}", e))
 }
 
-
 /// Compute the effective display label for a PSBT.
 /// Own label takes priority; falls back to the recipient address label.
 fn psbt_effective_label(
@@ -402,8 +401,7 @@ pub fn open_wallet(
     // Refresh cached metadata in the .meta sidecar for UserPassword wallets so
     // the wallet list shows the correct network, last-synced date, and address hash while locked.
     if wallet_needs_password(&wallet_path) {
-        let addr_hash =
-            crate::core::wallet_info::hash_first_address(&descriptor, api_network);
+        let addr_hash = crate::core::wallet_info::hash_first_address(&descriptor, api_network);
         refresh_user_password_meta_cache(
             &wallet_path,
             api_network,

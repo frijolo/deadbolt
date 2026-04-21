@@ -161,7 +161,7 @@ async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
     # Poll up to 10 s: addresses may still be loading after a fresh wallet sync.
     for _ in range(10):
         sem_a = await d.semantics_tree()
-        has_addr = '"#0\n' in sem_a or 'tb1q' in sem_a.lower()
+        has_addr = 'receive_address_0' in sem_a
         has_reveal = '"Reveal 20 more addresses"' in sem_a
         if has_addr or has_reveal:
             break
