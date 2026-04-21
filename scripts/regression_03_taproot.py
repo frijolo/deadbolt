@@ -128,16 +128,17 @@ async def test_taproot(d: UIDriver):
         "older" in sem_paths_lower
         or "block" in sem_paths_lower
         or "timelock" in sem_paths_lower
-        # Numeric timelock values like "1", "2" also appear as badge text
-        # but those are too generic — rely on the structural checks above.
     )
     if not has_timelock_indicator:
-        # Soft warning: timelock text might not surface in semantics depending
-        # on widget focus, but the path count check above already validates
-        # that multiple branches were extracted correctly.
         print("    [warn] timelock indicator not found in semantics (non-fatal)")
     else:
-        print(f"    [ok] timelock indicator visible in Spend Paths tab")
+        print("    [ok] timelock indicator visible in Spend Paths tab")
+        # The descriptor contains older(100) — verify the value is rendered.
+        if "100" not in sem_paths:
+            raise AssertionError(
+                "Timelock value '100' not visible in Spend Paths tab"
+            )
+        print("    [ok] timelock value '100' visible")
 
     # 7. Navigate to Keys tab and verify rendering
     await click_label(d, f"Keys ({keys_count})", delay=0.8)

@@ -147,8 +147,39 @@ async def _create_and_verify(d: UIDriver, wallet_name: str):
     print("    [ok] Receive + Send buttons visible")
 
 
+async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
+    """Navigate to Addresses tab and verify it loads correctly."""
+    # Dismiss any open popup/overlay (e.g. residual PopupMenuButton from prior
+    # scroll interactions) by pressing Escape before navigating.
+    d.key("Escape")
+    await asyncio.sleep(0.3)
+    # Scroll down to ensure the NavigationBar is in the semantics viewport so
+    # click_label finds the correct "Addresses" destination, not a stale rect.
+    d.scroll_down(3)
+    await asyncio.sleep(0.4)
+    await click_label(d, "Addresses", delay=1.5)
+    # Poll up to 10 s: addresses may still be loading after a fresh wallet sync.
+    for _ in range(10):
+        sem_a = await d.semantics_tree()
+        has_addr = '"#0\n' in sem_a or 'tb1q' in sem_a.lower()
+        has_reveal = '"Reveal 20 more addresses"' in sem_a
+        if has_addr or has_reveal:
+            break
+        await asyncio.sleep(1.0)
+    else:
+        raise AssertionError(
+            f"Addresses tab shows neither addresses nor Reveal button for '{wallet_name}'"
+        )
+    print("    [ok] Addresses tab has at least one entry")
+
+
 async def _go_back_to_wallet_list(d: UIDriver):
+    # wallet_detail_screen PopScope: canPop only when on Overview tab.
+    # From any other tab, Back navigates to Overview first; a second Back exits.
     await click_tooltip(d, "Back", delay=0.8)
+    sem = await d.semantics_tree()
+    if '"Wallets"' not in sem:
+        await click_tooltip(d, "Back", delay=0.8)
     await wait_for(d, '"Wallets"', "Back on wallet list")
     print("    [ok] back on wallet list")
 
@@ -192,6 +223,7 @@ async def test_guided_wsh_2of2(d: UIDriver):
     # Default threshold after 2 keys = 1; raise to 2
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
+    await _verify_addresses_tab(d, name)
     await _go_back_to_wallet_list(d)
     await _delete_wallet(d, name)
     print(f"    [PASS] {name}")
@@ -210,6 +242,7 @@ async def test_guided_wsh_2of3(d: UIDriver):
     # Default threshold after 3 keys = 1; raise to 2
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
+    await _verify_addresses_tab(d, name)
     await _go_back_to_wallet_list(d)
     await _delete_wallet(d, name)
     print(f"    [PASS] {name}")
@@ -228,6 +261,7 @@ async def test_guided_taproot_2of3(d: UIDriver):
     await _add_watch_only_key(d, _KEYS[2])
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
+    await _verify_addresses_tab(d, name)
     await _go_back_to_wallet_list(d)
     await _delete_wallet(d, name)
     print(f"    [PASS] {name}")
@@ -258,21 +292,17 @@ async def main():
             except (AssertionError, Exception) as exc:
                 print(f"\n[FAIL] {name}: {exc}")
                 failed.append(name)
-                # Recovery: close any open sheet/dialog, then navigate back
+                # Recovery: close any open sheet/dialog, then navigate back.
+                # click_tooltip never raises when node is absent (just warns),
+                # so check semantics explicitly before deciding to close or back.
                 for _ in range(6):
                     sem = await d.semantics_tree()
                     if '"Wallets"' in sem:
                         break
-                    # Close button present in key-entry sheet or SimpleWalletDialog
-                    try:
+                    if 'tooltip: "Close"' in sem:
                         await click_tooltip(d, "Close", delay=0.5)
                         continue
-                    except Exception:
-                        pass
-                    try:
-                        await click_tooltip(d, "Back", delay=0.5)
-                    except Exception:
-                        break
+                    await click_tooltip(d, "Back", delay=0.5)
                 try:
                     await _delete_wallet(d, name)
                 except Exception:

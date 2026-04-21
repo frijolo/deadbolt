@@ -36,24 +36,29 @@ async def dismiss_startup_dialogs(d):
     Dismiss any dialogs that appear on first launch (e.g. beta disclaimer).
     Call this once right after UIDriver.launch() before any navigation.
     Safe to call even if no dialogs are showing.
-    """
-    await asyncio.sleep(1.2)   # let the app settle + dialogs render
-    sem = await d.semantics_tree()
 
-    # Beta disclaimer dialog: title = "Beta Software — Use at Your Own Risk"
-    # Buttons: "Don't show for 7 days" | "Close"
-    if "Beta Software" in sem or "disclaimerTitle" in sem:
-        print("    [startup] Beta disclaimer visible — closing")
-        # Prefer "Don't show for 7 days" so the dialog stays suppressed for the
-        # rest of the test run (avoids re-appearing between sub-tests).
-        await click_label(d, "Don't show for 7 days", delay=0.8)
-        sem2 = await d.semantics_tree()
-        if "Beta Software" in sem2:
-            # Fallback: try the plain Close button
-            await click_label(d, "Close", delay=0.8)
+    The disclaimer is triggered via addPostFrameCallback + async SharedPreferences
+    read, so it can appear up to several seconds after the window is visible.
+    We poll for up to 6 s before concluding no dialog will appear.
+    """
+    # Poll until the beta disclaimer appears or the timeout expires.
+    # Using 0.5 s intervals so we dismiss it as soon as it is renderable.
+    _BETA_MARKERS = ("Beta Software", "disclaimerTitle")
+    for _ in range(12):          # 12 × 0.5 s = 6 s max wait
+        await asyncio.sleep(0.5)
+        sem = await d.semantics_tree()
+        if any(m in sem for m in _BETA_MARKERS):
+            print("    [startup] Beta disclaimer visible — closing")
+            # Prefer "Don't show for 7 days" so the dialog stays suppressed for
+            # the rest of the test run (avoids re-appearing between sub-tests).
+            await click_label(d, "Don't show for 7 days", delay=0.8)
             sem2 = await d.semantics_tree()
-        if "Beta Software" in sem2:
-            raise AssertionError("[startup] Beta disclaimer could not be dismissed")
+            if any(m in sem2 for m in _BETA_MARKERS):
+                await click_label(d, "Close", delay=0.8)
+                sem2 = await d.semantics_tree()
+            if any(m in sem2 for m in _BETA_MARKERS):
+                raise AssertionError("[startup] Beta disclaimer could not be dismissed")
+            break
 
     print("    [startup] ready")
 

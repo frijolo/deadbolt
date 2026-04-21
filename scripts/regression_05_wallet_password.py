@@ -177,6 +177,16 @@ async def test_wallet_password_lifecycle(d: UIDriver):
     await _assert_on_wallet_detail(d, WALLET_NAME, "after re-unlock")
     print(f"    [ok] wallet unlocked successfully after lock/re-unlock cycle")
 
+    # Verify addresses are still accessible after the lock/unlock cycle.
+    await click_label(d, "Addresses", delay=1.0)
+    sem_addrs = await d.semantics_tree()
+    if '"#0\n' not in sem_addrs:
+        raise AssertionError("Address #0 not visible after unlock")
+    if 'tb1q' not in sem_addrs.lower():
+        raise AssertionError("No bech32 address visible after unlock")
+    print("    [ok] address #0 visible post-unlock")
+    await go_back(d)
+
     print(f"\n    [PASS] {WALLET_NAME}")
 
 

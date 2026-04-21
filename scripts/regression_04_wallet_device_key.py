@@ -13,8 +13,11 @@ Flow:
   2. Create wallet from project (Device Key, no password)
   3. Wallet detail opens — verify wallet name in AppBar
   4. Verify overview renders: balance section + Send/Receive buttons visible
-  5. Press Receive → verify receive dialog opens (address shown)
-  6. Close dialog → navigate to Addresses tab → verify at least one address listed
+  5. Press Receive → verify dialog shows exact address #0 (ADDR_0_RECEIVE)
+  6. Close dialog → navigate to Addresses tab:
+     a. Verify 20 receive addresses auto-revealed (#0–#19)
+     b. Click "Reveal 20 more" → verify #20 and #30 visible
+     c. Switch to Change sub-tab → reveal → verify change #0 (ADDR_0_CHANGE)
   7. Navigate to Transactions tab — verify it renders without error
 
 Exit code: 0 = PASS, 1 = FAIL.
@@ -25,6 +28,7 @@ Prerequisites:
 """
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -53,6 +57,14 @@ DESCRIPTOR = (
     "tpubDDjVt7cey7cxQ1nXzxpXuNT5vJecpvtMhmZywA9U9ChWDk8z6HSGPJ7YS6pyd8ZXQyfCeUCXrkyEqNeTFUmpdXT9r3TD1DAYoY52UEyy1Yf"
     "/<0;1>/*)"
 )
+
+# Pre-derived from descriptor tpub (scripts/derive_test_addresses.py)
+# keychain 0 = receive (external), keychain 1 = change (internal)
+ADDR_0_RECEIVE  = "tb1qkyemuvfvgtjwzvfsefskpvu9d2qsx4tgcnkhrv"
+ADDR_19_RECEIVE = "tb1q3ewvjke7njerlh39qm9mgfcd8p7amg3zzwsyhl"
+ADDR_20_RECEIVE = "tb1q8mnmh75k3ex9qufdtp9dduwmua8k0jxqfq6m9v"
+ADDR_30_RECEIVE = "tb1qnez39que3peesavajvl9lsry6vfujzl65uwwr2"
+ADDR_0_CHANGE   = "tb1qttxvvjh890zuzz4yl6tys64346jaapaqz9dxsx"
 
 
 # ---------------------------------------------------------------------------
@@ -93,8 +105,22 @@ async def test_wallet_device_key(d: UIDriver):
         if has_error:
             raise AssertionError("Error shown when opening receive dialog")
         print("    [ok] receive dialog opened")
+        # The dialog shows ColoredGroupText without truncation — full address in semantics.
+        m = re.search(r'\btb1q[a-z0-9]+\b', sem_recv)
+        if not m:
+            raise AssertionError("No tb1q address found in Receive dialog semantics")
+        observed = m.group(0)
+        if observed != ADDR_0_RECEIVE:
+            raise AssertionError(
+                f"Receive dialog shows wrong address:\n"
+                f"  got:      {observed}\n"
+                f"  expected: {ADDR_0_RECEIVE}"
+            )
+        print(f"    [ok] receive dialog shows correct address #0: {ADDR_0_RECEIVE[:16]}...")
     except AssertionError as e:
-        if "Error shown" in str(e):
+        msg = str(e)
+        # Re-raise hard failures that indicate a real bug
+        if any(s in msg for s in ("Error shown", "wrong address", "No tb1q")):
             raise
         # Dialog didn't open: verify we're still on wallet detail (not navigated away)
         sem_recv = await d.semantics_tree()
@@ -113,16 +139,58 @@ async def test_wallet_device_key(d: UIDriver):
     await click_label(d, "Addresses", delay=1.0)
     sem_addr = await d.semantics_tree()
 
-    # After triggering Receive, at least one address should have been derived.
-    # Testnet addresses start with tb1 (bech32) or m/n (legacy).
-    addr_low = sem_addr.lower()
-    has_address = "tb1" in addr_low or "bcrt1" in addr_low or "m" in addr_low
-    if not has_address:
-        # Addresses might not appear if background sync hasn't run yet.
-        # This is a soft check — BDK reveals addresses lazily.
-        print("    [warn] no address string found in semantics (may need sync)")
-    else:
-        print("    [ok] at least one address visible in Addresses tab")
+    # The wallet auto-reveals 20 receive addresses on first open (#0–#19).
+    # Address labels are multi-line in semantics: '"#N\ntb1q..."', so check for
+    # the opening '"#N\n' pattern instead of the closed '"#N"' form.
+    # ListView only renders visible tiles, so scroll to bottom to verify #19.
+    if '"#0\n' not in sem_addr:
+        raise AssertionError("Address #0 not visible in Addresses tab")
+    if 'tb1q' not in sem_addr.lower():
+        raise AssertionError("No bech32 address string visible in Addresses tab")
+    print("    [ok] first receive addresses visible starting at #0")
+
+    # Scroll to the end of the first 20-address page to verify #19 and the
+    # "Reveal 20 more" button are rendered.
+    d.scroll_down(5)
+    await asyncio.sleep(0.4)
+    sem_bottom = await d.semantics_tree()
+    if '"#19\n' not in sem_bottom:
+        raise AssertionError("Address #19 not visible — initial 20-address page incomplete")
+    print("    [ok] initial 20 receive addresses visible (#0–#19)")
+
+    # 6b. Pagination: click "Reveal 20 more addresses" → verify #20 and #30 appear.
+    await click_label(d, "Reveal 20 more addresses", delay=2.0)
+    # #20 appears at the top of the newly loaded page; confirm it's visible.
+    await wait_for(d, '"#20\n', "page 2 loaded (#20 visible)", retries=15, delay=0.8)
+    print("    [ok] page 2 loaded — address #20 visible")
+    # Scroll further down to reach #30 (ListView only renders visible tiles).
+    d.scroll_down(5)
+    await asyncio.sleep(0.4)
+    sem_p2 = await d.semantics_tree()
+    if '"#30\n' not in sem_p2:
+        raise AssertionError("Address #30 not visible after Reveal 20 more")
+    print("    [ok] address #30 visible after pagination")
+
+    # 6c. Change addresses: fresh wallet starts with 0 change addrs (no auto-reveal).
+    # TabBar is sticky — "Change" sub-tab is always reachable without scroll.
+    await click_label(d, "Change", delay=0.8)
+    sem_chg = await d.semantics_tree()
+    if '"#0\n' not in sem_chg:
+        if '"Reveal 20 more addresses"' not in sem_chg:
+            raise AssertionError("Change tab: neither #0 nor Reveal button found")
+        await click_label(d, "Reveal 20 more addresses", delay=2.0)
+        sem_chg = await wait_for(
+            d, '"#0\n', "change address #0 revealed", retries=12, delay=0.8
+        )
+    # The Addresses tab truncates address text (ColoredGroupText truncate=true),
+    # so only verify the tb1q prefix is present — exact match is done in the
+    # Receive dialog (step 5) where truncation is disabled.
+    if 'tb1q' not in sem_chg.lower():
+        raise AssertionError("No bech32 address visible in Change tab after reveal")
+    print(f"    [ok] change address #0 visible ({ADDR_0_CHANGE[:16]}...)")
+
+    # Switch back to receive sub-tab before continuing
+    await click_label(d, "Receive", delay=0.5)
 
     # 7. Navigate to Transactions tab — just verify it doesn't crash
     await click_label(d, "Transactions", delay=0.8)
