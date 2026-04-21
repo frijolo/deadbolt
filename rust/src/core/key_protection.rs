@@ -265,6 +265,11 @@ pub enum ProtectionMeta {
         /// platform-keystore-backed random key. Any slot can unlock the wallet.
         #[serde(default)]
         biometric_slots: Vec<BiometricSlot>,
+        /// SHA-256 hex of the first external receive address (index 0). Stored so that
+        /// locked wallets can be matched against discovered accounts during seed recovery
+        /// without revealing the descriptor or xpub.
+        #[serde(default)]
+        first_address_hash: Option<String>,
     },
     /// Each xpub in the descriptor gets its own slot; any one can unlock.
     XpubKey {
@@ -280,6 +285,9 @@ pub enum ProtectionMeta {
         /// platform-keystore-backed random key. Any slot can unlock the wallet.
         #[serde(default)]
         biometric_slots: Vec<BiometricSlot>,
+        /// SHA-256 hex of the first external receive address (index 0).
+        #[serde(default)]
+        first_address_hash: Option<String>,
     },
 }
 

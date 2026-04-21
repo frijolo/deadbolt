@@ -72,8 +72,9 @@ pub fn create_wallet_db(
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs() as i64;
 
-    let network: bdk_wallet::bitcoin::Network =
-        crate::api::model::APINetwork::try_from(network_str)?.into();
+    let api_network = crate::api::model::APINetwork::try_from(network_str)?;
+    let network: bdk_wallet::bitcoin::Network = api_network.into();
+    let addr_hash = hash_first_address(descriptor, api_network);
 
     // Generate a unique per-wallet data key
     let data_key = generate_data_key();
@@ -91,6 +92,7 @@ pub fn create_wallet_db(
         protection,
         Some(name),
         Some(network_str),
+        addr_hash.as_deref(),
     )?;
     write_meta(&path_str, &meta)?;
 
@@ -100,6 +102,7 @@ pub fn create_wallet_db(
         network: network_str.to_string(),
         created_at,
         last_synced_at: None,
+        first_address_hash: None,
     };
 
     Ok((path_str, row))
@@ -112,6 +115,7 @@ pub fn build_protection_meta(
     protection: WalletProtectionRequest,
     display_name: Option<&str>,
     network: Option<&str>,
+    first_address_hash: Option<&str>,
 ) -> Result<ProtectionMeta> {
     match protection {
         WalletProtectionRequest::DeviceKey => {
@@ -142,6 +146,7 @@ pub fn build_protection_meta(
                 network: network.map(|s| s.to_string()),
                 last_synced_at: None,
                 biometric_slots: vec![],
+                first_address_hash: first_address_hash.map(|s| s.to_string()),
             })
         }
         WalletProtectionRequest::XpubKey {
@@ -167,6 +172,7 @@ pub fn build_protection_meta(
                 network: network.map(|s| s.to_string()),
                 last_synced_at: None,
                 biometric_slots: vec![],
+                first_address_hash: first_address_hash.map(|s| s.to_string()),
             })
         }
     }
@@ -263,17 +269,29 @@ pub fn list_wallets_in_dir(
                 display_name,
                 network,
                 last_synced_at,
+                first_address_hash,
                 ..
-            } => Some((display_name.clone(), network.clone(), *last_synced_at)),
+            } => Some((
+                display_name.clone(),
+                network.clone(),
+                *last_synced_at,
+                first_address_hash.clone(),
+            )),
             ProtectionMeta::XpubKey {
                 display_name,
                 network,
                 last_synced_at,
+                first_address_hash,
                 ..
-            } => Some((display_name.clone(), network.clone(), *last_synced_at)),
+            } => Some((
+                display_name.clone(),
+                network.clone(),
+                *last_synced_at,
+                first_address_hash.clone(),
+            )),
             _ => None,
         };
-        if let Some((display_name, network, last_synced_at)) = locked_row {
+        if let Some((display_name, network, last_synced_at, first_address_hash)) = locked_row {
             let name = display_name
                 .as_deref()
                 .unwrap_or("Locked Wallet")
@@ -287,6 +305,7 @@ pub fn list_wallets_in_dir(
                     network: network_str,
                     created_at: 0,
                     last_synced_at,
+                    first_address_hash,
                 },
             ));
             continue;
@@ -369,6 +388,7 @@ pub fn refresh_user_password_meta_cache(
     wallet_path: &str,
     network: APINetwork,
     last_synced_at: Option<i64>,
+    first_address_hash: Option<&str>,
 ) {
     let Ok(mut meta) = read_meta(wallet_path) else {
         return;
@@ -378,22 +398,41 @@ pub fn refresh_user_password_meta_cache(
         ProtectionMeta::UserPassword {
             network: cached_network,
             last_synced_at: cached_ts,
+            first_address_hash: cached_hash,
             ..
         } => {
             *cached_network = network_str;
             *cached_ts = last_synced_at;
+            if cached_hash.is_none() {
+                *cached_hash = first_address_hash.map(|s| s.to_string());
+            }
         }
         ProtectionMeta::XpubKey {
             network: cached_network,
             last_synced_at: cached_ts,
+            first_address_hash: cached_hash,
             ..
         } => {
             *cached_network = network_str;
             *cached_ts = last_synced_at;
+            if cached_hash.is_none() {
+                *cached_hash = first_address_hash.map(|s| s.to_string());
+            }
         }
         _ => return,
     }
     let _ = write_meta(wallet_path, &meta);
+}
+
+/// SHA-256 hex digest of the first external receive address derived from `descriptor`.
+/// Returns `None` when the descriptor cannot be parsed (e.g. multisig with unknown keys).
+pub fn hash_first_address(descriptor: &str, network: crate::api::model::APINetwork) -> Option<String> {
+    let addr = crate::api::wallet::discovery::first_address_from_descriptor(
+        descriptor.to_string(),
+        network,
+    )
+    .ok()?;
+    Some(crate::api::wallet::discovery::sha256_hex(addr))
 }
 
 /// Check whether a wallet requires a credential (password or xpub) to open.

@@ -929,8 +929,10 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
 
     final scriptLabel =
         w.walletType != null ? _scriptTypeLabel(l10n, w.walletType!) : null;
-    final existingWallet =
-        w.firstAddress != null ? _walletByFirstAddress[w.firstAddress] : null;
+    final existingWallet = w.firstAddress != null
+        ? _walletByFirstAddress[
+            rust_discovery.sha256Hex(input: w.firstAddress!)]
+        : null;
     final isExisting = existingWallet != null;
 
     final nostrBackup = w.hasNostrBackup && w.firstAddress != null

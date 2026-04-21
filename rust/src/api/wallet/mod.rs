@@ -307,6 +307,7 @@ fn row_to_api_info(wallet_path: String, row: WalletInfoRow) -> Result<APIWalletI
         created_at: row.created_at,
         last_synced_at: row.last_synced_at,
         protection,
+        first_address_hash: row.first_address_hash,
     })
 }
 
@@ -447,9 +448,16 @@ pub fn open_wallet(
         (row.descriptor, bdk_network, api_network, row.last_synced_at)
     };
     // Refresh cached metadata in the .meta sidecar for UserPassword wallets so
-    // the wallet list shows the correct network and last-synced date while locked.
+    // the wallet list shows the correct network, last-synced date, and address hash while locked.
     if wallet_needs_password(&wallet_path) {
-        refresh_user_password_meta_cache(&wallet_path, api_network, last_synced_at);
+        let addr_hash =
+            crate::core::wallet_info::hash_first_address(&descriptor, api_network);
+        refresh_user_password_meta_cache(
+            &wallet_path,
+            api_network,
+            last_synced_at,
+            addr_hash.as_deref(),
+        );
     }
     let core = CoreWallet::open(&wallet_path, &descriptor, network, &data_key)?;
     Ok(APIWallet {
@@ -635,6 +643,7 @@ impl APIWallet {
             protection,
             Some(&row.name),
             Some(&row.network),
+            None,
         )?;
         write_meta(&self.path, &meta)?;
 

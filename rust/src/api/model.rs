@@ -132,6 +132,10 @@ pub struct APIWalletInfo {
     pub created_at: i64,
     pub last_synced_at: Option<i64>,
     pub protection: APIWalletProtection,
+    /// SHA-256 hex of the first external receive address. Only present for locked
+    /// (UserPassword / XpubKey) wallets; used to match against discovered accounts
+    /// during seed recovery without revealing the descriptor or xpub.
+    pub first_address_hash: Option<String>,
 }
 
 ///////////////////

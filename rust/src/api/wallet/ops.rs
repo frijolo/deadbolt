@@ -84,7 +84,7 @@ impl APIWallet {
         };
 
         if wallet_needs_password(&self.path) {
-            refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
+            refresh_user_password_meta_cache(&self.path, network, Some(now_ts), None);
         }
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;
@@ -116,7 +116,7 @@ impl APIWallet {
         };
 
         if wallet_needs_password(&self.path) {
-            refresh_user_password_meta_cache(&self.path, network, Some(now_ts));
+            refresh_user_password_meta_cache(&self.path, network, Some(now_ts), None);
         }
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url;

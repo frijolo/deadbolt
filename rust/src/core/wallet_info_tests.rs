@@ -335,7 +335,7 @@ fn test_refresh_user_password_meta_cache() -> anyhow::Result<()> {
     }
 
     // Simulate a sync: refresh cache with a timestamp
-    refresh_user_password_meta_cache(&path, APINetwork::Testnet, Some(1_700_000_000));
+    refresh_user_password_meta_cache(&path, APINetwork::Testnet, Some(1_700_000_000), None);
 
     let updated = read_meta(&path)?;
     if let ProtectionMeta::UserPassword {

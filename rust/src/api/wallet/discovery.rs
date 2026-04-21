@@ -596,6 +596,14 @@ pub async fn scan_descriptor(
     })
 }
 
+/// SHA-256 hex digest of an arbitrary UTF-8 string. Exposed as a sync FRB call so
+/// that Dart can hash Bitcoin addresses without pulling in a Dart crypto dependency.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sha256_hex(input: String) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(input.as_bytes()))
+}
+
 #[cfg(test)]
 #[path = "discovery_tests.rs"]
 mod tests;

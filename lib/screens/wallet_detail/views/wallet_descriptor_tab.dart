@@ -83,7 +83,7 @@ class DescriptorView extends StatelessWidget {
                 ),
                 DescriptorTab(
                   descriptor: analysis.descriptor,
-                  keyLabels: descriptorState.keyLabels,
+                  keyLabels: state.keyLabels,
                 ),
               ],
             ),

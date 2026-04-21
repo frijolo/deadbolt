@@ -30,6 +30,9 @@ pub struct WalletInfoRow {
     pub network: String,
     pub created_at: i64,
     pub last_synced_at: Option<i64>,
+    /// SHA-256 hex of the first external receive address. Only set for locked
+    /// (UserPassword / XpubKey) wallets when read from the meta sidecar.
+    pub first_address_hash: Option<String>,
 }
 
 /// Create the wallet_info table if needed and upsert the single row.
@@ -72,6 +75,7 @@ pub fn read_wallet_info(conn: &Connection) -> Result<WalletInfoRow> {
                 network: row.get(2)?,
                 created_at: row.get(3)?,
                 last_synced_at: row.get(4)?,
+                first_address_hash: None,
             })
         },
     )
