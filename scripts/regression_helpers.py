@@ -9,6 +9,8 @@ Usage:
       click_label, click_tooltip,
       fill_field, click_popup_item,
       create_project, go_back, delete_project_from_list,
+      go_back_to_wallet_list, delete_wallet_from_list,
+      set_active_network_signet, run_regression,
   )
 """
 
@@ -16,6 +18,7 @@ import asyncio
 import os
 import re
 import subprocess
+import sys
 
 
 # ---------------------------------------------------------------------------
@@ -46,17 +49,17 @@ async def dismiss_startup_dialogs(d):
     _BETA_MARKERS = ("Beta Software", "disclaimerTitle")
     for _ in range(12):          # 12 × 0.5 s = 6 s max wait
         await asyncio.sleep(0.5)
-        sem = await d.semantics_tree()
-        if any(m in sem for m in _BETA_MARKERS):
+        flat = await d.cs_flat_text()
+        if any(m in flat for m in _BETA_MARKERS):
             print("    [startup] Beta disclaimer visible — closing")
             # Prefer "Don't show for 7 days" so the dialog stays suppressed for
             # the rest of the test run (avoids re-appearing between sub-tests).
             await click_label(d, "Don't show for 7 days", delay=0.8)
-            sem2 = await d.semantics_tree()
-            if any(m in sem2 for m in _BETA_MARKERS):
+            flat2 = await d.cs_flat_text()
+            if any(m in flat2 for m in _BETA_MARKERS):
                 await click_label(d, "Close", delay=0.8)
-                sem2 = await d.semantics_tree()
-            if any(m in sem2 for m in _BETA_MARKERS):
+                flat2 = await d.cs_flat_text()
+            if any(m in flat2 for m in _BETA_MARKERS):
                 raise AssertionError("[startup] Beta disclaimer could not be dismissed")
             break
 
@@ -79,7 +82,7 @@ async def navigate_drawer(d, tab_index: int, expected_title: str):
 
     label = _DRAWER_LABELS[tab_index] if tab_index < len(_DRAWER_LABELS) else None
     if label:
-        rect = await d.find_semantic_rect(label)
+        rect = await d.cs_find_by_label(label)
         if rect:
             cx = (rect[0] + rect[2]) // 2
             cy = (rect[1] + rect[3]) // 2
@@ -123,16 +126,19 @@ async def wait_for(
     Raises AssertionError on timeout.
     """
     for _ in range(retries):
-        sem = await d.semantics_tree()
-        if label in sem:
+        flat = await d.cs_flat_text()
+        if label in flat:
             if desc:
                 print(f"    [ok] {desc}")
-            return sem
+            return flat
         await asyncio.sleep(delay)
     # Timeout — dump visible labels for debugging
-    sem = await d.semantics_tree()
-    visible = [ln.strip() for ln in sem.splitlines()
-               if "label:" in ln or "tooltip:" in ln]
+    nodes = await d.cs_tree()
+    visible = [
+        n.get("label") or n.get("tooltip", "")
+        for n in nodes
+        if n.get("label") or n.get("tooltip")
+    ]
     print(f"    [dbg] visible labels/tooltips: {visible[:20]}")
     raise AssertionError(
         f"Timeout: '{label}' not found in semantics"
@@ -145,8 +151,8 @@ async def wait_absent(
 ):
     """Poll until `label` disappears from the semantics tree."""
     for _ in range(retries):
-        sem = await d.semantics_tree()
-        if label not in sem:
+        flat = await d.cs_flat_text()
+        if label not in flat:
             if desc:
                 print(f"    [ok] {desc}")
             return
@@ -228,7 +234,7 @@ async def fill_field(d, field_label: str, text: str, clear: bool = True):
       - Small rect (height < 30): separate label Text widget above a plain
         TextField — click 28px below the label's bottom edge.
     """
-    rect = await d.find_semantic_rect(field_label)
+    rect = await d.cs_find_textfield_by_label(field_label)
     if rect:
         cx = (rect[0] + rect[2]) // 2
         cy = (rect[1] + rect[3]) // 2
@@ -238,7 +244,7 @@ async def fill_field(d, field_label: str, text: str, clear: bool = True):
     else:
         # Hint-text fallback
         for hint in ("Add a label...", field_label):
-            r2 = await d.find_semantic_rect(hint)
+            r2 = await d.cs_find_by_label(hint)
             if r2:
                 d.flutter_click((r2[0] + r2[2]) // 2, (r2[1] + r2[3]) // 2)
                 break
@@ -265,7 +271,7 @@ async def click_popup_item(
     search is used instead. Coordinate fallback uses the offset if the label
     isn't found in semantics.
     """
-    rect = await d.find_semantic_rect_by_tooltip(trigger_tooltip)
+    rect = await d.cs_find_by_tooltip(trigger_tooltip)
     if rect is None:
         raise AssertionError(f"Popup trigger not found: tooltip='{trigger_tooltip}'")
     cx = (rect[0] + rect[2]) // 2
@@ -274,7 +280,7 @@ async def click_popup_item(
     d.flutter_click(cx, cy, delay_s=0.5)
     await asyncio.sleep(0.6)
     # Find item by label (works regardless of popup position relative to trigger)
-    item_rect = await d.find_semantic_rect(label)
+    item_rect = await d.cs_find_by_label(label)
     if item_rect is not None:
         ix = (item_rect[0] + item_rect[2]) // 2
         iy = (item_rect[1] + item_rect[3]) // 2
@@ -407,8 +413,7 @@ async def create_wallet_from_project(
 
     # Handle immediate password prompt (can appear right after creation)
     await asyncio.sleep(3.0)
-    sem = await d.semantics_tree()
-    if '"Enter wallet password"' in sem:
+    if await d.cs_find_by_label("Enter wallet password") is not None:
         print("    [step] password prompt after creation — entering password")
         await fill_field(d, "Password", password)
         # KDF (Argon2id Standard: m=65536, t=5) + initial wallet sync can take 10–20 s
@@ -446,7 +451,7 @@ async def lock_wallet(d):
     """
     # Try several offsets in case the menu layout shifts
     for offset in (424, 376, 400, 448):
-        rect = await d.find_semantic_rect_by_tooltip("More options")
+        rect = await d.cs_find_by_tooltip("More options")
         if rect is None:
             raise AssertionError("'More options' button not found on wallet detail")
         cx = (rect[0] + rect[2]) // 2
@@ -456,8 +461,8 @@ async def lock_wallet(d):
         await asyncio.sleep(0.4)
         d.flutter_click(cx, item_y)
         await asyncio.sleep(1.0)
-        sem = await d.semantics_tree()
-        if '"Enter wallet password"' in sem or "Wallets" in sem:
+        flat = await d.cs_flat_text()
+        if '"Enter wallet password"' in flat or "Wallets" in flat:
             print(f"    [ok] wallet locked (offset +{offset} worked)")
             return
     raise AssertionError("Lock wallet action did not produce password prompt or navigate away")
@@ -469,8 +474,105 @@ async def open_wallet_from_list(d, wallet_name: str):
     Must be on the WalletListScreen.
     """
     await wait_for(d, '"Wallets"', "On wallet list")
-    rect = await d.find_semantic_rect(wallet_name)
+    rect = await d.cs_find_by_label_part(wallet_name)
     if rect is None:
         raise AssertionError(f"Wallet card '{wallet_name}' not found in wallet list")
     d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2)
     await asyncio.sleep(1.5)
+
+
+async def go_back_to_wallet_list(d):
+    """
+    Navigate back to the Wallet list from any depth (multi-tab safe).
+
+    Presses Back up to 5 times, stopping as soon as the Wallets screen title
+    is detected in the semantics tree.
+    """
+    for _ in range(5):
+        await click_tooltip(d, "Back", delay=0.8)
+        if await d.cs_find_by_label("Wallets") is not None:
+            break
+    await wait_for(d, '"Wallets"', "back on wallet list")
+    print("    [ok] back on wallet list")
+
+
+async def delete_wallet_from_list(d, wallet_name: str):
+    """
+    Delete a wallet via its card popup menu.
+    Must be called while on WalletListScreen.
+
+    Wallet card uses a merged multi-line semantic label, so `wallet_name`
+    is matched as a plain substring (no surrounding quotes).
+    """
+    await wait_for(d, wallet_name, "wallet card visible")
+    rect = await d.cs_find_by_tooltip("More options")
+    if rect is None:
+        raise AssertionError("'More options' button not found on wallet card")
+    d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2, delay_s=0.5)
+    await asyncio.sleep(0.6)
+    item_rect = await d.cs_find_by_label("Delete")
+    if item_rect is None:
+        raise AssertionError("'Delete' item not found in popup")
+    d.flutter_click((item_rect[0] + item_rect[2]) // 2, (item_rect[1] + item_rect[3]) // 2)
+    await asyncio.sleep(0.4)
+    await wait_for(d, '"Delete wallet"', "delete confirmation dialog")
+    await click_label(d, "Delete", delay=1.0)
+    await wait_absent(d, wallet_name, f"'{wallet_name}' removed from list")
+    print(f"    [ok] wallet '{wallet_name}' deleted")
+
+
+async def set_active_network_signet(d):
+    """
+    Set the active network to Signet via the AppBar network badge.
+
+    Flow: navigate to Wallets → tap 'Select network' badge → select 'Signet'.
+    """
+    print("\n  [phase 0] set Active Network to Signet")
+    await navigate_wallets(d)
+    await click_label(d, "Select network", delay=0.5)
+    await wait_for(d, "Signet", "network picker sheet opened", retries=10, delay=0.5)
+    await click_label(d, "Signet", delay=1.0)
+    print("    [ok] Active Network set to Signet")
+
+
+async def run_regression(test_func, test_id: str):
+    """
+    Standard harness for single-test regression scripts.
+
+    Launches a sandbox UIDriver, dismisses startup dialogs, runs `test_func(d)`,
+    and prints PASS/FAIL.  On failure the semantics tree is written to
+    /tmp/<test_id>_cs_tree for debugging.
+
+    Usage in each script's main():
+
+        if __name__ == "__main__":
+            asyncio.run(run_regression(test_foo, "reg01"))
+    """
+    from ui_driver import UIDriver  # imported here to avoid circular dependency
+    d = UIDriver(sandbox=True)
+    try:
+        await d.launch()
+        d.raise_window()
+        await dismiss_startup_dialogs(d)
+        await test_func(d)
+        print(f"\n{'='*50}")
+        print("[RESULT] PASS")
+    except AssertionError as exc:
+        with open(f'/tmp/{test_id}_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
+        print(f"\n[FAIL] {exc}")
+        print(f"    [debug] Full semantics tree written to /tmp/{test_id}_cs_tree")
+        await d.close()
+        sys.exit(1)
+    except Exception as exc:
+        with open(f'/tmp/{test_id}_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
+        print(f"\n[ERROR] {exc}")
+        print(f"    [debug] Full semantics tree written to /tmp/{test_id}_cs_tree")
+        await d.close()
+        raise
+    finally:
+        try:
+            await d.close()
+        except Exception:
+            pass

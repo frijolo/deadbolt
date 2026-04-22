@@ -47,7 +47,7 @@ from regression_helpers import (                       # noqa: E402
     create_wallet_from_project,
     unlock_wallet,
     lock_wallet,
-    open_wallet_from_list,
+    open_wallet_from_list, run_regression,
 )
 
 
@@ -98,7 +98,7 @@ async def _assert_wallet_needs_password(d, wallet_name: str, context: str):
 
 async def _copy_address_from_tile(d: UIDriver, semantic_label: str, description: str) -> str:
     """Open address tile → AddressDetailDialog → copy to clipboard → return address."""
-    rect = await d.find_semantic_rect(semantic_label)
+    rect = await d.cs_find_by_label_part(semantic_label)
     if rect is None:
         raise AssertionError(f"'{semantic_label}' tile not found in Addresses tab ({description})")
     d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2)
@@ -106,7 +106,7 @@ async def _copy_address_from_tile(d: UIDriver, semantic_label: str, description:
     await wait_for(d, '"Address details"', f"AddressDetailDialog opened ({description})",
                    retries=10, delay=0.5)
 
-    share_rect = await d.find_semantic_rect_by_tooltip("Copy to clipboard")
+    share_rect = await d.cs_find_by_tooltip("Copy to clipboard")
     if share_rect is None:
         raise AssertionError(f"'Copy to clipboard' button not found ({description})")
     d.flutter_click((share_rect[0] + share_rect[2]) // 2,
@@ -115,7 +115,7 @@ async def _copy_address_from_tile(d: UIDriver, semantic_label: str, description:
 
     await wait_for(d, "Copy to clipboard", f"export sheet opened ({description})",
                    retries=8, delay=0.5)
-    copy_rect = await d.find_semantic_rect("Copy to clipboard")
+    copy_rect = await d.cs_find_by_label_part("Copy to clipboard")
     if copy_rect is None:
         raise AssertionError(f"'Copy to clipboard' item not found in export sheet ({description})")
     d.flutter_click((copy_rect[0] + copy_rect[2]) // 2,
@@ -136,7 +136,7 @@ async def _assert_addresses_post_unlock(d: UIDriver):
     """Navigate to Addresses tab and verify receive #0 and change #0 via clipboard."""
     await click_label(d, "Addresses", delay=1.0)
 
-    sem_addr = await d.semantics_tree()
+    sem_addr = await d.cs_flat_text()
     if '"Reveal 20 more addresses"' in sem_addr:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
         await wait_for(d, "receive_address_0", "receive address #0 visible",
@@ -160,7 +160,7 @@ async def _assert_addresses_post_unlock(d: UIDriver):
     print(f"    [ok] receive address #0 correct: {addr_receive[:22]}...")
 
     await click_label(d, "Change", delay=0.8)
-    sem_chg = await d.semantics_tree()
+    sem_chg = await d.cs_flat_text()
     if '"Reveal 20 more addresses"' in sem_chg:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
         await wait_for(d, "change_address_0", "change address #0 visible",
@@ -216,7 +216,7 @@ async def test_wallet_password_lifecycle(d: UIDriver):
 
     # Give the screen time to load; if password prompt appears that's a fail
     await asyncio.sleep(2.0)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     if '"Enter wallet password"' in sem:
         raise AssertionError(
@@ -235,7 +235,7 @@ async def test_wallet_password_lifecycle(d: UIDriver):
     # After lock the app either shows the password prompt on the detail screen
     # or navigates back to the wallet list. Both are valid implementations.
     await asyncio.sleep(1.0)
-    sem_after_lock = await d.semantics_tree()
+    sem_after_lock = await d.cs_flat_text()
 
     if '"Enter wallet password"' in sem_after_lock:
         # Still on wallet detail but needs password — valid
@@ -256,7 +256,7 @@ async def test_wallet_password_lifecycle(d: UIDriver):
     await open_wallet_from_list(d, WALLET_NAME)
 
     await asyncio.sleep(1.5)
-    sem_locked = await d.semantics_tree()
+    sem_locked = await d.cs_flat_text()
 
     if '"Enter wallet password"' not in sem_locked:
         raise AssertionError(
@@ -283,32 +283,5 @@ async def test_wallet_password_lifecycle(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_wallet_password_lifecycle(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_wallet_password_lifecycle, "reg05"))

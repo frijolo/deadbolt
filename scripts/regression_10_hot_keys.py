@@ -33,7 +33,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     fill_field,
     create_project,
-    create_wallet_from_project,
+    create_wallet_from_project, run_regression,
 )
 
 
@@ -75,8 +75,7 @@ async def test_hot_keys(d: UIDriver):
     # 2. Create wallet (device key — no password overhead)
     await create_wallet_from_project(d, WALLET_NAME, protection="device_key")
 
-    sem = await d.semantics_tree()
-    if f'"{WALLET_NAME}"' not in sem:
+    if await d.cs_find_by_label(WALLET_NAME) is None:
         raise AssertionError(f"Wallet name '{WALLET_NAME}' not in AppBar after creation")
     print(f"    [ok] wallet detail opened: '{WALLET_NAME}'")
 
@@ -88,8 +87,7 @@ async def test_hot_keys(d: UIDriver):
 
     # 4. Click the Keys (1) sub-tab
     await click_label(d, "Keys (1)", delay=0.6)
-    sem = await d.semantics_tree()
-    if 'HOT' in sem:
+    if await d.cs_find_by_label("HOT") is not None:
         raise AssertionError("HOT badge already present — sandbox not clean")
     print("    [ok] Keys sub-tab active — no HOT badge (expected)")
 
@@ -115,15 +113,15 @@ async def test_hot_keys(d: UIDriver):
 
     # Wait for Rust BIP39 validation (debounce 250 ms + key derivation ~1-2 s)
     await asyncio.sleep(3.5)
-    tree = await d.widget_tree()
+    tree = await d.cs_flat_text()
     if "24 / 24" not in tree:
         raise AssertionError("Mnemonic not validated — '24 / 24' not found in widget tree")
     print("    [ok] mnemonic validated: 24/24 words")
 
     # 8. Confirm — the sheet title and the FilledButton share the label
-    #    "Add private key"; find_all_semantic_rects returns both, the button
+    #    "Add private key"; cs_find_all_by_label returns both, the button
     #    is always last in the tree (bottom of the sheet).
-    rects = await d.find_all_semantic_rects("Add private key")
+    rects = await d.cs_find_all_by_label("Add private key")
     if not rects:
         raise AssertionError("Confirm button 'Add private key' not found in semantics")
     btn_rect = rects[-1]
@@ -166,32 +164,5 @@ async def test_hot_keys(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_hot_keys(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_hot_keys, "reg10"))

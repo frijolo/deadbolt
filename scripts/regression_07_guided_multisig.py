@@ -29,6 +29,7 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
+    go_back_to_wallet_list, delete_wallet_from_list,
 )
 
 # ---------------------------------------------------------------------------
@@ -141,7 +142,7 @@ async def _create_and_verify(d: UIDriver, wallet_name: str):
     )
     print(f"    [ok] wallet detail opened: '{wallet_name}'")
 
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     assert '"Receive"' in sem, "Receive button not found"
     assert '"Send"' in sem,    "Send button not found"
     print("    [ok] Receive + Send buttons visible")
@@ -160,7 +161,7 @@ async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
     await click_label(d, "Addresses", delay=1.5)
     # Poll up to 10 s: addresses may still be loading after a fresh wallet sync.
     for _ in range(10):
-        sem_a = await d.semantics_tree()
+        sem_a = await d.cs_flat_text()
         has_addr = 'receive_address_0' in sem_a
         has_reveal = '"Reveal 20 more addresses"' in sem_a
         if has_addr or has_reveal:
@@ -171,39 +172,6 @@ async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
             f"Addresses tab shows neither addresses nor Reveal button for '{wallet_name}'"
         )
     print("    [ok] Addresses tab has at least one entry")
-
-
-async def _go_back_to_wallet_list(d: UIDriver):
-    # wallet_detail_screen PopScope: canPop only when on Overview tab.
-    # From any other tab, Back navigates to Overview first; a second Back exits.
-    await click_tooltip(d, "Back", delay=0.8)
-    sem = await d.semantics_tree()
-    if '"Wallets"' not in sem:
-        await click_tooltip(d, "Back", delay=0.8)
-    await wait_for(d, '"Wallets"', "Back on wallet list")
-    print("    [ok] back on wallet list")
-
-
-async def _delete_wallet(d: UIDriver, wallet_name: str):
-    """Delete a wallet via its card popup menu."""
-    await wait_for(d, wallet_name, "Wallet card visible")
-    rect = await d.find_semantic_rect_by_tooltip("More options")
-    assert rect is not None, "More options button not found on wallet card"
-    cx = (rect[0] + rect[2]) // 2
-    cy = (rect[1] + rect[3]) // 2
-    d.flutter_click(cx, cy, delay_s=0.5)
-    await asyncio.sleep(0.6)
-    item_rect = await d.find_semantic_rect("Delete")
-    assert item_rect is not None, "'Delete' item not found in popup"
-    d.flutter_click(
-        (item_rect[0] + item_rect[2]) // 2,
-        (item_rect[1] + item_rect[3]) // 2,
-    )
-    await asyncio.sleep(0.4)
-    await wait_for(d, '"Delete wallet"', "Delete confirmation dialog")
-    await click_label(d, "Delete", delay=1.0)
-    await wait_absent(d, wallet_name, f"'{wallet_name}' removed")
-    print(f"    [ok] wallet '{wallet_name}' deleted")
 
 
 # ---------------------------------------------------------------------------
@@ -224,8 +192,8 @@ async def test_guided_wsh_2of2(d: UIDriver):
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
     await _verify_addresses_tab(d, name)
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, name)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, name)
     print(f"    [PASS] {name}")
 
 
@@ -243,8 +211,8 @@ async def test_guided_wsh_2of3(d: UIDriver):
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
     await _verify_addresses_tab(d, name)
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, name)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, name)
     print(f"    [PASS] {name}")
 
 
@@ -262,8 +230,8 @@ async def test_guided_taproot_2of3(d: UIDriver):
     await _set_threshold(d, target=2, current=1)
     await _create_and_verify(d, name)
     await _verify_addresses_tab(d, name)
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, name)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, name)
     print(f"    [PASS] {name}")
 
 
@@ -290,13 +258,16 @@ async def main():
             try:
                 await fn(d)
             except (AssertionError, Exception) as exc:
+                with open('/tmp/reg07_cs_tree', 'w') as f:
+                    f.write(await d.cs_tree_as_json())
                 print(f"\n[FAIL] {name}: {exc}")
+                print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
                 failed.append(name)
                 # Recovery: close any open sheet/dialog, then navigate back.
                 # click_tooltip never raises when node is absent (just warns),
                 # so check semantics explicitly before deciding to close or back.
                 for _ in range(6):
-                    sem = await d.semantics_tree()
+                    sem = await d.cs_flat_text()
                     if '"Wallets"' in sem:
                         break
                     if 'tooltip: "Close"' in sem:
@@ -304,11 +275,22 @@ async def main():
                         continue
                     await click_tooltip(d, "Back", delay=0.5)
                 try:
-                    await _delete_wallet(d, name)
+                    await delete_wallet_from_list(d, name)
                 except Exception:
                     pass
+    except AssertionError as exc:
+        with open('/tmp/reg07_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
+        print(f"\n[FAIL] {exc}")
+        print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
+        await d.close()
+        sys.exit(1)
     except Exception as exc:
+        with open('/tmp/reg07_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
         print(f"\n[ERROR] Unexpected exception: {exc}")
+        print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
+        await d.close()
         raise
     finally:
         await d.close()

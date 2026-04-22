@@ -7,7 +7,7 @@ computes the real CSD_X/CSD_Y offsets, saves them to scripts/.calib, then
 reverts the overlay.
 
 Run this once after changing GTK theme, monitor setup, or display scaling.
-The .calib file is gitignored; normal test runs (demo_singlesig_wallet.py etc.)
+The .calib file is gitignored; normal test runs (regression_*.py scripts)
 load it automatically so they skip live calibration.
 
 Usage:

@@ -29,7 +29,7 @@ from regression_helpers import (                       # noqa: E402
     click_label,
     dismiss_startup_dialogs,
     create_project, go_back, delete_project_from_list,
-    extract_tab_count,
+    extract_tab_count, run_regression,
 )
 
 
@@ -84,7 +84,7 @@ async def test_taproot(d: UIDriver):
     await create_project(d, PROJECT_NAME, DESCRIPTOR)
 
     # 2. Read semantics
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     # 3. Verify multiple spend paths were extracted
     paths_count = extract_tab_count(sem, "Spend paths")
@@ -116,7 +116,7 @@ async def test_taproot(d: UIDriver):
     # 6. Navigate to Spend Paths tab (it should be the initial tab for Taproot)
     #    and verify it renders without crashing
     await click_label(d, f"Spend paths ({paths_count})", delay=0.8)
-    sem_paths = await d.semantics_tree()
+    sem_paths = await d.cs_flat_text()
     if '"Spend paths (' not in sem_paths:
         raise AssertionError("Spend Paths tab appears empty after navigation")
 
@@ -142,7 +142,7 @@ async def test_taproot(d: UIDriver):
 
     # 7. Navigate to Keys tab and verify rendering
     await click_label(d, f"Keys ({keys_count})", delay=0.8)
-    sem_keys = await d.semantics_tree()
+    sem_keys = await d.cs_flat_text()
     sem_keys_lower = sem_keys.lower()
     for mfp in EXPECTED_MFPS:
         if mfp.lower() not in sem_keys_lower:
@@ -162,32 +162,5 @@ async def test_taproot(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_taproot(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_taproot, "reg03"))

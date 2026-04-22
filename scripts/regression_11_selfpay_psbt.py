@@ -43,6 +43,8 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_drawer, navigate_wallets, fill_field, click_label, click_tooltip,
+    go_back_to_wallet_list, delete_wallet_from_list,
+    set_active_network_signet, run_regression,
 )
 
 
@@ -71,25 +73,6 @@ ADDR_0_RECEIVE = "tb1qr8j6udsncf6ctunvzj79ek4suzjuwxxr3y7kwk"
 # Phase 0: configure Signet in app Settings
 # ---------------------------------------------------------------------------
 
-async def phase_set_network_signet(d: UIDriver):
-    """Phase 0: set Active Network to Signet via the AppBar network badge.
-
-    Flow:
-      Navigate to Wallets → tap 'Select network' badge → select 'Signet'
-      from the bottom sheet picker.
-    """
-    print("\n  [phase 0] set Active Network to Signet")
-
-    await navigate_wallets(d)
-
-    # Tap the network badge in the AppBar (Semantics label: 'Select network')
-    await click_label(d, "Select network", delay=0.5)
-    await wait_for(d, "Signet", "network picker sheet opened", retries=10, delay=0.5)
-    await click_label(d, "Signet", delay=1.0)
-
-    print("    [ok] Active Network set to Signet")
-
-
 # ---------------------------------------------------------------------------
 # Setup / teardown helpers
 # ---------------------------------------------------------------------------
@@ -104,39 +87,6 @@ async def _open_recovery_screen(d: UIDriver):
     # network indicator (always visible after the screen opens) as the ready signal.
     await wait_for(d, 'Restoring to:', "Recover Wallet screen opened")
     print("    [ok] Recover Wallet screen open")
-
-
-async def _go_back_to_wallet_list(d: UIDriver):
-    """Navigate back to the Wallet list from wallet detail (multi-tab safe)."""
-    for _ in range(3):
-        await click_tooltip(d, "Back", delay=0.8)
-        sem = await d.semantics_tree()
-        if '"Wallets"' in sem:
-            break
-    await wait_for(d, '"Wallets"', "back on wallet list")
-    print("    [ok] back on wallet list")
-
-
-async def _delete_wallet(d: UIDriver, wallet_name: str):
-    """Delete a wallet via its card popup menu. Must be on WalletListScreen."""
-    await wait_for(d, wallet_name, "wallet card visible")
-    rect = await d.find_semantic_rect_by_tooltip("More options")
-    if rect is None:
-        raise AssertionError("'More options' button not found on wallet card")
-    cx = (rect[0] + rect[2]) // 2
-    cy = (rect[1] + rect[3]) // 2
-    d.flutter_click(cx, cy, delay_s=0.5)
-    await asyncio.sleep(0.6)
-    item_rect = await d.find_semantic_rect("Delete")
-    if item_rect is None:
-        raise AssertionError("'Delete' item not found in popup")
-    d.flutter_click((item_rect[0] + item_rect[2]) // 2,
-                    (item_rect[1] + item_rect[3]) // 2)
-    await asyncio.sleep(0.4)
-    await wait_for(d, '"Delete wallet"', "delete confirmation dialog")
-    await click_label(d, "Delete", delay=1.0)
-    await wait_absent(d, wallet_name, f"'{wallet_name}' removed from list")
-    print(f"    [ok] wallet '{wallet_name}' deleted")
 
 
 # ---------------------------------------------------------------------------
@@ -168,8 +118,8 @@ async def phase_create_wallet(d: UIDriver):
 
     # Fill in the 12-word mnemonic.
     # MnemonicEntryField wraps a SegmentedButton + TextField in the same semantic
-    # subtree. find_textfield_rect targets the editable area precisely.
-    mnemonic_rect = await d.find_textfield_rect("word1 word2 word3 ...")
+    # subtree. cs_find_textfield_by_label targets the editable area precisely.
+    mnemonic_rect = await d.cs_find_textfield_by_label("word1 word2 word3 ...")
     if mnemonic_rect is None:
         raise AssertionError("Mnemonic text field not found in Seed tab")
     cx = (mnemonic_rect[0] + mnemonic_rect[2]) // 2
@@ -202,7 +152,7 @@ async def phase_create_wallet(d: UIDriver):
             break
         except AssertionError:
             # Check if "Retry" is visible (scan failed)
-            sem = await d.semantics_tree()
+            sem = await d.cs_flat_text()
             if '"Retry"' in sem:
                 print("    [warn] scan failed, retrying...")
                 await click_label(d, "Retry", delay=1.0)
@@ -261,7 +211,7 @@ async def phase_verify_addresses(d: UIDriver):
     await click_label(d, "Addresses", delay=1.0)
 
     # Reveal addresses if needed
-    sem_addr = await d.semantics_tree()
+    sem_addr = await d.cs_flat_text()
     if '"Reveal 20 more addresses"' in sem_addr:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
         await wait_for(d, 'receive_address_0', "receive address #0 visible",
@@ -274,7 +224,7 @@ async def phase_verify_addresses(d: UIDriver):
     # Use the stable semanticsLabel 'receive_address_0' (set in addresses_tab.dart)
     # to avoid ambiguity with change address #0 if both tabs are rendered.
     await asyncio.sleep(0.5)
-    rect = await d.find_semantic_rect("receive_address_0")
+    rect = await d.cs_find_by_label_part_containing("receive_address_0")
     if rect is None:
         raise AssertionError("'receive_address_0' tile not found in Receive tab")
     cx = (rect[0] + rect[2]) // 2
@@ -285,7 +235,7 @@ async def phase_verify_addresses(d: UIDriver):
                     retries=10, delay=0.5)
 
     # Click share button (Icons.share_outlined) to open the export sheet.
-    share_rect = await d.find_semantic_rect_by_tooltip("Copy to clipboard")
+    share_rect = await d.cs_find_by_tooltip("Copy to clipboard")
     if share_rect is None:
         raise AssertionError("'Copy to clipboard' button not found in AddressDetailDialog")
     sx = (share_rect[0] + share_rect[2]) // 2
@@ -298,7 +248,7 @@ async def phase_verify_addresses(d: UIDriver):
     await wait_for(d, "Copy to clipboard", "export sheet opened",
                    retries=8, delay=0.5)
     # The "Copy to clipboard" ListTile in the sheet — click it
-    copy_rect = await d.find_semantic_rect("Copy to clipboard")
+    copy_rect = await d.cs_find_by_label("Copy to clipboard")
     if copy_rect is None:
         raise AssertionError("'Copy to clipboard' not found in export sheet")
     cx = (copy_rect[0] + copy_rect[2]) // 2
@@ -331,7 +281,7 @@ async def phase_verify_addresses(d: UIDriver):
     await click_label(d, "Change", delay=0.8)
 
     # Reveal change addresses if needed
-    sem_chg = await d.semantics_tree()
+    sem_chg = await d.cs_flat_text()
     if '"Reveal 20 more addresses"' in sem_chg:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
         await wait_for(d, 'change_address_0', "change address #0 visible",
@@ -342,7 +292,7 @@ async def phase_verify_addresses(d: UIDriver):
 
     # Click on change address #0 tile.
     # Use the stable semanticsLabel 'change_address_0' (set in addresses_tab.dart).
-    rect = await d.find_semantic_rect("change_address_0")
+    rect = await d.cs_find_by_label_part_containing("change_address_0")
     if rect is None:
         raise AssertionError("'change_address_0' tile not found in Change tab")
     cx = (rect[0] + rect[2]) // 2
@@ -353,7 +303,7 @@ async def phase_verify_addresses(d: UIDriver):
                     retries=10, delay=0.5)
 
     # Click share button to open export sheet.
-    share_rect = await d.find_semantic_rect_by_tooltip("Copy to clipboard")
+    share_rect = await d.cs_find_by_tooltip("Copy to clipboard")
     if share_rect is None:
         raise AssertionError("'Copy to clipboard' button not found in AddressDetailDialog (change)")
     sx = (share_rect[0] + share_rect[2]) // 2
@@ -364,7 +314,7 @@ async def phase_verify_addresses(d: UIDriver):
     # Click "Copy to clipboard" in the export sheet
     await wait_for(d, "Copy to clipboard", "export sheet opened (change)",
                    retries=8, delay=0.5)
-    copy_rect = await d.find_semantic_rect("Copy to clipboard")
+    copy_rect = await d.cs_find_by_label("Copy to clipboard")
     if copy_rect is None:
         raise AssertionError("'Copy to clipboard' not found in export sheet (change)")
     cx = (copy_rect[0] + copy_rect[2]) // 2
@@ -458,7 +408,7 @@ async def phase_create_psbt(d: UIDriver):
     print("    [ok] coin selector opened")
 
     # Click on the first coin tile to select it (checkbox toggle)
-    coin_rect = await d.find_semantic_rect("sats")
+    coin_rect = await d.cs_find_by_label_part_containing("sats")
     if coin_rect is None:
         raise AssertionError("No coin tile found in coin selector")
     cx = (coin_rect[0] + coin_rect[2]) // 2
@@ -485,7 +435,7 @@ async def phase_create_psbt(d: UIDriver):
                    retries=8, delay=0.5)
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if "tb1q" not in sem.lower():
         raise AssertionError(
             "No tb1q address filled in recipient field after selecting "
@@ -510,7 +460,7 @@ async def phase_create_psbt(d: UIDriver):
     print("    [ok] PSBT detail screen opened")
 
     # Verify label visible on the detail screen
-    sem_detail = await d.semantics_tree()
+    sem_detail = await d.cs_flat_text()
     if PSBT_LABEL not in sem_detail:
         raise AssertionError(
             f"PSBT label '{PSBT_LABEL}' not visible on PSBT detail screen"
@@ -531,7 +481,7 @@ async def phase_verify_psbt_in_list(d: UIDriver, expected_status: str, label: st
     """
     print(f"\n  [phase] verify PSBT in Transactions tab (expected: {expected_status})")
 
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if label not in sem:
         raise AssertionError(
             f"PSBT label '{label}' not found in Transactions tab.\n"
@@ -555,7 +505,7 @@ async def phase_open_and_sign_psbt(d: UIDriver, label: str = PSBT_LABEL):
     print("\n  [phase 6] open PSBT and sign")
 
     # Find and tap the PSBT tile in the Transactions tab
-    rect = await d.find_semantic_rect(label)
+    rect = await d.cs_find_by_label_part_containing(label)
     if rect is None:
         raise AssertionError(
             f"PSBT tile with label '{label}' not found in semantics"
@@ -607,13 +557,13 @@ async def phase_verify_after_broadcast(d: UIDriver):
     print("\n  [phase 10] verify post-broadcast state")
 
     # --- Transactions tab: PSBT tile should be gone ---
-    sem_tx = await d.semantics_tree()
+    sem_tx = await d.cs_flat_text()
     if PSBT_LABEL in sem_tx:
         # One sync retry — the cubit should already have removed the PSBT,
         # but a refresh may not have propagated to the Transactions list yet.
         await click_tooltip(d, "Sync wallet", delay=2.5)
         await click_label(d, "Transactions", delay=0.8)
-        sem_tx = await d.semantics_tree()
+        sem_tx = await d.cs_flat_text()
         if PSBT_LABEL in sem_tx:
             raise AssertionError(
                 f"PSBT label '{PSBT_LABEL}' still visible in Transactions tab "
@@ -627,7 +577,7 @@ async def phase_verify_after_broadcast(d: UIDriver):
     # before we switch to Coins.
     await click_tooltip(d, "Sync wallet", delay=3.0)
     await click_label(d, "Coins", delay=1.0)
-    sem_coins = await d.semantics_tree()
+    sem_coins = await d.cs_flat_text()
 
     # If badges are not yet visible, keep retrying — signet mempool
     # propagation can take a few seconds.
@@ -688,7 +638,7 @@ async def phase_cpfp(d: UIDriver):
                     retries=10, delay=0.5)
     print("    [ok] coin selector opened")
 
-    unconf_rect = await d.find_semantic_rect("Unconfirmed")
+    unconf_rect = await d.cs_find_by_label_part_containing("Unconfirmed")
     if unconf_rect is None:
         raise AssertionError(
             "No 'Unconfirmed' coin tile found in coin selector.\n"
@@ -715,7 +665,7 @@ async def phase_cpfp(d: UIDriver):
                     retries=8, delay=0.5)
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if "tb1q" not in sem.lower():
         raise AssertionError(
             "No tb1q address filled in recipient field after selecting "
@@ -731,7 +681,7 @@ async def phase_cpfp(d: UIDriver):
 
     # --- Step 6: Set a higher fee rate for CPFP ---
     await asyncio.sleep(0.5)
-    fee_rect = await d.find_semantic_rect("fee_rate_display")
+    fee_rect = await d.cs_find_by_label_part_containing("fee_rate_display")
     if fee_rect is None:
         raise AssertionError("Fee rate field not found")
     fx = (fee_rect[0] + fee_rect[2]) // 2
@@ -761,7 +711,7 @@ async def phase_cpfp(d: UIDriver):
                     retries=10, delay=0.8)
     print("    [ok] package fee rate row visible")
 
-    sem_cpfp = await d.semantics_tree()
+    sem_cpfp = await d.cs_flat_text()
     if not re.search(r'\d+\.\d+ sat/vB', sem_cpfp):
         raise AssertionError(
             "CPFP banner does not show a calculated effective fee rate.\n"
@@ -776,7 +726,7 @@ async def phase_cpfp(d: UIDriver):
     print("    [ok] PSBT detail screen opened")
 
     # Verify label visible on the CPFP PSBT detail screen
-    sem_detail = await d.semantics_tree()
+    sem_detail = await d.cs_flat_text()
     if CPFP_LABEL not in sem_detail:
         raise AssertionError(
             f"CPFP PSBT label '{CPFP_LABEL}' not visible on PSBT detail screen"
@@ -847,7 +797,7 @@ async def phase_fullrbf(d: UIDriver):
 
     # Find and click the "Spending" coin tile (the one being spent in mempool).
     # The coin tile shows "Spending" as a badge.
-    spending_rect = await d.find_semantic_rect("Spending")
+    spending_rect = await d.cs_find_by_label_part_containing("Spending")
     if spending_rect is None:
         raise AssertionError(
             "No 'Spending' coin tile found in coin selector.\n"
@@ -875,7 +825,7 @@ async def phase_fullrbf(d: UIDriver):
                     retries=8, delay=0.5)
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if "tb1q" not in sem.lower():
         raise AssertionError(
             "No tb1q address filled in recipient field after selecting "
@@ -893,7 +843,7 @@ async def phase_fullrbf(d: UIDriver):
     # The total fee field has semantic label 'total_fee_display'.
     # Clicking it should auto-populate with the RBF minimum required.
     await asyncio.sleep(0.5)
-    fee_rect = await d.find_semantic_rect("total_fee_display")
+    fee_rect = await d.cs_find_by_label_part_containing("total_fee_display")
     if fee_rect is None:
         raise AssertionError("Fee (sats) field not found (total_fee_display)")
     fx = (fee_rect[0] + fee_rect[2]) // 2
@@ -933,7 +883,7 @@ async def phase_fullrbf(d: UIDriver):
     # --- Step 9: Verify post-broadcast state ---
     # Check Transactions tab - RBF PSBT should be gone
     await click_label(d, "Transactions", delay=0.8)
-    sem_tx = await d.semantics_tree()
+    sem_tx = await d.cs_flat_text()
     if RBF_LABEL in sem_tx:
         raise AssertionError(
             f"RBF PSBT label '{RBF_LABEL}' still visible in Transactions tab "
@@ -944,7 +894,7 @@ async def phase_fullrbf(d: UIDriver):
     # Verify Coins tab has updated coin states
     await click_tooltip(d, "Sync wallet", delay=3.0)
     await click_label(d, "Coins", delay=1.0)
-    sem_coins = await d.semantics_tree()
+    sem_coins = await d.cs_flat_text()
 
     # The previous Spending coin should now be gone (replaced),
     # and we should have new coin states
@@ -961,7 +911,7 @@ async def test_selfpay_psbt(d: UIDriver):
     print(f"\n--- {WALLET_NAME} (mnemonic recovery + self-pay PSBT) ---")
 
     # 0. Set network to Signet
-    await phase_set_network_signet(d)
+    await set_active_network_signet(d)
 
     # 1. Create wallet from mnemonic
     await phase_create_wallet(d)
@@ -996,7 +946,7 @@ async def test_selfpay_psbt(d: UIDriver):
         await phase_verify_psbt_in_list(d, "SIGNED")
 
         # 9. Open PSBT again → broadcast
-        rect = await d.find_semantic_rect(PSBT_LABEL)
+        rect = await d.cs_find_by_label_part_containing(PSBT_LABEL)
         if rect is None:
             raise AssertionError(
                 f"PSBT tile '{PSBT_LABEL}' not found in Transactions tab for broadcast"
@@ -1022,8 +972,8 @@ async def test_selfpay_psbt(d: UIDriver):
     await phase_fullrbf(d)
 
     # Cleanup: delete the wallet
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, WALLET_NAME)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, WALLET_NAME)
 
     print(f"\n    [PASS] {WALLET_NAME}")
 
@@ -1032,32 +982,5 @@ async def test_selfpay_psbt(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_selfpay_psbt(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_selfpay_psbt, "reg11"))

@@ -29,7 +29,7 @@ from regression_helpers import (                       # noqa: E402
     click_label,
     dismiss_startup_dialogs,
     create_project, go_back, delete_project_from_list,
-    extract_tab_count,
+    extract_tab_count, run_regression,
 )
 
 
@@ -71,7 +71,7 @@ async def test_multisig_wsh(d: UIDriver):
     await create_project(d, PROJECT_NAME, DESCRIPTOR)
 
     # 2. Read semantics (project detail; initial tab = Spend Paths for multisig)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     # 3. Verify tab labels
     keys_count  = extract_tab_count(sem, "Keys")
@@ -99,7 +99,7 @@ async def test_multisig_wsh(d: UIDriver):
     # 5. Navigate to Keys tab and verify key cards render without error
     #    (Tab label is "Keys (3)" — clicking it switches the tab view)
     await click_label(d, f"Keys ({EXPECTED_KEYS_COUNT})", delay=0.8)
-    sem_keys = await d.semantics_tree()
+    sem_keys = await d.cs_flat_text()
 
     # Each key card should show the MFP badge; verify all 3 are still visible
     sem_keys_lower = sem_keys.lower()
@@ -112,7 +112,7 @@ async def test_multisig_wsh(d: UIDriver):
 
     # 6. Navigate to Spend Paths tab and verify the spend path renders
     await click_label(d, f"Spend paths ({EXPECTED_PATHS_COUNT})", delay=0.8)
-    sem_paths = await d.semantics_tree()
+    sem_paths = await d.cs_flat_text()
 
     # The spend path card must be visible (the tab is not empty / no error state)
     # For a 2-of-3 multisig the spend path section shows "2 of 3" or similar weight info.
@@ -132,32 +132,5 @@ async def test_multisig_wsh(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_multisig_wsh(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_multisig_wsh, "reg02"))

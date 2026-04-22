@@ -42,7 +42,7 @@ from regression_helpers import (                        # noqa: E402
     click_tooltip,
     fill_field,
     dismiss_startup_dialogs,
-    navigate_wallets,
+    navigate_wallets, run_regression,
 )
 
 
@@ -195,7 +195,7 @@ async def _import_backup(d: UIDriver):
 async def _verify_wallet_identity(d: UIDriver):
     """Assert that the restored wallet is the one we backed up."""
     print("\n  [verify] wallet identity")
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if f'"{WALLET_NAME}"' not in sem:
         raise AssertionError(
             f"Expected wallet name '{WALLET_NAME}' in AppBar after restore, "
@@ -213,7 +213,7 @@ async def _verify_address_label(d: UIDriver):
     print("\n  [verify] address label")
     await click_label(d, "Addresses", delay=1.5)
 
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Loading addresses' in sem:
         await wait_for(d, 'receive_address_0', "address loading complete",
                        retries=15, delay=0.8)
@@ -221,11 +221,11 @@ async def _verify_address_label(d: UIDriver):
     await asyncio.sleep(0.8)
 
     # Reveal addresses if the list is empty (fresh sandbox has an empty state)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Reveal 20 more addresses"' in sem:
         await click_label(d, "Reveal 20 more addresses", delay=1.5)
         await wait_for(d, 'receive_address_0', "addresses revealed", retries=10, delay=0.6)
-        sem = await d.semantics_tree()
+        sem = await d.cs_flat_text()
 
     # 1. At least one address must exist
     if 'receive_address_0' not in sem:
@@ -254,7 +254,7 @@ async def _verify_tx_label(d: UIDriver):
     print("\n  [verify] transaction label")
     await click_label(d, "Transactions", delay=1.0)
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     if '"No transactions yet"' in sem:
         raise AssertionError(
@@ -275,13 +275,13 @@ async def _verify_utxo_label(d: UIDriver):
     print("\n  [verify] UTXO label")
     await click_label(d, "Coins", delay=1.5)
 
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Loading coins' in sem:
         await wait_for(d, '"Coins"', "coins loading complete",
                        retries=15, delay=0.8)
 
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     if '"No coins.' in sem:
         raise AssertionError(
@@ -334,32 +334,5 @@ async def test_restore_backup(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_restore_backup(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_restore_backup, "reg09"))

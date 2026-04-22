@@ -83,7 +83,7 @@ async def test_singlesig_case(
     await create_project(d, project_name, descriptor)
 
     # 2. Read semantics once (project detail is now open)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     # 3. Verify tab labels — both must show count = 1
     keys_count = extract_tab_count(sem, "Keys")
@@ -148,8 +148,19 @@ async def main():
                 except Exception:
                     pass
 
+    except AssertionError as exc:
+        with open('/tmp/reg01_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
+        print(f"\n[FAIL] {exc}")
+        print("    [debug] Full semantics tree written to /tmp/reg01_cs_tree")
+        await d.close()
+        sys.exit(1)
     except Exception as exc:
-        print(f"\n[ERROR] Unexpected exception: {exc}")
+        with open('/tmp/reg01_cs_tree', 'w') as f:
+            f.write(await d.cs_tree_as_json())
+        print(f"\n[ERROR] {exc}")
+        print("    [debug] Full semantics tree written to /tmp/reg01_cs_tree")
+        await d.close()
         raise
     finally:
         await d.close()

@@ -35,7 +35,7 @@ from regression_helpers import (                        # noqa: E402
     fill_field,
     dismiss_startup_dialogs,
     create_project,
-    create_wallet_from_project,
+    create_wallet_from_project, run_regression,
 )
 
 
@@ -182,7 +182,7 @@ async def _label_first_address(d: UIDriver):
     await click_label(d, "Addresses", delay=1.5)
 
     # Wait for address loading spinner to clear
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Loading addresses' in sem:
         await wait_for(
             d, '"Addresses"', "address loading complete",
@@ -190,7 +190,7 @@ async def _label_first_address(d: UIDriver):
         )
 
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     # Reveal addresses if the list is empty
     if '"Reveal 20 more addresses"' in sem:
@@ -199,7 +199,7 @@ async def _label_first_address(d: UIDriver):
 
     # Find the first address tile by its semantic label 'receive_address_0'.
     await wait_for(d, 'receive_address_0', "address #0 visible", retries=10, delay=0.6)
-    rect = await d.find_semantic_rect("receive_address_0")
+    rect = await d.cs_find_by_label_part("receive_address_0")
     if rect is None:
         raise AssertionError("Could not find address tile #0 in semantics tree")
 
@@ -224,7 +224,7 @@ async def _label_first_transaction(d: UIDriver):
     await click_label(d, "Transactions", delay=1.0)
     await asyncio.sleep(0.8)
 
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"No transactions yet"' in sem:
         raise AssertionError(
             "Transactions tab shows 'No transactions yet' — "
@@ -235,7 +235,7 @@ async def _label_first_transaction(d: UIDriver):
     # Labels are multi-line in the semantics dump — search for opening quote prefix.
     for candidate in ("Received", "Sent", "Self-transfer"):
         if f'"{candidate}' in sem:
-            rect = await d.find_semantic_rect(candidate)
+            rect = await d.cs_find_by_label_part(candidate)
             if rect is None:
                 continue
             d.flutter_click((rect[0] + rect[2]) // 2,
@@ -262,13 +262,13 @@ async def _label_first_utxo(d: UIDriver):
     await click_label(d, "Coins", delay=1.5)
 
     # Wait for UTXOs to load
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Loading coins' in sem:
         await wait_for(d, '"Coins"', "coins loading complete",
                        retries=15, delay=0.8)
 
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
 
     if '"No coins.' in sem:
         raise AssertionError(
@@ -276,36 +276,17 @@ async def _label_first_utxo(d: UIDriver):
             "expected this wallet to have UTXOs after sync."
         )
 
-    # Find a coin tile by its amount label.
-    # Coin tile labels are multi-line in the semantics dump: "label:" appears
-    # alone on one line and the value (e.g. "1,800,515 sats") on the next.
-    # The header "Total: X sats" is inline (same line as label:), so we
-    # distinguish tiles from the header by requiring label: to be the last
-    # token on its line (no trailing text).
-    lines = sem.splitlines()
-    coin_rect = None
-    for i, line in enumerate(lines):
-        if "label:" not in line or not line.rstrip().endswith("label:"):
-            continue
-        # Multi-line label: check next few lines for a sats amount
-        for k in range(i + 1, min(len(lines), i + 4)):
-            nxt = lines[k]
-            if " sats" in nxt and "Total:" not in nxt:
-                r = d._parse_semantics_rect_before(lines, i)
-                if r:
-                    coin_rect = r
-                break
-        if coin_rect:
-            break
-
-    if coin_rect is None:
+    rect = await d.cs_find_by_label_part_containing("tb1q")
+    if rect is None:
         raise AssertionError(
             "Could not locate a coin tile in semantics — "
             "expected at least one UTXO to be visible."
         )
 
-    d.flutter_click((coin_rect[0] + coin_rect[2]) // 2,
-                    (coin_rect[1] + coin_rect[3]) // 2)
+    cx = (rect[0] + rect[2]) // 2
+    cy = (rect[1] + rect[3]) // 2
+    print(f"    [step] tapping coin at flutter ({cx},{cy})")
+    d.flutter_click(cx, cy)
     await asyncio.sleep(1.0)
 
     await wait_for(d, '"Coin details"', "utxo detail dialog",
@@ -329,7 +310,7 @@ async def _verify_labels_pre_backup(d: UIDriver):
     # ── address label ────────────────────────────────────────────────────────
     await click_label(d, "Addresses", delay=1.0)
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if ADDRESS_LABEL not in sem:
         raise AssertionError(
             f"[pre-backup] Address label '{ADDRESS_LABEL}' not visible in "
@@ -340,7 +321,7 @@ async def _verify_labels_pre_backup(d: UIDriver):
     # ── transaction label ────────────────────────────────────────────────────
     await click_label(d, "Transactions", delay=1.0)
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if TX_LABEL not in sem:
         raise AssertionError(
             f"[pre-backup] Transaction label '{TX_LABEL}' not visible in "
@@ -351,7 +332,7 @@ async def _verify_labels_pre_backup(d: UIDriver):
     # ── UTXO label ───────────────────────────────────────────────────────────
     await click_label(d, "Coins", delay=1.0)
     await asyncio.sleep(0.8)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if UTXO_LABEL not in sem:
         raise AssertionError(
             f"[pre-backup] UTXO label '{UTXO_LABEL}' not visible in "
@@ -398,7 +379,7 @@ async def _export_wallet_backup(d: UIDriver):
     await click_label(d, "Export", delay=0.5)
 
     await asyncio.sleep(1.0)
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if '"Backup Signatures"' in sem:
         print("    [info] Backup Signatures warning shown — clicking 'Export backup' to proceed")
         await click_label(d, "Export backup", delay=0.5)
@@ -608,32 +589,5 @@ async def test_labels_and_backup(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_labels_and_backup(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_labels_and_backup, "reg08"))

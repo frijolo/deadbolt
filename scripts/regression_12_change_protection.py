@@ -37,7 +37,8 @@ from regression_helpers import (                       # noqa: E402
     navigate_wallets,
     create_wallet_from_project,
     unlock_wallet, lock_wallet,
-    open_wallet_from_list,
+    open_wallet_from_list, run_regression,
+    dismiss_startup_dialogs,
 )
 
 
@@ -71,8 +72,7 @@ async def test_change_protection(d: UIDriver):
     await create_wallet_from_project(d, WALLET_NAME, protection="device_key")
 
     # Verify wallet opened
-    sem = await d.semantics_tree()
-    if f'"{WALLET_NAME}"' not in sem:
+    if await d.cs_find_by_label(WALLET_NAME) is None:
         raise AssertionError(f"Wallet name '{WALLET_NAME}' not in AppBar")
     print(f"    [ok] wallet detail opened: '{WALLET_NAME}'")
 
@@ -119,11 +119,10 @@ async def test_change_protection(d: UIDriver):
     await wait_for(d, f'"{WALLET_NAME}"', "Back on wallet detail", retries=8, delay=0.6)
     await lock_wallet(d)
     await asyncio.sleep(1.0)
-    sem_after_lock = await d.semantics_tree()
-    if '"Enter wallet password"' in sem_after_lock:
+    if await d.cs_find_by_label("Enter wallet password") is not None:
         print("    [ok] wallet locked: password prompt shown on detail screen")
         await go_back(d)
-    elif '"Wallets"' in sem_after_lock:
+    elif await d.cs_find_by_label("Wallets") is not None:
         print("    [ok] wallet locked: navigated back to wallet list")
     else:
         raise AssertionError("After lock: neither password prompt nor wallet list visible")
@@ -131,8 +130,7 @@ async def test_change_protection(d: UIDriver):
     await wait_for(d, '"Wallets"', "On wallet list", retries=8, delay=0.6)
     await open_wallet_from_list(d, WALLET_NAME)
     await asyncio.sleep(1.5)
-    sem_locked = await d.semantics_tree()
-    if '"Enter wallet password"' not in sem_locked:
+    if await d.cs_find_by_label("Enter wallet password") is None:
         raise AssertionError(
             "No password prompt after reopening wallet — re-encryption did not apply"
         )
@@ -181,42 +179,5 @@ async def test_change_protection(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-
-        # Dismiss any startup dialogs
-        for _ in range(12):
-            await asyncio.sleep(0.5)
-            sem = await d.semantics_tree()
-            if "Beta Software" in sem or "disclaimerTitle" in sem:
-                print("    [startup] Beta disclaimer visible — closing")
-                await click_label(d, "Don't show for 7 days", delay=0.8)
-                break
-        else:
-            print("    [startup] ready")
-
-        await test_change_protection(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_change_protection, "reg12"))

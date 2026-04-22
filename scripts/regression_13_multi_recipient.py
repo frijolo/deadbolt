@@ -37,6 +37,8 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
+    go_back_to_wallet_list, delete_wallet_from_list,
+    set_active_network_signet, run_regression,
 )
 
 
@@ -69,48 +71,6 @@ def _extract_tb1q_addresses(sem: str) -> list[str]:
 # Phase 0: configure Signet
 # ---------------------------------------------------------------------------
 
-async def phase_set_network_signet(d: UIDriver):
-    print("\n  [phase 0] set Active Network to Signet")
-    await navigate_wallets(d)
-    await click_label(d, "Select network", delay=0.5)
-    await wait_for(d, "Signet", "network picker sheet opened", retries=10, delay=0.5)
-    await click_label(d, "Signet", delay=1.0)
-    print("    [ok] Active Network set to Signet")
-
-
-# ---------------------------------------------------------------------------
-# Phase 1: create wallet via Guided creation with Hot Key
-# ---------------------------------------------------------------------------
-
-async def _go_back_to_wallet_list(d: UIDriver):
-    for _ in range(3):
-        await click_tooltip(d, "Back", delay=0.8)
-        sem = await d.semantics_tree()
-        if '"Wallets"' in sem:
-            break
-    await wait_for(d, '"Wallets"', "back on wallet list")
-    print("    [ok] back on wallet list")
-
-
-async def _delete_wallet(d: UIDriver, wallet_name: str):
-    await wait_for(d, wallet_name, "wallet card visible")
-    rect = await d.find_semantic_rect_by_tooltip("More options")
-    if rect is None:
-        raise AssertionError("'More options' button not found on wallet card")
-    cx = (rect[0] + rect[2]) // 2
-    cy = (rect[1] + rect[3]) // 2
-    d.flutter_click(cx, cy, delay_s=0.5)
-    await asyncio.sleep(0.6)
-    item_rect = await d.find_semantic_rect("Delete")
-    if item_rect is None:
-        raise AssertionError("'Delete' item not found in popup")
-    d.flutter_click((item_rect[0] + item_rect[2]) // 2,
-                    (item_rect[1] + item_rect[3]) // 2)
-    await asyncio.sleep(0.4)
-    await wait_for(d, '"Delete wallet"', "delete confirmation dialog")
-    await click_label(d, "Delete", delay=1.0)
-    await wait_absent(d, wallet_name, f"'{wallet_name}' removed from list")
-    print(f"    [ok] wallet '{wallet_name}' deleted")
 
 
 async def phase_create_wallet_guided(d: UIDriver):
@@ -213,7 +173,7 @@ async def phase_create_psbt(d: UIDriver):
     # --- Step 1: Select one coin ---
     await click_label(d, "Tap to select coins...", delay=1.0)
     await wait_for(d, "sats", "coin selector opened", retries=10, delay=0.5)
-    coin_rect = await d.find_semantic_rect("sats")
+    coin_rect = await d.cs_find_label_containing("sats")
     if coin_rect is None:
         raise AssertionError("No coin tile found in coin selector")
     d.flutter_click((coin_rect[0] + coin_rect[2]) // 2,
@@ -229,7 +189,7 @@ async def phase_create_psbt(d: UIDriver):
     print(f"    [ok] label set to '{PSBT_LABEL}'")
 
     # --- Step 3: Recipient 1 — fill address via Self ---
-    mw_rects = await d.find_all_semantic_rects_by_tooltip("MY WALLETS")
+    mw_rects = await d.cs_find_all_by_tooltip("MY WALLETS")
     if not mw_rects:
         raise AssertionError("'MY WALLETS' button not found for recipient 1")
     r1 = mw_rects[0]
@@ -240,7 +200,7 @@ async def phase_create_psbt(d: UIDriver):
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
 
-    sem1 = await d.semantics_tree()
+    sem1 = await d.cs_tree_as_json()
     addrs1 = _extract_tb1q_addresses(sem1)
     if not addrs1:
         raise AssertionError("No tb1q address auto-filled for recipient 1")
@@ -253,7 +213,7 @@ async def phase_create_psbt(d: UIDriver):
     print("    [ok] second recipient row added")
 
     # --- Step 5: Recipient 2 — fill address via Self ---
-    mw_rects2 = await d.find_all_semantic_rects_by_tooltip("MY WALLETS")
+    mw_rects2 = await d.cs_find_all_by_tooltip("MY WALLETS")
     if len(mw_rects2) < 2:
         raise AssertionError(
             f"Expected ≥2 'MY WALLETS' buttons after adding recipient 2, "
@@ -267,7 +227,7 @@ async def phase_create_psbt(d: UIDriver):
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
 
-    sem2 = await d.semantics_tree()
+    sem2 = await d.cs_tree_as_json()
     addrs2 = _extract_tb1q_addresses(sem2)
     if len(addrs2) < 2:
         raise AssertionError(
@@ -288,7 +248,7 @@ async def phase_create_psbt(d: UIDriver):
     # Both addresses are now set. Locate ALL Amount fields (by label, not hint —
     # Flutter InputDecoration uses labelText so the decoration label is always
     # visible regardless of content) and fill them by index.
-    all_amt_rects = await d.find_all_textfield_rects("Amount (sats)")
+    all_amt_rects = await d.cs_find_all_textfield_by_label("Amount (sats)")
     if len(all_amt_rects) < 2:
         raise AssertionError(
             f"Expected at least 2 'Amount (sats)' fields, got {len(all_amt_rects)}"
@@ -316,10 +276,7 @@ async def phase_create_psbt(d: UIDriver):
     # --- Step 9: Create PSBT ---
     # The button may be just below the visible viewport; scroll down to expose it.
     for _scroll_attempt in range(5):
-        _sem9 = await d.semantics_tree()
-        if '"Create PSBT"' in _sem9 and 'isHidden' not in _sem9[
-                max(0, _sem9.rfind('"Create PSBT"') - 200):
-                _sem9.rfind('"Create PSBT"')]:
+        if await d.cs_is_visible("Create PSBT"):
             break
         d.scroll_down(3)
         await asyncio.sleep(0.4)
@@ -328,8 +285,7 @@ async def phase_create_psbt(d: UIDriver):
                    retries=15, delay=1.0)
     print("    [ok] PSBT detail screen opened")
 
-    sem_detail = await d.semantics_tree()
-    if PSBT_LABEL not in sem_detail:
+    if await d.cs_find_text_containing(PSBT_LABEL) is None:
         raise AssertionError(
             f"PSBT label '{PSBT_LABEL}' not visible on PSBT detail screen"
         )
@@ -439,14 +395,17 @@ async def phase_consolidate(d: UIDriver):
         await click_tooltip(d, "Back", delay=0.5)
         return
 
-    sem = await d.semantics_tree()
-    m = re.search(r'Done \(\d+\)', sem)
-    if not m:
+    done_label = next(
+        (n.get("label") for n in await d.cs_tree()
+         if re.search(r'Done \(\d+\)', n.get("label", ""))),
+        None,
+    )
+    if done_label is None:
         print("    [warn] Done button not found after selection — skipping consolidation")
         await click_tooltip(d, "Back", delay=0.5)
         return
 
-    await click_label(d, m.group(0), delay=1.0)
+    await click_label(d, done_label, delay=1.0)
     await wait_for(d, '"Create Transaction"', "back on Create TX",
                    retries=10, delay=0.5)
     print(f"    [ok] {selected} non-Spending coin(s) selected for consolidation")
@@ -454,7 +413,7 @@ async def phase_consolidate(d: UIDriver):
     await fill_field(d, "Label", "reg13-consolidate")
 
     # Single recipient: self, MAX
-    mw_rects = await d.find_all_semantic_rects_by_tooltip("MY WALLETS")
+    mw_rects = await d.cs_find_all_by_tooltip("MY WALLETS")
     if not mw_rects:
         raise AssertionError("'MY WALLETS' button not found for consolidation")
     r = mw_rects[0]
@@ -464,8 +423,7 @@ async def phase_consolidate(d: UIDriver):
                    retries=8, delay=0.5)
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(2.0)
-    sem = await d.semantics_tree()
-    if "tb1q" not in sem.lower():
+    if await d.cs_find_text_containing("tb1q") is None:
         raise AssertionError("No self-address filled for consolidation")
 
     await click_label(d, "MAX", delay=0.8)
@@ -496,7 +454,7 @@ async def phase_consolidate(d: UIDriver):
 async def test_multi_recipient(d: UIDriver):
     print(f"\n--- {WALLET_NAME} (multi-recipient self-send) ---")
 
-    await phase_set_network_signet(d)
+    await set_active_network_signet(d)
     await phase_create_wallet_guided(d)
     await phase_sync(d)
     await phase_create_psbt(d)
@@ -504,8 +462,8 @@ async def test_multi_recipient(d: UIDriver):
     await phase_verify_broadcast(d)
     await phase_consolidate(d)
 
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, WALLET_NAME)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, WALLET_NAME)
 
     print(f"\n    [PASS] {WALLET_NAME}")
 
@@ -514,32 +472,5 @@ async def test_multi_recipient(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_multi_recipient(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_multi_recipient, "reg13"))

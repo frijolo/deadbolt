@@ -39,7 +39,7 @@ from regression_helpers import (                       # noqa: E402
     click_label, click_tooltip,
     dismiss_startup_dialogs,
     create_project, go_back,
-    create_wallet_from_project,
+    create_wallet_from_project, run_regression,
 )
 
 
@@ -81,7 +81,7 @@ async def test_wallet_device_key(d: UIDriver):
     await create_wallet_from_project(d, WALLET_NAME, protection="device_key")
 
     # 3. Wallet detail loaded — title should be wallet name
-    sem = await d.semantics_tree()
+    sem = await d.cs_flat_text()
     if f'"{WALLET_NAME}"' not in sem:
         raise AssertionError(
             f"Wallet name '{WALLET_NAME}' not visible in AppBar after creation"
@@ -99,7 +99,7 @@ async def test_wallet_device_key(d: UIDriver):
     await click_label(d, "Receive", delay=0.5)
     try:
         await wait_for(d, '"Next address"', "Receive dialog opened", retries=20, delay=0.5)
-        sem_recv = await d.semantics_tree()
+        sem_recv = await d.cs_flat_text()
         low = sem_recv.lower()
         has_error = "no unused" in low or "no hay" in low or "error" in low
         if has_error:
@@ -123,21 +123,21 @@ async def test_wallet_device_key(d: UIDriver):
         if any(s in msg for s in ("Error shown", "wrong address", "No tb1q")):
             raise
         # Dialog didn't open: verify we're still on wallet detail (not navigated away)
-        sem_recv = await d.semantics_tree()
+        sem_recv = await d.cs_flat_text()
         if f'"{WALLET_NAME}"' not in sem_recv:
             raise AssertionError("Receive action navigated away from wallet detail")
         print("    [warn] receive dialog did not open — continuing")
 
     # 6. Close receive dialog if open, then navigate to Addresses tab.
     # The dialog uses tooltip="Cancel"; "Next address" label is unique to it.
-    sem_before_close = await d.semantics_tree()
+    sem_before_close = await d.cs_flat_text()
     if '"Next address"' in sem_before_close:
         await click_tooltip(d, "Cancel", delay=0.8)
         print("    [ok] receive dialog closed via Cancel")
     # Verify still on wallet detail before proceeding
     await wait_for(d, f'"{WALLET_NAME}"', "still on wallet detail after close", retries=6, delay=0.5)
     await click_label(d, "Addresses", delay=1.0)
-    sem_addr = await d.semantics_tree()
+    sem_addr = await d.cs_flat_text()
 
     # Address tiles use semantic labels 'receive_address_N' / 'change_address_N'.
     # ListView only renders visible tiles, so scroll to bottom to verify #19.
@@ -149,7 +149,7 @@ async def test_wallet_device_key(d: UIDriver):
     # "Reveal 20 more" button are rendered.
     d.scroll_down(5)
     await asyncio.sleep(0.4)
-    sem_bottom = await d.semantics_tree()
+    sem_bottom = await d.cs_flat_text()
     if 'receive_address_19' not in sem_bottom:
         raise AssertionError("Address #19 not visible — initial 20-address page incomplete")
     print("    [ok] initial 20 receive addresses visible (#0–#19)")
@@ -162,7 +162,7 @@ async def test_wallet_device_key(d: UIDriver):
     # Scroll further down to reach #30 (ListView only renders visible tiles).
     d.scroll_down(5)
     await asyncio.sleep(0.4)
-    sem_p2 = await d.semantics_tree()
+    sem_p2 = await d.cs_flat_text()
     if 'receive_address_30' not in sem_p2:
         raise AssertionError("Address #30 not visible after Reveal 20 more")
     print("    [ok] address #30 visible after pagination")
@@ -170,7 +170,7 @@ async def test_wallet_device_key(d: UIDriver):
     # 6c. Change addresses: fresh wallet starts with 0 change addrs (no auto-reveal).
     # TabBar is sticky — "Change" sub-tab is always reachable without scroll.
     await click_label(d, "Change", delay=0.8)
-    sem_chg = await d.semantics_tree()
+    sem_chg = await d.cs_flat_text()
     if 'change_address_0' not in sem_chg:
         if '"Reveal 20 more addresses"' not in sem_chg:
             raise AssertionError("Change tab: neither change_address_0 nor Reveal button found")
@@ -185,7 +185,7 @@ async def test_wallet_device_key(d: UIDriver):
 
     # 7. Navigate to Transactions tab — just verify it doesn't crash
     await click_label(d, "Transactions", delay=0.8)
-    sem_tx = await d.semantics_tree()
+    sem_tx = await d.cs_flat_text()
     if f'"{WALLET_NAME}"' not in sem_tx:
         raise AssertionError("Wallet name disappeared after navigating to Transactions tab")
     print("    [ok] Transactions tab renders without error")
@@ -197,32 +197,5 @@ async def test_wallet_device_key(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_wallet_device_key(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_wallet_device_key, "reg04"))

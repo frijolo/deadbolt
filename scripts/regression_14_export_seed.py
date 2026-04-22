@@ -35,6 +35,8 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
+    go_back_to_wallet_list, delete_wallet_from_list,
+    set_active_network_signet, run_regression,
 )
 
 
@@ -63,50 +65,6 @@ _ENV = {**os.environ, "DISPLAY": ":0"}
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-async def _go_back_to_wallet_list(d: UIDriver):
-    for _ in range(4):
-        await click_tooltip(d, "Back", delay=0.8)
-        sem = await d.semantics_tree()
-        if '"Wallets"' in sem:
-            break
-    await wait_for(d, '"Wallets"', "back on wallet list")
-    print("    [ok] back on wallet list")
-
-
-async def _delete_wallet(d: UIDriver, wallet_name: str):
-    await wait_for(d, wallet_name, "wallet card visible")
-    rect = await d.find_semantic_rect_by_tooltip("More options")
-    if rect is None:
-        raise AssertionError("'More options' button not found on wallet card")
-    d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2,
-                    delay_s=0.5)
-    await asyncio.sleep(0.6)
-    item_rect = await d.find_semantic_rect("Delete")
-    if item_rect is None:
-        raise AssertionError("'Delete' item not found in popup")
-    d.flutter_click((item_rect[0] + item_rect[2]) // 2,
-                    (item_rect[1] + item_rect[3]) // 2)
-    await asyncio.sleep(0.4)
-    await wait_for(d, '"Delete wallet"', "delete confirmation dialog")
-    await click_label(d, "Delete", delay=1.0)
-    await wait_absent(d, wallet_name, f"'{wallet_name}' removed from list")
-    print(f"    [ok] wallet '{wallet_name}' deleted")
-
-
-# ---------------------------------------------------------------------------
-# Phase 0: configure Signet
-# ---------------------------------------------------------------------------
-
-async def phase_set_network_signet(d: UIDriver):
-    print("\n  [phase 0] set Active Network to Signet")
-    await navigate_wallets(d)
-    await click_label(d, "Select network", delay=0.5)
-    await wait_for(d, "Signet", "network picker sheet opened",
-                   retries=10, delay=0.5)
-    await click_label(d, "Signet", delay=1.0)
-    print("    [ok] Active Network set to Signet")
-
 
 # ---------------------------------------------------------------------------
 # Phase 1: create wallet via Guided creation with Hot Key
@@ -170,7 +128,7 @@ async def phase_seed_export(d: UIDriver):
     # We need the "Keys (N)" sub-tab — its exact label depends on key count.
     await wait_for(d, "Keys (", "Descriptor view loaded with Keys sub-tab",
                    retries=10, delay=0.5)
-    keys_tab_rect = await d.find_semantic_rect_containing("Keys (")
+    keys_tab_rect = await d.cs_find_label_containing("Keys (")
     if keys_tab_rect is None:
         raise AssertionError("'Keys (N)' sub-tab not found in Descriptor view")
     d.flutter_click((keys_tab_rect[0] + keys_tab_rect[2]) // 2,
@@ -182,7 +140,7 @@ async def phase_seed_export(d: UIDriver):
 
     # Tap the key card.  The card is a ListTile; clicking the HOT badge text
     # (which is inside the card's title Row) activates the same onTap.
-    hot_rect = await d.find_semantic_rect("HOT")
+    hot_rect = await d.cs_find_by_label_part("HOT")
     if hot_rect is None:
         raise AssertionError("HOT badge not found in Descriptor tab")
     d.flutter_click((hot_rect[0] + hot_rect[2]) // 2,
@@ -206,35 +164,31 @@ async def phase_seed_export(d: UIDriver):
     print("    [ok] SeedExportScreen opened")
 
     # ── Tab 0: Words ──────────────────────────────────────────────────────
-    sem_words = await d.semantics_tree()
-    if MNEMONIC_FIRST_WORD not in sem_words:
+    if await d.cs_find_text_containing(MNEMONIC_FIRST_WORD) is None:
         raise AssertionError(
             f"First mnemonic word '{MNEMONIC_FIRST_WORD}' not visible on Words tab"
         )
-    if MNEMONIC_LAST_WORD not in sem_words:
+    if await d.cs_find_text_containing(MNEMONIC_LAST_WORD) is None:
         raise AssertionError(
             f"Last mnemonic word '{MNEMONIC_LAST_WORD}' not visible on Words tab"
         )
     print(f"    [ok] Words tab — '{MNEMONIC_FIRST_WORD}' ... '{MNEMONIC_LAST_WORD}' visible")
 
-    # Verify "Copy to clipboard" button is present.
-    if "Copy to clipboard" not in sem_words:
+    if await d.cs_find_by_label("Copy to clipboard") is None:
         raise AssertionError("'Copy to clipboard' button not found on Words tab")
     print("    [ok] Words tab — Copy to clipboard button present")
 
     # ── Tab 1: QR Code ────────────────────────────────────────────────────
     await click_label(d, "QR Code", delay=0.8)
-    sem_qr = await wait_for(d, "Standard SeedQR", "QR Code tab loaded",
-                             retries=10, delay=0.5)
-    if "Compact SeedQR" not in sem_qr:
+    await wait_for(d, "Standard SeedQR", "QR Code tab loaded", retries=10, delay=0.5)
+    if await d.cs_find_by_label("Compact SeedQR") is None:
         raise AssertionError("'Compact SeedQR' segment button not found on QR tab")
     print("    [ok] QR Code tab — Standard SeedQR / Compact SeedQR selector visible")
 
     # ── Tab 2: Paper Guide ────────────────────────────────────────────────
     await click_label(d, "Paper Guide", delay=0.8)
-    sem_guide = await wait_for(d, "Tap QR to advance", "Paper Guide tab loaded",
-                                retries=10, delay=0.5)
-    if "Next" not in sem_guide and "Done" not in sem_guide:
+    await wait_for(d, "Tap QR to advance", "Paper Guide tab loaded", retries=10, delay=0.5)
+    if await d.cs_find_by_label("Next") is None and await d.cs_find_by_label("Done") is None:
         raise AssertionError(
             "Paper Guide tab: neither 'Next' nor 'Done' navigation button found"
         )
@@ -262,7 +216,7 @@ async def phase_wif_export(d: UIDriver):
     print("    [ok] Addresses tab — receive addresses visible")
 
     # Tap the first tb1q address tile.
-    addr_rect = await d.find_semantic_rect("tb1q")
+    addr_rect = await d.cs_find_label_containing("tb1q")
     if addr_rect is None:
         raise AssertionError("No tb1q address found in Addresses tab")
     d.flutter_click((addr_rect[0] + addr_rect[2]) // 2,
@@ -274,7 +228,7 @@ async def phase_wif_export(d: UIDriver):
 
     # Tap the share/copy icon button (tooltip: "Copy to clipboard") to open
     # the text export sheet which contains the WIF export option.
-    share_rect = await d.find_semantic_rect_by_tooltip("Copy to clipboard")
+    share_rect = await d.cs_find_by_tooltip("Copy to clipboard")
     if share_rect is None:
         raise AssertionError(
             "'Copy to clipboard' icon button not found in address details dialog"
@@ -293,7 +247,7 @@ async def phase_wif_export(d: UIDriver):
     print("    [ok] WIF confirm dialog opened")
 
     # Type the confirm phrase into the TextField.
-    phrase_field = await d.find_textfield_rect("my full wallet is at risk")
+    phrase_field = await d.cs_find_textfield_by_label("my full wallet is at risk")
     if phrase_field is None:
         raise AssertionError(
             "Confirm phrase TextField not found in WIF export dialog"
@@ -324,6 +278,11 @@ async def phase_wif_export(d: UIDriver):
     await asyncio.sleep(0.5)
     print("    [ok] WIF display dialog closed")
 
+    # Close the address details dialog (Back button is blocked while dialog is open).
+    await click_tooltip(d, "Close", delay=0.5)
+    await asyncio.sleep(0.3)
+    print("    [ok] address details dialog closed")
+
 
 # ---------------------------------------------------------------------------
 # Main test function
@@ -332,13 +291,13 @@ async def phase_wif_export(d: UIDriver):
 async def test_seed_export(d: UIDriver):
     print(f"\n--- {WALLET_NAME} (seed export & WIF export) ---")
 
-    await phase_set_network_signet(d)
+    await set_active_network_signet(d)
     await phase_create_wallet_guided(d)
     await phase_seed_export(d)
     await phase_wif_export(d)
 
-    await _go_back_to_wallet_list(d)
-    await _delete_wallet(d, WALLET_NAME)
+    await go_back_to_wallet_list(d)
+    await delete_wallet_from_list(d, WALLET_NAME)
 
     print(f"\n    [PASS] {WALLET_NAME}")
 
@@ -347,32 +306,5 @@ async def test_seed_export(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        await test_seed_export(d)
-
-        print(f"\n{'='*50}")
-        print("[RESULT] PASS")
-
-    except AssertionError as exc:
-        print(f"\n[FAIL] {exc}")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        print(f"\n[ERROR] {exc}")
-        await d.close()
-        raise
-    finally:
-        try:
-            await d.close()
-        except Exception:
-            pass
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_seed_export, "reg14"))
