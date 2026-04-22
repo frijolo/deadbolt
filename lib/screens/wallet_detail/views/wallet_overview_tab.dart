@@ -501,7 +501,11 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final effectiveColor = enabled ? scheme.onSurfaceVariant : scheme.onSurface.withAlpha(AppAlpha.muted);
-    return Card(
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: enabled,
+      child: Card(
       color: filled ? scheme.primaryContainer : Colors.transparent,
       elevation: filled ? null : 0,
       shape: RoundedRectangleBorder(
@@ -551,6 +555,7 @@ class _ActionButton extends StatelessWidget {
                 ),
         ),
       ),
+    ),
     );
   }
 }

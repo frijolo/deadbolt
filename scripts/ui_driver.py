@@ -510,6 +510,12 @@ class UIDriver:
             params.update(extra_params)
         return await self._rpc(f"ext.flutter.{ext_name}", params)
 
+    async def deadbolt_ext(self, ext_name, extra_params=None):
+        params = {"isolateId": self.isolate_id}
+        if extra_params:
+            params.update(extra_params)
+        return await self._rpc(f"ext.deadbolt.{ext_name}", params)
+
     # ------------------------------------------------------------------
     # UI inspection — require debug mode binary
     # ------------------------------------------------------------------
@@ -714,6 +720,58 @@ class UIDriver:
                         return self._parse_semantics_rect_before(lines, i)
         return None
 
+    async def find_semantic_rect_containing(self, substring: str) -> tuple[int, int, int, int] | None:
+        """Find the first semantic node whose label CONTAINS `substring`.
+
+        Handles both single-line (`label: "..."`) and multi-line formats.
+        Scans for any line that contains the quoted substring (e.g. `"Keys (`)
+        then walks back to the node rect.
+        """
+        tree = await self.semantics_tree()
+        lines = tree.splitlines()
+        for i, line in enumerate(lines):
+            # Single-line: label: "Keys (1)"
+            if 'label: "' in line and substring in line:
+                return self._parse_semantics_rect_before(lines, i)
+            # Multi-line or embedded: line contains the quoted substring directly
+            # (e.g. `│   "Keys (1)"`) — walk back to find the owning label: line.
+            if f'"{substring}' in line or (substring in line and 'label' not in line and 'tooltip' not in line and '"' in line):
+                # Find the nearest preceding label: line within 10 lines.
+                for bk in range(i, max(0, i - 10) - 1, -1):
+                    if 'label:' in lines[bk]:
+                        return self._parse_semantics_rect_before(lines, bk)
+                # Fallback: use the rect from the current line.
+                return self._parse_semantics_rect_before(lines, i)
+        return None
+
+    async def find_all_semantic_rect_containing(self, substring: str) -> list[tuple[int, int, int, int]]:
+        """Find all semantics nodes whose label CONTAINS `substring`.
+
+        Handles both single-line (`label: "..."`) and multi-line formats.
+        Scans for any line that contains the quoted substring (e.g. `"Keys (`)
+        then walks back to the node rect.
+        """
+        tree = await self.semantics_tree()
+        lines = tree.splitlines()
+        results = set()
+        for i, line in enumerate(lines):
+            # Single-line: label: "Keys (1)"
+            if 'label: "' in line and substring in line:
+                results.add(self._parse_semantics_rect_before(lines, i))
+                continue
+            # Multi-line or embedded: line contains the quoted substring directly
+            # (e.g. `│   "Keys (1)"`) — walk back to find the owning label: line.
+            if f'"{substring}' in line or (substring in line and 'label' not in line and 'tooltip' not in line and '"' in line):
+                # Find the nearest preceding label: line within 10 lines.
+                for bk in range(i, max(0, i - 10) - 1, -1):
+                    if 'label:' in lines[bk]:
+                        results.add(self._parse_semantics_rect_before(lines, bk))
+                        continue
+                # Fallback: use the rect from the current line.
+                results.add(self._parse_semantics_rect_before(lines, i))
+                continue
+        return list(results)
+
     async def find_semantic_rect_by_tooltip(self, tooltip: str) -> tuple[int, int, int, int] | None:
         """Find a semantic node by tooltip text and return its rect."""
         tree = await self.semantics_tree()
@@ -756,6 +814,18 @@ class UIDriver:
                 return self._parse_semantics_rect_before(lines, i)
         return None
 
+    async def find_all_semantic_rects_by_hint(self, hint: str) -> list[tuple[int, int, int, int]]:
+        """Find ALL semantic nodes matching a hint text and return their rects."""
+        tree = await self.semantics_tree()
+        lines = tree.splitlines()
+        results = []
+        for i, line in enumerate(lines):
+            if f'hint: "{hint}"' in line or (f'hint:' in line and hint in line):
+                r = self._parse_semantics_rect_before(lines, i)
+                if r is not None:
+                    results.append(r)
+        return results
+
     async def find_textfield_rect(self, label: str) -> tuple[int, int, int, int] | None:
         """
         Find the editable text area for a labeled TextField.
@@ -782,27 +852,221 @@ class UIDriver:
 
         label_rect = self._parse_semantics_rect_before(lines, label_line)
 
-        # Step 2: scan forward for the nearest 'isTextField' node
+        # Step 2a: check if isTextField is on the SAME node as the label
+        # (flags: appear before label: in the dump for the same SemanticsNode)
         import re as _re
         node_re = _re.compile(r"SemanticsNode#\d+")
+        for bj in range(label_line - 1, max(0, label_line - 10) - 1, -1):
+            if node_re.search(lines[bj]):
+                break
+            if "isTextField" in lines[bj]:
+                return label_rect  # label_rect IS the TextField rect
+
+        # Step 2b: scan forward for a child 'isTextField' node
         for j in range(label_line + 1, min(len(lines), label_line + 80)):
             if "isTextField" in lines[j]:
                 r = self._parse_semantics_rect_before(lines, j)
                 if r is not None:
                     return r
             # Stop if we hit a sibling node at the same or lower depth
-            # (i.e., we've left the scope of the label's parent)
             if node_re.search(lines[j]) and j > label_line + 3:
-                # Allow a few lines for the textfield child node header
-                # If we're already 3+ nodes past label, the textfield was not nearby
                 break
 
         # Fallback: return label rect (click in lower portion so it hits the field)
         if label_rect:
             l, t, r, b = label_rect
-            # Shift click point below the label into the input area
             return (l, b, r, b + max(40, (b - t)))
         return label_rect
+
+    async def find_all_textfield_rects(self, label: str) -> list[tuple[int, int, int, int]]:
+        """Find the editable rect for every TextField labeled `label` in the tree.
+
+        Flutter's semantics dump can place `isTextField` either before or after the
+        `label:` line within the same SemanticsNode block.  This method handles both
+        cases: it first checks the node that owns the label for `isTextField`, then
+        scans forward for a child TextField node (original find_textfield_rect logic).
+        """
+        import re as _re
+        tree = await self.semantics_tree()
+        lines = tree.splitlines()
+        node_re = _re.compile(r"SemanticsNode#\d+")
+        results = []
+        i = 0
+        while i < len(lines):
+            if f'label: "{label}"' in lines[i]:
+                label_rect = self._parse_semantics_rect_before(lines, i)
+                # Case 1: isTextField is on the SAME semantic node as the label
+                # (look backward up to 10 lines, stopping at a SemanticsNode boundary).
+                same_node_tf = False
+                for bj in range(i - 1, max(0, i - 10) - 1, -1):
+                    if node_re.search(lines[bj]):
+                        break  # crossed into parent/sibling node
+                    if "isTextField" in lines[bj]:
+                        same_node_tf = True
+                        break
+                if same_node_tf and label_rect:
+                    results.append(label_rect)
+                    i += 1
+                    continue
+                # Case 2: isTextField is on a CHILD node (original logic).
+                found_tf = None
+                for j in range(i + 1, min(len(lines), i + 80)):
+                    if "isTextField" in lines[j]:
+                        r = self._parse_semantics_rect_before(lines, j)
+                        if r is not None:
+                            found_tf = r
+                        break
+                    if node_re.search(lines[j]) and j > i + 3:
+                        break
+                if found_tf:
+                    results.append(found_tf)
+                elif label_rect:
+                    l, t, r, b = label_rect
+                    results.append((l, b, r, b + max(40, (b - t))))
+            i += 1
+        return results
+
+    # ------------------------------------------------------------------
+    # Structured semantics (ext.deadbolt.semanticsJson) — cs_* methods
+    #
+    # These require a test build compiled with registerSemanticsJsonExtension()
+    # (injected by debug_overlay_setup.sh).  Each node in the returned list is:
+    #   { id, label, tooltip, hint, value, flags: [str,...],
+    #     rect: [l,t,r,b], globalRect: [l,t,r,b] }
+    # globalRect is in Flutter logical pixels relative to the canvas origin,
+    # exactly like the coordinates returned by the text-based find_* methods.
+    # ------------------------------------------------------------------
+
+    async def cs_tree(self) -> list[dict]:
+        """Fetch the full semantics tree as a flat list of structured nodes."""
+        r = await self.deadbolt_ext("semanticsJson")
+        return r.get("result", {}).get("nodes", [])
+
+    async def cs_tree_as_json(self) -> str:
+        """Fetch the full semantics tree as a flat list of structured nodes. JSON formatted."""
+        data = await self.cs_tree()
+        return json.dumps(data, sort_keys=True, indent=2)
+
+    def _cs_rect(self, node: dict) -> tuple[int, int, int, int] | None:
+        gr = node.get("globalRect")
+        if gr is None:
+            return None
+        return (int(gr[0]), int(gr[1]), int(gr[2]), int(gr[3]))
+
+    async def cs_find_by_label(self, label: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node whose label exactly matches."""
+        for node in await self.cs_tree():
+            if node.get("label") == label:
+                return self._cs_rect(node)
+        return None
+
+    async def cs_find_all_by_label(self, label: str) -> list[tuple[int, int, int, int]]:
+        """Return globalRects of all nodes whose label exactly matches."""
+        results = []
+        for node in await self.cs_tree():
+            if node.get("label") == label:
+                r = self._cs_rect(node)
+                if r is not None:
+                    results.append(r)
+        return results
+
+    async def cs_find_label_containing(self, substring: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node whose label contains `substring`."""
+        for node in await self.cs_tree():
+            if substring in node.get("label", ""):
+                return self._cs_rect(node)
+        return None
+
+    async def cs_find_all_label_containing(self, substring: str) -> list[tuple[int, int, int, int]]:
+        """Return globalRects of all nodes whose label contains `substring`."""
+        results = []
+        for node in await self.cs_tree():
+            if substring in node.get("label", ""):
+                r = self._cs_rect(node)
+                if r is not None:
+                    results.append(r)
+        return results
+
+    async def cs_find_by_label_part(self, part: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node where any label part exactly matches.
+
+        Flutter merges child semantics into a single label separated by '\\n'.
+        The 'labels' field is that string pre-split.  This method matches any
+        individual part, so cs_find_by_label_part("Change") finds a node whose
+        full label is "168,929 sats\\ntb1q...\\nChange".
+        """
+        for node in await self.cs_tree():
+            if part in node.get("labels", node.get("label", "").split("\n")):
+                return self._cs_rect(node)
+        return None
+
+    async def cs_find_all_by_label_part(self, part: str) -> list[tuple[int, int, int, int]]:
+        """Return globalRects of all nodes where any label part exactly matches."""
+        results = []
+        for node in await self.cs_tree():
+            if part in node.get("labels", node.get("label", "").split("\n")):
+                r = self._cs_rect(node)
+                if r is not None:
+                    results.append(r)
+        return results
+
+    async def cs_find_by_tooltip(self, tooltip: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node with an exactly matching tooltip."""
+        for node in await self.cs_tree():
+            if node.get("tooltip") == tooltip:
+                return self._cs_rect(node)
+        return None
+
+    async def cs_find_all_by_tooltip(self, tooltip: str) -> list[tuple[int, int, int, int]]:
+        """Return globalRects of all nodes with an exactly matching tooltip."""
+        results = []
+        for node in await self.cs_tree():
+            if node.get("tooltip") == tooltip:
+                r = self._cs_rect(node)
+                if r is not None:
+                    results.append(r)
+        return results
+
+    async def cs_find_by_hint(self, hint: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node with an exactly matching hint."""
+        for node in await self.cs_tree():
+            if node.get("hint") == hint:
+                return self._cs_rect(node)
+        return None
+
+    async def cs_find_all_by_hint(self, hint: str) -> list[tuple[int, int, int, int]]:
+        """Return globalRects of all nodes with an exactly matching hint."""
+        results = []
+        for node in await self.cs_tree():
+            if node.get("hint") == hint:
+                r = self._cs_rect(node)
+                if r is not None:
+                    results.append(r)
+        return results
+
+    async def cs_find_textfield_by_label(self, label: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the TextField closest to a given label node.
+
+        Checks the label node itself for isTextField first, then scans forward
+        up to 20 nodes for an enabled TextField child.  Falls back to the label
+        node's rect if no TextField sibling is found.
+        """
+        nodes = await self.cs_tree()
+        label_idx = next(
+            (i for i, n in enumerate(nodes)
+             if n.get("label") == label or label in n.get("labels", [])),
+            None,
+        )
+        if label_idx is None:
+            return None
+        label_node = nodes[label_idx]
+        if "isTextField" in label_node.get("flags", []):
+            return self._cs_rect(label_node)
+        for node in nodes[label_idx + 1: label_idx + 21]:
+            flags = node.get("flags", [])
+            if "isTextField" in flags and "isEnabled" in flags:
+                return self._cs_rect(node)
+        return self._cs_rect(label_node)
 
     async def click_semantic(self, label: str, tooltip: str = ""):
         """

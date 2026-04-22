@@ -15,6 +15,7 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 OVERLAY="$REPO/lib/widgets/debug_mouse_overlay.dart"
+SEMANTICS_EXT="$REPO/lib/debug/semantics_extension.dart"
 MAIN="$REPO/lib/main.dart"
 
 # ── Overlay widget source ────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ class _CrosshairPainter extends CustomPainter {
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 is_applied() {
-  [[ -f "$OVERLAY" ]] && grep -q "debug_mouse_overlay" "$MAIN"
+  [[ -f "$OVERLAY" ]] && [[ -f "$SEMANTICS_EXT" ]] && grep -q "debug_mouse_overlay" "$MAIN"
 }
 
 cmd="${1:-status}"
@@ -127,23 +128,140 @@ case "$cmd" in
       exit 0
     fi
     printf '%s' "$OVERLAY_CODE" > "$OVERLAY"
-    # Patch main.dart: inject import + flag + builder
+
+    # Write semantics JSON service extension (debug-only, never committed).
+    mkdir -p "$(dirname "$SEMANTICS_EXT")"
+    cat > "$SEMANTICS_EXT" <<'DARTEOF'
+// Injected by debug_overlay_setup.sh — revert before committing.
+import 'dart:convert';
+import 'dart:developer' as dev;
+import 'package:flutter/painting.dart' show MatrixUtils;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/semantics.dart';
+
+void registerSemanticsJsonExtension() {
+  dev.registerExtension('ext.deadbolt.semanticsJson', (method, params) async {
+    _SemanticsExt._handle ??= SemanticsBinding.instance.ensureSemantics();
+    final root =
+        RendererBinding.instance.pipelineOwner.semanticsOwner?.rootSemanticsNode;
+    if (root == null) {
+      return dev.ServiceExtensionResponse.result(
+        '{"nodes":[],"error":"no root semantics node"}',
+      );
+    }
+    final nodes = <Map<String, dynamic>>[];
+    _SemanticsExt._walk(root, Matrix4.identity(), nodes);
+    return dev.ServiceExtensionResponse.result(jsonEncode({'nodes': nodes}));
+  });
+}
+
+class _SemanticsExt {
+  static SemanticsHandle? _handle;
+
+  // Walk the semantics tree, composing transforms to compute global rects.
+  //
+  // Each SemanticsNode.rect is in the node's own local space.
+  // SemanticsNode.transform maps local → parent space.
+  // Composing transforms top-down gives a local → screen matrix that lets us
+  // compute the on-screen bounding box via MatrixUtils.transformRect.
+  static void _walk(
+    SemanticsNode node,
+    Matrix4 parentToGlobal,
+    List<Map<String, dynamic>> out,
+  ) {
+    final Matrix4 nodeToGlobal = node.transform != null
+        ? (Matrix4.copy(parentToGlobal)..multiply(node.transform!))
+        : parentToGlobal;
+
+    final Rect lr = node.rect;
+    final Rect gr = MatrixUtils.transformRect(nodeToGlobal, lr);
+
+    // Flutter merges child semantics into a single label separated by '\n'.
+    // Expose the split array so Python can match individual parts.
+    final String fullLabel = node.label;
+    final List<String> labelParts =
+        fullLabel.isEmpty ? const [] : fullLabel.split('\n');
+
+    out.add({
+      'id': node.id,
+      'label': fullLabel,
+      'labels': labelParts,
+      'tooltip': node.tooltip,
+      'hint': node.hint,
+      'value': node.value,
+      'flags': [
+        for (final f in _kAllFlags)
+          if (node.hasFlag(f)) f.name,
+      ],
+      'rect': [lr.left, lr.top, lr.right, lr.bottom],
+      'globalRect': [gr.left, gr.top, gr.right, gr.bottom],
+    });
+    node.visitChildren((child) {
+      _walk(child, nodeToGlobal, out);
+      return true;
+    });
+  }
+
+  static const _kAllFlags = [
+    SemanticsFlag.hasCheckedState,
+    SemanticsFlag.isChecked,
+    SemanticsFlag.isCheckStateMixed,
+    SemanticsFlag.hasSelectedState,
+    SemanticsFlag.isSelected,
+    SemanticsFlag.isButton,
+    SemanticsFlag.isTextField,
+    SemanticsFlag.isSlider,
+    SemanticsFlag.isKeyboardKey,
+    SemanticsFlag.isReadOnly,
+    SemanticsFlag.isLink,
+    SemanticsFlag.isFocusable,
+    SemanticsFlag.isFocused,
+    SemanticsFlag.hasEnabledState,
+    SemanticsFlag.isEnabled,
+    SemanticsFlag.isInMutuallyExclusiveGroup,
+    SemanticsFlag.isHeader,
+    SemanticsFlag.isObscured,
+    SemanticsFlag.isMultiline,
+    SemanticsFlag.scopesRoute,
+    SemanticsFlag.namesRoute,
+    SemanticsFlag.isHidden,
+    SemanticsFlag.isImage,
+    SemanticsFlag.isLiveRegion,
+    SemanticsFlag.hasToggledState,
+    SemanticsFlag.isToggled,
+    SemanticsFlag.hasImplicitScrolling,
+    SemanticsFlag.hasExpandedState,
+    SemanticsFlag.isExpanded,
+    SemanticsFlag.hasRequiredState,
+    SemanticsFlag.isRequired,
+  ];
+}
+DARTEOF
+
+    # Patch main.dart: inject imports + semantics call + mouse overlay builder
     python3 - "$MAIN" <<'PYEOF'
 import sys, re
 path = sys.argv[1]
 src = open(path).read()
 
 IMPORT_MARKER  = "import 'package:deadbolt/widgets/biometric_lock_screen.dart';"
+CALL_MARKER    = "      WidgetsFlutterBinding.ensureInitialized();"
 BUILDER_MARKER = "            themeMode: AppThemeManager.getThemeMode(settings.appTheme),"
 
 IMPORT_INJECT = """\
 import 'package:deadbolt/widgets/biometric_lock_screen.dart';
 import 'dart:io';
 import 'package:deadbolt/widgets/debug_mouse_overlay.dart';
+import 'package:deadbolt/debug/semantics_extension.dart';
 
 // Injected by .debug_overlay_setup.sh — revert before committing.
 final bool _debugMouseEnabled =
     Platform.environment['DEADBOLT_DEBUG_MOUSE'] == '1';\
+"""
+
+CALL_INJECT = """\
+      WidgetsFlutterBinding.ensureInitialized();
+      registerSemanticsJsonExtension(); // injected\
 """
 
 BUILDER_INJECT = """\
@@ -155,6 +273,7 @@ BUILDER_INJECT = """\
 """
 
 src = src.replace(IMPORT_MARKER, IMPORT_INJECT, 1)
+src = src.replace(CALL_MARKER, CALL_INJECT, 1)
 src = src.replace(BUILDER_MARKER, BUILDER_INJECT, 1)
 open(path, 'w').write(src)
 print("main.dart patched.")
@@ -164,6 +283,8 @@ PYEOF
 
   revert)
     rm -f "$OVERLAY"
+    rm -f "$SEMANTICS_EXT"
+    rmdir --ignore-fail-on-non-empty "$REPO/lib/debug" 2>/dev/null || true
     git -C "$REPO" checkout -- lib/main.dart
     echo "Overlay reverted."
     ;;
