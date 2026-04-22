@@ -415,6 +415,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clipboardEmpty => 'El portapapeles está vacío';
 
   @override
+  String clipboardWillClear(int seconds) {
+    return 'El portapapeles se limpiará en ${seconds}s';
+  }
+
+  @override
+  String get clipboardCleared => 'Portapapeles limpiado';
+
+  @override
   String get importAction => 'Importar';
 
   @override

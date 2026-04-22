@@ -170,6 +170,13 @@
   "pasteText": "Paste text",
   "pasteTextHint": "Paste your content here…",
   "clipboardEmpty": "Clipboard is empty",
+  "clipboardWillClear": "Clipboard will be cleared in {seconds}s",
+  "@clipboardWillClear": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "clipboardCleared": "Clipboard cleared",
   "importAction": "Import",
   "qrNotFoundInImage": "No QR code found in image",
   "cameraError": "Camera not available on this platform",

@@ -848,6 +848,18 @@ abstract class AppLocalizations {
   /// **'Clipboard is empty'**
   String get clipboardEmpty;
 
+  /// No description provided for @clipboardWillClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard will be cleared in {seconds}s'**
+  String clipboardWillClear(int seconds);
+
+  /// No description provided for @clipboardCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard cleared'**
+  String get clipboardCleared;
+
   /// No description provided for @importAction.
   ///
   /// In en, this message translates to:

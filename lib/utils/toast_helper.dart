@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/root_navigator.dart';
@@ -11,12 +13,34 @@ import 'package:deadbolt/utils/security_channel.dart';
 
 Timer? _secretClipboardTimer;
 
-/// Copies [secret] to clipboard; clears after 30 s and marks sensitive on Android 13+.
+/// Returns the clipboard auto-clear duration derived from the biometric lock
+/// timeout setting (converted from minutes to seconds). Falls back to 60 s if
+/// the lock is disabled or its timeout is zero.
+Duration _clipboardClearDuration() {
+  final ctx = rootNavigatorKey.currentContext;
+  if (ctx != null) {
+    final settings = ctx.read<SettingsCubit>().state;
+    if (settings.biometricLockEnabled && settings.biometricTimeoutMinutes > 0) {
+      return Duration(seconds: settings.biometricTimeoutMinutes * 60);
+    }
+  }
+  return const Duration(seconds: 60);
+}
+
+/// Copies [secret] to clipboard, marks it sensitive on Android 13+, shows a
+/// success toast with the copy confirmation, then an info toast noting when the
+/// clipboard will be auto-cleared. Clears the clipboard after the derived
+/// timeout and shows a final info toast.
 Future<void> copySecretAndScheduleClear(
   String secret, {
   required String successMessage,
 }) async {
   _secretClipboardTimer?.cancel();
+
+  final timeout = _clipboardClearDuration();
+  final seconds = timeout.inSeconds;
+  final ctx = rootNavigatorKey.currentContext;
+  final clearNote = ctx != null ? ' · ${ctx.l10n.clipboardWillClear(seconds)}' : '';
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     try {
@@ -27,11 +51,14 @@ Future<void> copySecretAndScheduleClear(
   } else {
     await Clipboard.setData(ClipboardData(text: secret));
   }
+  showSuccessToast('$successMessage$clearNote');
 
-  showSuccessToast(successMessage);
-
-  _secretClipboardTimer = Timer(const Duration(seconds: 30), () {
+  _secretClipboardTimer = Timer(timeout, () {
     Clipboard.setData(const ClipboardData(text: ''));
+    final clearCtx = rootNavigatorKey.currentContext;
+    if (clearCtx != null) {
+      showInfoToast(clearCtx.l10n.clipboardCleared);
+    }
   });
 }
 

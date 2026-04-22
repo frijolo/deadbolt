@@ -170,6 +170,13 @@
   "pasteText": "Pegar texto",
   "pasteTextHint": "Pega tu contenido aquí…",
   "clipboardEmpty": "El portapapeles está vacío",
+  "clipboardWillClear": "El portapapeles se limpiará en {seconds}s",
+  "@clipboardWillClear": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "clipboardCleared": "Portapapeles limpiado",
   "importAction": "Importar",
   "qrNotFoundInImage": "No se encontró código QR en la imagen",
   "cameraError": "Cámara no disponible en esta plataforma",

@@ -415,6 +415,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clipboardEmpty => 'Clipboard is empty';
 
   @override
+  String clipboardWillClear(int seconds) {
+    return 'Clipboard will be cleared in ${seconds}s';
+  }
+
+  @override
+  String get clipboardCleared => 'Clipboard cleared';
+
+  @override
   String get importAction => 'Import';
 
   @override
