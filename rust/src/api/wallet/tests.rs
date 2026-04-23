@@ -35,7 +35,7 @@ fn test_open_wallet_get_balance() -> Result<()> {
     let dir = tempdir()?;
     let info = make_wallet(&dir)?;
 
-    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
+    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None, None)?;
     let balance = handle.get_balance()?;
 
     assert_eq!(balance.confirmed, 0);
@@ -50,7 +50,7 @@ fn test_open_wallet_get_transactions_empty() -> Result<()> {
     let dir = tempdir()?;
     let info = make_wallet(&dir)?;
 
-    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
+    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None, None)?;
     let page = handle.get_transactions(0, 20)?;
 
     assert_eq!(page.total_count, 0);
@@ -64,7 +64,7 @@ fn test_open_wallet_get_transactions_page_beyond_total() -> Result<()> {
     let dir = tempdir()?;
     let info = make_wallet(&dir)?;
 
-    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
+    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None, None)?;
     let page = handle.get_transactions(10, 20)?;
 
     assert_eq!(page.total_count, 0);
@@ -78,7 +78,7 @@ fn test_open_wallet_balance_consistent_across_calls() -> Result<()> {
     let dir = tempdir()?;
     let info = make_wallet(&dir)?;
 
-    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None)?;
+    let handle = open_wallet(info.wallet_path, KEY_HEX.to_string(), None, None)?;
     let b1 = handle.get_balance()?;
     let b2 = handle.get_balance()?;
 
@@ -91,7 +91,7 @@ fn test_open_wallet_get_info() -> Result<()> {
     let dir = tempdir()?;
     let info = make_wallet(&dir)?;
 
-    let handle = open_wallet(info.wallet_path.clone(), KEY_HEX.to_string(), None)?;
+    let handle = open_wallet(info.wallet_path.clone(), KEY_HEX.to_string(), None, None)?;
     let fetched = handle.get_info()?;
 
     assert_eq!(fetched.name, "Test Wallet");

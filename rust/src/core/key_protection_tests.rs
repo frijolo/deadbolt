@@ -95,6 +95,7 @@ fn test_resolve_data_key_password_type() {
         network: None,
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     let resolved = resolve_data_key(&meta, password).unwrap();
     assert_eq!(resolved, data_key);
@@ -118,6 +119,7 @@ fn test_resolve_data_key_wrong_password_fails() {
         network: None,
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     let result = resolve_data_key(&meta, "wrong-password");
     assert!(result.is_err(), "Should fail with wrong password");
@@ -156,6 +158,7 @@ fn test_protection_meta_serde_user_password() {
         network: Some("bitcoin".to_string()),
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     let json = serde_json::to_string(&meta).unwrap();
     let back: ProtectionMeta = serde_json::from_str(&json).unwrap();
@@ -221,6 +224,7 @@ fn test_protection_meta_serde_xpub_key() {
         network: Some("bitcoin".to_string()),
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     let json = serde_json::to_string(&meta).unwrap();
     let back: ProtectionMeta = serde_json::from_str(&json).unwrap();
@@ -285,6 +289,7 @@ fn test_resolve_data_key_xpub_with_keyspec() {
         network: None,
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     // Keyspec credential → MFP hint extracted → direct slot match.
     let keyspec = format!("[c449c5c5/48h/0h/0h/2h]{}", TEST_XPUB);
@@ -303,6 +308,7 @@ fn test_resolve_data_key_xpub_type() {
         network: None,
         last_synced_at: None,
         biometric_slots: vec![],
+        first_address_hash: None,
     };
     let resolved = resolve_data_key(&meta, TEST_XPUB).unwrap();
     assert_eq!(resolved, data_key);

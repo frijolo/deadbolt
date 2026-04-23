@@ -21,7 +21,7 @@ fn make_wallet(dir: &tempfile::TempDir) -> APIWallet {
         APISecurityLevel::Standard,
     )
     .expect("create_wallet failed");
-    open_wallet(info.wallet_path, KEY_HEX.to_string(), None).expect("open_wallet failed")
+    open_wallet(info.wallet_path, KEY_HEX.to_string(), None, None).expect("open_wallet failed")
 }
 
 /// Return the scriptPubKey for external address at index `idx`.

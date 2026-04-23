@@ -5,7 +5,7 @@ Shared helpers for Deadbolt regression tests.
 Usage:
   from regression_helpers import (
       wait_for, wait_absent,
-      navigate_designer, navigate_wallets,
+      navigate_designer, navigate_wallets, navigate_settings,
       click_label, click_tooltip,
       fill_field, click_popup_item,
       create_project, go_back, delete_project_from_list,
@@ -111,6 +111,11 @@ async def navigate_designer(d):
 async def navigate_wallets(d):
     """Navigate to the Wallet tab."""
     await navigate_drawer(d, 0, "Wallets")
+
+
+async def navigate_settings(d):
+    """Navigate to the Settings tab."""
+    await navigate_drawer(d, 2, "Settings")
 
 
 # ---------------------------------------------------------------------------
@@ -233,12 +238,19 @@ async def fill_field(d, field_label: str, text: str, clear: bool = True):
       - Large rect (height ≥ 30): labelText/hintText field — click center.
       - Small rect (height < 30): separate label Text widget above a plain
         TextField — click 28px below the label's bottom edge.
+      - Oversized rect (height > 80): Flutter merges adjacent semantics nodes,
+        so the actual input lives in the top ~56 px — click near the top.
+
+    When `text` is empty the field is cleared via Ctrl+A + Delete instead of
+    clipboard paste, because xclip does not reliably set an empty clipboard and
+    a stale paste would leave the previous value in the field.
     """
     rect = await d.cs_find_textfield_by_label(field_label)
     if rect:
         cx = (rect[0] + rect[2]) // 2
         cy = (rect[1] + rect[3]) // 2
         if (rect[3] - rect[1]) < 30:
+            # Separate label widget above the field — click below the label.
             cy = rect[3] + 28
         d.flutter_click(cx, cy)
     else:
@@ -252,10 +264,17 @@ async def fill_field(d, field_label: str, text: str, clear: bool = True):
             print(f"    [warn] field '{field_label}' not found — clicking center")
             d.flutter_click(*d.window_center())
     await asyncio.sleep(0.3)
-    if clear:
+    if text == "":
+        # Clear via keyboard — xclip does not reliably set an empty clipboard.
         d.key("ctrl+a")
         await asyncio.sleep(0.1)
-    await _paste_text(d, text)
+        d.key("Delete")
+        await asyncio.sleep(0.2)
+    else:
+        if clear:
+            d.key("ctrl+a")
+            await asyncio.sleep(0.1)
+        await _paste_text(d, text)
     await asyncio.sleep(0.3)
 
 

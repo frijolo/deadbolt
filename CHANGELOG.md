@@ -6,32 +6,41 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
-### Fixes
-- **Addresses tab empty on first switch** — Switching to the Addresses tab now correctly propagates the loaded address lists into `WalletDetailLoaded`; previously the tab could appear empty until a sync or manual reload.
-- **Wallet-mode seed submission** — The Add Key sheet in wallet mode now correctly reads the mnemonic/xprv entered in the Seed tab and calls `onAddMnemonic`/`onAddXprv`; previously the button did nothing because the state was never captured.
-- **Biometric lock on hidden state** — The inactivity timer now starts when the app enters `AppLifecycleState.hidden` (e.g. app switcher on iOS), not only on `paused`, so the lock triggers correctly on all platforms.
-- **Receive addresses after sync** — After a sync cycle, `WalletDetailLoaded` now re-emits with the latest receive/change addresses from `WalletReceiveCubit`, so the receive tab reflects new addresses without a manual reload.
-- **Bottom sheet safe area** — `showSheet` now wraps content in `SafeArea(top: false)` instead of `useSafeArea: true`, eliminating the empty gap below the home indicator on iOS/Android.
-
-### Improvements
-- **Corrupt hot-key rows surfaced as warnings** — If the `seed_entries` table contains a corrupt row on wallet open, the affected entry is skipped and a warning toast is shown instead of silently losing the key or failing to load the wallet.
-- **In-memory credential zeroing** — Cached passwords and biometric keys in `WalletService` are now stored as `Uint8List` and overwritten with zeros before eviction, reducing plaintext exposure in heap dumps.
-
 ### New Features
-- **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. In Alias mode, master-key fingerprints are replaced with the user-defined key labels, making descriptors easier to read at a glance.
-- **Screenshot protection (Android)** — `FLAG_SECURE` is set by default on app start, preventing the screen from appearing in the recent-apps thumbnail and blocking screenshots. A toggle in Settings → Security lets the user disable it.
-- **Biometric app lock (Android)** — When enabled, Deadbolt shows a lock screen on every cold start and whenever the app returns from background past the configured timeout (immediately, 1 min, or 5 min). Enabling the lock requires a successful biometric challenge to ensure the device is enrolled.
-- **Biometric wallet unlock** — Type 1 (Password) and Type 2 (XPub) wallets can now register a biometric slot. The wallet's data key is wrapped with a random 32-byte key stored in the hardware-backed keystore; the hardware enforces biometric authentication before releasing the key. Biometric unlock is attempted automatically on wallet open; falling back to the password prompt if cancelled or unavailable. Slots are managed from the wallet Security screen.
+- **Biometric app lock (Android)** — Optional lock screen on cold start and on return from background
+  past a configurable timeout (immediate, 1 min, or 5 min).
+- **Biometric wallet unlock** — Password and XPub wallets can register a biometric slot for
+  one-touch unlock. The key is stored in the hardware-backed keystore and attempted automatically
+  on open, falling back to the password prompt if cancelled.
+- **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. Alias mode
+  replaces key fingerprints with the user-defined key labels.
+- **Screenshot protection (Android)** — The screen is blocked from recent-apps thumbnails and
+  screenshots by default. Can be disabled in Settings → Security.
 
 ### Improvements
-- **Encryption section inline editing** — The protection-type picker is now embedded directly in the wallet Security screen instead of a separate dialog, keeping context while editing.
-- **Android backup disabled** — `android:allowBackup="false"` prevents Android from including wallet data in device backups, reducing the risk of encrypted database files leaving the device.
-- **iOS file sharing disabled** — `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` are set to false, preventing wallet files from appearing in the Files app or being opened by third-party apps.
-- **Biometric inactivity lock** — The app now locks automatically after the configured timeout of inactivity, even without backgrounding; any pointer event resets the timer. Locking immediately clears all cached wallet credentials and wipes the clipboard.
-- **Clipboard auto-clear for secrets** — Copying a seed phrase, WIF, or xprv now automatically overwrites the clipboard after a configurable timeout (derived from the biometric lock setting; defaults to 60 s). The copy toast shows the countdown ("Clipboard will be cleared in Xs"), and a confirmation toast appears when the clipboard is actually cleared. On Android 13+, the clipboard entry is also marked `IS_SENSITIVE` to suppress it from keyboard suggestions and clipboard history overlays.
-- **Tor routing for price and fee requests** — CoinGecko and mempool.space HTTP requests now route through the Tor SOCKS proxy when Tor is enabled in Settings, preventing IP correlation by external price/fee providers.
-- **Key material zeroized on drop (Rust)** — All intermediate key buffers (data keys, wrapping keys, Argon2id output, nonces, salts) are now wrapped in `Zeroizing<T>` and overwritten before deallocation, reducing plaintext exposure in memory dumps.
-- **Log sanitization** — Extended keys (xpub/xprv/zpub…) and bech32 addresses are redacted to `[REDACTED]` before being written to debug output, preventing accidental key leakage in logs.
+- **Biometric inactivity lock** — The app locks automatically after the configured idle timeout;
+  any touch resets the timer. Locking clears all cached credentials and wipes the clipboard.
+- **Clipboard auto-clear for secrets** — Copying a seed phrase, WIF, or xprv clears the clipboard
+  after a configurable timeout (default 60 s). The copy toast shows the countdown; on Android 13+
+  the entry is also marked sensitive to suppress it from clipboard history overlays.
+- **Tor routing for price and fee requests** — CoinGecko and mempool.space requests route through
+  Tor when enabled in Settings.
+- **Key material zeroed in memory** — Key buffers are overwritten before deallocation; cached
+  credentials are zeroed on eviction.
+- **Log sanitization** — Extended keys and addresses are redacted in debug output.
+- **Corrupt hot-key row warnings** — A corrupt hot-key entry is skipped with a warning toast
+  instead of blocking wallet open.
+- **Android backup and iOS file sharing disabled** — Wallet data is excluded from Android device
+  backups and is not accessible via the iOS Files app.
+
+### Fixes
+- **Addresses tab on first switch** — The Addresses tab now loads immediately on first selection
+  instead of appearing empty until the next sync.
+- **Receive addresses after sync** — The receive tab reflects new addresses immediately after a
+  sync, without a manual reload.
+- **Biometric lock on app switcher** — The inactivity timer now starts when the app enters the
+  app switcher, not only when fully paused.
+- **Bottom sheet safe area** — Bottom sheets no longer show an empty gap below the home indicator.
 
 ---
 

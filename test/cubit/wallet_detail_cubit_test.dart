@@ -24,6 +24,7 @@ void main() {
 
     test('emits NeedsPassword when no password cached and wallet requires one',
         () async {
+      when(() => mockService.isUnlocked(walletPath)).thenReturn(false);
       when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
       when(() => mockService.walletRequiresPassword(walletPath))
           .thenAnswer((_) async => true);
@@ -44,6 +45,7 @@ void main() {
     });
 
     test('emits WalletDetailError when openWallet throws', () async {
+      when(() => mockService.isUnlocked(walletPath)).thenReturn(false);
       when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
       when(() => mockService.walletRequiresPassword(walletPath))
           .thenAnswer((_) async => false);
@@ -69,6 +71,7 @@ void main() {
     blocTest<WalletDetailCubit, WalletDetailState>(
       'emits [Loading, NeedsPassword] in order when password required',
       build: () {
+        when(() => mockService.isUnlocked(walletPath)).thenReturn(false);
         when(() => mockService.getCachedPassword(walletPath)).thenReturn(null);
         when(() => mockService.walletRequiresPassword(walletPath))
             .thenAnswer((_) async => true);

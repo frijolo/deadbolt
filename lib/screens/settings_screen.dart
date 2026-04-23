@@ -509,20 +509,26 @@ class _MinFeeRateTileState extends State<_MinFeeRateTile> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        decoration: InputDecoration(
-          labelText: l10n.settingsMinFeeRate,
-          hintText: '0.1',
-          suffixText: 'sat/vB',
-          border: const OutlineInputBorder(),
+    // Semantics(container: true) scopes this node's rect to the widget's own
+    // bounds.  Without it Flutter assigns the rect of the entire Card Column
+    // to the first TextField child, causing automation clicks to miss.
+    return Semantics(
+      container: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          decoration: InputDecoration(
+            labelText: l10n.settingsMinFeeRate,
+            hintText: '0.1',
+            suffixText: 'sat/vB',
+            border: const OutlineInputBorder(),
+          ),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onTap: () => setState(() => _editing = true),
+          onSubmitted: (_) => _save(),
         ),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onTap: () => setState(() => _editing = true),
-        onSubmitted: (_) => _save(),
       ),
     );
   }
