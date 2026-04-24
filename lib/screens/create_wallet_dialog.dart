@@ -192,17 +192,20 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                TextFormField(
-                  controller: _descriptorController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: l10n.descriptorHint,
-                    border: const OutlineInputBorder(),
+                Semantics(
+                  label: l10n.descriptorLabel,
+                  child: TextFormField(
+                    controller: _descriptorController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: l10n.descriptorHint,
+                      border: const OutlineInputBorder(),
+                    ),
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.descriptorEmpty
+                        : null,
                   ),
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? l10n.descriptorEmpty
-                      : null,
                 ),
                 const SizedBox(height: 16),
               ] else ...[

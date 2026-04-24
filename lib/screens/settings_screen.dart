@@ -102,11 +102,15 @@ class SettingsScreen extends StatelessWidget {
                   title: l10n.settingsSectionConnectivity,
                   icon: Icons.wifi_outlined,
                   children: [
-                    SwitchListTile(
-                      title: Text(l10n.torLabel),
-                      subtitle: Text(l10n.torSubtitle),
-                      value: settings.torEnabled,
-                      onChanged: cubit.setTorEnabled,
+                    Semantics(
+                      container: true,
+                      label: 'Use Tor',
+                      child: SwitchListTile(
+                        title: Text(l10n.torLabel),
+                        subtitle: Text(l10n.torSubtitle),
+                        value: settings.torEnabled,
+                        onChanged: cubit.setTorEnabled,
+                      ),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     _ConnectivityUrlSection(
@@ -366,21 +370,27 @@ class _SettingsDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentLabel =
+        items.firstWhere((e) => e.$1 == value, orElse: () => items.first).$2;
     return ListTile(
       title: Text(label),
-      trailing: DropdownButton<T>(
-        value: value,
-        underline: const SizedBox.shrink(),
-        alignment: AlignmentDirectional.centerEnd,
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-        items: items
-            .map((e) => DropdownMenuItem<T>(
-                  value: e.$1,
-                  child: Text(e.$2),
-                ))
-            .toList(),
+      trailing: Semantics(
+        container: true,
+        label: currentLabel,
+        child: DropdownButton<T>(
+          value: value,
+          underline: const SizedBox.shrink(),
+          alignment: AlignmentDirectional.centerEnd,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          items: items
+              .map((e) => DropdownMenuItem<T>(
+                    value: e.$1,
+                    child: Text(e.$2),
+                  ))
+              .toList(),
+        ),
       ),
     );
   }
