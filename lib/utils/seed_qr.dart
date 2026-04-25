@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:deadbolt/src/rust/api/wallet.dart'
     show bip39Wordlist, bip39EntropyToMnemonic;
 
@@ -57,7 +59,8 @@ String? decodeSeedQrCompact(Uint8List bytes) {
 
   try {
     return bip39EntropyToMnemonic(entropy: bytes);
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[SeedQR decode error] $e');
     return null;
   }
 }

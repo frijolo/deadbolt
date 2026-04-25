@@ -18,6 +18,8 @@ All notable changes to Deadbolt are documented here, newest first.
   screenshots by default. Can be disabled in Settings → Security.
 
 ### Improvements
+- **Copy confirmation toast** — All copy-to-clipboard actions now show a success toast so it is
+  clear the text was copied.
 - **Biometric inactivity lock** — The app locks automatically after the configured idle timeout;
   any touch resets the timer. Locking clears all cached credentials and wipes the clipboard.
 - **Clipboard auto-clear for secrets** — Copying a seed phrase, WIF, or xprv clears the clipboard

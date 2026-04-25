@@ -10,6 +10,7 @@ import 'package:deadbolt/services/biometric_keystore_service.dart';
 import 'package:deadbolt/services/price_service.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
+import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/hot_key_helpers.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show analyzeDescriptor, APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -44,7 +45,6 @@ class WalletDetailLoaded extends WalletDetailState {
   final int currentPage;
   final ApiWallet walletHandle;
 
-  // Tab state: 0 = transactions, 1 = addresses, 2 = coins
   final int selectedTab;
   final int selectedAddressKeychain; // 0 = receive (External), 1 = change (Internal)
   final List<APIAddress> receiveAddresses;
@@ -320,7 +320,17 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
       if (s.psbtsLoaded) {
         try {
           psbts = await handle.listPsbts();
-          psbtAnalyses = await _analyzePsbts(handle, psbts);
+          // Only re-analyze when count or content (id+psbtBase64) changed.
+          // Skipping on identical lists avoids N FFI tasks on every Electrum ping.
+          bool psbtListChanged() {
+            if (psbts.length != s.psbts.length) return true;
+            final cachedMap = {for (final p in s.psbts) p.id: p.psbtBase64};
+            return psbts.any((p) => cachedMap[p.id] != p.psbtBase64);
+          }
+
+          if (psbtListChanged()) {
+            psbtAnalyses = await _analyzePsbts(handle, psbts);
+          }
         } catch (e, st) {
           logError('WalletDetailCubit._onSyncEvent() PSBTs', e, st);
         }
@@ -1562,7 +1572,7 @@ class WalletDetailCubit extends Cubit<WalletDetailState> with CubitErrorLogger {
               : now;
           final utc = time.toUtc();
           final key = tx.confirmationTime != null
-              ? '${utc.year}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}'
+              ? formatDate(utc)
               : 'current';
           final bucket =
               byBucket.putIfAbsent(key, () => (time: time, txids: []));

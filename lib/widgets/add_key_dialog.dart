@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
@@ -1337,8 +1336,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                 ),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _derivedKeyspec!));
+                onPressed: () async {
+                  await copyToClipboard(_derivedKeyspec!, successMessage: context.l10n.keyCopied);
                 },
               ),
             ],

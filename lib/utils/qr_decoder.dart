@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing2/qrcode.dart';
@@ -40,7 +41,8 @@ QrDecodeResult? decodeQrFromRgbFrame(int width, int height, Uint8List rgbBytes) 
     // terminator), not the bare payload. Extract just the data bytes.
     final rawBytes = _extractQrBytePayload(result.rawBytes);
     return QrDecodeResult(result.text, rawBytes: rawBytes);
-  } catch (_) {
+  } catch (e, st) {
+    debugPrint('[QR decode error] $e\n$st');
     return null; // NotFoundException — no QR in frame
   }
 }

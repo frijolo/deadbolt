@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:biometric_storage/biometric_storage.dart';
 
+import '../utils/hex_utils.dart';
+
 /// Manages the platform-keystore side of biometric wallet slots.
 ///
 /// Each biometric slot in the wallet's .meta file has a corresponding entry
@@ -47,7 +49,7 @@ class BiometricKeystoreService {
   String generateKey() {
     final rng = Random.secure();
     final keyBytes = List.generate(32, (_) => rng.nextInt(256));
-    return keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return bytesToHex(keyBytes);
   }
 
   /// Stores [keyHex] in hardware-backed biometric storage under [biometricId].

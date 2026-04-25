@@ -6,7 +6,6 @@ import 'package:bc_ur/bc_ur.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -96,9 +95,9 @@ void showTextExportSheet(
           if (!bigText) ListTile(
             leading: const Icon(Icons.copy_outlined),
             title: Text(l10n.copyToClipboard),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              Clipboard.setData(ClipboardData(text: text));
+              await copyToClipboard(text, successMessage: copiedMessage);
             },
           ),
           ListTile(
@@ -183,9 +182,9 @@ void showPsbtExportSheet(
           ListTile(
             leading: const Icon(Icons.copy_outlined),
             title: Text(l10n.copyToClipboard),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              Clipboard.setData(ClipboardData(text: psbtBase64));
+              await copyToClipboard(psbtBase64, successMessage: l10n.copiedToClipboard);
             },
           ),
           ListTile(
@@ -310,10 +309,8 @@ Future<void> _saveWithFilePicker(
       bytes: bytes,
     );
     if (savedPath == null) return;
-    // On desktop, FilePicker may not write the bytes itself.
-    if (!File(savedPath).existsSync()) {
-      await File(savedPath).writeAsBytes(bytes);
-    }
+    // FilePicker writes bytes on some platforms but not all; always write to be safe.
+    await File(savedPath).writeAsBytes(bytes);
     if (context.mounted) showSuccessToast(l10n.savedToDownloads);
   } catch (e) {
     if (context.mounted) showErrorToast(l10n.exportFailed(formatRustError(e)));

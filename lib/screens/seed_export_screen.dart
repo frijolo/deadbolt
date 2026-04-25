@@ -73,7 +73,8 @@ class _SeedExportScreenState extends State<SeedExportScreen>
         _mfpNoPassphrase = info.mfp;
         _hasPassphrase = info.mfp != widget.mfp;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[seed export passphrase error] $e');
       // Passphrase info is advisory only — ignore errors.
     }
   }

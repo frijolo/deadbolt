@@ -86,10 +86,8 @@ pub async fn query_wif_utxos(
 
     let mut result = Vec::new();
     for addr_entry in &addresses {
-        let addr = Address::from_str(&addr_entry.address)
-            .map_err(|e| anyhow::anyhow!("Address parse error: {}", e))?
-            .require_network(net)
-            .map_err(|_| anyhow::anyhow!("Network mismatch for address"))?;
+        let addr = crate::core::address::parse_address(&addr_entry.address, net)
+            .map_err(|e| anyhow::anyhow!("Address parse error: {e}"))?;
         let spk = addr.script_pubkey();
 
         // Silently skip address types with no UTXOs or query errors.
@@ -144,16 +142,8 @@ pub async fn sweep_wif(
     let total_input_sat: u64 = utxos.iter().map(|u| u.value_sat).sum();
 
     // Parse destination address.
-    let dest_addr = Address::from_str(&destination_address)
-        .map_err(|e| {
-            anyhow::anyhow!(
-                "Invalid destination address '{}': {}",
-                destination_address,
-                e
-            )
-        })?
-        .require_network(net)
-        .map_err(|_| anyhow::anyhow!("Destination address does not match wallet network"))?;
+    let dest_addr = crate::core::address::parse_address(&destination_address, net)
+        .map_err(|e| anyhow::anyhow!("Invalid destination address '{destination_address}': {e}"))?;
     let dest_spk = dest_addr.script_pubkey();
 
     // Estimate fee.
@@ -196,10 +186,8 @@ pub async fn sweep_wif(
 
     // Sign each input.
     for (i, utxo) in utxos.iter().enumerate() {
-        let utxo_addr = Address::from_str(&utxo.address)
-            .map_err(|e| anyhow::anyhow!("invalid address '{}': {e}", utxo.address))?
-            .require_network(net)
-            .map_err(|e| anyhow::anyhow!("address network mismatch for '{}': {e}", utxo.address))?;
+        let utxo_addr = crate::core::address::parse_address(&utxo.address, net)
+            .map_err(|e| anyhow::anyhow!("invalid address '{}': {e}", utxo.address))?;
         let utxo_spk = utxo_addr.script_pubkey();
         let value = Amount::from_sat(utxo.value_sat);
 

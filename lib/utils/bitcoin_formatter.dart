@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 import 'package:deadbolt/models/timelock_types.dart';
+import 'package:deadbolt/utils/date_format.dart';
 
 class BitcoinFormatter {
   /// Format an integer with locale-aware thousands separators (e.g. 1,234,567).
@@ -30,6 +31,9 @@ class BitcoinFormatter {
     if (fee >= 10) return fee.toStringAsFixed(1);
     return fee.toStringAsFixed(2);
   }
+
+  /// Convert satoshis to a BTC string with 8 decimal places (e.g. "0.00100000").
+  static String satsToBtcString(int sats) => (sats / 1e8).toStringAsFixed(8);
 
   /// Convert [sats] to BTC value and format with [fiatPrice] and [currency].
   static String formatSatsFiat(int sats, double fiatPrice, String currency) =>
@@ -72,10 +76,9 @@ class BitcoinFormatter {
         final genesisDate = DateTime(2009, 1, 3);
         final daysFromGenesis = value / 144;
         final approxDate = genesisDate.add(Duration(days: daysFromGenesis.round()));
-        return 'Block #$value (~${approxDate.year}-${approxDate.month.toString().padLeft(2, '0')}-${approxDate.day.toString().padLeft(2, '0')})';
+        return 'Block #$value (~${formatDate(approxDate)})';
       case AbsoluteTimelockType.timestamp:
-        final date = DateTime.fromMillisecondsSinceEpoch(value * 1000);
-        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+        return formatTimestamp(value);
     }
   }
 

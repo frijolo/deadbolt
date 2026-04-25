@@ -423,10 +423,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           bytes: Uint8List.fromList(backupBytes),
         );
         if (savedPath == null) return;
-        // Some desktop implementations don't write the bytes themselves
-        if (!File(savedPath).existsSync()) {
-          await File(savedPath).writeAsBytes(backupBytes);
-        }
+        // FilePicker writes bytes on some platforms but not all; always write to be safe.
+        await File(savedPath).writeAsBytes(backupBytes);
         if (context.mounted) showSuccessToast(context.l10n.backupSaved);
       } catch (e) {
         if (context.mounted) showErrorToastException(e);

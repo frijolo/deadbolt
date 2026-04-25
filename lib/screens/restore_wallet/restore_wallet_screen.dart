@@ -419,7 +419,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
         );
         b.txCount = scan.txCount.toInt();
         b.balanceSat = scan.balanceSat;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[restore scan error] $e');
         // Best-effort; leave null on failure.
       }
     }));
@@ -481,7 +482,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
         final addr = await rust_discovery.firstAddressFromDescriptor(
             descriptor: w.descriptor, network: _selectedNetwork);
         return MapEntry(addr, w);
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[restore discovery error] $e');
         return null;
       }
     }));

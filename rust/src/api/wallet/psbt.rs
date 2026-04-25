@@ -60,7 +60,7 @@ impl APIWallet {
         threshold: u32,
         mfps: Vec<String>,
     ) -> Result<APIPsbtInfo> {
-        use bdk_wallet::bitcoin::{Address, Amount, OutPoint, Txid};
+        use bdk_wallet::bitcoin::{Amount, OutPoint, Txid};
         use bdk_wallet::KeychainKind;
         use std::collections::BTreeMap;
         use std::str::FromStr;
@@ -158,10 +158,8 @@ impl APIWallet {
             .iter()
             .enumerate()
             .map(|(i, r)| {
-                let addr = Address::from_str(&r.address)
-                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?
-                    .require_network(network)
-                    .map_err(|e| anyhow::anyhow!("Recipient {}: wrong network: {}", i + 1, e))?;
+                let addr = crate::core::address::parse_address(&r.address, network)
+                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?;
                 Ok(ParsedRecipient {
                     address: addr.to_string(),
                     script: addr.script_pubkey(),
@@ -498,15 +496,22 @@ impl APIWallet {
             .map(|m| (m.clone(), vec![false; n_inputs]))
             .collect();
 
+        fn mark_signed(
+            signed: &mut std::collections::HashMap<String, Vec<bool>>,
+            mfp: &str,
+            idx: usize,
+        ) {
+            if let Some(v) = signed.get_mut(mfp) {
+                v[idx] = true;
+            }
+        }
+
         for (idx, input) in psbt.inputs.iter().enumerate() {
             // Non-taproot: bip32_derivation maps CompressedPublicKey → (Fingerprint, DerivPath)
             for (pk, (fingerprint, _)) in &input.bip32_derivation {
-                let mfp = fingerprint.to_string();
                 let bpk = bdk_wallet::bitcoin::PublicKey::new(*pk);
                 if input.partial_sigs.contains_key(&bpk) {
-                    if let Some(v) = signed.get_mut(&mfp) {
-                        v[idx] = true;
-                    }
+                    mark_signed(&mut signed, &fingerprint.to_string(), idx);
                 }
             }
 
@@ -514,10 +519,7 @@ impl APIWallet {
             if input.tap_key_sig.is_some() {
                 if let Some(tap_key) = input.tap_internal_key {
                     if let Some((_, ks)) = input.tap_key_origins.get(&tap_key) {
-                        let mfp = ks.0.to_string();
-                        if let Some(v) = signed.get_mut(&mfp) {
-                            v[idx] = true;
-                        }
+                        mark_signed(&mut signed, &ks.0.to_string(), idx);
                     }
                 }
             }
@@ -525,10 +527,7 @@ impl APIWallet {
             // Taproot script-path: tap_script_sigs keyed by (XOnlyPubKey, TapLeafHash)
             for (xpk, _) in input.tap_script_sigs.keys() {
                 if let Some((_, ks)) = input.tap_key_origins.get(xpk) {
-                    let mfp = ks.0.to_string();
-                    if let Some(v) = signed.get_mut(&mfp) {
-                        v[idx] = true;
-                    }
+                    mark_signed(&mut signed, &ks.0.to_string(), idx);
                 }
             }
         }

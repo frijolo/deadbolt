@@ -142,6 +142,13 @@ class _WalletListScreenState extends State<WalletListScreen> {
       ),
       body: SafeArea(
         child: BlocConsumer<WalletListCubit, WalletListState>(
+          buildWhen: (prev, curr) {
+            if (prev.runtimeType != curr.runtimeType) return true;
+            if (prev is! WalletListLoaded || curr is! WalletListLoaded) return false;
+            return !identical(prev.wallets, curr.wallets) ||
+                !identical(prev.balances, curr.balances) ||
+                !identical(prev.syncing, curr.syncing);
+          },
           listenWhen: (prev, curr) {
             if (curr is! WalletListLoaded) return false;
             if (prev is! WalletListLoaded) return true;

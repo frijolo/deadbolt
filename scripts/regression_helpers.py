@@ -44,16 +44,12 @@ async def dismiss_startup_dialogs(d):
     read, so it can appear up to several seconds after the window is visible.
     We poll for up to 6 s before concluding no dialog will appear.
     """
-    # Poll until the beta disclaimer appears or the timeout expires.
-    # Using 0.5 s intervals so we dismiss it as soon as it is renderable.
     _BETA_MARKERS = ("Beta Software", "disclaimerTitle")
-    for _ in range(12):          # 12 × 0.5 s = 6 s max wait
+    for _ in range(12):
         await asyncio.sleep(0.5)
         flat = await d.cs_flat_text()
         if any(m in flat for m in _BETA_MARKERS):
             print("    [startup] Beta disclaimer visible — closing")
-            # Prefer "Don't show for 7 days" so the dialog stays suppressed for
-            # the rest of the test run (avoids re-appearing between sub-tests).
             await click_label(d, "Don't show for 7 days", delay=0.8)
             flat2 = await d.cs_flat_text()
             if any(m in flat2 for m in _BETA_MARKERS):
@@ -77,7 +73,6 @@ async def navigate_drawer(d, tab_index: int, expected_title: str):
     drawer open animation window.
     """
     await d.click_semantic("", tooltip="Open navigation menu")
-    # Wait for the drawer open animation to complete.
     await asyncio.sleep(1.5)
 
     label = _DRAWER_LABELS[tab_index] if tab_index < len(_DRAWER_LABELS) else None
@@ -562,11 +557,25 @@ async def run_regression(test_func, test_id: str):
     and prints PASS/FAIL.  On failure the semantics tree is written to
     /tmp/<test_id>_cs_tree for debugging.
 
+    Checks that no other deadbolt instance is running before launching,
+    to avoid clicking on the wrong window.
+
     Usage in each script's main():
 
         if __name__ == "__main__":
             asyncio.run(run_regression(test_foo, "reg01"))
     """
+    other = subprocess.run(
+        ["pgrep", "-x", "deadbolt"],
+        capture_output=True, text=True,
+    )
+    if other.stdout.strip():
+        pids = other.stdout.strip().split("\n")
+        raise RuntimeError(
+            f"Another deadbolt instance is running (PID={pids[0]}). "
+            f"Kill it with 'kill {pids[0]}' before running this test."
+        )
+
     from ui_driver import UIDriver  # imported here to avoid circular dependency
     d = UIDriver(sandbox=True)
     try:

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -174,8 +173,8 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
             child: OutlinedButton.icon(
               icon: const Icon(Icons.copy, size: 16),
               label: Text(l10n.copyToClipboard),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _address.address));
+              onPressed: () async {
+                await copyToClipboard(_address.address, successMessage: l10n.copiedToClipboard);
               },
             ),
           ),

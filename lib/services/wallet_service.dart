@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../utils/hex_utils.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -29,9 +31,11 @@ class WalletService {
   /// Returns the hex device key, generating and persisting it on first call.
   Future<String> getOrCreateEncryptionKey() async {
     final file = await _keyFile();
-    if (file.existsSync()) {
-      final key = file.readAsStringSync().trim();
+    try {
+      final key = (await file.readAsString()).trim();
       if (key.length == 64) return key;
+    } on FileSystemException {
+      // File does not exist yet; fall through to generate.
     }
 
     final key = _generateSecureHex();
@@ -45,7 +49,7 @@ class WalletService {
   String _generateSecureHex() {
     final rng = Random.secure();
     final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return bytesToHex(bytes);
   }
 
   /// Returns the app support directory path.
@@ -58,9 +62,7 @@ class WalletService {
   Future<String> getWalletsDir() async {
     final dir = await getApplicationSupportDirectory();
     final walletsDir = Directory(p.join(dir.path, 'wallets'));
-    if (!walletsDir.existsSync()) {
-      walletsDir.createSync(recursive: true);
-    }
+    await walletsDir.create(recursive: true);
     return walletsDir.path;
   }
 
@@ -98,7 +100,7 @@ class WalletService {
   String? getCachedBiometricKey(String walletPath) {
     final cached = _biometricKeyCache[walletPath];
     if (cached == null) return null;
-    return cached.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return bytesToHex(cached);
   }
 
   void evictBiometricKey(String walletPath) {

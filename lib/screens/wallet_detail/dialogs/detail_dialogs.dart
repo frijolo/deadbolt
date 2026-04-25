@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,6 +12,7 @@ import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
+import 'package:deadbolt/widgets/copy_icon_button.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwVerifyAddressSheet;
 import 'package:deadbolt/screens/wallet_detail/wif_reveal_dialog.dart' show showWifExportFlow;
@@ -440,14 +440,7 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
                       child: OutpointText(
                           txid: utxo.txid, vout: utxo.vout, truncate: false),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_outlined, size: 16),
-                      tooltip: l10n.copyToClipboard,
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: outpoint));
-                      },
-                    ),
+                    CopyIconButton(text: outpoint),
                   ],
                 ),
               ),
@@ -748,13 +741,7 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                     Expanded(
                       child: OutpointText(txid: tx.txid, truncate: false),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_outlined, size: 16),
-                      tooltip: l10n.copyToClipboard,
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: tx.txid));
-                      },
-                    ),
+                    CopyIconButton(text: tx.txid),
                   ],
                 ),
               ),

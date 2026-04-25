@@ -66,7 +66,7 @@ class _OverviewViewState extends State<OverviewView> {
       case BalanceUnit.sats:
         return l10n.balanceSats(sats);
       case BalanceUnit.btc:
-        return l10n.balanceBtc((sats / 1e8).toStringAsFixed(8));
+        return l10n.balanceBtc(BitcoinFormatter.satsToBtcString(sats));
       case BalanceUnit.fiat:
         return BitcoinFormatter.formatSatsFiat(
           sats,

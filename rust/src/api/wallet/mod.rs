@@ -703,7 +703,6 @@ impl APIWallet {
         use crate::core::seed::{extract_account_path_for_mfp, seed_entry_to_root_xprv};
         use bdk_wallet::bitcoin::bip32::DerivationPath;
         use bdk_wallet::bitcoin::secp256k1::Secp256k1;
-        use bdk_wallet::bitcoin::Address;
         use bdk_wallet::KeychainKind;
         use std::str::FromStr;
 
@@ -714,10 +713,8 @@ impl APIWallet {
         let secp = Secp256k1::new();
 
         // Resolve address string → script_pubkey.
-        let addr = Address::from_str(&address)
-            .map_err(|e| anyhow::anyhow!("Invalid address '{}': {}", address, e))?
-            .require_network(network)
-            .map_err(|_| anyhow::anyhow!("Address '{}' does not match wallet network", address))?;
+        let addr = crate::core::address::parse_address(&address, network)
+            .map_err(|e| anyhow::anyhow!("Invalid address '{}': {e}", address))?;
         let spk = addr.script_pubkey();
 
         // Find (keychain, derivation_index) via the wallet's SPK index.

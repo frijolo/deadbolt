@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/l10n/l10n.dart';
+
 /// Standard drag handle for all bottom sheets.
 /// Place at the top of every sheet content column.
 class SheetHandle extends StatelessWidget {
@@ -75,6 +77,44 @@ Widget sheetCloseTitle(
         ),
       ],
     );
+
+/// Shows a Cancel + destructive-action confirmation dialog.
+///
+/// Returns `true` if the user confirmed, `false`/`null` otherwise.
+/// The confirm button is styled with the error color when [destructive] is true.
+Future<bool> confirmDestructive(
+  BuildContext context, {
+  required String title,
+  String? body,
+  String? confirmLabel,
+  bool destructive = true,
+}) async {
+  final l10n = context.l10n;
+  final label = confirmLabel ?? l10n.delete;
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: body != null ? Text(body) : null,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(
+            label,
+            style: destructive
+                ? TextStyle(color: Theme.of(ctx).colorScheme.error)
+                : null,
+          ),
+        ),
+      ],
+    ),
+  );
+  return result == true;
+}
 
 /// Standard padding for AlertDialog titles that include a close button.
 const kDialogTitlePadding = EdgeInsets.fromLTRB(24, 16, 8, 0);

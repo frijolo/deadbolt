@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -14,6 +13,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
+import 'package:deadbolt/widgets/copy_icon_button.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwCheckRegisterAndSignSheet, showHwConnectSheet;
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -302,25 +302,12 @@ class _KeyTile extends StatelessWidget {
 
   Future<void> _confirmDelete(BuildContext context) async {
     final l10n = context.l10n;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: Text(l10n.descriptorSigsDeleteAction),
-        content: Text('MFP: $mfp'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, true),
-            child:
-                Text(l10n.delete, style: TextStyle(color: Theme.of(dctx).colorScheme.error)),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l10n.descriptorSigsDeleteAction,
+      body: 'MFP: $mfp',
     );
-    if (confirmed == true && context.mounted) {
+    if (confirmed && context.mounted) {
       try {
         await context.read<DescriptorSigsCubit>().deleteSig(mfp);
       } catch (e) {
@@ -567,12 +554,7 @@ class _QRMessageSheetState extends State<_QRMessageSheet> {
                         ?.copyWith(fontFamily: 'monospace'),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.copy_outlined, size: 18),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: widget.message));
-                  },
-                ),
+                CopyIconButton(text: widget.message, size: 18),
               ],
             ),
             const SizedBox(height: 16),

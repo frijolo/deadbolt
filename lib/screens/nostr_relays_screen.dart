@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/services/nostr_relay_settings.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 
 /// Full-screen settings page for managing Nostr relay URLs and connection
 /// parameters (timeout and attempt count).
@@ -64,11 +65,7 @@ class _NostrRelaysScreenState extends State<NostrRelaysScreen> {
     if (!_formKey.currentState!.validate()) return;
     final url = _controller.text.trim();
     if (_relays.contains(url)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.nostrRelayDuplicate)),
-        );
-      }
+      if (mounted) showInfoToast(context.l10n.nostrRelayDuplicate);
       return;
     }
     await _settings.addRelay(url);

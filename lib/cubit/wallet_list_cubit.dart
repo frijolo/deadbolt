@@ -63,15 +63,23 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
       if (s is! WalletListLoaded) return;
 
       if (event.isSyncing) {
+        if (s.syncing.contains(event.walletPath)) return;
         emit(s.copyWith(syncing: {...s.syncing, event.walletPath}));
         return;
       }
 
-      final newSyncing = Set<String>.from(s.syncing)..remove(event.walletPath);
-      final newBalances = event.balance != null
+      final walletWasSyncing = s.syncing.contains(event.walletPath);
+      final hasNewBalance = event.balance != null;
+      final hasNewWalletInfo = event.walletInfo != null;
+      if (!walletWasSyncing && !hasNewBalance && !hasNewWalletInfo) return;
+
+      final newSyncing = walletWasSyncing
+          ? (Set<String>.from(s.syncing)..remove(event.walletPath))
+          : s.syncing;
+      final newBalances = hasNewBalance
           ? {...s.balances, event.walletPath: event.balance}
           : s.balances;
-      final newWallets = event.walletInfo != null
+      final newWallets = hasNewWalletInfo
           ? s.wallets
               .map((w) =>
                   w.walletPath == event.walletPath ? event.walletInfo! : w)

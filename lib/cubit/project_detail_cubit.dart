@@ -139,17 +139,16 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
           : true;
 
       emit(ProjectDetailLoading());
-      final project = await _db.getProject(projectId);
-      final keys = await _db.getKeysForProject(projectId);
-      final spendPaths = await _db.getSpendPathsForProject(projectId);
+      final (project, keys, spendPaths, hotKeys) = await (
+        _db.getProject(projectId),
+        _db.getKeysForProject(projectId),
+        _db.getSpendPathsForProject(projectId),
+        _loadHotKeys(),
+      ).wait;
 
-      // Build color index map from keys
       for (final key in keys) {
         getMfpColorIndex(key.mfp);
       }
-
-      // Load persisted hot keys from encrypted project_seeds.db
-      final hotKeys = await _loadHotKeys();
 
       emit(ProjectDetailLoaded(
         project: project,

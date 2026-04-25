@@ -39,3 +39,6 @@ String formatDateTime(DateTime dt) {
 /// Same as [formatDateTime] but takes Unix seconds.
 String formatDateTimeFromUnix(int unixSeconds) =>
     formatDateTime(DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000));
+
+String formatDate(DateTime dt) =>
+    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';

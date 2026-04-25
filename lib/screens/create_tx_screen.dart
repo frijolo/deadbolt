@@ -323,7 +323,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
             entry.resolvingWu = false;
           });
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[wu resolve error] $e');
         if (mounted) setState(() { entry.wu = null; entry.resolvingWu = false; });
       }
     });

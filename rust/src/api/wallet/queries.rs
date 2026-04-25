@@ -2,6 +2,17 @@ use super::*;
 
 type LabelMap = std::collections::HashMap<String, (String, bool)>;
 
+/// Extract (block_height, confirmation_time) from a ChainPosition, returning None for unconfirmed.
+fn chain_conf_info(
+    pos: &bdk_wallet::chain::ChainPosition<bdk_wallet::chain::ConfirmationBlockTime>,
+) -> (Option<u32>, Option<u64>) {
+    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = pos {
+        (Some(anchor.block_id.height), Some(anchor.confirmation_time))
+    } else {
+        (None, None)
+    }
+}
+
 /// Load all three label maps in one call. Used by detail query functions that
 /// need tx, address, and coin labels simultaneously.
 fn load_all_label_maps(conn: &rusqlite::Connection) -> (LabelMap, LabelMap, LabelMap) {
@@ -60,13 +71,7 @@ impl APIWallet {
                     let txid = canonical_tx.tx_node.txid.to_string();
 
                     let (confirmation_height, confirmation_time) =
-                        if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                            &canonical_tx.chain_position
-                        {
-                            (Some(anchor.block_id.height), Some(anchor.confirmation_time))
-                        } else {
-                            (None, None)
-                        };
+                        chain_conf_info(&canonical_tx.chain_position);
 
                     let (sent, received) = wallet.sent_and_received(tx);
                     let fee = wallet.calculate_fee(tx).ok().map(|f| f.to_sat());
@@ -231,13 +236,7 @@ impl APIWallet {
         > = wallet
             .transactions()
             .map(|t| {
-                let info = if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                    &t.chain_position
-                {
-                    (Some(anchor.block_id.height), Some(anchor.confirmation_time))
-                } else {
-                    (None, None)
-                };
+                let info = chain_conf_info(&t.chain_position);
                 (t.tx_node.txid, info)
             })
             .collect();
@@ -259,13 +258,7 @@ impl APIWallet {
                     bdk_wallet::chain::ChainPosition::Confirmed { .. }
                 );
                 let (confirmation_height, confirmation_time) =
-                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                        &local_output.chain_position
-                    {
-                        (Some(anchor.block_id.height), Some(anchor.confirmation_time))
-                    } else {
-                        (None, None)
-                    };
+                    chain_conf_info(&local_output.chain_position);
                 let outpoint_key = format!(
                     "{}:{}",
                     local_output.outpoint.txid, local_output.outpoint.vout
@@ -444,13 +437,7 @@ impl APIWallet {
 
         let tx_ref = &canonical_tx.tx_node.tx;
         let (confirmation_height, confirmation_time) =
-            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                &canonical_tx.chain_position
-            {
-                (Some(anchor.block_id.height), Some(anchor.confirmation_time))
-            } else {
-                (None, None)
-            };
+            chain_conf_info(&canonical_tx.chain_position);
         let (sent, received) = wallet.sent_and_received(tx_ref);
         let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
 
@@ -984,13 +971,7 @@ impl APIWallet {
             bdk_wallet::chain::ChainPosition::Confirmed { .. }
         );
         let (confirmation_height, confirmation_time) =
-            if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                &local_output.chain_position
-            {
-                (Some(anchor.block_id.height), Some(anchor.confirmation_time))
-            } else {
-                (None, None)
-            };
+            chain_conf_info(&local_output.chain_position);
         let outpoint_key = format!("{}:{}", txid, vout);
 
         let (label, effective_label, is_auto) =
@@ -1021,14 +1002,7 @@ impl APIWallet {
             .map(|canonical_tx| {
                 let tx_ref = &canonical_tx.tx_node.tx;
                 let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
-                let conf_height =
-                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                        &canonical_tx.chain_position
-                    {
-                        Some(anchor.block_id.height)
-                    } else {
-                        None
-                    };
+                let conf_height = chain_conf_info(&canonical_tx.chain_position).0;
                 let (_, effective_label, is_auto) = resolve_label(tx_labels.get(&txid).cloned());
                 // This is the creating tx: the coin is the output, nothing is spent yet.
                 APIRelatedTx {
@@ -1161,14 +1135,7 @@ impl APIWallet {
                 let tx_ref = &canonical_tx.tx_node.tx;
                 let txid_str = canonical_tx.tx_node.txid.to_string();
                 let fee = wallet.calculate_fee(tx_ref).ok().map(|f| f.to_sat());
-                let conf_height =
-                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                        &canonical_tx.chain_position
-                    {
-                        Some(anchor.block_id.height)
-                    } else {
-                        None
-                    };
+                let conf_height = chain_conf_info(&canonical_tx.chain_position).0;
                 // Sats going to this address in this tx.
                 let addr_received: u64 = tx_ref
                     .output
@@ -1297,14 +1264,9 @@ impl APIWallet {
                 if existing.contains(&txid) {
                     return None;
                 }
-                let confirmation_time =
-                    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } =
-                        &canonical_tx.chain_position
-                    {
-                        Some(anchor.confirmation_time as i64)
-                    } else {
-                        None
-                    };
+                let confirmation_time = chain_conf_info(&canonical_tx.chain_position)
+                    .1
+                    .map(|t| t as i64);
                 Some(APITxMissingFiat {
                     txid,
                     confirmation_time,

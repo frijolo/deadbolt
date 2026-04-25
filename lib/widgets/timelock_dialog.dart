@@ -5,6 +5,7 @@ import 'package:deadbolt/widgets/dialog_helpers.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/date_format.dart';
 
 class TimelockDialog extends StatefulWidget {
   final TimelockMode initialMode;
@@ -102,12 +103,6 @@ class _TimelockDialogState extends State<TimelockDialog> {
       }
     }
     return null;
-  }
-
-  String _formatDateTime(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} '
-        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -249,7 +244,7 @@ class _TimelockDialogState extends State<TimelockDialog> {
                         Expanded(
                           child: Text(
                             _absValue > 0
-                                ? _formatDateTime(_absValue)
+                                ? formatTimestamp(_absValue)
                                 : l10n.selectDateAndTime,
                             style: TextStyle(
                               color: _absValue > 0 ? cs.onSurface : cs.onSurface.withAlpha(AppAlpha.secondary),

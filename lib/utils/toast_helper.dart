@@ -70,6 +70,15 @@ void cancelSecretClipboard() {
   Clipboard.setData(const ClipboardData(text: ''));
 }
 
+/// Copies [text] to clipboard and shows [successMessage]. For secrets use [copySecretAndScheduleClear].
+Future<void> copyToClipboard(
+  String text, {
+  required String successMessage,
+}) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  showSuccessToast(successMessage);
+}
+
 /// Show a success toast (green with check icon)
 void showSuccessToast(String message) {
   _showOverlayToast(
