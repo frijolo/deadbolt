@@ -237,10 +237,9 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       (_) => _HeirSetupSheet(
         network: _selectedNetwork,
         walletType: _mapWalletType(_scriptChoice, true),
-        existingMfps: {
-          ..._keyspecs.map(_mfpOf),
-          ..._heirs.map((h) => _mfpOf(h.keyspec)),
-        },
+        // Only exclude owner key MFPs — heirs may intentionally share a key
+        // with different timelocks (multi-timelock path for the same person).
+        existingMfps: _keyspecs.map(_mfpOf).toSet(),
       ),
       isDismissible: false,
     );
@@ -270,9 +269,32 @@ class _SimpleWalletDialogState extends State<SimpleWalletDialog> {
       ),
       isDismissible: false,
     );
-    if (updated != null && mounted) {
-      setState(() => _heirs[index] = updated);
+    if (updated == null || !mounted) return;
+
+    // Immediate duplicate-timelock check so the user gets feedback at edit time.
+    final otherTimelocks = [
+      for (int i = 0; i < _heirs.length; i++)
+        if (i != index) _heirs[i].timelockBlocks,
+    ];
+    if (otherTimelocks.contains(updated.timelockBlocks) || updated.timelockBlocks <= 0) {
+      final fix = await _showDuplicateTimelockDialog();
+      if (!mounted) return;
+      if (fix == null) return; // user cancelled → discard edit
+      if (fix) {
+        final allTimelocks = [
+          for (int i = 0; i < _heirs.length; i++)
+            i == index ? updated.timelockBlocks : _heirs[i].timelockBlocks,
+        ];
+        final fixed = _resolveTimelocks(allTimelocks);
+        setState(() {
+          for (int i = 0; i < _heirs.length; i++) {
+            _heirs[i] = (i == index ? updated : _heirs[i]).copyWith(timelockBlocks: fixed[i]);
+          }
+        });
+        return;
+      }
     }
+    setState(() => _heirs[index] = updated);
   }
 
   /// Returns true = fix, false = continue anyway, null = cancel.
@@ -1028,6 +1050,38 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
     return '~${BitcoinFormatter.formatDuration(_timelockBlocks * 10)}';
   }
 
+  Widget _timelockPresetButton(String label, int value) {
+    return Semantics(
+      label: label,
+      button: true,
+      child: _timelockPresetButtonRaw(label, value),
+    );
+  }
+
+  Widget _timelockPresetButtonRaw(String label, int value) {
+    final isSelected = _timelockBlocks == value;
+    return TextButton(
+      onPressed: () => setState(() {
+        if (value == _kTimelockCustom) {
+          _isCustomTimelock = true;
+        } else {
+          _timelockBlocks = value;
+          _isCustomTimelock = false;
+        }
+      }),
+      style: TextButton.styleFrom(
+        backgroundColor: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        foregroundColor: isSelected
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurface,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 13)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -1116,31 +1170,21 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
           Text(l10n.heirTimelockLabel,
               style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 6),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<int>(
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment(value: _k3Months, label: Text(l10n.inheritanceThreeMonthsShort)),
-                ButtonSegment(value: _k6Months, label: Text(l10n.inheritanceSixMonthsShort)),
-                ButtonSegment(value: _k9Months, label: Text(l10n.inheritanceNineMonthsShort)),
-                ButtonSegment(value: _k1Year,   label: Text(l10n.inheritanceOneYearShort)),
-                const ButtonSegment(value: _kTimelockCustom, label: Text('···')),
-              ],
-              selected: {_isCustomTimelock ? _kTimelockCustom : _timelockBlocks},
-              onSelectionChanged: (sel) {
-                final v = sel.first;
-                setState(() {
-                  if (v == _kTimelockCustom) {
-                    _isCustomTimelock = true;
-                    _blocksController.text = _timelockBlocks.toString();
-                  } else {
-                    _timelockBlocks = v;
-                    _isCustomTimelock = false;
-                  }
-                });
-              },
-            ),
+          Wrap(
+            clipBehavior: Clip.none,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _timelockPresetButton(l10n.inheritanceThreeMonthsShort, _k3Months),
+              _timelockPresetButton(l10n.inheritanceSixMonthsShort, _k6Months),
+              _timelockPresetButton(l10n.inheritanceNineMonthsShort, _k9Months),
+              _timelockPresetButton(l10n.inheritanceOneYearShort, _k1Year),
+              Semantics(
+                label: 'Custom timelock',
+                button: true,
+                child: _timelockPresetButtonRaw('···', _kTimelockCustom),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           AnimatedSize(
@@ -1170,22 +1214,25 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
                         children: [
                           SizedBox(
                             width: 100,
-                            child: TextField(
-                              controller: _blocksController,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                                border: OutlineInputBorder(),
+                            child: Semantics(
+                              label: 'Timelock blocks',
+                              child: TextField(
+                                controller: _blocksController,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 8),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) {
+                                  final parsed = int.tryParse(v);
+                                  if (parsed != null && parsed >= 1 && parsed <= 65535) {
+                                    setState(() => _timelockBlocks = parsed);
+                                  }
+                                },
                               ),
-                              onChanged: (v) {
-                                final parsed = int.tryParse(v);
-                                if (parsed != null && parsed >= 1 && parsed <= 65535) {
-                                  setState(() => _timelockBlocks = parsed);
-                                }
-                              },
                             ),
                           ),
                           const SizedBox(width: 8),

@@ -36,6 +36,11 @@ All notable changes to Deadbolt are documented here, newest first.
   backups and is not accessible via the iOS Files app.
 
 ### Fixes
+- **Heir key sharing allowed** — Multiple heirs can now share the same xpub key with different
+  timelocks (e.g. two paths for the same person at 6 mo and 1 yr). Previously the MFP was
+  incorrectly excluded after being added to any heir slot.
+- **Duplicate timelock validated on edit** — Editing an heir's timelock now checks for conflicts
+  immediately and offers to fix or keep the duplicate, consistent with the add-heir flow.
 - **Addresses tab on first switch** — The Addresses tab now loads immediately on first selection
   instead of appearing empty until the next sync.
 - **Receive addresses after sync** — The receive tab reflects new addresses immediately after a

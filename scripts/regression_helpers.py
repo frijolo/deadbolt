@@ -50,11 +50,38 @@ async def dismiss_startup_dialogs(d):
         flat = await d.cs_flat_text()
         if any(m in flat for m in _BETA_MARKERS):
             print("    [startup] Beta disclaimer visible — closing")
-            await click_label(d, "Don't show for 7 days", delay=0.8)
+            try:
+                await click_label(d, "Don't show for 7 days", delay=0.8)
+            except AssertionError:
+                pass  # button says "Close" instead
             flat2 = await d.cs_flat_text()
             if any(m in flat2 for m in _BETA_MARKERS):
-                await click_label(d, "Close", delay=0.8)
+                # Try "Close" with direct xdotool as fallback
+                try:
+                    await click_label(d, "Close", delay=0.8)
+                except AssertionError:
+                    # Final fallback: use xdotool to press Escape
+                    import subprocess
+                    subprocess.run(
+                        ["xdotool", "key", "Escape"],
+                        env={**os.environ, "DISPLAY": ":0"},
+                        timeout=3,
+                    )
                 flat2 = await d.cs_flat_text()
+            if any(m in flat2 for m in _BETA_MARKERS):
+                # Last resort: find "Close" via cs_tree and click its rect
+                tree = await d.cs_tree()
+                for n in tree:
+                    if n.get("label") == "Close":
+                        rect = d._cs_rect(n)
+                        if rect:
+                            cx = (rect[0] + rect[2]) // 2
+                            cy = (rect[1] + rect[3]) // 2
+                            d.flutter_click(cx, cy)
+                            await asyncio.sleep(1.0)
+                            flat2 = await d.cs_flat_text()
+                            if not any(m in flat2 for m in _BETA_MARKERS):
+                                break
             if any(m in flat2 for m in _BETA_MARKERS):
                 raise AssertionError("[startup] Beta disclaimer could not be dismissed")
             break
