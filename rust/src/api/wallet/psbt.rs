@@ -14,22 +14,6 @@ fn current_unix_secs() -> anyhow::Result<i64> {
         .as_secs() as i64)
 }
 
-/// Collect unique master fingerprints from all inputs of a PSBT.
-/// Covers both non-taproot (bip32_derivation) and taproot (tap_key_origins) inputs.
-fn extract_mfps_from_psbt_inputs(inputs: &[bdk_wallet::bitcoin::psbt::Input]) -> Vec<String> {
-    use std::collections::HashSet;
-    let mut mfp_set: HashSet<String> = HashSet::new();
-    for input in inputs {
-        for (fp, _) in input.bip32_derivation.values() {
-            mfp_set.insert(fp.to_string());
-        }
-        for (_, (fp, _)) in input.tap_key_origins.values() {
-            mfp_set.insert(fp.to_string());
-        }
-    }
-    mfp_set.into_iter().collect()
-}
-
 impl APIWallet {
     // -----------------------------------------------------------------------
     // PSBT / coin-control
@@ -386,7 +370,6 @@ impl APIWallet {
 
         // New PSBT — extract metadata from the PSBT fields.
         let tx = &imported.unsigned_tx;
-        let mfps = extract_mfps_from_psbt_inputs(&imported.inputs);
 
         // Identify external (non-wallet) outputs as the recipient.
         // For self-transfers with no external outputs, fall back to all outputs.
@@ -431,7 +414,48 @@ impl APIWallet {
         let output_sum: u64 = tx.output.iter().map(|o| o.value.to_sat()).sum();
         let fee_sat = input_sum.saturating_sub(output_sum);
 
-        let threshold = mfps.len().max(1) as u32;
+        // Infer the spend path from nSequence / nLockTime.
+        // BDK encodes the selected policy branch in every input's nSequence:
+        //   - key-path or no timelock → bit 31 set (e.g. 0xFFFFFFFD) → rel_tl = 0
+        //   - older(N) leaf           → bit 31 clear, value = N        → rel_tl = N
+        // The absolute timelock is encoded in lock_time (0 means none).
+        let first_seq = imported
+            .unsigned_tx
+            .input
+            .first()
+            .map(|i| i.sequence.0)
+            .unwrap_or(0xFFFF_FFFF);
+        let rel_tl = if first_seq & (1u32 << 31) == 0 {
+            first_seq
+        } else {
+            0
+        };
+        let abs_tl = imported.unsigned_tx.lock_time.to_consensus_u32();
+
+        let wallet_info = read_wallet_info(&core.conn)?;
+        let analyzer =
+            crate::core::descriptor::DescriptorAnalyzer::analyze(&wallet_info.descriptor)
+                .map_err(|e| anyhow::anyhow!("descriptor analysis failed: {}", e))?;
+        let spend_paths = analyzer
+            .spend_paths()
+            .map_err(|e| anyhow::anyhow!("spend path extraction failed: {}", e))?;
+
+        let matched_sp = spend_paths
+            .iter()
+            .find(|sp| sp.rel_timelock == rel_tl && sp.abs_timelock == abs_tl)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "PSBT does not match any spending path of this wallet \
+                     (nSequence={:#010x}, lock_time={})",
+                    first_seq,
+                    imported.unsigned_tx.lock_time
+                )
+            })?;
+
+        let spend_path_id = matched_sp.id;
+        let threshold = matched_sp.threshold as u32;
+        let matched_mfps = matched_sp.mfps.clone();
+
         let id = insert_psbt(
             &core.conn,
             &psbt_base64,
@@ -440,9 +464,9 @@ impl APIWallet {
             &recipient,
             amount_sat,
             fee_sat,
-            0,
+            spend_path_id,
             threshold,
-            &mfps,
+            &matched_mfps,
             recipients_json.as_deref(),
         )?;
 
@@ -470,9 +494,9 @@ impl APIWallet {
                 amount_sat,
                 recipients: import_recipients,
                 fee_sat,
-                spend_path_id: 0,
+                spend_path_id,
                 threshold,
-                mfps,
+                mfps: matched_mfps,
                 utxo_max_conf_height,
                 has_spent_inputs,
             },
@@ -717,3 +741,7 @@ impl APIWallet {
         ))
     }
 }
+
+#[cfg(test)]
+#[path = "psbt_tests.rs"]
+mod tests;

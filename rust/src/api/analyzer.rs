@@ -260,6 +260,11 @@ pub fn validate_key(
 #[frb(init)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
+    // Install the default TLS CryptoProvider once at startup. electrum-client 0.24
+    // checks get_default().is_none() before installing, but two concurrent Electrum
+    // connections can both pass that check and the second install_default() fails.
+    // Installing here — before any connections — makes the check always return Some.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 }
 
 #[cfg(test)]

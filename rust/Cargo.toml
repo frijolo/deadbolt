@@ -41,6 +41,10 @@ hmac = "0.12"
 sha2 = "0.10"
 log = "0.4"
 zeroize = { version = "1", features = ["zeroize_derive"] }
+# Pre-install the rustls CryptoProvider at app startup to avoid a race condition
+# in electrum-client 0.24 where concurrent connections both pass the
+# get_default().is_none() check and the second install_default() fails.
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets

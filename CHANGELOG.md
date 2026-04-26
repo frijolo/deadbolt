@@ -48,6 +48,11 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Biometric lock on app switcher** — The inactivity timer now starts when the app enters the
   app switcher, not only when fully paused.
 - **Bottom sheet safe area** — Bottom sheets no longer show an empty gap below the home indicator.
+- **PSBT spend-path detection** — Importing a PSBT now infers the active spending path from
+  nSequence / nLockTime instead of reading fingerprints from the PSBT inputs. This fixes incorrect
+  threshold and spend-path assignment for taproot wallets with timelocks.
+- **Electrum TLS race condition** — Installing the rustls CryptoProvider once at startup prevents a
+  crash that could occur when two Electrum connections were opened concurrently.
 
 ---
 
