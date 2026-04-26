@@ -280,19 +280,24 @@ async def phase_import_psbt_from_clipboard(d: UIDriver) -> None:
     await wait_absent(d, "Paste from clipboard", "PSBT import sheet closed",
                       retries=10, delay=0.4)
 
-    # Verify toast: re-importing the same unsigned PSBT yields either
-    # "PSBT imported" (new entry) or "Signatures merged" (dedup/merge).
-    await asyncio.sleep(0.6)
-    flat = await d.cs_flat_text()
-    has_saved  = "PSBT imported"       in flat
-    has_merged = "Signatures merged"   in flat
-    if not (has_saved or has_merged):
-        # Toasts are transient — if missed, just proceed; the tile check below
-        # confirms the operation was not silently discarded.
-        print("    [warn] import toast not captured (transient) — continuing")
-    else:
-        result = "PSBT imported" if has_saved else "Signatures merged"
-        print(f"    [ok] import toast: '{result}'")
+    # Poll for the success toast: "PSBT imported" (new) or "Signatures merged" (dedup).
+    # Toasts appear with a short delay, so we poll for up to ~6 s.
+    import_confirmed = False
+    for _ in range(12):
+        await asyncio.sleep(0.5)
+        flat = await d.cs_flat_text()
+        has_imported = "PSBT imported" in flat
+        if has_imported or "Signatures merged" in flat:
+            result = "PSBT imported" if has_imported else "Signatures merged"
+            print(f"    [ok] import toast: '{result}'")
+            import_confirmed = True
+            break
+
+    if not import_confirmed:
+        raise AssertionError(
+            "Import toast ('PSBT imported' or 'Signatures merged') not shown — "
+            "PSBT import failed or was silently discarded"
+        )
 
 
 # ---------------------------------------------------------------------------

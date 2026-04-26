@@ -37,6 +37,7 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
+    wait_for_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
     set_active_network_signet, run_regression,
 )
@@ -140,7 +141,7 @@ async def phase_create_wallet_guided(d: UIDriver):
 async def phase_sync(d: UIDriver):
     print("\n  [phase 2] sync wallet — waiting for UTXOs")
 
-    await click_tooltip(d, "Sync wallet", delay=1.5)
+    await wait_for_tooltip(d, "Sync wallet", "sync button available")
     await click_label(d, "Coins", delay=1.0)
 
     sem_coins = await wait_for(d, "sats",
@@ -280,6 +281,25 @@ async def phase_create_psbt(d: UIDriver):
             break
         d.scroll_down(3)
         await asyncio.sleep(0.4)
+
+    # If coins are already Spending (from a prior run), we land in Full-RBF mode.
+    # The default fee rate (1.0 sat/vB) may be below the RBF minimum — bump it.
+    sem_pre = await d.cs_flat_text()
+    if "Full-RBF" in sem_pre:
+        fee_rect = await d.cs_find_by_label_part_containing("fee_rate_display")
+        if fee_rect is not None:
+            fx = (fee_rect[0] + fee_rect[2]) // 2
+            fy = (fee_rect[1] + fee_rect[3]) // 2
+            d.flutter_click(fx, fy)
+            await asyncio.sleep(0.3)
+            d.key("ctrl+a")
+            await asyncio.sleep(0.1)
+            subprocess.run(["xclip", "-selection", "clipboard"],
+                           input=b"3", env=_ENV, check=True)
+            d.key("ctrl+v")
+            await asyncio.sleep(1.0)
+            print("    [info] RBF mode — bumped fee rate to 3 sat/vB")
+
     await click_label(d, "Create PSBT", delay=0.5)
     await wait_for(d, '"Unsigned Transaction"', "PSBT detail screen opened",
                    retries=15, delay=1.0)
@@ -322,7 +342,7 @@ async def phase_sign_and_broadcast(d: UIDriver):
 async def phase_verify_broadcast(d: UIDriver):
     print("\n  [phase 5] verify broadcast — 2 Unconfirmed outputs")
 
-    await click_tooltip(d, "Sync wallet", delay=2.0)
+    await wait_for_tooltip(d, "Sync wallet", "sync button available")
     await asyncio.sleep(1.0)
 
     await click_label(d, "Coins", delay=0.8)

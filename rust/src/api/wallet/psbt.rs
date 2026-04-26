@@ -14,6 +14,17 @@ fn current_unix_secs() -> anyhow::Result<i64> {
         .as_secs() as i64)
 }
 
+/// Load and parse the wallet's spend paths from its stored descriptor.
+fn load_spend_paths(
+    conn: &rusqlite::Connection,
+) -> anyhow::Result<Vec<crate::core::spend_path::SpendPath>> {
+    let wallet_info = read_wallet_info(conn)?;
+    crate::core::descriptor::DescriptorAnalyzer::analyze(&wallet_info.descriptor)
+        .map_err(|e| anyhow::anyhow!("descriptor analysis failed: {}", e))?
+        .spend_paths()
+        .map_err(|e| anyhow::anyhow!("spend path extraction failed: {}", e))
+}
+
 impl APIWallet {
     // -----------------------------------------------------------------------
     // PSBT / coin-control
@@ -190,23 +201,19 @@ impl APIWallet {
         // we patch the unsigned_tx fields before computing the txid.
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
         if has_foreign && spend_path_id != 0 {
-            use crate::core::descriptor::DescriptorAnalyzer;
-            let info = read_wallet_info(&core.conn)?;
-            if let Ok(analyzer) = DescriptorAnalyzer::analyze(&info.descriptor) {
-                if let Ok(core_sps) = analyzer.spend_paths() {
-                    if let Some(sp) = core_sps.iter().find(|sp| sp.id == spend_path_id) {
-                        if sp.rel_timelock > 0 {
-                            let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
-                            for txin in &mut psbt.unsigned_tx.input {
-                                txin.sequence = seq;
-                            }
+            if let Ok(paths) = load_spend_paths(&core.conn) {
+                if let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) {
+                    if sp.rel_timelock > 0 {
+                        let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
+                        for txin in &mut psbt.unsigned_tx.input {
+                            txin.sequence = seq;
                         }
-                        if sp.abs_timelock > 0 {
-                            psbt.unsigned_tx.lock_time =
-                                bdk_wallet::bitcoin::absolute::LockTime::from_consensus(
-                                    sp.abs_timelock,
-                                );
-                        }
+                    }
+                    if sp.abs_timelock > 0 {
+                        psbt.unsigned_tx.lock_time =
+                            bdk_wallet::bitcoin::absolute::LockTime::from_consensus(
+                                sp.abs_timelock,
+                            );
                     }
                 }
             }
@@ -418,7 +425,9 @@ impl APIWallet {
         // BDK encodes the selected policy branch in every input's nSequence:
         //   - key-path or no timelock → bit 31 set (e.g. 0xFFFFFFFD) → rel_tl = 0
         //   - older(N) leaf           → bit 31 clear, value = N        → rel_tl = N
-        // The absolute timelock is encoded in lock_time (0 means none).
+        // lock_time carries either a miniscript absolute timelock (after(N)) or BDK's
+        // anti-fee-sniping block height. Only treat it as a real abs_timelock when some
+        // descriptor spend path explicitly requires that exact value; otherwise ignore it.
         let first_seq = imported
             .unsigned_tx
             .input
@@ -430,18 +439,17 @@ impl APIWallet {
         } else {
             0
         };
-        let abs_tl = imported.unsigned_tx.lock_time.to_consensus_u32();
+        let raw_abs = imported.unsigned_tx.lock_time.to_consensus_u32();
 
-        let wallet_info = read_wallet_info(&core.conn)?;
-        let analyzer =
-            crate::core::descriptor::DescriptorAnalyzer::analyze(&wallet_info.descriptor)
-                .map_err(|e| anyhow::anyhow!("descriptor analysis failed: {}", e))?;
-        let spend_paths = analyzer
-            .spend_paths()
-            .map_err(|e| anyhow::anyhow!("spend path extraction failed: {}", e))?;
+        let spend_paths = load_spend_paths(&core.conn)?;
+        let abs_tl = if raw_abs > 0 && spend_paths.iter().any(|sp| sp.abs_timelock == raw_abs) {
+            raw_abs
+        } else {
+            0
+        };
 
         let matched_sp = spend_paths
-            .iter()
+            .into_iter()
             .find(|sp| sp.rel_timelock == rel_tl && sp.abs_timelock == abs_tl)
             .ok_or_else(|| {
                 anyhow::anyhow!(

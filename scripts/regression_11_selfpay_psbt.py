@@ -43,6 +43,7 @@ from regression_helpers import (                       # noqa: E402
     wait_for, wait_absent,
     dismiss_startup_dialogs,
     navigate_drawer, navigate_wallets, fill_field, click_label, click_tooltip,
+    wait_for_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
     set_active_network_signet, run_regression,
 )
@@ -351,7 +352,7 @@ async def phase_sync(d: UIDriver) -> bool:
     """
     print("\n  [phase 3] sync wallet — waiting for UTXOs")
 
-    await click_tooltip(d, "Sync wallet", delay=1.5)
+    await wait_for_tooltip(d, "Sync wallet", "sync button available")
     # Navigate to Coins tab to detect sync completion
     await click_label(d, "Coins", delay=1.0)
     # Wait up to 3 min for at least one coin tile (signet/testnet can be slow)
@@ -561,7 +562,7 @@ async def phase_verify_after_broadcast(d: UIDriver):
     if PSBT_LABEL in sem_tx:
         # One sync retry — the cubit should already have removed the PSBT,
         # but a refresh may not have propagated to the Transactions list yet.
-        await click_tooltip(d, "Sync wallet", delay=2.5)
+        await wait_for_tooltip(d, "Sync wallet", "sync button available for retry")
         await click_label(d, "Transactions", delay=0.8)
         sem_tx = await d.cs_flat_text()
         if PSBT_LABEL in sem_tx:
@@ -575,7 +576,7 @@ async def phase_verify_after_broadcast(d: UIDriver):
     # Trigger sync while still on Transactions tab (sync button reliably
     # accessible here) so the wallet learns about the mempool transaction
     # before we switch to Coins.
-    await click_tooltip(d, "Sync wallet", delay=3.0)
+    await wait_for_tooltip(d, "Sync wallet", "sync button available")
     await click_label(d, "Coins", delay=1.0)
     sem_coins = await d.cs_flat_text()
 
@@ -892,7 +893,7 @@ async def phase_fullrbf(d: UIDriver):
     print("    [ok] RBF PSBT not in Transactions tab (as expected for direct send)")
 
     # Verify Coins tab has updated coin states
-    await click_tooltip(d, "Sync wallet", delay=3.0)
+    await wait_for_tooltip(d, "Sync wallet", "sync button available")
     await click_label(d, "Coins", delay=1.0)
     sem_coins = await d.cs_flat_text()
 

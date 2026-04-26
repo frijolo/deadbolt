@@ -72,17 +72,15 @@ fn inject_utxo(wallet: &APIWallet) -> bdk_wallet::bitcoin::Txid {
     txid
 }
 
-/// Build a PSBT, delete the stored record, and return the raw base64 string.
-/// This simulates the originating party exporting the PSBT to a QR / file.
+/// Build a PSBT for the given spend path, delete the stored record, and return the raw base64.
+/// Simulates the originating party exporting the PSBT to a QR / file.
 fn create_and_export_psbt(
     wallet: &APIWallet,
     funding_txid: bdk_wallet::bitcoin::Txid,
-    policy_path: Vec<APIPolicyPath>,
-    spend_path_id: u32,
-    threshold: u32,
-    mfps: Vec<String>,
+    sp: &crate::core::spend_path::SpendPath,
     recv_addr: &str,
 ) -> anyhow::Result<String> {
+    let policy_path = APIPolicyPath::from_spendpath(sp)?;
     let psbt_info = wallet.create_psbt(
         vec![APIRecipient {
             address: recv_addr.to_string(),
@@ -95,150 +93,87 @@ fn create_and_export_psbt(
             vout: 0,
         }],
         policy_path,
-        spend_path_id,
-        threshold,
-        mfps,
+        sp.id,
+        sp.threshold as u32,
+        sp.mfps.clone(),
     )?;
     let base64 = psbt_info.psbt_base64.clone();
     wallet.delete_psbt(psbt_info.id)?;
     Ok(base64)
 }
 
+/// Core of the import-infers-spend-path tests. Creates a PSBT for the spend path that
+/// matches `rel_tl` and verifies that `import_psbt` reconstructs the correct metadata.
+fn assert_import_infers_spend_path(rel_tl: u32) -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+
+    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
+    let core_paths = analyzer.spend_paths()?;
+    let sp = core_paths
+        .iter()
+        .find(|sp| sp.rel_timelock == rel_tl && sp.abs_timelock == 0)
+        .unwrap_or_else(|| panic!("spend path with rel_tl={} not in descriptor", rel_tl));
+
+    let recv_addr = {
+        let core = wallet.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(KeychainKind::External, 1)
+            .address
+            .to_string()
+    };
+
+    let psbt_base64 = create_and_export_psbt(&wallet, funding_txid, sp, &recv_addr)?;
+    let result = wallet.import_psbt(psbt_base64)?;
+
+    assert_eq!(result.psbt.spend_path_id, sp.id, "spend_path_id mismatch");
+    assert_eq!(
+        result.psbt.threshold, sp.threshold as u32,
+        "threshold mismatch"
+    );
+    assert_eq!(result.psbt.mfps, sp.mfps, "mfps mismatch");
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-/// import_psbt must infer spend_path_id, threshold, and mfps from nSequence
-/// when a collaborator imports a PSBT created for an heir path (older(13140)).
+/// import_psbt must infer the heir1 (older(13140)) spend path from nSequence.
 #[test]
 fn test_import_psbt_infers_heir_spend_path_id() -> anyhow::Result<()> {
-    let dir = tempdir()?;
-    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
-    let funding_txid = inject_utxo(&wallet);
-
-    // Resolve heir1 spend path: rel_timelock = 13140, mfp = ff81be5d.
-    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
-    let core_paths = analyzer.spend_paths()?;
-    let heir1 = core_paths
-        .iter()
-        .find(|sp| sp.rel_timelock == 13140)
-        .expect("heir1 spend path (older(13140)) not in descriptor");
-
-    let expected_id = heir1.id;
-    let expected_threshold = heir1.threshold as u32;
-    let expected_mfps = heir1.mfps.clone();
-    let policy_path = APIPolicyPath::from_spendpath(heir1)?;
-
-    // Recipient: second address of the wallet (self-transfer is fine here).
-    let recv_addr = {
-        let core = wallet.lock_wallet().unwrap();
-        core.wallet
-            .peek_address(KeychainKind::External, 1)
-            .address
-            .to_string()
-    };
-
-    let psbt_base64 = create_and_export_psbt(
-        &wallet,
-        funding_txid,
-        policy_path,
-        expected_id,
-        expected_threshold,
-        expected_mfps.clone(),
-        &recv_addr,
-    )?;
-
-    // Cold import — simulates a collaborator receiving the PSBT from the creator.
-    let result = wallet.import_psbt(psbt_base64)?;
-
-    assert_eq!(
-        result.psbt.spend_path_id, expected_id,
-        "import_psbt must infer spend_path_id from nSequence"
-    );
-    assert_eq!(
-        result.psbt.threshold, expected_threshold,
-        "threshold must match the heir path (1), not the total key count"
-    );
-    assert_eq!(
-        result.psbt.mfps, expected_mfps,
-        "mfps must contain only the heir's key, not all paths"
-    );
-
-    Ok(())
+    assert_import_infers_spend_path(13140)
 }
 
-/// import_psbt must correctly infer the owner (key-path) spend path when the
-/// PSBT has no relative/absolute timelock (nSequence bit 31 set, nLockTime = 0).
+/// import_psbt must infer the owner (key-path, no timelock) spend path.
 #[test]
 fn test_import_psbt_infers_owner_spend_path_id() -> anyhow::Result<()> {
-    let dir = tempdir()?;
-    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
-    let funding_txid = inject_utxo(&wallet);
-
-    // Owner path: rel_timelock = 0, abs_timelock = 0.
-    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
-    let core_paths = analyzer.spend_paths()?;
-    let owner = core_paths
-        .iter()
-        .find(|sp| sp.rel_timelock == 0 && sp.abs_timelock == 0)
-        .expect("owner spend path (no timelock) not in descriptor");
-
-    let expected_id = owner.id;
-    let expected_threshold = owner.threshold as u32;
-    let expected_mfps = owner.mfps.clone();
-
-    let recv_addr = {
-        let core = wallet.lock_wallet().unwrap();
-        core.wallet
-            .peek_address(KeychainKind::External, 1)
-            .address
-            .to_string()
-    };
-
-    let policy_path = APIPolicyPath::from_spendpath(owner)?;
-
-    let psbt_base64 = create_and_export_psbt(
-        &wallet,
-        funding_txid,
-        policy_path,
-        expected_id,
-        expected_threshold,
-        expected_mfps.clone(),
-        &recv_addr,
-    )?;
-
-    let result = wallet.import_psbt(psbt_base64)?;
-
-    assert_eq!(
-        result.psbt.spend_path_id, expected_id,
-        "import_psbt must infer the owner spend_path_id"
-    );
-    assert_eq!(result.psbt.threshold, expected_threshold);
-    assert_eq!(result.psbt.mfps, expected_mfps);
-
-    Ok(())
+    assert_import_infers_spend_path(0)
 }
 
-/// import_psbt must infer the heir5 (older(6)) spend path — the smallest relative
-/// timelock in the descriptor — correctly from nSequence.
+/// import_psbt must infer heir5 (older(6), the smallest relative timelock) from nSequence.
 #[test]
 fn test_import_psbt_infers_heir5_spend_path_id() -> anyhow::Result<()> {
+    assert_import_infers_spend_path(6)
+}
+
+/// import_psbt must succeed even when the PSBT carries a non-zero lock_time set by
+/// BDK's anti-fee-sniping (a block height, not a miniscript absolute timelock).
+#[test]
+fn test_import_psbt_ignores_antifee_sniping_locktime() -> anyhow::Result<()> {
     let dir = tempdir()?;
     let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
     let funding_txid = inject_utxo(&wallet);
 
-    // Resolve heir5 spend path: rel_timelock = 6, mfp = f3d33d4f (<2;3> derivation).
     let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
-    let core_paths = analyzer.spend_paths()?;
-    let heir5 = core_paths
+    let paths = analyzer.spend_paths()?;
+    // Owner spend path: key-path only, rel_tl = 0, abs_tl = 0.
+    let owner_sp = paths
         .iter()
-        .find(|sp| sp.rel_timelock == 6)
-        .expect("heir5 spend path (older(6)) not in descriptor");
-
-    let expected_id = heir5.id;
-    let expected_threshold = heir5.threshold as u32;
-    let expected_mfps = heir5.mfps.clone();
-    let policy_path = APIPolicyPath::from_spendpath(heir5)?;
+        .find(|sp| sp.rel_timelock == 0 && sp.abs_timelock == 0)
+        .expect("owner spend path not found");
 
     let recv_addr = {
         let core = wallet.lock_wallet().unwrap();
@@ -248,30 +183,21 @@ fn test_import_psbt_infers_heir5_spend_path_id() -> anyhow::Result<()> {
             .to_string()
     };
 
-    let psbt_base64 = create_and_export_psbt(
-        &wallet,
-        funding_txid,
-        policy_path,
-        expected_id,
-        expected_threshold,
-        expected_mfps.clone(),
-        &recv_addr,
-    )?;
+    let psbt_base64 = create_and_export_psbt(&wallet, funding_txid, owner_sp, &recv_addr)?;
 
-    let result = wallet.import_psbt(psbt_base64)?;
+    // Patch lock_time to a block height simulating BDK anti-fee-sniping.
+    // This must NOT be interpreted as an absolute timelock during import.
+    let mut psbt = psbt_from_base64(&psbt_base64)?;
+    psbt.unsigned_tx.lock_time = bdk_wallet::bitcoin::absolute::LockTime::from_height(234_567)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let patched = psbt_to_base64(&psbt);
 
+    let result = wallet.import_psbt(patched)?;
     assert_eq!(
-        result.psbt.spend_path_id, expected_id,
-        "import_psbt must infer spend_path_id from nSequence for older(6)"
+        result.psbt.spend_path_id, owner_sp.id,
+        "spend_path_id mismatch"
     );
-    assert_eq!(
-        result.psbt.threshold, expected_threshold,
-        "threshold must be 1 for the single-key heir path"
-    );
-    assert_eq!(
-        result.psbt.mfps, expected_mfps,
-        "mfps must contain only the heir5 key (f3d33d4f with <2;3> derivation)"
-    );
+    assert!(!result.was_merged, "expected new import, not merge");
 
     Ok(())
 }
@@ -280,7 +206,6 @@ fn test_import_psbt_infers_heir5_spend_path_id() -> anyhow::Result<()> {
 /// must be rejected with an error (not silently stored with spend_path_id = 0).
 #[test]
 fn test_import_psbt_wrong_wallet_returns_error() -> anyhow::Result<()> {
-    // Build a PSBT for the inheritance wallet using heir1 (rel_tl = 13140).
     let dir_a = tempdir()?;
     let wallet_a = make_wallet(&dir_a, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
     let txid_a = inject_utxo(&wallet_a);
@@ -297,17 +222,8 @@ fn test_import_psbt_wrong_wallet_returns_error() -> anyhow::Result<()> {
             .to_string()
     };
 
-    let psbt_base64 = create_and_export_psbt(
-        &wallet_a,
-        txid_a,
-        APIPolicyPath::from_spendpath(heir1)?,
-        heir1.id,
-        heir1.threshold as u32,
-        heir1.mfps.clone(),
-        &recv_addr_a,
-    )?;
+    let psbt_base64 = create_and_export_psbt(&wallet_a, txid_a, heir1, &recv_addr_a)?;
 
-    // Import the inheritance PSBT into a 2-of-2 P2WSH wallet (no timelocks).
     // The 2-of-2 wallet has a single spend path with rel_tl=0; older(13140) won't match.
     let dir_b = tempdir()?;
     let wallet_b = make_wallet(&dir_b, MAINNET_2OF2_DESC, APINetwork::Bitcoin);

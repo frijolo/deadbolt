@@ -257,7 +257,7 @@ class UIDriver:
     """Controls the Deadbolt debug build via VM service + xdotool (XTEST)."""
 
     def __init__(self, csd_x: int = _CSD_X_DEFAULT, csd_y: int = _CSD_Y_DEFAULT,
-                 sandbox: bool = True, debug_mouse: bool = False):
+                 sandbox: bool = True, debug_mouse: bool = True):
         self.proc = None          # Flutter app process
         self.ws = None            # VM service WebSocket
         self.isolate_id = None
@@ -302,6 +302,10 @@ class UIDriver:
         }
 
         if self.sandbox:
+            # Force English locale so test scripts can match hardcoded EN strings.
+            env["LANG"] = "en_US.UTF-8"
+            env["LANGUAGE"] = "en_US:en"
+            env["LC_ALL"] = "en_US.UTF-8"
             # Redirect app data to the isolated sandbox so the app starts empty.
             env["XDG_DATA_HOME"] = str(SANDBOX_DATA_DIR)
             # XDG_CONFIG_HOME makes xdg-user-dir read our custom user-dirs.dirs,
@@ -695,6 +699,13 @@ class UIDriver:
                     results.append(r)
         return results
 
+    async def cs_find_tooltip_containing(self, substring: str) -> tuple[int, int, int, int] | None:
+        """Return the globalRect of the first node whose tooltip contains `substring`."""
+        for node in await self.cs_tree():
+            if substring in node.get("tooltip", ""):
+                return self._cs_rect(node)
+        return None
+
     async def cs_find_by_hint(self, hint: str) -> tuple[int, int, int, int] | None:
         """Return the globalRect of the first node with an exactly matching hint."""
         for node in await self.cs_tree():
@@ -846,7 +857,7 @@ class UIDriver:
             rect = await self.cs_find_by_tooltip(tooltip)
         if rect is None:
             print(f"[click_semantic] WARNING: node not found: label='{label}' tooltip='{tooltip}'")
-            return
+            raise AssertionError(f"Semantic node not found: label='{label}' tooltip='{tooltip}'")
         cx = (rect[0] + rect[2]) // 2
         cy = (rect[1] + rect[3]) // 2
 
@@ -865,13 +876,29 @@ class UIDriver:
                     rect2 = await self.cs_find_by_label(label)
                 if rect2 is None and tooltip:
                     rect2 = await self.cs_find_by_tooltip(tooltip)
+                    if rect2 is None:
+                        rect2 = await self.cs_find_tooltip_containing(tooltip)
                 if rect2 is not None:
                     rect = rect2
                     cx = (rect[0] + rect[2]) // 2
                     cy = (rect[1] + rect[3]) // 2
 
-        print(f"[click_semantic] '{label or tooltip}' flutter ({cx}, {cy}) → xdotool ({cx+self.csd_x}, {cy+self.csd_y})")
-        self.flutter_click(cx, cy)
+        # globalRect is in Flutter canvas coords (origin at top-left of Flutter canvas).
+        # Convert to screen-absolute: window_pos + CSD_offset + canvas_coords.
+        sx = g["x"] + self.csd_x + cx
+        sy = g["y"] + self.csd_y + cy
+        print(f"[click_semantic] '{label or tooltip}' canvas ({cx}, {cy}) → screen ({sx}, {sy})")
+        env = {**os.environ, "DISPLAY": DISPLAY}
+        subprocess.run(
+            ["xdotool", "mousemove", str(sx), str(sy)],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.2)
+        subprocess.run(
+            ["xdotool", "click", "1"],
+            env=env, stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.15)
 
     # ------------------------------------------------------------------
     # Coordinate helpers
@@ -961,8 +988,12 @@ class UIDriver:
 
         xdotool uses the XTEST X11 extension which injects events directly into
         the X server event queue — reliable on X11.
+
+        Uses absolute coordinates (no --window) so the cursor moves to the exact
+        screen position regardless of where the window is placed.
         """
         env = {**os.environ, "DISPLAY": DISPLAY}
+        win_id = self.window_id
         subprocess.run(
             ["xdotool", "mousemove", "--sync", str(abs_x), str(abs_y)],
             env=env, stderr=subprocess.DEVNULL,

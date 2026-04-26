@@ -25,13 +25,21 @@ import sys
 # Navigation drawer
 # ---------------------------------------------------------------------------
 # Drawer layout (from debug_drawer.py semantics dump, GNOME/Adwaita):
-#   item 0 "Wallet"   → Flutter center (152,  74)
-#   item 1 "Designer" → Flutter center (152, 130)
-#   item 2 "Settings" → Flutter center (152, 186)
-#   item 3 "About"    → Flutter center (152, 242)
-_DRAWER_FX  = 152
-_DRAWER_FY0 = 74
-_DRAWER_FH  = 56
+#   item 0 "Wallet"   → Flutter center (192,  85)
+#   item 1 "Designer" → Flutter center (192, 149)
+#   item 2 "Settings" → Flutter center (192, 213)
+#   item 3 "About"    → Flutter center (192, 277)
+_DRAWER_FX  = 192
+_DRAWER_FY0 = 85
+_DRAWER_FH  = 64
+
+# AppBar titles are not semantics nodes in Flutter; wait for a unique on-screen
+# element instead. Tabs not listed here fall back to a fixed sleep.
+_TAB_UNIQUE_LABELS = {
+    "Wallets": "Select network",
+    "Projects": "No projects",
+    "Settings": "Settings",
+}
 
 
 async def dismiss_startup_dialogs(d):
@@ -105,6 +113,10 @@ async def navigate_drawer(d, tab_index: int, expected_title: str):
     label = _DRAWER_LABELS[tab_index] if tab_index < len(_DRAWER_LABELS) else None
     if label:
         rect = await d.cs_find_by_label(label)
+        if rect is None:
+            rect = await d.cs_find_by_label_part(label)
+        if rect is None:
+            rect = await d.cs_find_label_containing(label)
         if rect:
             cx = (rect[0] + rect[2]) // 2
             cy = (rect[1] + rect[3]) // 2
@@ -122,7 +134,12 @@ async def navigate_drawer(d, tab_index: int, expected_title: str):
         d.flutter_click(fx, fy)
 
     await asyncio.sleep(0.8)
-    await wait_for(d, f'"{expected_title}"', f"AppBar shows '{expected_title}'")
+    unique = _TAB_UNIQUE_LABELS.get(expected_title)
+    if unique:
+        await wait_for(d, unique, f"Navigated to {expected_title}")
+    else:
+        await asyncio.sleep(2.0)
+        print(f"    [ok] navigated to {expected_title} (fixed timeout)")
 
 
 async def navigate_designer(d):
@@ -231,6 +248,27 @@ async def click_tooltip(d, tooltip: str, delay: float = 0.5):
     """Click a semantic node by its tooltip."""
     await d.click_semantic("", tooltip=tooltip)
     await asyncio.sleep(delay)
+
+
+async def wait_for_tooltip(
+    d, tooltip: str, desc: str = "", retries: int = 20, delay: float = 1.0
+):
+    """
+    Poll until a semantic node with the given tooltip is present, then click it.
+    Useful when a button is temporarily hidden (e.g. Sync wallet while isSyncing).
+    """
+    for _ in range(retries):
+        rect = await d.cs_find_by_tooltip(tooltip)
+        if rect is not None:
+            await click_tooltip(d, tooltip)
+            if desc:
+                print(f"    [ok] {desc}")
+            return
+        await asyncio.sleep(delay)
+    raise AssertionError(
+        f"Timeout: tooltip '{tooltip}' not found in semantics"
+        + (f" — {desc}" if desc else "")
+    )
 
 
 async def _paste_text(d, text: str):
@@ -526,9 +564,15 @@ async def go_back_to_wallet_list(d):
     """
     Navigate back to the Wallet list from any depth (multi-tab safe).
 
-    Presses Back up to 5 times, stopping as soon as the Wallets screen title
-    is detected in the semantics tree.
+    If already on the wallet list (no Back button present), returns immediately.
+    Otherwise presses Back up to 5 times until the Wallets screen is detected.
     """
+    # Already on the wallet list if there is no Back button.
+    if await d.cs_find_by_tooltip("Back") is None:
+        flat = await d.cs_flat_text()
+        if '"Wallets"' in flat or "Select network" in flat:
+            print("    [ok] back on wallet list")
+            return
     for _ in range(5):
         await click_tooltip(d, "Back", delay=0.8)
         if await d.cs_find_by_label("Wallets") is not None:

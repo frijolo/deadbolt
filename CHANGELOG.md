@@ -53,6 +53,9 @@ All notable changes to Deadbolt are documented here, newest first.
   threshold and spend-path assignment for taproot wallets with timelocks.
 - **Electrum TLS race condition** — Installing the rustls CryptoProvider once at startup prevents a
   crash that could occur when two Electrum connections were opened concurrently.
+- **PSBT anti-fee-sniping lock_time** — Importing a PSBT no longer misidentifies the spending path
+  when BDK sets a non-zero nLockTime for anti-fee-sniping. The lock_time is now only treated as an
+  absolute timelock when a descriptor spend path explicitly requires that exact value.
 
 ---
 
