@@ -96,9 +96,10 @@ pub async fn discover_accounts(
                 .map_err(|e| anyhow::anyhow!("Derivation failed: {}", e))?;
             let account_xpub = Xpub::from_priv(&secp, &account_xprv);
 
-            let scripts: Vec<_> = (0..address_gap_limit)
-                .map(|i| -> anyhow::Result<bdk_wallet::bitcoin::ScriptBuf> {
-                    let path_str = format!("m/0/{i}");
+            let mut scripts: Vec<_> = Vec::new();
+            for child_index in 0..address_gap_limit {
+                for role in 0u32..=1 {
+                    let path_str = format!("m/{role}/{child_index}");
                     let child_path = DerivationPath::from_str(&path_str)
                         .map_err(|e| anyhow::anyhow!("invalid child path '{path_str}': {e}"))?;
                     let child_xpub = account_xpub
@@ -126,9 +127,9 @@ pub async fn discover_accounts(
                             ))
                         }
                     };
-                    Ok(script)
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?;
+                    scripts.push(script);
+                }
+            }
 
             let script_refs: Vec<&bdk_wallet::bitcoin::Script> =
                 scripts.iter().map(|s| s.as_script()).collect();
@@ -254,7 +255,13 @@ pub fn first_address_from_descriptor(
     network: crate::api::model::APINetwork,
 ) -> Result<String> {
     use bdk_wallet::{KeychainKind, Wallet};
-    let net: bdk_wallet::bitcoin::Network = network.into();
+
+    // Hint may disagree with descriptor (e.g. mainnet descriptor on testnet UI).
+    let detected = crate::core::descriptor::DescriptorAnalyzer::analyze(&descriptor)
+        .ok()
+        .map(|a| a.network());
+    let net: bdk_wallet::bitcoin::Network = detected.unwrap_or_else(|| network.into());
+
     let wallet = Wallet::create_from_two_path_descriptor(descriptor)
         .network(net)
         .create_wallet_no_persist()?;
@@ -430,9 +437,10 @@ pub async fn discover_accounts_from_keyspecs(
             let account_xpub = Xpub::from_str(&xpub_str)
                 .map_err(|e| anyhow::anyhow!("Invalid xpub in keyspec '{}': {}", keyspec, e))?;
 
-            let scripts: Vec<bdk_wallet::bitcoin::ScriptBuf> = (0..address_gap_limit)
-                .map(|i| -> anyhow::Result<bdk_wallet::bitcoin::ScriptBuf> {
-                    let child_path = DerivationPath::from_str(&format!("m/0/{i}"))
+            let mut scripts: Vec<bdk_wallet::bitcoin::ScriptBuf> = Vec::new();
+            for child_index in 0..address_gap_limit {
+                for role in 0u32..=1 {
+                    let child_path = DerivationPath::from_str(&format!("m/{role}/{child_index}"))
                         .map_err(|e| anyhow::anyhow!("invalid child path: {e}"))?;
                     let child_xpub = account_xpub
                         .derive_pub(&secp, &child_path)
@@ -459,9 +467,9 @@ pub async fn discover_accounts_from_keyspecs(
                             ))
                         }
                     };
-                    Ok(script)
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?;
+                    scripts.push(script);
+                }
+            }
 
             let script_refs: Vec<&bdk_wallet::bitcoin::Script> =
                 scripts.iter().map(|s| s.as_script()).collect();
@@ -541,7 +549,8 @@ pub struct APIDescriptorScanResult {
 
 /// Scan a wallet descriptor against an Electrum server and return the total
 /// transaction count and confirmed+unconfirmed balance for the first
-/// `address_gap_limit` external (receive) addresses.
+/// `address_gap_limit` addresses across both external (receive) and internal
+/// (change) keychains.
 ///
 /// This works for any descriptor type — singlesig or multisig — and is used
 /// to enrich Nostr-found backups with on-chain data without a full BDK sync.
@@ -560,7 +569,8 @@ pub async fn scan_descriptor(
         .create_wallet_no_persist()
         .map_err(|e| anyhow::anyhow!("Invalid descriptor: {e}"))?;
 
-    let scripts: Vec<_> = (0..address_gap_limit)
+    // Collect scripts from both external (receive) and internal (change) keychains.
+    let mut scripts: Vec<_> = (0..address_gap_limit)
         .map(|i| {
             wallet
                 .peek_address(KeychainKind::External, i)
@@ -568,6 +578,15 @@ pub async fn scan_descriptor(
                 .script_pubkey()
         })
         .collect();
+
+    for i in 0..address_gap_limit {
+        scripts.push(
+            wallet
+                .peek_address(KeychainKind::Internal, i)
+                .address
+                .script_pubkey(),
+        );
+    }
 
     let client = super::create_raw_electrum_client(&electrum_url)?;
     let script_refs: Vec<&bdk_wallet::bitcoin::Script> =

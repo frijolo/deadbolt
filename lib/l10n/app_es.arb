@@ -1055,6 +1055,7 @@
   },
   "scanAccountsCreateWallet": "Crear wallet",
   "scanAccountsRetry": "Reintentar",
+  "walletNotFound": "Cartera no encontrada en el dispositivo",
   "searchNostrLabel": "Buscar backups en Nostr",
   "searchNostrHint": "Busca copias de seguridad del descriptor en los relays configurados",
   "hwSkipLegacyLabel": "Omitir derivaciones legacy (P2PKH)",
@@ -1111,6 +1112,8 @@
   "nostrRelayMaxAttemptsLabel": "Intentos por relay",
   "nostrSearchNetworkWarning": "Problemas de conexión con algunos relays Nostr. Es posible que algún backup no se haya encontrado.",
 
+  "publishBackupMenu": "Publicar Respaldo",
+  "publishBackupTitle": "Publicar Respaldo",
   "nostrBackupMenu": "Respaldo Nostr",
   "nostrBackupTitle": "Respaldo Nostr",
   "nostrBackupSubtitle": "Respaldo cifrado del descriptor en relays Nostr",
@@ -1258,5 +1261,131 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+
+  "onChainBackupTitle": "On-chain",
+  "@onChainBackupTitle": {},
+  "onChainBackupSubtitle": "Respaldo del descriptor embebido en una transacción Bitcoin",
+  "onChainBackupSecurityNote": "Descriptor respaldado en Bitcoin Signet. Recuperable desde el xpub de cualquier cosignante.",
+  "@onChainBackupSecurityNote": {},
+  "onChainBackupParticipants": "{count} cosignante(s)",
+  "@onChainBackupParticipants": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "onChainBackupAnchors": "Anclas: {count} × {amount} sats",
+  "@onChainBackupAnchors": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "amount": { "type": "int" }
+    }
+  },
+  "onChainBackupEstimatedFee": "Comisión estimada: {fee} sats",
+  "@onChainBackupEstimatedFee": {
+    "placeholders": { "fee": { "type": "int" } }
+  },
+  "onChainBackupTotalCost": "Costo total: ~{cost} sats",
+  "@onChainBackupTotalCost": {
+    "placeholders": { "cost": { "type": "int" } }
+  },
+  "onChainBackupScanUtxos": "Escanear UTXOs",
+  "@onChainBackupScanUtxos": {},
+  "onChainBackupScanning": "Preparando backup…",
+  "@onChainBackupScanning": {},
+  "onChainBackupSelectUtxo": "Seleccionar UTXO",
+  "@onChainBackupSelectUtxo": {},
+  "noUtxosAvailable": "No hay UTXOs disponibles",
+  "@noUtxosAvailable": {},
+  "onChainBackupFeeRate": "Fee rate (sats/vB)",
+  "@onChainBackupFeeRate": {},
+  "onChainBackupTxFees": "Fee: {total} sats · {vb} vB",
+  "@onChainBackupTxFees": {
+    "placeholders": { "total": { "type": "int" }, "vb": { "type": "int" } }
+  },
+  "onChainBackupMinUtxo": "UTXO mín.: {sats} sats",
+  "@onChainBackupMinUtxo": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupChange": "Cambio: {sats} sats",
+  "@onChainBackupChange": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupVault": "Bóveda: {sats} sats",
+  "@onChainBackupVault": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupUtxoInsufficient": "Selecciona una moneda con al menos {sats} sats",
+  "@onChainBackupUtxoInsufficient": {
+    "placeholders": { "sats": { "type": "int" } }
+  },
+  "onChainBackupConfirmBuild": "Construir TX_COMMIT",
+  "@onChainBackupConfirmBuild": {},
+  "onChainBackupTimelockedUtxo": "Algunas UTXOs seleccionadas aún están con timelock y no se pueden gastar.",
+  "@onChainBackupTimelockedUtxo": {},
+  "onChainBackupSignWithHotKey": "Firmar con hot key",
+  "@onChainBackupSignWithHotKey": {},
+  "onChainBackupPublish": "Respaldar on-chain",
+  "@onChainBackupPublish": {},
+  "onChainBackupPublishing": "Firmando…",
+  "@onChainBackupPublishing": {},
+  "onChainBackupChecking": "Verificando…",
+  "@onChainBackupChecking": {},
+  "onChainBackupExists": "El respaldo ya existe",
+  "@onChainBackupExists": {},
+  "onChainBackupSuccess": "Descriptor respaldado on-chain",
+  "@onChainBackupSuccess": {},
+  "onChainBackupCommitTx": "TX_COMMIT",
+  "@onChainBackupCommitTx": {},
+  "onChainBackupRevealTx": "TX_REVEAL",
+  "@onChainBackupRevealTx": {},
+  "onChainBackupNoHotKey": "No se encontró clave de firma. Agrega una clave de firma a esta billetera antes de respaldar on-chain.",
+  "@onChainBackupNoHotKey": {},
+  "onChainBackupSignCommit": "Firmar TX_COMMIT",
+  "@onChainBackupSignCommit": {},
+  "onChainBackupSignCommitHint": "Firma la transacción commit con tu billetera hardware o dispositivo QR, luego importa el PSBT firmado.",
+  "@onChainBackupSignCommitHint": {},
+  "onChainBackupBuildingPsbt": "Construyendo PSBT…",
+  "@onChainBackupBuildingPsbt": {},
+  "onChainBackupFinalizing": "Finalizando…",
+  "@onChainBackupFinalizing": {},
+  "onChainBackupExportPsbt": "Exportar PSBT",
+  "@onChainBackupExportPsbt": {},
+  "onChainBackupImportSigned": "Importar firmado",
+  "@onChainBackupImportSigned": {},
+  "onChainBackupSignWithHw": "Firmar con HW",
+  "@onChainBackupSignWithHw": {},
+  "onChainBackupConfirmBroadcastTitle": "Confirmar publicación",
+  "@onChainBackupConfirmBroadcastTitle": {},
+  "onChainBackupCommitFee": "Comisión: {sats} sats",
+  "@onChainBackupCommitFee": {
+    "placeholders": { "sats": { "type": "String" } }
+  },
+  "onChainBackupRevealFee": "Comisión: {sats} sats",
+  "@onChainBackupRevealFee": {
+    "placeholders": { "sats": { "type": "String" } }
+  },
+  "onChainBackupRevealChange": "Cambio: {sats} sats",
+  "@onChainBackupRevealChange": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupBroadcast": "Publicar",
+  "@onChainBackupBroadcast": {},
+  "onChainBackupAnchorsHealth": "{reachable} de {total} anclas accesibles",
+  "@onChainBackupAnchorsHealth": {
+    "placeholders": {
+      "reachable": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "onChainBackupDescriptorVerified": "Descriptor verificado",
+  "@onChainBackupDescriptorVerified": {},
+  "onChainBackupRevealPending": "TX_REVEAL aún no publicado",
+  "@onChainBackupRevealPending": {},
+  "onChainBackupCreateNew": "Crear nuevo respaldo",
+  "@onChainBackupCreateNew": {},
+  "onChainSearchLabel": "Buscar respaldos on-chain",
+  "@onChainSearchLabel": {},
+  "onChainSearchHint": "Escanear Signet para respaldos de descriptor publicados on-chain",
+  "@onChainSearchHint": {},
+  "onChainBadge": "On-chain",
+  "@onChainBadge": {}
 }

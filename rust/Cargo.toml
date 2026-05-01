@@ -45,6 +45,7 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 # in electrum-client 0.24 where concurrent connections both pass the
 # get_default().is_none() check and the second install_default() fails.
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs"] }
+zstd = "0.13"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets

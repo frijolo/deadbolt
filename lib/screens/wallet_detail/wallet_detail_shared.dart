@@ -29,6 +29,7 @@ Future<void> openCpfpTx(
   }
   await CreateTxScreen.push(
     context,
+    network: walletState.walletInfo.network,
     allUtxos: walletState.utxos,
     tipHeight: walletState.tipHeight,
     spendPaths: walletState.descriptorAnalysis?.spendPaths,
@@ -57,6 +58,7 @@ Future<void> openRevaultTx(
   }
   await CreateTxScreen.push(
     context,
+    network: walletState.walletInfo.network,
     allUtxos: walletState.utxos,
     tipHeight: walletState.tipHeight,
     spendPaths: walletState.descriptorAnalysis?.spendPaths,

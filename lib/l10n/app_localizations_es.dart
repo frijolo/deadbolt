@@ -2376,6 +2376,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scanAccountsRetry => 'Reintentar';
 
   @override
+  String get walletNotFound => 'Cartera no encontrada en el dispositivo';
+
+  @override
   String get searchNostrLabel => 'Buscar backups en Nostr';
 
   @override
@@ -2542,6 +2545,12 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get nostrSearchNetworkWarning =>
       'Problemas de conexión con algunos relays Nostr. Es posible que algún backup no se haya encontrado.';
+
+  @override
+  String get publishBackupMenu => 'Publicar Respaldo';
+
+  @override
+  String get publishBackupTitle => 'Publicar Respaldo';
 
   @override
   String get nostrBackupMenu => 'Respaldo Nostr';
@@ -2831,4 +2840,177 @@ class AppLocalizationsEs extends AppLocalizations {
   String loadWarningCorruptKeys(int count) {
     return 'Se perdieron $count clave(s) de firma por corrupción de la base de datos';
   }
+
+  @override
+  String get onChainBackupTitle => 'On-chain';
+
+  @override
+  String get onChainBackupSubtitle =>
+      'Respaldo del descriptor embebido en una transacción Bitcoin';
+
+  @override
+  String get onChainBackupSecurityNote =>
+      'Descriptor respaldado en Bitcoin Signet. Recuperable desde el xpub de cualquier cosignante.';
+
+  @override
+  String onChainBackupParticipants(int count) {
+    return '$count cosignante(s)';
+  }
+
+  @override
+  String onChainBackupAnchors(int count, int amount) {
+    return 'Anclas: $count × $amount sats';
+  }
+
+  @override
+  String onChainBackupEstimatedFee(int fee) {
+    return 'Comisión estimada: $fee sats';
+  }
+
+  @override
+  String onChainBackupTotalCost(int cost) {
+    return 'Costo total: ~$cost sats';
+  }
+
+  @override
+  String get onChainBackupScanUtxos => 'Escanear UTXOs';
+
+  @override
+  String get onChainBackupScanning => 'Preparando backup…';
+
+  @override
+  String get onChainBackupSelectUtxo => 'Seleccionar UTXO';
+
+  @override
+  String get noUtxosAvailable => 'No hay UTXOs disponibles';
+
+  @override
+  String get onChainBackupFeeRate => 'Fee rate (sats/vB)';
+
+  @override
+  String onChainBackupTxFees(int total, int vb) {
+    return 'Fee: $total sats · $vb vB';
+  }
+
+  @override
+  String onChainBackupMinUtxo(Object sats) {
+    return 'UTXO mín.: $sats sats';
+  }
+
+  @override
+  String onChainBackupChange(Object sats) {
+    return 'Cambio: $sats sats';
+  }
+
+  @override
+  String onChainBackupVault(Object sats) {
+    return 'Bóveda: $sats sats';
+  }
+
+  @override
+  String onChainBackupUtxoInsufficient(int sats) {
+    return 'Selecciona una moneda con al menos $sats sats';
+  }
+
+  @override
+  String get onChainBackupConfirmBuild => 'Construir TX_COMMIT';
+
+  @override
+  String get onChainBackupTimelockedUtxo =>
+      'Algunas UTXOs seleccionadas aún están con timelock y no se pueden gastar.';
+
+  @override
+  String get onChainBackupSignWithHotKey => 'Firmar con hot key';
+
+  @override
+  String get onChainBackupPublish => 'Respaldar on-chain';
+
+  @override
+  String get onChainBackupPublishing => 'Firmando…';
+
+  @override
+  String get onChainBackupChecking => 'Verificando…';
+
+  @override
+  String get onChainBackupExists => 'El respaldo ya existe';
+
+  @override
+  String get onChainBackupSuccess => 'Descriptor respaldado on-chain';
+
+  @override
+  String get onChainBackupCommitTx => 'TX_COMMIT';
+
+  @override
+  String get onChainBackupRevealTx => 'TX_REVEAL';
+
+  @override
+  String get onChainBackupNoHotKey =>
+      'No se encontró clave de firma. Agrega una clave de firma a esta billetera antes de respaldar on-chain.';
+
+  @override
+  String get onChainBackupSignCommit => 'Firmar TX_COMMIT';
+
+  @override
+  String get onChainBackupSignCommitHint =>
+      'Firma la transacción commit con tu billetera hardware o dispositivo QR, luego importa el PSBT firmado.';
+
+  @override
+  String get onChainBackupBuildingPsbt => 'Construyendo PSBT…';
+
+  @override
+  String get onChainBackupFinalizing => 'Finalizando…';
+
+  @override
+  String get onChainBackupExportPsbt => 'Exportar PSBT';
+
+  @override
+  String get onChainBackupImportSigned => 'Importar firmado';
+
+  @override
+  String get onChainBackupSignWithHw => 'Firmar con HW';
+
+  @override
+  String get onChainBackupConfirmBroadcastTitle => 'Confirmar publicación';
+
+  @override
+  String onChainBackupCommitFee(String sats) {
+    return 'Comisión: $sats sats';
+  }
+
+  @override
+  String onChainBackupRevealFee(String sats) {
+    return 'Comisión: $sats sats';
+  }
+
+  @override
+  String onChainBackupRevealChange(Object sats) {
+    return 'Cambio: $sats sats';
+  }
+
+  @override
+  String get onChainBackupBroadcast => 'Publicar';
+
+  @override
+  String onChainBackupAnchorsHealth(int reachable, int total) {
+    return '$reachable de $total anclas accesibles';
+  }
+
+  @override
+  String get onChainBackupDescriptorVerified => 'Descriptor verificado';
+
+  @override
+  String get onChainBackupRevealPending => 'TX_REVEAL aún no publicado';
+
+  @override
+  String get onChainBackupCreateNew => 'Crear nuevo respaldo';
+
+  @override
+  String get onChainSearchLabel => 'Buscar respaldos on-chain';
+
+  @override
+  String get onChainSearchHint =>
+      'Escanear Signet para respaldos de descriptor publicados on-chain';
+
+  @override
+  String get onChainBadge => 'On-chain';
 }

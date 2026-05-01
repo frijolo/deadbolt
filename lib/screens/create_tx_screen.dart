@@ -40,6 +40,7 @@ final _bitcoinUriPrefixRe = RegExp(r'^bitcoin:', caseSensitive: false);
 /// Screen for building an unsigned PSBT. Coin selection happens inside this
 /// screen via [CoinSelectorScreen].
 class CreateTxScreen extends StatefulWidget {
+  final APINetwork network;
   final List<APIUtxo> allUtxos;
   final int tipHeight;
   final List<APISpendPath>? spendPaths;
@@ -51,6 +52,7 @@ class CreateTxScreen extends StatefulWidget {
 
   const CreateTxScreen({
     super.key,
+    required this.network,
     this.allUtxos = const [],
     this.tipHeight = 0,
     this.spendPaths,
@@ -62,6 +64,7 @@ class CreateTxScreen extends StatefulWidget {
 
   static Future<void> push(
     BuildContext context, {
+    required APINetwork network,
     List<APIUtxo> allUtxos = const [],
     int tipHeight = 0,
     List<APISpendPath>? spendPaths,
@@ -75,6 +78,7 @@ class CreateTxScreen extends StatefulWidget {
         builder: (_) => BlocProvider.value(
           value: context.read<WalletDetailCubit>(),
           child: CreateTxScreen(
+            network: network,
             allUtxos: allUtxos,
             tipHeight: tipHeight,
             spendPaths: spendPaths,
@@ -151,10 +155,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _loadFeePresets();
   }
 
-  APINetwork get _currentNetwork {
-    final state = context.read<WalletDetailCubit>().state;
-    return state is WalletDetailLoaded ? state.walletInfo.network : APINetwork.bitcoin;
-  }
+  APINetwork get _currentNetwork => widget.network;
 
   void _loadFeePresets() {
     _refreshBlockSnapshot();
@@ -172,17 +173,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final socksAddr = isTorRunning() ? torSocksAddr() : null;
     MempoolBlocksService.getSnapshot(explorerBase, torSocksAddr: socksAddr)
         .then((s) {
-      _blockSnapshotPending = false;
-      if (!mounted) return;
+      if (!mounted || s == null || identical(s, _blockSnapshot)) return;
       setState(() {
         _blockSnapshot = s;
-        if (s != null) {
-          _feePresets = s.presetsFromSnapshot(
-            context.read<SettingsCubit>().state.minFeeRate,
-          );
-        }
+        _feePresets = s.presetsFromSnapshot(
+          context.read<SettingsCubit>().state.minFeeRate,
+        );
       });
-    });
+    }).whenComplete(() => _blockSnapshotPending = false);
   }
 
   @override
@@ -632,7 +630,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
         );
       }
-      final remaining = (utxoMaxConfHeight + relBlocks) - tipHeight;
+      final remaining = (utxoMaxConfHeight + relBlocks) - tipHeight - 1;
       if (remaining > 0) {
         return (
           icon: Icons.lock_outline,

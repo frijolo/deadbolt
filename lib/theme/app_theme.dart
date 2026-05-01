@@ -8,6 +8,9 @@ abstract class AppAlpha {
   /// Extra-light background or tint (e.g., badge fill variant). ~8% opacity.
   static const int faint = 20;
 
+  /// Very light background tint, barely visible. ~5% opacity.
+  static const int veryFaint = 12;
+
   /// Very subtle background tint (e.g., badge fill). ~12.5% opacity.
   static const int subtle = 32;
 

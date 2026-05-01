@@ -50,12 +50,16 @@ class CpfpBanner extends StatelessWidget {
       ancestorFeeText = cpfpInfoLoading ? '…' : '—';
     }
 
+    final bgColor = theme.brightness == Brightness.light
+        ? Color.lerp(colorScheme.primaryContainer, Colors.white, 0.5)!
+        : colorScheme.surfaceContainerHigh;
+
     return Card(
       margin: EdgeInsets.zero,
-      color: accentColor.withAlpha(AppAlpha.faint),
+      color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: accentColor.withAlpha(AppAlpha.pale)),
+        side: BorderSide(color: colorScheme.outlineVariant.withAlpha(AppAlpha.medium)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),

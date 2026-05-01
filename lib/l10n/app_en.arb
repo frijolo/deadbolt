@@ -1062,6 +1062,7 @@
   },
   "scanAccountsCreateWallet": "Create wallet",
   "scanAccountsRetry": "Retry",
+  "walletNotFound": "Wallet not found on device",
   "searchNostrLabel": "Search Nostr backups",
   "searchNostrHint": "Look for descriptor backups on configured relays",
   "hwSkipLegacyLabel": "Skip legacy (P2PKH) derivations",
@@ -1118,6 +1119,10 @@
   "nostrRelayMaxAttemptsLabel": "Attempts per relay",
   "nostrSearchNetworkWarning": "Connection issues with some Nostr relays. Some backups may not have been found.",
 
+  "publishBackupMenu": "Publish Backup",
+  "@publishBackupMenu": {},
+  "publishBackupTitle": "Publish Backup",
+  "@publishBackupTitle": {},
   "nostrBackupMenu": "Nostr Backup",
   "nostrBackupTitle": "Nostr Backup",
   "nostrBackupSubtitle": "Encrypted descriptor backup on Nostr relays",
@@ -1271,5 +1276,132 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+
+  "onChainBackupTitle": "On-chain",
+  "@onChainBackupTitle": {},
+  "onChainBackupSubtitle": "Descriptor backup embedded in a Bitcoin transaction",
+  "@onChainBackupSubtitle": {},
+  "onChainBackupSecurityNote": "Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner's xpub.",
+  "@onChainBackupSecurityNote": {},
+  "onChainBackupParticipants": "{count} cosigner(s)",
+  "@onChainBackupParticipants": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "onChainBackupAnchors": "Anchors: {count} × {amount} sats",
+  "@onChainBackupAnchors": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "amount": { "type": "int" }
+    }
+  },
+  "onChainBackupEstimatedFee": "Estimated fee: {fee} sats",
+  "@onChainBackupEstimatedFee": {
+    "placeholders": { "fee": { "type": "int" } }
+  },
+  "onChainBackupTotalCost": "Total cost: ~{cost} sats",
+  "@onChainBackupTotalCost": {
+    "placeholders": { "cost": { "type": "int" } }
+  },
+  "onChainBackupScanUtxos": "Scan UTXOs",
+  "@onChainBackupScanUtxos": {},
+  "onChainBackupScanning": "Preparing backup…",
+  "@onChainBackupScanning": {},
+  "onChainBackupSelectUtxo": "Select UTXO",
+  "@onChainBackupSelectUtxo": {},
+  "noUtxosAvailable": "No UTXOs available",
+  "@noUtxosAvailable": {},
+  "onChainBackupFeeRate": "Fee rate (sats/vB)",
+  "@onChainBackupFeeRate": {},
+  "onChainBackupTxFees": "Fee: {total} sats · {vb} vB",
+  "@onChainBackupTxFees": {
+    "placeholders": { "total": { "type": "int" }, "vb": { "type": "int" } }
+  },
+  "onChainBackupMinUtxo": "Min UTXO: {sats} sats",
+  "@onChainBackupMinUtxo": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupChange": "Change: {sats} sats",
+  "@onChainBackupChange": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupVault": "Vault: {sats} sats",
+  "@onChainBackupVault": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupUtxoInsufficient": "Select a coin with at least {sats} sats",
+  "@onChainBackupUtxoInsufficient": {
+    "placeholders": { "sats": { "type": "int" } }
+  },
+  "onChainBackupConfirmBuild": "Build TX_COMMIT",
+  "@onChainBackupConfirmBuild": {},
+  "onChainBackupTimelockedUtxo": "Some selected UTXOs are still timelocked and cannot be spent yet.",
+  "@onChainBackupTimelockedUtxo": {},
+  "onChainBackupSignWithHotKey": "Sign with hot key",
+  "@onChainBackupSignWithHotKey": {},
+  "onChainBackupPublish": "Backup on-chain",
+  "@onChainBackupPublish": {},
+  "onChainBackupPublishing": "Signing…",
+  "@onChainBackupPublishing": {},
+  "onChainBackupChecking": "Checking…",
+  "@onChainBackupChecking": {},
+  "onChainBackupExists": "Backup already exists",
+  "@onChainBackupExists": {},
+  "onChainBackupSuccess": "Descriptor backed up on-chain",
+  "@onChainBackupSuccess": {},
+  "onChainBackupCommitTx": "TX_COMMIT",
+  "@onChainBackupCommitTx": {},
+  "onChainBackupRevealTx": "TX_REVEAL",
+  "@onChainBackupRevealTx": {},
+  "onChainBackupNoHotKey": "No signing key found. Add a hot key to this wallet before backing up on-chain.",
+  "@onChainBackupNoHotKey": {},
+  "onChainBackupSignCommit": "Sign TX_COMMIT",
+  "@onChainBackupSignCommit": {},
+  "onChainBackupSignCommitHint": "Sign the commit transaction with your hardware wallet or QR device, then import the signed PSBT.",
+  "@onChainBackupSignCommitHint": {},
+  "onChainBackupBuildingPsbt": "Building PSBT…",
+  "@onChainBackupBuildingPsbt": {},
+  "onChainBackupFinalizing": "Finalizing…",
+  "@onChainBackupFinalizing": {},
+  "onChainBackupExportPsbt": "Export PSBT",
+  "@onChainBackupExportPsbt": {},
+  "onChainBackupImportSigned": "Import signed",
+  "@onChainBackupImportSigned": {},
+  "onChainBackupSignWithHw": "Sign with HW",
+  "@onChainBackupSignWithHw": {},
+  "onChainBackupConfirmBroadcastTitle": "Confirm broadcast",
+  "@onChainBackupConfirmBroadcastTitle": {},
+  "onChainBackupCommitFee": "Fee: {sats} sats",
+  "@onChainBackupCommitFee": {
+    "placeholders": { "sats": { "type": "String" } }
+  },
+  "onChainBackupRevealFee": "Fee: {sats} sats",
+  "@onChainBackupRevealFee": {
+    "placeholders": { "sats": { "type": "String" } }
+  },
+  "onChainBackupRevealChange": "Change: {sats} sats",
+  "@onChainBackupRevealChange": {
+    "placeholders": { "sats": {} }
+  },
+  "onChainBackupBroadcast": "Broadcast",
+  "@onChainBackupBroadcast": {},
+  "onChainBackupAnchorsHealth": "{reachable} of {total} anchors accessible",
+  "@onChainBackupAnchorsHealth": {
+    "placeholders": {
+      "reachable": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "onChainBackupDescriptorVerified": "Descriptor verified",
+  "@onChainBackupDescriptorVerified": {},
+  "onChainBackupRevealPending": "TX_REVEAL not yet published",
+  "@onChainBackupRevealPending": {},
+  "onChainBackupCreateNew": "Create new backup",
+  "@onChainBackupCreateNew": {},
+  "onChainSearchLabel": "Search on-chain backups",
+  "@onChainSearchLabel": {},
+  "onChainSearchHint": "Scan Signet for descriptor backups published on-chain",
+  "@onChainSearchHint": {},
+  "onChainBadge": "On-chain",
+  "@onChainBadge": {}
 }

@@ -4322,6 +4322,12 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get scanAccountsRetry;
 
+  /// No description provided for @walletNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet not found on device'**
+  String get walletNotFound;
+
   /// No description provided for @searchNostrLabel.
   ///
   /// In en, this message translates to:
@@ -4639,6 +4645,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connection issues with some Nostr relays. Some backups may not have been found.'**
   String get nostrSearchNetworkWarning;
+
+  /// No description provided for @publishBackupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish Backup'**
+  String get publishBackupMenu;
+
+  /// No description provided for @publishBackupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish Backup'**
+  String get publishBackupTitle;
 
   /// No description provided for @nostrBackupMenu.
   ///
@@ -5149,6 +5167,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lost {count} signing key(s) due to database corruption'**
   String loadWarningCorruptKeys(int count);
+
+  /// No description provided for @onChainBackupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On-chain'**
+  String get onChainBackupTitle;
+
+  /// No description provided for @onChainBackupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor backup embedded in a Bitcoin transaction'**
+  String get onChainBackupSubtitle;
+
+  /// No description provided for @onChainBackupSecurityNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.'**
+  String get onChainBackupSecurityNote;
+
+  /// No description provided for @onChainBackupParticipants.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cosigner(s)'**
+  String onChainBackupParticipants(int count);
+
+  /// No description provided for @onChainBackupAnchors.
+  ///
+  /// In en, this message translates to:
+  /// **'Anchors: {count} × {amount} sats'**
+  String onChainBackupAnchors(int count, int amount);
+
+  /// No description provided for @onChainBackupEstimatedFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated fee: {fee} sats'**
+  String onChainBackupEstimatedFee(int fee);
+
+  /// No description provided for @onChainBackupTotalCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost: ~{cost} sats'**
+  String onChainBackupTotalCost(int cost);
+
+  /// No description provided for @onChainBackupScanUtxos.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan UTXOs'**
+  String get onChainBackupScanUtxos;
+
+  /// No description provided for @onChainBackupScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing backup…'**
+  String get onChainBackupScanning;
+
+  /// No description provided for @onChainBackupSelectUtxo.
+  ///
+  /// In en, this message translates to:
+  /// **'Select UTXO'**
+  String get onChainBackupSelectUtxo;
+
+  /// No description provided for @noUtxosAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No UTXOs available'**
+  String get noUtxosAvailable;
+
+  /// No description provided for @onChainBackupFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate (sats/vB)'**
+  String get onChainBackupFeeRate;
+
+  /// No description provided for @onChainBackupTxFees.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee: {total} sats · {vb} vB'**
+  String onChainBackupTxFees(int total, int vb);
+
+  /// No description provided for @onChainBackupMinUtxo.
+  ///
+  /// In en, this message translates to:
+  /// **'Min UTXO: {sats} sats'**
+  String onChainBackupMinUtxo(Object sats);
+
+  /// No description provided for @onChainBackupChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change: {sats} sats'**
+  String onChainBackupChange(Object sats);
+
+  /// No description provided for @onChainBackupVault.
+  ///
+  /// In en, this message translates to:
+  /// **'Vault: {sats} sats'**
+  String onChainBackupVault(Object sats);
+
+  /// No description provided for @onChainBackupUtxoInsufficient.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a coin with at least {sats} sats'**
+  String onChainBackupUtxoInsufficient(int sats);
+
+  /// No description provided for @onChainBackupConfirmBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Build TX_COMMIT'**
+  String get onChainBackupConfirmBuild;
+
+  /// No description provided for @onChainBackupTimelockedUtxo.
+  ///
+  /// In en, this message translates to:
+  /// **'Some selected UTXOs are still timelocked and cannot be spent yet.'**
+  String get onChainBackupTimelockedUtxo;
+
+  /// No description provided for @onChainBackupSignWithHotKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign with hot key'**
+  String get onChainBackupSignWithHotKey;
+
+  /// No description provided for @onChainBackupPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup on-chain'**
+  String get onChainBackupPublish;
+
+  /// No description provided for @onChainBackupPublishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing…'**
+  String get onChainBackupPublishing;
+
+  /// No description provided for @onChainBackupChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get onChainBackupChecking;
+
+  /// No description provided for @onChainBackupExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup already exists'**
+  String get onChainBackupExists;
+
+  /// No description provided for @onChainBackupSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor backed up on-chain'**
+  String get onChainBackupSuccess;
+
+  /// No description provided for @onChainBackupCommitTx.
+  ///
+  /// In en, this message translates to:
+  /// **'TX_COMMIT'**
+  String get onChainBackupCommitTx;
+
+  /// No description provided for @onChainBackupRevealTx.
+  ///
+  /// In en, this message translates to:
+  /// **'TX_REVEAL'**
+  String get onChainBackupRevealTx;
+
+  /// No description provided for @onChainBackupNoHotKey.
+  ///
+  /// In en, this message translates to:
+  /// **'No signing key found. Add a hot key to this wallet before backing up on-chain.'**
+  String get onChainBackupNoHotKey;
+
+  /// No description provided for @onChainBackupSignCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign TX_COMMIT'**
+  String get onChainBackupSignCommit;
+
+  /// No description provided for @onChainBackupSignCommitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign the commit transaction with your hardware wallet or QR device, then import the signed PSBT.'**
+  String get onChainBackupSignCommitHint;
+
+  /// No description provided for @onChainBackupBuildingPsbt.
+  ///
+  /// In en, this message translates to:
+  /// **'Building PSBT…'**
+  String get onChainBackupBuildingPsbt;
+
+  /// No description provided for @onChainBackupFinalizing.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalizing…'**
+  String get onChainBackupFinalizing;
+
+  /// No description provided for @onChainBackupExportPsbt.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PSBT'**
+  String get onChainBackupExportPsbt;
+
+  /// No description provided for @onChainBackupImportSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Import signed'**
+  String get onChainBackupImportSigned;
+
+  /// No description provided for @onChainBackupSignWithHw.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign with HW'**
+  String get onChainBackupSignWithHw;
+
+  /// No description provided for @onChainBackupConfirmBroadcastTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm broadcast'**
+  String get onChainBackupConfirmBroadcastTitle;
+
+  /// No description provided for @onChainBackupCommitFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee: {sats} sats'**
+  String onChainBackupCommitFee(String sats);
+
+  /// No description provided for @onChainBackupRevealFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee: {sats} sats'**
+  String onChainBackupRevealFee(String sats);
+
+  /// No description provided for @onChainBackupRevealChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change: {sats} sats'**
+  String onChainBackupRevealChange(Object sats);
+
+  /// No description provided for @onChainBackupBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get onChainBackupBroadcast;
+
+  /// No description provided for @onChainBackupAnchorsHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'{reachable} of {total} anchors accessible'**
+  String onChainBackupAnchorsHealth(int reachable, int total);
+
+  /// No description provided for @onChainBackupDescriptorVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Descriptor verified'**
+  String get onChainBackupDescriptorVerified;
+
+  /// No description provided for @onChainBackupRevealPending.
+  ///
+  /// In en, this message translates to:
+  /// **'TX_REVEAL not yet published'**
+  String get onChainBackupRevealPending;
+
+  /// No description provided for @onChainBackupCreateNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new backup'**
+  String get onChainBackupCreateNew;
+
+  /// No description provided for @onChainSearchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search on-chain backups'**
+  String get onChainSearchLabel;
+
+  /// No description provided for @onChainSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Signet for descriptor backups published on-chain'**
+  String get onChainSearchHint;
+
+  /// No description provided for @onChainBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'On-chain'**
+  String get onChainBadge;
 }
 
 class _AppLocalizationsDelegate

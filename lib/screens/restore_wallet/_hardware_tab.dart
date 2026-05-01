@@ -15,7 +15,7 @@ import '_seed_tab.dart' show GapStepper;
 // ---------------------------------------------------------------------------
 
 typedef HwScanCallback = void Function(
-    String sessionId, bool searchNostr, bool skipLegacy);
+    String sessionId, bool searchNostr, bool skipLegacy, bool searchOnChain);
 
 class HardwareTab extends StatefulWidget {
   final APINetwork network;
@@ -42,6 +42,7 @@ class HardwareTab extends StatefulWidget {
 class _HardwareTabState extends State<HardwareTab> {
   bool _searchNostr = true;
   bool _skipLegacy = true;
+  bool _searchOnChain = true;
 
   @override
   Widget build(BuildContext context) {
@@ -265,10 +266,19 @@ class _HardwareTabState extends State<HardwareTab> {
           value: _skipLegacy,
           onChanged: (v) => setState(() => _skipLegacy = v),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.onChainSearchLabel,
+              style: Theme.of(context).textTheme.bodyMedium),
+          subtitle: Text(l10n.onChainSearchHint,
+              style: Theme.of(context).textTheme.bodySmall),
+          value: _searchOnChain,
+          onChanged: (v) => setState(() => _searchOnChain = v),
+        ),
         const SizedBox(height: 8),
         FilledButton(
-          onPressed: () =>
-              widget.onScan(ready.sessionId, _searchNostr, _skipLegacy),
+          onPressed: () => widget.onScan(
+              ready.sessionId, _searchNostr, _skipLegacy, _searchOnChain),
           child: Text(l10n.hwDiscoveryStart),
         ),
       ],

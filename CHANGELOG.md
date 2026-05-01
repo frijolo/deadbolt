@@ -7,6 +7,9 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **On-chain descriptor backup** — Wallets can publish an encrypted descriptor backup embedded in a
+  Bitcoin Signet transaction (commit/reveal scheme). Any cosigner can recover the wallet from their
+  xpub alone, without the seed phrase.
 - **Biometric app lock (Android)** — Optional lock screen on cold start and on return from background
   past a configurable timeout (immediate, 1 min, or 5 min).
 - **Biometric wallet unlock** — Password and XPub wallets can register a biometric slot for

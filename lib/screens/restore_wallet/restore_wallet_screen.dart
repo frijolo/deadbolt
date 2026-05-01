@@ -11,6 +11,7 @@ import 'package:deadbolt/services/nostr_relay_settings.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/hw_wallet.dart' as rust_hw;
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet/descriptor_recovery.dart' as rust_onchain;
 import 'package:deadbolt/src/rust/api/wallet/discovery.dart' as rust_discovery;
 import 'package:deadbolt/src/rust/api/wallet/nostr_backup.dart' as rust_nostr;
 import 'package:deadbolt/theme/app_theme.dart';
@@ -24,15 +25,7 @@ import '_hardware_tab.dart';
 import '_seed_tab.dart';
 import '_xpub_tab.dart';
 
-// ---------------------------------------------------------------------------
-// Shared script type enum (used by both Seed and xpub tabs)
-// ---------------------------------------------------------------------------
-
 enum RestoreScriptType { legacy, nestedSegwit, nativeSegwit, taproot }
-
-// ---------------------------------------------------------------------------
-// Scan phase state machine
-// ---------------------------------------------------------------------------
 
 enum _ScanPhase {
   idle,
@@ -41,10 +34,6 @@ enum _ScanPhase {
   done,
   error,
 }
-
-// ---------------------------------------------------------------------------
-// Data class for Nostr-found backups
-// ---------------------------------------------------------------------------
 
 class _NostrFoundBackup {
   final String xpub;
@@ -72,23 +61,52 @@ class _NostrFoundBackup {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Unified wallet entry for the results list
-// ---------------------------------------------------------------------------
+class _OnChainFoundBackup {
+  final String xpub;
+  final List<int> bytes;
+  final String commitTxid;
+  final String? revealTxid;
+  final String? walletName;
+  final String? network;
+  final int? createdAt;
+  final String? firstAddress;
+  final APIWalletType? walletType;
+  final String? descriptor;
+  final int anchorsReachable;
+  final int anchorsTotal;
+  int? txCount;
+  BigInt? balanceSat;
+
+  _OnChainFoundBackup({
+    required this.xpub,
+    required this.bytes,
+    required this.commitTxid,
+    this.revealTxid,
+    this.walletName,
+    this.network,
+    this.createdAt,
+    this.firstAddress,
+    this.walletType,
+    this.descriptor,
+    this.anchorsReachable = 0,
+    this.anchorsTotal = 0,
+  });
+}
 
 typedef _UnifiedWallet = ({
   String? firstAddress,
+  String? firstAddressHash,
   String? walletName,
   String? derivationPath,
   APIWalletType? walletType,
   int? txCount,
   BigInt? balanceSat,
   bool hasNostrBackup,
+  bool hasOnChainBackup,
+  String? commitTxid,
+  bool isExisting,
+  String? existingWalletName,
 });
-
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
 
 class RestoreWalletScreen extends StatefulWidget {
   const RestoreWalletScreen({super.key});
@@ -127,10 +145,11 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   // ── Results ────────────────────────────────────────────────────────────────
   List<APIAccountInfo> _accounts = [];
   int _totalScanned = 0;
-  Map<String, APIWalletInfo> _walletByFirstAddress = {};
+  Map<String, APIWalletInfo> _walletByFirstAddressHash = {};
   List<_UnifiedWallet> _unifiedWallets = [];
   // Index maps for O(1) lookups in card widget.
   Map<String, _NostrFoundBackup> _nostrByAddress = {};
+  Map<String, _OnChainFoundBackup> _onChainByAddress = {};
   Map<String, APIAccountInfo> _accountByAddress = {};
   // True when Nostr was searched but every relay failed due to network errors.
   bool _nostrAllRelaysFailed = false;
@@ -159,23 +178,28 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
 
   // ── Scan entry points ──────────────────────────────────────────────────────
 
+  void _resetScanState(_ScanPhase startPhase) {
+    setState(() {
+      _phase = startPhase;
+      _errorMessage = null;
+      _accounts = [];
+      _totalScanned = 0;
+      _nostrAllRelaysFailed = false;
+    });
+  }
+
   Future<void> _onSeedScan(
     String mnemonic,
     String? passphrase,
     RestoreScriptType? scriptFilter,
     bool nonStandardPaths,
     bool searchNostr,
+    bool searchOnChain,
   ) async {
     _lastActiveTab = 1;
     _lastSeedMnemonic = mnemonic;
     _lastSeedPassphrase = passphrase;
-    setState(() {
-      _phase = _ScanPhase.scanning;
-      _errorMessage = null;
-      _accounts = [];
-      _totalScanned = 0;
-      _nostrAllRelaysFailed = false;
-    });
+    _resetScanState(_ScanPhase.scanning);
 
     final types = scriptFilter != null
         ? [scriptFilter]
@@ -195,7 +219,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
           ));
 
       // deriveXpubsForNostr does not depend on discovery results — run in parallel.
-      final xpubsFuture = searchNostr
+      final xpubsFuture = (searchNostr || searchOnChain)
           ? rust_discovery.deriveXpubsForNostr(
               mnemonic: mnemonic,
               passphrase: passphrase,
@@ -204,9 +228,9 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
             )
           : Future.value(<String>[]);
 
-      final (results, walletByFirstAddress, xpubs) = await (
+      final (results, deviceHashToWallet, xpubs) = await (
         Future.wait(futures),
-        _buildWalletByAddress(),
+        _buildDeviceHashToWallet(),
         xpubsFuture,
       ).wait;
       if (!mounted) return;
@@ -215,20 +239,32 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       final totalScanned =
           results.map((r) => r.scannedCount).fold(0, (a, b) => a + b);
 
-      List<_NostrFoundBackup> nostrBackups = [];
-      if (searchNostr) {
-        nostrBackups = await _fetchNostrBackups(xpubs);
-        if (!mounted) return;
+      final (nostrBackups, onChainBackups) = await (
+        searchNostr ? _fetchNostrBackups(xpubs) : Future.value(<_NostrFoundBackup>[]),
+        searchOnChain ? _fetchOnChainBackups(xpubs, url) : Future.value(<_OnChainFoundBackup>[]),
+      ).wait;
+      if (!mounted) return;
 
+      if (searchNostr) {
         await _enrichNostrOnlyBackups(nostrBackups, merged, url);
+        if (!mounted) return;
+      }
+
+      // Enrich on-chain-only backups with descriptor scan data.
+      final nostrAddresses = {for (final b in nostrBackups) if (b.firstAddress != null) b.firstAddress!};
+      final mergedAddresses = {for (final a in merged) a.firstAddress};
+      final nostrOnlyAddresses = nostrAddresses.difference(mergedAddresses);
+      if (onChainBackups.isNotEmpty) {
+        await _enrichOnChainOnlyBackups(onChainBackups, merged, nostrOnlyAddresses, url);
         if (!mounted) return;
       }
 
       _applyResults(
           accounts: merged,
           totalScanned: totalScanned,
-          walletByFirstAddress: walletByFirstAddress,
-          nostrBackups: nostrBackups);
+          nostrBackups: nostrBackups,
+          onChainBackups: onChainBackups,
+          deviceHashToWallet: deviceHashToWallet);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -242,17 +278,12 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     String xpub,
     RestoreScriptType? scriptFilter,
     bool searchNostr,
+    bool searchOnChain,
   ) async {
     _lastActiveTab = 0;
     _lastSeedMnemonic = null;
     _lastSeedPassphrase = null;
-    setState(() {
-      _phase = _ScanPhase.scanning;
-      _errorMessage = null;
-      _accounts = [];
-      _totalScanned = 0;
-      _nostrAllRelaysFailed = false;
-    });
+    _resetScanState(_ScanPhase.scanning);
 
     final url = _electrumUrl;
 
@@ -268,32 +299,44 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
               ))
           .toList();
 
-      final (discovered, walletByFirstAddress) = await (
+      final (discovered, deviceHashToWallet) = await (
         rust_discovery.discoverAccountsFromKeyspecs(
           keyspecsByType: keyspecsByType,
           network: _selectedNetwork,
           electrumUrl: url,
           addressGapLimit: _addressGapLimit,
         ),
-        _buildWalletByAddress(),
+        _buildDeviceHashToWallet(),
       ).wait;
       if (!mounted) return;
 
-      List<_NostrFoundBackup> nostrBackups = [];
-      if (searchNostr) {
-        final bareXpub = _bareXpub(xpub);
-        nostrBackups = await _fetchNostrBackups([bareXpub]);
-        if (!mounted) return;
+      final bareXpub = _bareXpub(xpub);
 
+      final (nostrBackups, onChainBackups) = await (
+        searchNostr ? _fetchNostrBackups([bareXpub]) : Future.value(<_NostrFoundBackup>[]),
+        searchOnChain ? _fetchOnChainBackups([bareXpub], url) : Future.value(<_OnChainFoundBackup>[]),
+      ).wait;
+      if (!mounted) return;
+
+      if (searchNostr) {
         await _enrichNostrOnlyBackups(nostrBackups, discovered.accounts, url);
+        if (!mounted) return;
+      }
+
+      final nostrAddresses = {for (final b in nostrBackups) if (b.firstAddress != null) b.firstAddress!};
+      final mergedAddresses = {for (final a in discovered.accounts) a.firstAddress};
+      final nostrOnlyAddresses = nostrAddresses.difference(mergedAddresses);
+      if (onChainBackups.isNotEmpty) {
+        await _enrichOnChainOnlyBackups(onChainBackups, discovered.accounts, nostrOnlyAddresses, url);
         if (!mounted) return;
       }
 
       _applyResults(
           accounts: discovered.accounts,
           totalScanned: discovered.scannedCount,
-          walletByFirstAddress: walletByFirstAddress,
-          nostrBackups: nostrBackups);
+          nostrBackups: nostrBackups,
+          onChainBackups: onChainBackups,
+          deviceHashToWallet: deviceHashToWallet);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -304,18 +347,14 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   }
 
   Future<void> _onHwScan(
-      String sessionId, bool searchNostr, bool skipLegacy) async {
+      String sessionId, bool searchNostr, bool skipLegacy, bool searchOnChain) async {
     _lastActiveTab = 2;
     _lastSeedMnemonic = null;
     _lastSeedPassphrase = null;
+    _resetScanState(_ScanPhase.deriving);
     setState(() {
-      _phase = _ScanPhase.deriving;
-      _errorMessage = null;
-      _accounts = [];
-      _totalScanned = 0;
       _derivedCount = 0;
       _totalToDeriving = 0;
-      _nostrAllRelaysFailed = false;
     });
 
     final url = _electrumUrl;
@@ -356,35 +395,47 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       if (!mounted) return;
       setState(() => _phase = _ScanPhase.scanning);
 
-      // 3. On-chain discovery + wallet-by-address map.
-      final (discovered, walletByFirstAddress) = await (
+      // 3. On-chain discovery + device hash → wallet map.
+      final (discovered, deviceHashToWallet) = await (
         rust_discovery.discoverAccountsFromKeyspecs(
           keyspecsByType: keyspecsByType,
           network: _selectedNetwork,
           electrumUrl: url,
           addressGapLimit: _addressGapLimit,
         ),
-        _buildWalletByAddress(),
+        _buildDeviceHashToWallet(),
       ).wait;
       if (!mounted) return;
 
-      // 4. Nostr search for all derived xpubs.
-      List<_NostrFoundBackup> nostrBackups = [];
-      if (searchNostr) {
-        final allXpubs =
-            keyspecsByType.expand((t) => t.keyspecs).map(_bareXpub).toList();
-        nostrBackups = await _fetchNostrBackups(allXpubs);
-        if (!mounted) return;
+      // 4. Nostr and on-chain search for all derived xpubs.
+      final allXpubs =
+          keyspecsByType.expand((t) => t.keyspecs).map(_bareXpub).toList();
 
+      final (nostrBackups, onChainBackups) = await (
+        searchNostr ? _fetchNostrBackups(allXpubs) : Future.value(<_NostrFoundBackup>[]),
+        searchOnChain ? _fetchOnChainBackups(allXpubs, url) : Future.value(<_OnChainFoundBackup>[]),
+      ).wait;
+      if (!mounted) return;
+
+      if (searchNostr) {
         await _enrichNostrOnlyBackups(nostrBackups, discovered.accounts, url);
+        if (!mounted) return;
+      }
+
+      final nostrAddresses = {for (final b in nostrBackups) if (b.firstAddress != null) b.firstAddress!};
+      final mergedAddresses = {for (final a in discovered.accounts) a.firstAddress};
+      final nostrOnlyAddresses = nostrAddresses.difference(mergedAddresses);
+      if (onChainBackups.isNotEmpty) {
+        await _enrichOnChainOnlyBackups(onChainBackups, discovered.accounts, nostrOnlyAddresses, url);
         if (!mounted) return;
       }
 
       _applyResults(
           accounts: discovered.accounts,
           totalScanned: discovered.scannedCount,
-          walletByFirstAddress: walletByFirstAddress,
-          nostrBackups: nostrBackups);
+          nostrBackups: nostrBackups,
+          onChainBackups: onChainBackups,
+          deviceHashToWallet: deviceHashToWallet);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -426,44 +477,132 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     }));
   }
 
+  /// After discovery, scan on-chain data for on-chain-only backups that have
+  /// a descriptor but no matching on-chain account and no Nostr backup.
+  Future<void> _enrichOnChainOnlyBackups(
+    List<_OnChainFoundBackup> onChainBackups,
+    List<APIAccountInfo> accounts,
+    Set<String> nostrOnlyAddresses,
+    String url,
+  ) async {
+    final mergedAddresses = {for (final a in accounts) a.firstAddress};
+    final onChainOnly = onChainBackups
+        .where((b) =>
+            !mergedAddresses.contains(b.firstAddress) &&
+            !nostrOnlyAddresses.contains(b.firstAddress) &&
+            b.descriptor != null)
+        .toList();
+    if (onChainOnly.isEmpty) {
+      return;
+    }
+    await Future.wait(onChainOnly.map((b) async {
+      try {
+        final scan = await rust_discovery.scanDescriptor(
+          descriptor: b.descriptor!,
+          network: _selectedNetwork,
+          electrumUrl: url,
+          addressGapLimit: _addressGapLimit,
+        );
+        b.txCount = scan.txCount.toInt();
+        b.balanceSat = scan.balanceSat;
+      } catch (e) {
+        // Best-effort; leave null on failure.
+      }
+    }));
+  }
+
   /// Build the unified wallet list and apply results to state.
   void _applyResults({
     required List<APIAccountInfo> accounts,
     required int totalScanned,
-    required Map<String, APIWalletInfo> walletByFirstAddress,
     required List<_NostrFoundBackup> nostrBackups,
+    required List<_OnChainFoundBackup> onChainBackups,
+    required Map<String, APIWalletInfo> deviceHashToWallet,
   }) {
     final nostrAddresses = {for (final b in nostrBackups) b.firstAddress};
+    final onChainAddresses = {for (final b in onChainBackups) b.firstAddress};
     final mergedAddresses = {for (final a in accounts) a.firstAddress};
+
+    // Addresses already covered by on-chain (to avoid double-listing with Nostr).
+    final nostrOnlyAddresses = nostrAddresses.difference(mergedAddresses);
+
     final unified = <_UnifiedWallet>[
-      ...accounts.map((a) => (
-            firstAddress: a.firstAddress,
-            walletName: null as String?,
-            derivationPath: a.derivationPath,
-            walletType: a.walletType,
-            txCount: a.txCount,
-            balanceSat: a.balanceSat,
-            hasNostrBackup: nostrAddresses.contains(a.firstAddress),
-          )),
+      ...accounts.map((a) {
+        final hash = rust_discovery.sha256Hex(input: a.firstAddress);
+        final existing = deviceHashToWallet[hash];
+        return (
+          firstAddress: a.firstAddress,
+          firstAddressHash: hash,
+          walletName: null,
+          derivationPath: a.derivationPath,
+          walletType: a.walletType,
+          txCount: a.txCount,
+          balanceSat: a.balanceSat,
+          hasNostrBackup: nostrAddresses.contains(a.firstAddress),
+          hasOnChainBackup: onChainAddresses.contains(a.firstAddress),
+          commitTxid: null,
+          isExisting: existing != null,
+          existingWalletName: existing?.name,
+        );
+      }),
       ...nostrBackups
-          .where((b) => !mergedAddresses.contains(b.firstAddress))
-          .map((b) => (
-                firstAddress: b.firstAddress,
-                walletName: b.walletName,
-                derivationPath: '' as String?,
-                walletType: b.walletType,
-                txCount: b.txCount,
-                balanceSat: b.balanceSat,
-                hasNostrBackup: true,
-              )),
+          .where((b) => nostrOnlyAddresses.contains(b.firstAddress))
+          .map((b) {
+            final hash = b.firstAddress != null
+                ? rust_discovery.sha256Hex(input: b.firstAddress!)
+                : null;
+            final existing = hash != null ? deviceHashToWallet[hash] : null;
+            return (
+              firstAddress: b.firstAddress,
+              firstAddressHash: hash,
+              walletName: b.walletName,
+              derivationPath: '',
+              walletType: b.walletType,
+              txCount: b.txCount,
+              balanceSat: b.balanceSat,
+              hasNostrBackup: true,
+              hasOnChainBackup: onChainAddresses.contains(b.firstAddress),
+              commitTxid: null,
+              isExisting: existing != null,
+              existingWalletName: existing?.name,
+            );
+          }),
+      ...onChainBackups
+          .where((b) =>
+              !mergedAddresses.contains(b.firstAddress) &&
+              !nostrOnlyAddresses.contains(b.firstAddress))
+          .map((b) {
+            final hash = b.firstAddress != null
+                ? rust_discovery.sha256Hex(input: b.firstAddress!)
+                : null;
+            final existing = hash != null ? deviceHashToWallet[hash] : null;
+            return (
+              firstAddress: b.firstAddress,
+              firstAddressHash: hash,
+              walletName: b.walletName,
+              derivationPath: '',
+              walletType: b.walletType,
+              txCount: b.txCount,
+              balanceSat: b.balanceSat,
+              hasNostrBackup: false,
+              hasOnChainBackup: true,
+              commitTxid: b.commitTxid,
+              isExisting: existing != null,
+              existingWalletName: existing?.name,
+            );
+          }),
     ];
     setState(() {
       _accounts = accounts;
       _totalScanned = totalScanned;
-      _walletByFirstAddress = walletByFirstAddress;
+      _walletByFirstAddressHash = deviceHashToWallet;
       _unifiedWallets = unified;
       _nostrByAddress = {
         for (final b in nostrBackups)
+          if (b.firstAddress != null) b.firstAddress!: b
+      };
+      _onChainByAddress = {
+        for (final b in onChainBackups)
           if (b.firstAddress != null) b.firstAddress!: b
       };
       _accountByAddress = {for (final a in accounts) a.firstAddress: a};
@@ -471,7 +610,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     });
   }
 
-  Future<Map<String, APIWalletInfo>> _buildWalletByAddress() async {
+  Future<Map<String, APIWalletInfo>> _buildDeviceHashToWallet() async {
     final wallets = switch (context.read<WalletListCubit>().state) {
       WalletListLoaded(:final wallets) =>
         wallets.where((w) => w.network == _selectedNetwork).toList(),
@@ -481,19 +620,21 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       try {
         final addr = await rust_discovery.firstAddressFromDescriptor(
             descriptor: w.descriptor, network: _selectedNetwork);
-        return MapEntry(addr, w);
+        final hash = rust_discovery.sha256Hex(input: addr);
+        return MapEntry(hash, w);
       } catch (e) {
         debugPrint('[restore discovery error] $e');
         return null;
       }
     }));
-    return Map.fromEntries(entries.whereType<MapEntry<String, APIWalletInfo>>());
+    return Map.fromEntries(
+        entries.whereType<MapEntry<String, APIWalletInfo>>());
   }
 
   Future<void> _refreshWalletMap() async {
-    final map = await _buildWalletByAddress();
+    final map = await _buildDeviceHashToWallet();
     if (!mounted) return;
-    setState(() => _walletByFirstAddress = map);
+    setState(() => _walletByFirstAddressHash = map);
   }
 
   Future<List<_NostrFoundBackup>> _fetchNostrBackups(List<String> xpubs) async {
@@ -551,7 +692,69 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     return results;
   }
 
-  Future<void> _importFromNostr(List<int> bytes, String xpub) async {
+  Future<List<_OnChainFoundBackup>> _fetchOnChainBackups(
+      List<String> xpubs, String electrumUrl) async {
+    final networkHint = _selectedNetwork.name;
+    final results = <_OnChainFoundBackup>[];
+    await Future.wait(xpubs.map((xpub) async {
+      try {
+        final responses = await rust_onchain.fetchOnchainBackup(
+          xpubCredential: xpub,
+          electrumUrl: electrumUrl,
+          networkHint: networkHint,
+        );
+        for (int i = 0; i < responses.length; i++) {
+          final resp = responses[i];
+          results.add(_OnChainFoundBackup(
+            xpub: xpub,
+            bytes: resp.bytes.toList(),
+            commitTxid: resp.commitTxid,
+            revealTxid: resp.revealTxid,
+            walletName: resp.walletName,
+            network: resp.network,
+            createdAt: resp.createdAt?.toInt(),
+            firstAddress: resp.firstAddress,
+            walletType: resp.walletType,
+            descriptor: resp.descriptor,
+            anchorsReachable: resp.anchorsReachable,
+            anchorsTotal: resp.anchorsTotal,
+          ));
+        }
+      } catch (e) {
+        debugPrint('[restore onchain error] $e');
+      }
+    }));
+    results.sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
+    return results;
+  }
+
+  Future<void> _importFromOnChain(_OnChainFoundBackup backup) =>
+      _importBackup(
+        bytes: backup.bytes,
+        xpub: backup.xpub,
+        networkHint: backup.network ?? "bitcoin",
+        rustImport: rust_onchain.importOnchainBackup,
+      );
+
+  Future<void> _importFromNostr(List<int> bytes, String xpub) => _importBackup(
+        bytes: bytes,
+        xpub: xpub,
+        networkHint: _selectedNetwork.name,
+        rustImport: rust_nostr.importNostrBackup,
+      );
+
+  Future<void> _importBackup({
+    required List<int> bytes,
+    required String xpub,
+    required String networkHint,
+    required Future<dynamic> Function({
+      required List<int> backupBytes,
+      required String xpubCredential,
+      required String deviceKeyHex,
+      required String walletsDir,
+      required String networkHint,
+    }) rustImport,
+  }) async {
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -583,11 +786,12 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     final deviceKey = await service.getOrCreateEncryptionKey();
     final walletsDir = await service.getWalletsDir();
     try {
-      final result = await rust_nostr.importNostrBackup(
+      final result = await rustImport(
         backupBytes: bytes,
         xpubCredential: xpub,
         deviceKeyHex: deviceKey,
         walletsDir: walletsDir,
+        networkHint: networkHint,
       );
       if (!mounted) return;
       context.read<WalletListCubit>().refresh();
@@ -940,14 +1144,14 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
 
     final scriptLabel =
         w.walletType != null ? _scriptTypeLabel(l10n, w.walletType!) : null;
-    final existingWallet = w.firstAddress != null
-        ? _walletByFirstAddress[
-            rust_discovery.sha256Hex(input: w.firstAddress!)]
-        : null;
-    final isExisting = existingWallet != null;
+    final isExisting = w.isExisting;
+    final existingWalletName = w.existingWalletName;
 
     final nostrBackup = w.hasNostrBackup && w.firstAddress != null
-        ? _nostrByAddress[w.firstAddress]
+        ? _nostrByAddress[w.firstAddress!]
+        : null;
+    final onChainBackup = w.hasOnChainBackup && w.firstAddress != null
+        ? _onChainByAddress[w.firstAddress!]
         : null;
 
     return Card(
@@ -966,11 +1170,14 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
                 children: [
                   Text(
                     w.walletName ??
-                        w.derivationPath ??
+                        (w.derivationPath?.isNotEmpty == true
+                            ? w.derivationPath
+                            : null) ??
                         l10n.nostrRestoreFound,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontFamily:
-                          w.derivationPath != null && w.walletName == null
+                          w.derivationPath?.isNotEmpty == true &&
+                                  w.walletName == null
                               ? 'monospace'
                               : null,
                       fontWeight: FontWeight.w600,
@@ -1000,66 +1207,71 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
                         l10n: l10n,
                       ),
                   ],
+                  if (onChainBackup != null) ...[
+                    const SizedBox(height: 2),
+                    _OnChainBackupMeta(
+                      backup: onChainBackup,
+                      commitTxid: w.commitTxid,
+                      l10n: l10n,
+                    ),
+                  ],
                 ],
               ),
             ),
             if (isExisting) ...[
               _ScriptBadge(
-                label: existingWallet.name,
+                label: existingWalletName!,
                 background: cs.primaryContainer,
                 foreground: cs.onPrimaryContainer,
               ),
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
-                onPressed: () => _openWallet(existingWallet),
+                onPressed: () {
+                  final wallet = _walletByFirstAddressHash[w.firstAddressHash];
+                  if (wallet == null) {
+                    showErrorToast(l10n.walletNotFound);
+                    return;
+                  }
+                  _openWallet(wallet);
+                },
               ),
-            ] else if (foundOnChain && !w.hasNostrBackup)
-              IconButton(
-                icon: const Icon(Icons.account_balance_wallet_outlined),
-                tooltip: l10n.scanAccountsCreateWallet,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _openWizard(
-                  _accountByAddress[w.firstAddress!]!,
-                  mnemonic: _lastSeedMnemonic,
-                  passphrase: _lastSeedPassphrase,
-                ),
-              )
-            else if (foundOnChain && w.hasNostrBackup)
+            ] else ...[
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    tooltip: l10n.scanAccountsCreateWallet,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => _openWizard(
-                      _accountByAddress[w.firstAddress!]!,
-                      mnemonic: _lastSeedMnemonic,
-                      passphrase: _lastSeedPassphrase,
+                  if (foundOnChain)
+                    IconButton(
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      tooltip: l10n.scanAccountsCreateWallet,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _openWizard(
+                        _accountByAddress[w.firstAddress!]!,
+                        mnemonic: _lastSeedMnemonic,
+                        passphrase: _lastSeedPassphrase,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.cloud_download_outlined),
-                    tooltip: l10n.importFromNostrBackup,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      final b = _nostrByAddress[w.firstAddress!]!;
-                      _importFromNostr(b.bytes, b.xpub);
-                    },
-                  ),
+                  if (w.hasNostrBackup)
+                    IconButton(
+                      icon: const Icon(Icons.cloud_download_outlined),
+                      tooltip: l10n.importFromNostrBackup,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        final b = _nostrByAddress[w.firstAddress!]!;
+                        _importFromNostr(b.bytes, b.xpub);
+                      },
+                    ),
+                  if (w.hasOnChainBackup)
+                    IconButton(
+                      icon: const Icon(Icons.link),
+                      tooltip: l10n.onChainBadge,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _importFromOnChain(
+                          _onChainByAddress[w.firstAddress!]!),
+                    ),
                 ],
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.cloud_download_outlined),
-                tooltip: l10n.importFromNostrBackup,
-                visualDensity: VisualDensity.compact,
-                onPressed: () {
-                  final b = _nostrByAddress[w.firstAddress!]!;
-                  _importFromNostr(b.bytes, b.xpub);
-                },
               ),
+            ],
           ],
         ),
       ),
@@ -1102,6 +1314,89 @@ class _NostrBackupMeta extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+class _OnChainBackupMeta extends StatelessWidget {
+  final _OnChainFoundBackup backup;
+  final String? commitTxid;
+  final AppLocalizations l10n;
+
+  const _OnChainBackupMeta({
+    required this.backup,
+    this.commitTxid,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ts = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    final dateStr = backup.createdAt != null
+        ? formatDateTimeFromUnix(backup.createdAt!)
+        : null;
+    final hasAnchors = backup.anchorsTotal > 0;
+    final anchorsHealthy = hasAnchors && backup.anchorsReachable == backup.anchorsTotal;
+    final anchorsPartial = hasAnchors && backup.anchorsReachable > 0 && backup.anchorsReachable < backup.anchorsTotal;
+
+    IconData? anchorIcon;
+    Color? anchorColor;
+    String? anchorLabel;
+
+    if (hasAnchors) {
+      if (anchorsHealthy) {
+        anchorIcon = Icons.verified;
+        anchorColor = Colors.green;
+      } else if (anchorsPartial) {
+        anchorIcon = Icons.warning_amber;
+        anchorColor = Colors.orange;
+      } else {
+        anchorIcon = Icons.dangerous;
+        anchorColor = Colors.red;
+      }
+      anchorLabel = l10n.onChainBackupAnchorsHealth(
+        anchorsHealthy || anchorsPartial ? backup.anchorsReachable : 0,
+        backup.anchorsTotal,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (dateStr != null) ...[
+          Row(children: [
+            Icon(Icons.cloud_done_outlined, size: 12, color: cs.onSurfaceVariant),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                dateStr,
+                style: ts.bodySmall
+                    ?.copyWith(color: cs.onSurfaceVariant, fontSize: 10),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 1),
+        ],
+        if (anchorIcon != null) ...[
+          Row(children: [
+            Icon(anchorIcon, size: 11, color: anchorColor),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                anchorLabel!,
+                style: ts.bodySmall?.copyWith(
+                  color: anchorColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ]),
+        ],
+      ],
+    );
   }
 }
 

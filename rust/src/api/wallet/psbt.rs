@@ -1,5 +1,207 @@
 use super::*;
 
+// ---------------------------------------------------------------------------
+// Shared UTXO resolution — used by create_psbt and prepare_backup_psbt
+// ---------------------------------------------------------------------------
+
+struct ResolvedUtxo {
+    outpoint: bdk_wallet::bitcoin::OutPoint,
+    /// Some → foreign (mempool) UTXO; None → normal internal UTXO.
+    foreign: Option<(
+        bdk_wallet::bitcoin::psbt::Input,
+        bdk_wallet::bitcoin::Weight,
+    )>,
+}
+
+/// Resolve selected coin-control UTXOs.
+///
+/// Confirmed UTXOs are looked up in BDK's internal set. Coins already spent in a
+/// mempool TX (full-RBF) are reconstructed from the tx graph as foreign UTXOs so the
+/// TxBuilder can still include them.
+fn resolve_selected_utxos(
+    core: &crate::core::wallet::CoreWallet,
+    selected_utxos: &[APICoinControl],
+) -> Result<Vec<ResolvedUtxo>> {
+    use bdk_wallet::bitcoin::{OutPoint, Txid};
+    use bdk_wallet::KeychainKind;
+    use std::str::FromStr;
+
+    let mut resolved = Vec::with_capacity(selected_utxos.len());
+    for coin in selected_utxos {
+        let outpoint = OutPoint::new(Txid::from_str(&coin.txid)?, coin.vout);
+        if core.wallet.get_utxo(outpoint).is_some() {
+            resolved.push(ResolvedUtxo {
+                outpoint,
+                foreign: None,
+            });
+        } else {
+            let txout = core
+                .wallet
+                .tx_graph()
+                .get_txout(outpoint)
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "UTXO not found in wallet or tx graph: {}:{}",
+                        coin.txid,
+                        coin.vout
+                    )
+                })?
+                .clone();
+            let keychain = core
+                .wallet
+                .spk_index()
+                .index_of_spk(txout.script_pubkey.clone())
+                .map(|(k, _)| *k)
+                .unwrap_or(KeychainKind::External);
+            // BIP-174: non-taproot segwit inputs must include non_witness_utxo.
+            let non_witness_utxo = core
+                .wallet
+                .tx_graph()
+                .get_tx(outpoint.txid)
+                .map(|tx| tx.as_ref().clone());
+            let psbt_input = bdk_wallet::bitcoin::psbt::Input {
+                witness_utxo: Some(txout),
+                non_witness_utxo,
+                ..Default::default()
+            };
+            let satisfaction_weight = core
+                .wallet
+                .public_descriptor(keychain)
+                .max_weight_to_satisfy()
+                .unwrap_or(bdk_wallet::bitcoin::Weight::from_wu(500));
+            resolved.push(ResolvedUtxo {
+                outpoint,
+                foreign: Some((psbt_input, satisfaction_weight)),
+            });
+        }
+    }
+    Ok(resolved)
+}
+
+// ---------------------------------------------------------------------------
+// Shared signer injection — used by sign_psbt_with_key and sign_backup_psbt
+// ---------------------------------------------------------------------------
+
+/// Inject the hot-key signer for `mfp` into `core.wallet` and sign `psbt` in place.
+///
+/// Never auto-finalizes (`try_finalize: false`). Clears injected signers after signing
+/// to keep the wallet watch-only.
+fn sign_psbt_in_place(
+    core: &mut crate::core::wallet::CoreWallet,
+    psbt: &mut bdk_wallet::bitcoin::psbt::Psbt,
+    mfp: &str,
+) -> Result<()> {
+    use crate::core::seed::{
+        make_private_descriptor, root_xprv_to_mfp, seed_entry_to_root_xprv,
+        split_multipath_descriptor, strip_descriptor_checksum,
+    };
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+    use bdk_wallet::{KeychainKind, Wallet};
+    use std::sync::Arc;
+
+    let (seeds, _) = list_seed_entries(&core.conn)?;
+    let seed = seeds
+        .iter()
+        .find(|s| s.mfp == mfp)
+        .ok_or_else(|| anyhow::anyhow!("No signing key with MFP {} found", mfp))?;
+
+    let info = read_wallet_info(&core.conn)?;
+    let network: bdk_wallet::bitcoin::Network = APINetwork::try_from(info.network.as_str())?.into();
+    let secp = Secp256k1::new();
+
+    let root_xprv = seed_entry_to_root_xprv(
+        &seed.seed_type,
+        seed.mnemonic.as_deref(),
+        &seed.passphrase,
+        seed.xprv.as_deref(),
+        network,
+    )?;
+
+    let derived_mfp = root_xprv_to_mfp(&root_xprv, &secp);
+    if derived_mfp != mfp {
+        return Err(anyhow::anyhow!(
+            "Key MFP mismatch: expected {} got {}",
+            mfp,
+            derived_mfp
+        ));
+    }
+
+    let private_desc = make_private_descriptor(&info.descriptor, &root_xprv, &secp)
+        .map_err(|e| anyhow::anyhow!("make_private_descriptor failed for {}: {}", mfp, e))?;
+    let private_desc = strip_descriptor_checksum(&private_desc);
+    let (ext_desc, int_desc) = split_multipath_descriptor(&private_desc);
+
+    let temp = Wallet::create(ext_desc, int_desc)
+        .network(network)
+        .create_wallet_no_persist()
+        .map_err(|e| anyhow::anyhow!("Failed to build signer for {}: {}", mfp, e))?;
+
+    for keychain in [KeychainKind::External, KeychainKind::Internal] {
+        #[allow(deprecated)]
+        for signer in temp.get_signers(keychain).signers() {
+            #[allow(deprecated)]
+            core.wallet.add_signer(
+                keychain,
+                bdk_wallet::signer::SignerOrdering(200),
+                Arc::clone(signer),
+            );
+        }
+    }
+
+    #[allow(deprecated)]
+    match core.wallet.sign(
+        psbt,
+        bdk_wallet::SignOptions {
+            trust_witness_utxo: true,
+            try_finalize: false,
+            ..Default::default()
+        },
+    ) {
+        Ok(_) => {}
+        Err(e) => return Err(anyhow::anyhow!("Signing failed for {}: {}", mfp, e)),
+    }
+
+    core.wallet
+        .set_keymap(KeychainKind::External, Default::default());
+    core.wallet
+        .set_keymap(KeychainKind::Internal, Default::default());
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Patch nSequence and nLockTime on foreign (mempool) UTXO inputs when the spend path has a
+/// timelock. BDK applies policy_path to internal UTXOs but leaves foreign UTXOs with the default
+/// ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1). OP_CSV requires bit 31 = 0, so
+/// Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied" without this fixup.
+fn apply_timelock_fixup(
+    psbt: &mut bdk_wallet::bitcoin::psbt::Psbt,
+    conn: &rusqlite::Connection,
+    spend_path_id: u32,
+    has_foreign: bool,
+) {
+    if !has_foreign || spend_path_id == 0 {
+        return;
+    }
+    if let Ok(paths) = load_spend_paths(conn) {
+        if let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) {
+            if sp.rel_timelock > 0 {
+                let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
+                for txin in &mut psbt.unsigned_tx.input {
+                    txin.sequence = seq;
+                }
+            }
+            if sp.abs_timelock > 0 {
+                psbt.unsigned_tx.lock_time =
+                    bdk_wallet::bitcoin::absolute::LockTime::from_consensus(sp.abs_timelock);
+            }
+        }
+    }
+}
+
 /// Return true if every PSBT input is finalized (has final_script_sig or final_script_witness).
 fn is_psbt_finalized(psbt: &bdk_wallet::bitcoin::psbt::Psbt) -> bool {
     psbt.inputs
@@ -55,10 +257,9 @@ impl APIWallet {
         threshold: u32,
         mfps: Vec<String>,
     ) -> Result<APIPsbtInfo> {
-        use bdk_wallet::bitcoin::{Amount, OutPoint, Txid};
+        use bdk_wallet::bitcoin::Amount;
         use bdk_wallet::KeychainKind;
         use std::collections::BTreeMap;
-        use std::str::FromStr;
 
         if recipients.is_empty() {
             return Err(anyhow::anyhow!("At least one recipient is required"));
@@ -77,68 +278,7 @@ impl APIWallet {
             })
             .collect();
 
-        // Pre-resolve each selected UTXO before the builder borrows the wallet.
-        // Coins spent by a mempool tx are absent from BDK's internal UTXO set;
-        // we reconstruct them as foreign UTXOs from the tx graph (full-RBF).
-        struct ResolvedUtxo {
-            outpoint: OutPoint,
-            /// Some → foreign (mempool) UTXO; None → normal internal UTXO.
-            foreign: Option<(
-                bdk_wallet::bitcoin::psbt::Input,
-                bdk_wallet::bitcoin::Weight,
-            )>,
-        }
-        let mut resolved: Vec<ResolvedUtxo> = Vec::with_capacity(selected_utxos.len());
-        for coin in &selected_utxos {
-            let outpoint = OutPoint::new(Txid::from_str(&coin.txid)?, coin.vout);
-            if core.wallet.get_utxo(outpoint).is_some() {
-                resolved.push(ResolvedUtxo {
-                    outpoint,
-                    foreign: None,
-                });
-            } else {
-                // Not in the internal UTXO set — try the tx graph (mempool coin).
-                let txout = core
-                    .wallet
-                    .tx_graph()
-                    .get_txout(outpoint)
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "UTXO not found in wallet or tx graph: {}:{}",
-                            coin.txid,
-                            coin.vout
-                        )
-                    })?
-                    .clone();
-                let keychain = core
-                    .wallet
-                    .spk_index()
-                    .index_of_spk(txout.script_pubkey.clone())
-                    .map(|(k, _)| *k)
-                    .unwrap_or(KeychainKind::External);
-                // BIP-174: non-taproot segwit inputs (P2WPKH, P2WSH) must include
-                // non_witness_utxo (full previous tx) in addition to witness_utxo.
-                let non_witness_utxo = core
-                    .wallet
-                    .tx_graph()
-                    .get_tx(outpoint.txid)
-                    .map(|tx| tx.as_ref().clone());
-                let psbt_input = bdk_wallet::bitcoin::psbt::Input {
-                    witness_utxo: Some(txout),
-                    non_witness_utxo,
-                    ..Default::default()
-                };
-                let satisfaction_weight = core
-                    .wallet
-                    .public_descriptor(keychain)
-                    .max_weight_to_satisfy()
-                    .unwrap_or(bdk_wallet::bitcoin::Weight::from_wu(500));
-                resolved.push(ResolvedUtxo {
-                    outpoint,
-                    foreign: Some((psbt_input, satisfaction_weight)),
-                });
-            }
-        }
+        let resolved = resolve_selected_utxos(&core, &selected_utxos)?;
 
         let mut builder = core.wallet.build_tx();
         builder.fee_absolute(Amount::from_sat(fee_absolute_sat));
@@ -191,33 +331,8 @@ impl APIWallet {
 
         let mut psbt = builder.finish()?;
 
-        // Fixup: BDK does not apply policy_path nSequence/nLockTime to foreign UTXOs.
-        // Coins in "spending" state (mempool) are added via add_foreign_utxo and receive
-        // the default ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1).
-        // OP_CSV requires bit 31 to be 0 (relative locktime enabled); with bit 31 set,
-        // Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied".
-        //
-        // When any input is foreign and the spend path has a relative/absolute timelock,
-        // we patch the unsigned_tx fields before computing the txid.
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        if has_foreign && spend_path_id != 0 {
-            if let Ok(paths) = load_spend_paths(&core.conn) {
-                if let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) {
-                    if sp.rel_timelock > 0 {
-                        let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
-                        for txin in &mut psbt.unsigned_tx.input {
-                            txin.sequence = seq;
-                        }
-                    }
-                    if sp.abs_timelock > 0 {
-                        psbt.unsigned_tx.lock_time =
-                            bdk_wallet::bitcoin::absolute::LockTime::from_consensus(
-                                sp.abs_timelock,
-                            );
-                    }
-                }
-            }
-        }
+        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
 
         let fee_sat = psbt.fee()?.to_sat();
         let txid = psbt.unsigned_tx.compute_txid().to_string();
@@ -644,100 +759,12 @@ impl APIWallet {
     /// Returns the updated [`APIPsbtInfo`] with the partial signatures added.
     #[frb(sync)]
     pub fn sign_psbt_with_key(&self, psbt_id: i64, mfp: String) -> Result<APIPsbtInfo> {
-        use crate::core::seed::{
-            make_private_descriptor, root_xprv_to_mfp, seed_entry_to_root_xprv,
-            split_multipath_descriptor, strip_descriptor_checksum,
-        };
-        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
-        use bdk_wallet::{KeychainKind, Wallet};
-        use std::sync::Arc;
-
         let mut core = self.lock_wallet()?;
-
-        // Find the seed entry for this MFP.
-        let (seeds, _corrupt) = list_seed_entries(&core.conn)?;
-        let seed = seeds
-            .iter()
-            .find(|s| s.mfp == mfp)
-            .ok_or_else(|| anyhow::anyhow!("No signing key with MFP {} found", mfp))?;
-
-        let info = read_wallet_info(&core.conn)?;
-        let network: bdk_wallet::bitcoin::Network =
-            APINetwork::try_from(info.network.as_str())?.into();
-        let secp = Secp256k1::new();
-
-        // Derive the root xprv from the stored seed.
-        let root_xprv = seed_entry_to_root_xprv(
-            &seed.seed_type,
-            seed.mnemonic.as_deref(),
-            &seed.passphrase,
-            seed.xprv.as_deref(),
-            network,
-        )?;
-
-        let derived_mfp = root_xprv_to_mfp(&root_xprv, &secp);
-        if derived_mfp != mfp {
-            return Err(anyhow::anyhow!(
-                "Key MFP mismatch: expected {} got {}",
-                mfp,
-                derived_mfp
-            ));
-        }
-
-        // Build a private descriptor for this key and extract properly-
-        // contextualized signers via a temporary in-memory wallet.
-        let private_desc = make_private_descriptor(&info.descriptor, &root_xprv, &secp)
-            .map_err(|e| anyhow::anyhow!("make_private_descriptor failed for {}: {}", mfp, e))?;
-        let private_desc = strip_descriptor_checksum(&private_desc);
-
-        // Split multi-path descriptor (<n;m> → /n/ for external, /m/ for internal).
-        let (ext_desc, int_desc) = split_multipath_descriptor(&private_desc);
-
-        let temp = Wallet::create(ext_desc, int_desc)
-            .network(network)
-            .create_wallet_no_persist()
-            .map_err(|e| anyhow::anyhow!("Failed to build signer for {}: {}", mfp, e))?;
-
-        // Add only the signer for this MFP.
-        // `get_signers` / `add_signer` / `SignerOrdering` / `sign` are deprecated in BDK 2.2.0
-        // (signer module moved to bitcoin::psbt). No stable replacement for runtime signer
-        // injection exists in BDK 2.3.0; remove once BDK provides one.
-        for keychain in [KeychainKind::External, KeychainKind::Internal] {
-            #[allow(deprecated)]
-            for signer in temp.get_signers(keychain).signers() {
-                #[allow(deprecated)]
-                core.wallet.add_signer(
-                    keychain,
-                    bdk_wallet::signer::SignerOrdering(200),
-                    Arc::clone(signer),
-                );
-            }
-        }
-
-        // Sign — never auto-finalize so the user controls when to finalize.
         let row = get_psbt_row(&core.conn, psbt_id)?;
         let mut psbt = psbt_from_base64(&row.psbt)?;
 
-        #[allow(deprecated)]
-        match core.wallet.sign(
-            &mut psbt,
-            bdk_wallet::SignOptions {
-                trust_witness_utxo: true,
-                try_finalize: false,
-                ..Default::default()
-            },
-        ) {
-            Ok(_) => {}
-            Err(e) => return Err(anyhow::anyhow!("Signing failed for {}: {}", mfp, e)),
-        }
+        sign_psbt_in_place(&mut core, &mut psbt, &mfp)?;
 
-        // Clear signers — keep the wallet watch-only between signing calls.
-        core.wallet
-            .set_keymap(KeychainKind::External, Default::default());
-        core.wallet
-            .set_keymap(KeychainKind::Internal, Default::default());
-
-        // Persist the updated PSBT.
         let updated_base64 = psbt_to_base64(&psbt);
         update_psbt_data(&core.conn, psbt_id, &updated_base64)?;
 
@@ -747,6 +774,573 @@ impl APIWallet {
             &core.conn,
             &core.wallet,
         ))
+    }
+
+    // -----------------------------------------------------------------------
+    // On-chain backup — PSBT creation, signing, and broadcast
+    // -----------------------------------------------------------------------
+
+    /// Build the TX_COMMIT PSBT for an on-chain descriptor backup.
+    ///
+    /// Uses the live wallet (no extra connection). The PSBT is NOT stored in the
+    /// wallet's `unsigned_txs` table — it is returned to Flutter to be signed and
+    /// then passed directly to `finalize_backup`.
+    ///
+    /// `min_fee_rate` is the network's minimum relay fee rate. TX_COMMIT uses it
+    /// as its fee rate (below relay standard so it cannot be mined alone).
+    /// TX_REVEAL's fee is guaranteed to be at least `reveal_vbytes * min_fee_rate`.
+    pub fn prepare_backup_psbt(
+        &self,
+        utxo_txids: Vec<String>,
+        utxo_vouts: Vec<u32>,
+        fee_rate_sat_per_vb: f64,
+        min_fee_rate: f64,
+        policy_path: Vec<APIPolicyPath>,
+        spend_path_id: u32,
+    ) -> Result<descriptor_backup::OnchainBackupPsbt> {
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::bitcoin::{Address, Amount};
+        use bdk_wallet::KeychainKind;
+        use std::collections::BTreeMap;
+        use std::str::FromStr as _;
+
+        if utxo_txids.is_empty() || utxo_txids.len() != utxo_vouts.len() {
+            return Err(anyhow::anyhow!(
+                "At least one UTXO required; txids and vouts must be the same length"
+            ));
+        }
+
+        let mut core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+        let descriptor = info.descriptor.clone();
+
+        // Build the encrypted payload and derive the vault tapscript / address.
+        let secp = Secp256k1::new();
+        let triples = descriptor_backup::participant_triples(&descriptor);
+        if triples.is_empty() {
+            return Err(anyhow::anyhow!("Descriptor has no xpub keys"));
+        }
+        let triple_refs: Vec<(&str, &str, &str)> = triples
+            .iter()
+            .map(|(m, x, p)| (m.as_str(), x.as_str(), p.as_str()))
+            .collect();
+        let payload =
+            descriptor_backup::build_encrypted_payload(&descriptor, &triple_refs, &info.name)?;
+        let compressed = descriptor_backup::zstd_compress(&payload);
+        let tapscript = descriptor_backup::vault_tapscript(&compressed);
+        let vault_info = descriptor_backup::vault_taproot(&secp, &tapscript)?;
+        let vault_addr = Address::p2tr(
+            &secp,
+            vault_info.internal_key(),
+            vault_info.merkle_root(),
+            network,
+        );
+
+        // Derive anchor addresses.
+        let anchor_addrs: Vec<Address> = triples
+            .iter()
+            .map(|(_, xpub, _)| -> Result<_> {
+                let x = bdk_wallet::bitcoin::bip32::Xpub::from_str(xpub)?;
+                let k = descriptor_backup::derive_anchor_key(&secp, &x);
+                Ok(descriptor_backup::anchor_p2tr_address(&secp, &k, network))
+            })
+            .collect::<Result<_>>()?;
+        let n_anchors = anchor_addrs.len();
+        let n_inputs = utxo_txids.len();
+
+        // Compute fees (CPFP split).
+        let commit_wu = descriptor_backup::commit_weight(n_inputs, n_anchors);
+        let reveal_wu = descriptor_backup::reveal_weight(tapscript.len(), n_anchors);
+        let (commit_fee, reveal_fee) = descriptor_backup::split_package_fees(
+            commit_wu,
+            reveal_wu,
+            fee_rate_sat_per_vb,
+            min_fee_rate,
+        );
+        let anchor_cost = descriptor_backup::ANCHOR_SATS * n_anchors as u64;
+        let vault_sats = descriptor_backup::ANCHOR_SATS.max(reveal_fee.saturating_sub(anchor_cost));
+        let package_vbytes = commit_wu.div_ceil(4) + reveal_wu.div_ceil(4);
+
+        // Verify selected UTXOs exist and accumulate total sats.
+        let coin_controls: Vec<APICoinControl> = utxo_txids
+            .iter()
+            .zip(utxo_vouts.iter())
+            .map(|(txid, vout)| APICoinControl {
+                txid: txid.clone(),
+                vout: *vout,
+            })
+            .collect();
+        let resolved = resolve_selected_utxos(&core, &coin_controls)?;
+
+        let total_utxo_sats: u64 = resolved
+            .iter()
+            .map(|r| {
+                core.wallet
+                    .get_utxo(r.outpoint)
+                    .map(|u| u.txout.value.to_sat())
+                    .or_else(|| {
+                        core.wallet
+                            .tx_graph()
+                            .get_txout(r.outpoint)
+                            .map(|o| o.value.to_sat())
+                    })
+                    .unwrap_or(0)
+            })
+            .sum();
+
+        let required = vault_sats + anchor_cost + commit_fee;
+        let change_sat = total_utxo_sats.saturating_sub(required);
+
+        if change_sat >= 330 {
+            if total_utxo_sats < required + 330 {
+                return Err(anyhow::anyhow!(
+                    "Selected UTXOs too small ({total_utxo_sats} sats). Need at least {} sats to cover vault, anchors, fees, and a change output above dust (330 sats).",
+                    required + 330
+                ));
+            }
+        } else if total_utxo_sats < required.saturating_sub(329) {
+            return Err(anyhow::anyhow!(
+                "Selected UTXOs too small ({total_utxo_sats} sats). Need at least {} sats to cover vault, anchors, and fees (change below dust, burned to fees).",
+                required.saturating_sub(329)
+            ));
+        }
+
+        let change_addr = core
+            .wallet
+            .next_unused_address(KeychainKind::Internal)
+            .address;
+
+        // Apply policy path.
+        let policy_map: BTreeMap<String, Vec<usize>> = policy_path
+            .into_iter()
+            .map(|pp| {
+                (
+                    pp.policy_id,
+                    pp.path.into_iter().map(|x| x as usize).collect(),
+                )
+            })
+            .collect();
+
+        // Build TX_COMMIT PSBT.
+        let mut builder = core.wallet.build_tx();
+        builder.fee_absolute(Amount::from_sat(commit_fee));
+        builder.add_recipient(vault_addr.script_pubkey(), Amount::from_sat(vault_sats));
+        for addr in &anchor_addrs {
+            builder.add_recipient(
+                addr.script_pubkey(),
+                Amount::from_sat(descriptor_backup::ANCHOR_SATS),
+            );
+        }
+        if change_sat >= 330 {
+            builder.add_recipient(change_addr.script_pubkey(), Amount::from_sat(change_sat));
+        }
+        for r in &resolved {
+            if let Some((psbt_input, weight)) = &r.foreign {
+                builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
+            } else {
+                builder.add_utxo(r.outpoint)?;
+            }
+        }
+        builder.manually_selected_only();
+        if !policy_map.is_empty() {
+            builder.policy_path(policy_map.clone(), KeychainKind::External);
+            builder.policy_path(policy_map, KeychainKind::Internal);
+        }
+        let mut psbt = builder.finish()?;
+
+        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
+        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
+
+        core.persist()?;
+
+        Ok(descriptor_backup::OnchainBackupPsbt {
+            commit_psbt_base64: psbt_to_base64(&psbt),
+            vault_tapscript_hex: hex::encode(tapscript.as_bytes()),
+            commit_fee_sat: commit_fee,
+            reveal_fee_sat: reveal_fee,
+            vault_sats,
+            anchor_cost_sat: anchor_cost,
+            anchor_count: n_anchors as u32,
+            change_sat,
+            reveal_change_sat: vault_sats
+                .saturating_add(anchor_cost)
+                .saturating_sub(reveal_fee),
+            package_vbytes,
+        })
+    }
+
+    /// Sign the TX_COMMIT PSBT for an on-chain backup using a stored hot key.
+    ///
+    /// The PSBT is not stored in the wallet DB — it is ephemeral and returned
+    /// directly to Flutter for passing to `finalize_backup`.
+    #[frb(sync)]
+    pub fn sign_backup_psbt(&self, psbt_base64: String, mfp: String) -> Result<String> {
+        let mut core = self.lock_wallet()?;
+        let mut psbt = psbt_from_base64(&psbt_base64)?;
+        sign_psbt_in_place(&mut core, &mut psbt, &mfp)?;
+        Ok(psbt_to_base64(&psbt))
+    }
+
+    /// Broadcast a signed TX_COMMIT and emit TX_REVEAL to complete the backup.
+    ///
+    /// Anchor keys are derived from the wallet's xpubs — no seed material needed.
+    pub async fn finalize_backup(
+        &self,
+        signed_commit_psbt_base64: String,
+        vault_tapscript_hex: String,
+        reveal_fee_sat: u64,
+        electrum_url: String,
+    ) -> Result<descriptor_backup::OnchainBackupResult> {
+        use bdk_electrum::electrum_client::ElectrumApi;
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::bitcoin::ScriptBuf;
+        use bdk_wallet::KeychainKind;
+        use std::str::FromStr as _;
+
+        let mut core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        let descriptor = info.descriptor.clone();
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+
+        let secp = Secp256k1::new();
+        let tapscript = ScriptBuf::from_bytes(
+            hex::decode(&vault_tapscript_hex)
+                .map_err(|e| anyhow::anyhow!("Invalid vault tapscript hex: {e}"))?,
+        );
+        let vault_info = descriptor_backup::vault_taproot(&secp, &tapscript)?;
+        let vault_script = bdk_wallet::bitcoin::Address::p2tr(
+            &secp,
+            vault_info.internal_key(),
+            vault_info.merkle_root(),
+            network,
+        )
+        .script_pubkey();
+
+        let mut commit_psbt = psbt_from_base64(&signed_commit_psbt_base64)?;
+
+        // Finalize via BDK/miniscript (same pattern as broadcast_psbt).
+        if !is_psbt_finalized(&commit_psbt) {
+            #[allow(deprecated)]
+            let ok = core
+                .wallet
+                .finalize_psbt(&mut commit_psbt, bdk_wallet::SignOptions::default())?;
+            anyhow::ensure!(ok, "TX_COMMIT cannot be finalized — not enough signatures");
+        }
+
+        let commit_tx = commit_psbt
+            .extract_tx()
+            .map_err(|e| anyhow::anyhow!("Failed to extract signed TX_COMMIT: {e}"))?;
+
+        let triples = descriptor_backup::participant_triples(&descriptor);
+        let n_anchors = triples.len();
+        anyhow::ensure!(
+            commit_tx.output.len() >= n_anchors + 2,
+            "TX_COMMIT has unexpected output count (expected ≥ {})",
+            n_anchors + 2
+        );
+
+        let anchor_keys: Vec<descriptor_backup::AnchorKey> = triples
+            .iter()
+            .map(|(_, xpub, _)| -> Result<_> {
+                Ok(descriptor_backup::derive_anchor_key(
+                    &secp,
+                    &bdk_wallet::bitcoin::bip32::Xpub::from_str(xpub)?,
+                ))
+            })
+            .collect::<Result<_>>()?;
+
+        // Find actual output positions by scriptPubKey (BDK may shuffle output order).
+        let vault_vout = commit_tx
+            .output
+            .iter()
+            .position(|o| o.script_pubkey == vault_script)
+            .ok_or_else(|| anyhow::anyhow!("Vault output not found in TX_COMMIT"))?
+            as u32;
+
+        let anchor_scripts: Vec<_> = anchor_keys
+            .iter()
+            .map(|k| descriptor_backup::anchor_p2tr_address(&secp, k, network).script_pubkey())
+            .collect();
+        let anchor_vouts: Vec<u32> = anchor_scripts
+            .iter()
+            .map(|s| {
+                commit_tx
+                    .output
+                    .iter()
+                    .position(|o| &o.script_pubkey == s)
+                    .ok_or_else(|| anyhow::anyhow!("Anchor output not found in TX_COMMIT"))
+                    .map(|i| i as u32)
+            })
+            .collect::<Result<_>>()?;
+
+        let vault_txout = commit_tx.output[vault_vout as usize].clone();
+        let anchor_txouts: Vec<bdk_wallet::bitcoin::TxOut> = anchor_vouts
+            .iter()
+            .map(|&i| commit_tx.output[i as usize].clone())
+            .collect();
+
+        let reveal_change_addr = core
+            .wallet
+            .next_unused_address(KeychainKind::Internal)
+            .address;
+        core.persist()?;
+        drop(core);
+
+        let client = create_raw_electrum_client(&electrum_url)?;
+        let commit_txid = client
+            .transaction_broadcast(&commit_tx)
+            .map_err(|e| anyhow::anyhow!("TX_COMMIT broadcast failed: {e}"))?;
+
+        let mut reveal_tx = descriptor_backup::build_reveal(
+            commit_txid,
+            vault_vout,
+            &vault_txout,
+            &anchor_vouts,
+            &anchor_txouts,
+            reveal_fee_sat,
+            &reveal_change_addr,
+        )?;
+        descriptor_backup::sign_reveal(
+            &secp,
+            &mut reveal_tx,
+            &vault_txout,
+            &anchor_txouts,
+            &vault_info,
+            &tapscript,
+            &anchor_keys,
+        )?;
+
+        let reveal_txid = client
+            .transaction_broadcast(&reveal_tx)
+            .map_err(|e| anyhow::anyhow!("TX_REVEAL broadcast failed: {e}"))?;
+
+        Ok(descriptor_backup::OnchainBackupResult {
+            commit_txid: commit_txid.to_string(),
+            reveal_txid: reveal_txid.to_string(),
+        })
+    }
+
+    /// Compute on-chain backup parameters from the already-open wallet.
+    ///
+    /// Pure local computation — no network, no DB re-open.
+    /// Returns fee-size estimates and anchor addresses for live fee breakdown in Flutter.
+    pub fn compute_backup_params(&self) -> Result<descriptor_backup::BackupParams> {
+        use bdk_wallet::bitcoin::bip32::Xpub;
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::bitcoin::Address;
+        use std::str::FromStr as _;
+
+        let core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+        let descriptor = info.descriptor.clone();
+        drop(core);
+
+        let secp = Secp256k1::new();
+        let triples = descriptor_backup::participant_triples(&descriptor);
+        let n = triples.len();
+        if n == 0 {
+            return Err(anyhow::anyhow!("Descriptor has no xpub keys"));
+        }
+
+        let triple_refs: Vec<(&str, &str, &str)> = triples
+            .iter()
+            .map(|(m, x, p)| (m.as_str(), x.as_str(), p.as_str()))
+            .collect();
+        let payload_json =
+            descriptor_backup::build_encrypted_payload(&descriptor, &triple_refs, &info.name)?;
+        let compressed_payload = descriptor_backup::zstd_compress(&payload_json);
+        let tapscript = descriptor_backup::vault_tapscript(&compressed_payload);
+
+        let commit_vbytes = descriptor_backup::commit_weight(1, n).div_ceil(4);
+        let reveal_vbytes = descriptor_backup::reveal_weight(tapscript.len(), n).div_ceil(4);
+
+        let anchor_addresses: Vec<String> = triples
+            .iter()
+            .map(|(_, xpub, _)| {
+                let x = Xpub::from_str(xpub)?;
+                let k = descriptor_backup::derive_anchor_key(&secp, &x);
+                Ok(descriptor_backup::anchor_p2tr_address(&secp, &k, network).to_string())
+            })
+            .collect::<anyhow::Result<_>>()?;
+
+        let vault_info = descriptor_backup::vault_taproot(&secp, &tapscript)?;
+        let vault_addr = Address::p2tr(
+            &secp,
+            vault_info.internal_key(),
+            vault_info.merkle_root(),
+            network,
+        );
+
+        let (commit_fee, reveal_fee) =
+            descriptor_backup::split_package_fees(commit_vbytes * 4, reveal_vbytes * 4, 0.1, 0.1);
+        let anchor_cost = descriptor_backup::ANCHOR_SATS * n as u64;
+        let vault_sats = descriptor_backup::ANCHOR_SATS.max(reveal_fee.saturating_sub(anchor_cost));
+        let required = vault_sats + anchor_cost + commit_fee;
+        let min_utxo_sats_base = if reveal_fee > anchor_cost {
+            required + 330
+        } else {
+            required.saturating_sub(329)
+        };
+
+        Ok(descriptor_backup::BackupParams {
+            commit_vbytes,
+            reveal_vbytes,
+            participant_count: n as u32,
+            vault_address: vault_addr.to_string(),
+            vault_tapscript_hex: hex::encode(tapscript.as_bytes()),
+            anchor_addresses,
+            min_utxo_sats_base,
+        })
+    }
+
+    /// Check whether an on-chain backup already exists for this wallet.
+    ///
+    /// Uses the already-open wallet connection — no key derivation or DB re-open.
+    /// Queries each participant's anchor address on Electrum, then finds the commit TX
+    /// whose outputs cover **all** anchor addresses (unique fingerprint of this multisig).
+    pub async fn check_backup_health(
+        &self,
+        electrum_url: String,
+    ) -> Result<descriptor_backup::WalletBackupStatus> {
+        use bdk_electrum::electrum_client::ElectrumApi;
+        use bdk_wallet::bitcoin::bip32::Xpub;
+        use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+        use bdk_wallet::bitcoin::ScriptBuf;
+        use std::collections::HashSet;
+        use std::str::FromStr as _;
+
+        let core = self.lock_wallet()?;
+        let info = read_wallet_info(&core.conn)?;
+        let network: bdk_wallet::bitcoin::Network =
+            APINetwork::try_from(info.network.as_str())?.into();
+        let descriptor = info.descriptor.clone();
+        drop(core);
+
+        let secp = Secp256k1::new();
+        let triples = descriptor_backup::participant_triples(&descriptor);
+        let n = triples.len();
+        if n == 0 {
+            return Err(anyhow::anyhow!("Descriptor has no xpub keys"));
+        }
+
+        // SHA-256 hash of the first receiving address from the wallet descriptor.
+        // Used to verify that a discovered backup belongs to this wallet.
+        let wallet_first_addr_hash =
+            super::discovery::first_address_from_descriptor(descriptor.clone(), network.into())
+                .map(super::discovery::sha256_hex)
+                .unwrap_or_default();
+
+        let anchor_spks: Vec<ScriptBuf> = triples
+            .iter()
+            .map(|(_, xpub, _)| {
+                let x = Xpub::from_str(xpub)?;
+                let k = descriptor_backup::derive_anchor_key(&secp, &x);
+                Ok(descriptor_backup::anchor_p2tr_address(&secp, &k, network).script_pubkey())
+            })
+            .collect::<anyhow::Result<_>>()?;
+
+        let not_found = descriptor_backup::WalletBackupStatus {
+            found: false,
+            commit_txid: None,
+            reveal_txid: None,
+            anchors_reachable: 0,
+            anchors_total: n as u32,
+            descriptor_verified: false,
+        };
+
+        let client = create_raw_electrum_client(&electrum_url)?;
+
+        // Fetch all anchor histories once; reuse the results to count anchors_reachable.
+        let anchor_histories: Vec<Vec<_>> = anchor_spks
+            .iter()
+            .map(|spk| {
+                client
+                    .script_get_history(spk.as_script())
+                    .unwrap_or_default()
+            })
+            .collect();
+
+        // Collect unique candidate txids preserving insertion order.
+        let mut seen: HashSet<bdk_wallet::bitcoin::Txid> = HashSet::new();
+        let mut candidate_txids: Vec<bdk_wallet::bitcoin::Txid> = Vec::new();
+        for history in &anchor_histories {
+            for item in history {
+                if seen.insert(item.tx_hash) {
+                    candidate_txids.push(item.tx_hash);
+                }
+            }
+        }
+
+        if candidate_txids.is_empty() {
+            return Ok(not_found);
+        }
+
+        // Scan candidate commits from most recent to oldest. For each commit
+        // that pays to all anchor addresses, try to decrypt the TX_REVEAL and
+        // check whether its descriptor matches this wallet. The first match
+        // wins; if none match the wallet's descriptor the backup is discarded.
+        for txid in candidate_txids.iter().rev() {
+            let tx = match client.transaction_get(txid) {
+                Ok(tx) => tx,
+                Err(_) => continue,
+            };
+
+            let out_spks: std::collections::HashSet<&ScriptBuf> =
+                tx.output.iter().map(|o| &o.script_pubkey).collect();
+            if !anchor_spks.iter().all(|spk| out_spks.contains(spk)) {
+                continue;
+            }
+
+            let (reveal_txid_str, descriptor_verified) =
+                match descriptor_backup::find_reveal_tx_for_commit(
+                    &client,
+                    &tx,
+                    *txid,
+                    &anchor_spks,
+                ) {
+                    Some((rtxid, rtx, _)) => {
+                        let verified = triples.iter().any(|(_, xpub, _)| {
+                            descriptor_backup::extract_descriptor_from_reveal(&rtx, xpub)
+                                .ok()
+                                .map(|(d, _, _)| {
+                                    super::discovery::first_address_from_descriptor(
+                                        d.clone(),
+                                        network.into(),
+                                    )
+                                    .map(super::discovery::sha256_hex)
+                                    .unwrap_or_default()
+                                        == wallet_first_addr_hash
+                                })
+                                .unwrap_or(false)
+                        });
+                        (Some(rtxid.to_string()), verified)
+                    }
+                    None => (None, false),
+                };
+
+            if descriptor_verified {
+                let anchors_reachable = anchor_histories
+                    .iter()
+                    .filter(|h| h.iter().any(|item| item.tx_hash == *txid))
+                    .count() as u32;
+
+                return Ok(descriptor_backup::WalletBackupStatus {
+                    found: true,
+                    commit_txid: Some(txid.to_string()),
+                    reveal_txid: reveal_txid_str,
+                    anchors_reachable,
+                    anchors_total: n as u32,
+                    descriptor_verified,
+                });
+            }
+        }
+
+        Ok(not_found)
     }
 }
 

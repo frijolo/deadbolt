@@ -6,9 +6,10 @@
 import '../frb_generated.dart';
 import 'model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'wallet/descriptor_backup.dart';
 import 'wallet/descriptor_sig.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `extract_xpub_derivation_map`, `extract_xpub_mfp_map`, `lock_wallet`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`, `xpub_slots_from_descriptor`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `lock_wallet`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({
@@ -403,6 +404,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required APISecurityLevel securityLevel,
   });
 
+  /// Check whether an on-chain backup already exists for this wallet.
+  ///
+  /// Uses the already-open wallet connection — no key derivation or DB re-open.
+  /// Queries each participant's anchor address on Electrum, then finds the commit TX
+  /// whose outputs cover **all** anchor addresses (unique fingerprint of this multisig).
+  Future<WalletBackupStatus> checkBackupHealth({required String electrumUrl});
+
   /// Delete all stored fiat prices (called when the user changes fiat currency).
   Future<void> clearFiatPrices();
 
@@ -415,6 +423,12 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required String xpubEntry,
     required String signedPsbtB64,
   });
+
+  /// Compute on-chain backup parameters from the already-open wallet.
+  ///
+  /// Pure local computation — no network, no DB re-open.
+  /// Returns fee-size estimates and anchor addresses for live fee breakdown in Flutter.
+  Future<BackupParams> computeBackupParams();
 
   /// Build an unsigned PSBT with optional coin control and spend-path selection.
   ///
@@ -461,6 +475,16 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Export all explicit (non-auto) labels to BIP-329 JSONL format.
   List<String> exportBip329();
+
+  /// Broadcast a signed TX_COMMIT and emit TX_REVEAL to complete the backup.
+  ///
+  /// Anchor keys are derived from the wallet's xpubs — no seed material needed.
+  Future<OnchainBackupResult> finalizeBackup({
+    required String signedCommitPsbtBase64,
+    required String vaultTapscriptHex,
+    required BigInt revealFeeSat,
+    required String electrumUrl,
+  });
 
   /// Return full detail for an address: the address plus its unspent UTXOs.
   Future<APIAddressDetails> getAddressDetails({required String address});
@@ -553,6 +577,24 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required String signedPsbtBase64,
   });
 
+  /// Build the TX_COMMIT PSBT for an on-chain descriptor backup.
+  ///
+  /// Uses the live wallet (no extra connection). The PSBT is NOT stored in the
+  /// wallet's `unsigned_txs` table — it is returned to Flutter to be signed and
+  /// then passed directly to `finalize_backup`.
+  ///
+  /// `min_fee_rate` is the network's minimum relay fee rate. TX_COMMIT uses it
+  /// as its fee rate (below relay standard so it cannot be mined alone).
+  /// TX_REVEAL's fee is guaranteed to be at least `reveal_vbytes * min_fee_rate`.
+  Future<OnchainBackupPsbt> prepareBackupPsbt({
+    required List<String> utxoTxids,
+    required List<int> utxoVouts,
+    required double feeRateSatPerVb,
+    required double minFeeRate,
+    required List<APIPolicyPath> policyPath,
+    required int spendPathId,
+  });
+
   /// Build the BB02-BIP322 PSBT to send to the hardware wallet for signing.
   ///
   /// After calling this, pass the returned PSBT base64 to `hw_sign_psbt`
@@ -612,6 +654,12 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Automatically propagates to related entities (addresses and UTXOs).
   /// Clearing an inherited (auto) label is a no-op.
   void setTxLabel({required String txid, required String label});
+
+  /// Sign the TX_COMMIT PSBT for an on-chain backup using a stored hot key.
+  ///
+  /// The PSBT is not stored in the wallet DB — it is ephemeral and returned
+  /// directly to Flutter for passing to `finalize_backup`.
+  String signBackupPsbt({required String psbtBase64, required String mfp});
 
   /// Sign the descriptor with a stored HotKey (mnemonic or xprv).
   ///

@@ -12,6 +12,8 @@ import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
 import 'api/wallet/backup.dart';
+import 'api/wallet/descriptor_backup.dart';
+import 'api/wallet/descriptor_recovery.dart';
 import 'api/wallet/descriptor_sig.dart';
 import 'api/wallet/discovery.dart';
 import 'api/wallet/nostr_backup.dart';
@@ -35,8 +37,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_AnchorKeyPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_SecretKeyPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SpendPathPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_XOnlyPublicKeyPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
@@ -48,8 +62,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    dynamic raw,
+  );
+
+  @protected
+  SecretKey
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    dynamic raw,
+  );
+
+  @protected
   SpendPath
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    dynamic raw,
+  );
+
+  @protected
+  XOnlyPublicKey
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
     dynamic raw,
   );
 
@@ -60,8 +92,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    dynamic raw,
+  );
+
+  @protected
   ApiWallet
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    dynamic raw,
+  );
+
+  @protected
+  AnchorKey
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
     dynamic raw,
   );
 
@@ -78,8 +122,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    dynamic raw,
+  );
+
+  @protected
+  SecretKey
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    dynamic raw,
+  );
+
+  @protected
   SpendPath
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    dynamic raw,
+  );
+
+  @protected
+  XOnlyPublicKey
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
     dynamic raw,
   );
 
@@ -262,6 +324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIXpubSlot dco_decode_api_xpub_slot(dynamic raw);
 
   @protected
+  BackupParams dco_decode_backup_params(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -288,6 +353,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  ExistingBackupInfo dco_decode_existing_backup_info(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -406,7 +474,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NostrRelayStatus> dco_decode_list_nostr_relay_status(dynamic raw);
 
   @protected
+  List<OnchainBackupResponse> dco_decode_list_onchain_backup_response(
+    dynamic raw,
+  );
+
+  @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_u_32_loose(dynamic raw);
 
   @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
@@ -425,6 +501,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NostrRelayStatus dco_decode_nostr_relay_status(dynamic raw);
+
+  @protected
+  OnchainBackupPsbt dco_decode_onchain_backup_psbt(dynamic raw);
+
+  @protected
+  OnchainBackupResponse dco_decode_onchain_backup_response(dynamic raw);
+
+  @protected
+  OnchainBackupResult dco_decode_onchain_backup_result(dynamic raw);
+
+  @protected
+  OnchainImportResult dco_decode_onchain_import_result(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -470,6 +558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  WalletBackupStatus dco_decode_wallet_backup_status(dynamic raw);
+
+  @protected
   WalletImportResult dco_decode_wallet_import_result(dynamic raw);
 
   @protected
@@ -482,8 +573,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SecretKey
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SpendPath
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  XOnlyPublicKey
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
     SseDeserializer deserializer,
   );
 
@@ -494,8 +603,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ApiWallet
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AnchorKey
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
     SseDeserializer deserializer,
   );
 
@@ -512,8 +633,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnchorKey
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SecretKey
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SpendPath
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  XOnlyPublicKey
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
     SseDeserializer deserializer,
   );
 
@@ -732,6 +871,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIXpubSlot sse_decode_api_xpub_slot(SseDeserializer deserializer);
 
   @protected
+  BackupParams sse_decode_backup_params(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -768,6 +910,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  ExistingBackupInfo sse_decode_existing_backup_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -930,7 +1077,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<OnchainBackupResponse> sse_decode_list_onchain_backup_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_u_32_loose(SseDeserializer deserializer);
 
   @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
@@ -953,6 +1108,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NostrRelayStatus sse_decode_nostr_relay_status(SseDeserializer deserializer);
+
+  @protected
+  OnchainBackupPsbt sse_decode_onchain_backup_psbt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OnchainBackupResponse sse_decode_onchain_backup_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OnchainBackupResult sse_decode_onchain_backup_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OnchainImportResult sse_decode_onchain_import_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -1004,6 +1179,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  WalletBackupStatus sse_decode_wallet_backup_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WalletImportResult sse_decode_wallet_import_result(
     SseDeserializer deserializer,
   );
@@ -1023,8 +1203,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    AnchorKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    SecretKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SpendPath self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+    XOnlyPublicKey self,
     SseSerializer serializer,
   );
 
@@ -1037,8 +1238,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    AnchorKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
     ApiWallet self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    AnchorKey self,
     SseSerializer serializer,
   );
 
@@ -1058,8 +1273,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    AnchorKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    SecretKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SpendPath self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+    XOnlyPublicKey self,
     SseSerializer serializer,
   );
 
@@ -1340,6 +1576,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_xpub_slot(APIXpubSlot self, SseSerializer serializer);
 
   @protected
+  void sse_encode_backup_params(BackupParams self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1383,6 +1622,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_existing_backup_info(
+    ExistingBackupInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -1590,8 +1835,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_onchain_backup_response(
+    List<OnchainBackupResponse> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_i_64_strict(
     Int64List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_loose(
+    List<int> self,
     SseSerializer serializer,
   );
 
@@ -1625,6 +1882,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_nostr_relay_status(
     NostrRelayStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_onchain_backup_psbt(
+    OnchainBackupPsbt self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_onchain_backup_response(
+    OnchainBackupResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_onchain_backup_result(
+    OnchainBackupResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_onchain_import_result(
+    OnchainImportResult self,
     SseSerializer serializer,
   );
 
@@ -1689,6 +1970,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_wallet_backup_status(
+    WalletBackupStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_wallet_import_result(
     WalletImportResult self,
     SseSerializer serializer,
@@ -1717,6 +2004,38 @@ class RustLibWire implements BaseWire {
       );
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+        ptr,
+      );
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+        ptr,
+      );
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     int ptr,
   ) => wasmModule
@@ -1729,6 +2048,22 @@ class RustLibWire implements BaseWire {
     int ptr,
   ) => wasmModule
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+        ptr,
+      );
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
         ptr,
       );
 }
@@ -1750,12 +2085,42 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnchorKey(
+    int ptr,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSecretKey(
+    int ptr,
+  );
+
+  external void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     int ptr,
   );
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    int ptr,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerXOnlyPublicKey(
     int ptr,
   );
 }

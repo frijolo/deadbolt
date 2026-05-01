@@ -231,17 +231,45 @@ pub fn parse_xpub_credential(credential: &str) -> (Option<&str>, &str) {
 }
 
 /// Try `xpub` against slots and return `(data_key, matched_mfp)` on first match.
-/// When `mfp_hint` is provided, only the matching slot is tried (fast path).
+/// When `mfp_hint` is provided, slots matching the hint are tried first (fast
+/// path).  If none of the hinted slots decrypt successfully, all remaining
+/// slots are tried as a fallback — this handles cases where the descriptor was
+/// created with a different mfp label than the one supplied in the credential.
 /// When `mfp_hint` is `None`, all slots are tried in order.
 pub fn unwrap_xpub_slots(
     xpub: &str,
     mfp_hint: Option<&str>,
     slots: &[XpubSlot],
 ) -> Result<(String, String)> {
-    for slot in slots {
-        if let Some(hint) = mfp_hint {
+    // First pass: try slots matching the mfp_hint (optimization).
+    if let Some(hint) = mfp_hint {
+        for slot in slots {
             if slot.mfp != hint {
                 continue;
+            }
+            let wrapping_key = match derive_key_from_password(
+                xpub,
+                &slot.salt,
+                slot.m_cost,
+                slot.t_cost,
+                slot.p_cost,
+            ) {
+                Ok(key) => Zeroizing::new(key),
+                Err(_) => continue,
+            };
+            if let Ok(data_key) = unwrap_key(&slot.wrapped_key, &wrapping_key) {
+                return Ok((data_key, slot.mfp.clone()));
+            }
+        }
+    }
+
+    // Second pass: try all slots as a fallback when no hinted slot matched
+    // or when the hinted slot failed to decrypt.  This covers descriptors
+    // whose mfp label differs from the one in the user's credential.
+    for slot in slots {
+        if let Some(hint) = mfp_hint {
+            if slot.mfp == hint {
+                continue; // already tried in first pass
             }
         }
         let wrapping_key = Zeroizing::new(derive_key_from_password(
@@ -255,6 +283,7 @@ pub fn unwrap_xpub_slots(
             return Ok((data_key, slot.mfp.clone()));
         }
     }
+
     Err(anyhow!("xpub does not match any registered slot"))
 }
 

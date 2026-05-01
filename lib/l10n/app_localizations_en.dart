@@ -2358,6 +2358,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanAccountsRetry => 'Retry';
 
   @override
+  String get walletNotFound => 'Wallet not found on device';
+
+  @override
   String get searchNostrLabel => 'Search Nostr backups';
 
   @override
@@ -2522,6 +2525,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nostrSearchNetworkWarning =>
       'Connection issues with some Nostr relays. Some backups may not have been found.';
+
+  @override
+  String get publishBackupMenu => 'Publish Backup';
+
+  @override
+  String get publishBackupTitle => 'Publish Backup';
 
   @override
   String get nostrBackupMenu => 'Nostr Backup';
@@ -2809,4 +2818,177 @@ class AppLocalizationsEn extends AppLocalizations {
   String loadWarningCorruptKeys(int count) {
     return 'Lost $count signing key(s) due to database corruption';
   }
+
+  @override
+  String get onChainBackupTitle => 'On-chain';
+
+  @override
+  String get onChainBackupSubtitle =>
+      'Descriptor backup embedded in a Bitcoin transaction';
+
+  @override
+  String get onChainBackupSecurityNote =>
+      'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.';
+
+  @override
+  String onChainBackupParticipants(int count) {
+    return '$count cosigner(s)';
+  }
+
+  @override
+  String onChainBackupAnchors(int count, int amount) {
+    return 'Anchors: $count × $amount sats';
+  }
+
+  @override
+  String onChainBackupEstimatedFee(int fee) {
+    return 'Estimated fee: $fee sats';
+  }
+
+  @override
+  String onChainBackupTotalCost(int cost) {
+    return 'Total cost: ~$cost sats';
+  }
+
+  @override
+  String get onChainBackupScanUtxos => 'Scan UTXOs';
+
+  @override
+  String get onChainBackupScanning => 'Preparing backup…';
+
+  @override
+  String get onChainBackupSelectUtxo => 'Select UTXO';
+
+  @override
+  String get noUtxosAvailable => 'No UTXOs available';
+
+  @override
+  String get onChainBackupFeeRate => 'Fee rate (sats/vB)';
+
+  @override
+  String onChainBackupTxFees(int total, int vb) {
+    return 'Fee: $total sats · $vb vB';
+  }
+
+  @override
+  String onChainBackupMinUtxo(Object sats) {
+    return 'Min UTXO: $sats sats';
+  }
+
+  @override
+  String onChainBackupChange(Object sats) {
+    return 'Change: $sats sats';
+  }
+
+  @override
+  String onChainBackupVault(Object sats) {
+    return 'Vault: $sats sats';
+  }
+
+  @override
+  String onChainBackupUtxoInsufficient(int sats) {
+    return 'Select a coin with at least $sats sats';
+  }
+
+  @override
+  String get onChainBackupConfirmBuild => 'Build TX_COMMIT';
+
+  @override
+  String get onChainBackupTimelockedUtxo =>
+      'Some selected UTXOs are still timelocked and cannot be spent yet.';
+
+  @override
+  String get onChainBackupSignWithHotKey => 'Sign with hot key';
+
+  @override
+  String get onChainBackupPublish => 'Backup on-chain';
+
+  @override
+  String get onChainBackupPublishing => 'Signing…';
+
+  @override
+  String get onChainBackupChecking => 'Checking…';
+
+  @override
+  String get onChainBackupExists => 'Backup already exists';
+
+  @override
+  String get onChainBackupSuccess => 'Descriptor backed up on-chain';
+
+  @override
+  String get onChainBackupCommitTx => 'TX_COMMIT';
+
+  @override
+  String get onChainBackupRevealTx => 'TX_REVEAL';
+
+  @override
+  String get onChainBackupNoHotKey =>
+      'No signing key found. Add a hot key to this wallet before backing up on-chain.';
+
+  @override
+  String get onChainBackupSignCommit => 'Sign TX_COMMIT';
+
+  @override
+  String get onChainBackupSignCommitHint =>
+      'Sign the commit transaction with your hardware wallet or QR device, then import the signed PSBT.';
+
+  @override
+  String get onChainBackupBuildingPsbt => 'Building PSBT…';
+
+  @override
+  String get onChainBackupFinalizing => 'Finalizing…';
+
+  @override
+  String get onChainBackupExportPsbt => 'Export PSBT';
+
+  @override
+  String get onChainBackupImportSigned => 'Import signed';
+
+  @override
+  String get onChainBackupSignWithHw => 'Sign with HW';
+
+  @override
+  String get onChainBackupConfirmBroadcastTitle => 'Confirm broadcast';
+
+  @override
+  String onChainBackupCommitFee(String sats) {
+    return 'Fee: $sats sats';
+  }
+
+  @override
+  String onChainBackupRevealFee(String sats) {
+    return 'Fee: $sats sats';
+  }
+
+  @override
+  String onChainBackupRevealChange(Object sats) {
+    return 'Change: $sats sats';
+  }
+
+  @override
+  String get onChainBackupBroadcast => 'Broadcast';
+
+  @override
+  String onChainBackupAnchorsHealth(int reachable, int total) {
+    return '$reachable of $total anchors accessible';
+  }
+
+  @override
+  String get onChainBackupDescriptorVerified => 'Descriptor verified';
+
+  @override
+  String get onChainBackupRevealPending => 'TX_REVEAL not yet published';
+
+  @override
+  String get onChainBackupCreateNew => 'Create new backup';
+
+  @override
+  String get onChainSearchLabel => 'Search on-chain backups';
+
+  @override
+  String get onChainSearchHint =>
+      'Scan Signet for descriptor backups published on-chain';
+
+  @override
+  String get onChainBadge => 'On-chain';
 }

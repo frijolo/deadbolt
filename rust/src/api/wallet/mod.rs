@@ -47,6 +47,8 @@ use crate::core::wallet_persistence::{
 };
 
 pub mod backup;
+pub mod descriptor_backup;
+pub mod descriptor_recovery;
 pub mod descriptor_sig;
 pub mod discovery;
 mod labels;
@@ -56,6 +58,10 @@ mod psbt;
 mod queries;
 
 pub use backup::*;
+pub use descriptor_backup::{
+    BackupParams, ExistingBackupInfo, OnchainBackupPsbt, OnchainBackupResult,
+};
+pub use descriptor_recovery::{OnchainBackupResponse, OnchainImportResult};
 pub use descriptor_sig::APIPrepareDescriptorSigPsbt;
 pub use discovery::*;
 pub use nostr_backup::*;

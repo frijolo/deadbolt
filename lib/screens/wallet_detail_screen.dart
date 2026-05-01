@@ -47,8 +47,8 @@ import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_overview_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_descriptor_tab.dart';
-import 'package:deadbolt/screens/wallet_detail/dialogs/nostr_backup_dialog.dart'
-    show showNostrBackupSheet;
+import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart'
+    show showPublishBackupSheet;
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -193,6 +193,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     if (fresh is! WalletDetailLoaded) return;
     CreateTxScreen.push(
       context,
+      network: fresh.walletInfo.network,
       allUtxos: fresh.utxos,
       tipHeight: fresh.tipHeight,
       spendPaths: fresh.descriptorAnalysis?.spendPaths,
@@ -498,7 +499,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         ),
         ListTile(
           leading: const Icon(Icons.backup_outlined),
-          title: Text(l10n.nostrBackupMenu),
+          title: Text(l10n.publishBackupMenu),
           onTap: () => Navigator.of(ctx).pop(_ExportChoice.nostr),
         ),
         const SizedBox(height: 8),
@@ -510,7 +511,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     } else if (choice == _ExportChoice.descriptor) {
       _exportDescriptor(context, state);
     } else if (choice == _ExportChoice.nostr) {
-      showNostrBackupSheet(context, state: state);
+      showPublishBackupSheet(context, state: state);
     } else {
       _exportBackup(context, state);
     }

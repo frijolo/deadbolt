@@ -53,14 +53,19 @@ class RbfCard extends StatelessWidget {
         summary.feeSats <= minFeeSat;
 
     final bool feeTooLow = rateTooLow || absFeeTooLow;
-    final warningColor = feeTooLow ? colorScheme.error : AppAccent.color;
+    const accentColor = AppAccent.color;
+    final warningColor = feeTooLow ? colorScheme.error : accentColor;
+
+    final bgColor = theme.brightness == Brightness.light
+        ? Color.lerp(colorScheme.primaryContainer, Colors.white, 0.5)!
+        : colorScheme.surfaceContainerHigh;
 
     return Card(
       margin: EdgeInsets.zero,
-      color: warningColor.withAlpha(AppAlpha.faint),
+      color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: warningColor.withAlpha(AppAlpha.pale)),
+        side: BorderSide(color: colorScheme.outlineVariant.withAlpha(AppAlpha.medium)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),

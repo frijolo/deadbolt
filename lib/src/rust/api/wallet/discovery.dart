@@ -132,7 +132,8 @@ Future<APIDiscoveredAccounts> discoverAccountsFromKeyspecs({
 
 /// Scan a wallet descriptor against an Electrum server and return the total
 /// transaction count and confirmed+unconfirmed balance for the first
-/// `address_gap_limit` external (receive) addresses.
+/// `address_gap_limit` addresses across both external (receive) and internal
+/// (change) keychains.
 ///
 /// This works for any descriptor type — singlesig or multisig — and is used
 /// to enrich Nostr-found backups with on-chain data without a full BDK sync.

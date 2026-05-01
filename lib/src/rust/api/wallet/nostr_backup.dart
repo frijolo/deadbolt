@@ -98,12 +98,14 @@ Future<NostrImportResult> importNostrBackup({
   required String deviceKeyHex,
   required String walletsDir,
   String? walletNameOverride,
+  required String networkHint,
 }) => RustLib.instance.api.crateApiWalletNostrBackupImportNostrBackup(
   backupBytes: backupBytes,
   xpubCredential: xpubCredential,
   deviceKeyHex: deviceKeyHex,
   walletsDir: walletsDir,
   walletNameOverride: walletNameOverride,
+  networkHint: networkHint,
 );
 
 /// Detailed verification result of descriptor signatures embedded in a Nostr backup payload.

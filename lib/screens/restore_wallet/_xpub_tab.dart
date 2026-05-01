@@ -17,6 +17,7 @@ typedef XpubScanCallback = void Function(
   String xpub,
   RestoreScriptType? scriptFilter,
   bool searchNostr,
+  bool searchOnChain,
 );
 
 class XpubTab extends StatefulWidget {
@@ -46,6 +47,7 @@ class _XpubTabState extends State<XpubTab> {
   final _formKey = GlobalKey<FormState>();
   RestoreScriptType? _scriptFilter;
   bool _searchNostr = true;
+  bool _searchOnChain = true;
 
   @override
   void dispose() {
@@ -156,12 +158,21 @@ class _XpubTabState extends State<XpubTab> {
             value: _searchNostr,
             onChanged: (v) => setState(() => _searchNostr = v),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.onChainSearchLabel,
+                style: Theme.of(context).textTheme.bodyMedium),
+            subtitle: Text(l10n.onChainSearchHint,
+                style: Theme.of(context).textTheme.bodySmall),
+            value: _searchOnChain,
+            onChanged: (v) => setState(() => _searchOnChain = v),
+          ),
           const SizedBox(height: 8),
           FilledButton(
             onPressed: () {
               if (!_formKey.currentState!.validate()) return;
-              widget.onScan(
-                  _xpubController.text.trim(), _scriptFilter, _searchNostr);
+              widget.onScan(_xpubController.text.trim(), _scriptFilter,
+                  _searchNostr, _searchOnChain);
             },
             child: Text(l10n.restoreXpubScanButton),
           ),

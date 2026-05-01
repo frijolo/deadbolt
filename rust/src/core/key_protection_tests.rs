@@ -273,9 +273,10 @@ fn test_unwrap_xpub_slots_with_mfp_hint() {
     assert_eq!(r, data_key);
     assert_eq!(mfp, "c449c5c5");
 
-    // Wrong MFP hint → no slot is tried → error.
-    let r2 = unwrap_xpub_slots(TEST_XPUB, Some("deadbeef"), &slots);
-    assert!(r2.is_err());
+    // Wrong MFP hint → first pass skips all slots → fallback tries all → slot1 matches.
+    let (r2, mfp2) = unwrap_xpub_slots(TEST_XPUB, Some("deadbeef"), &slots).unwrap();
+    assert_eq!(r2, data_key);
+    assert_eq!(mfp2, "c449c5c5");
 }
 
 #[test]

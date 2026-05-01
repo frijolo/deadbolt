@@ -18,6 +18,7 @@ typedef SeedScanCallback = void Function(
   RestoreScriptType? scriptFilter,
   bool nonStandardPaths,
   bool searchNostr,
+  bool searchOnChain,
 );
 
 class SeedTab extends StatefulWidget {
@@ -49,6 +50,7 @@ class _SeedTabState extends State<SeedTab> {
   RestoreScriptType? _scriptFilter;
   bool _nonStandardPaths = false;
   bool _searchNostr = true;
+  bool _searchOnChain = true;
 
   @override
   void dispose() {
@@ -155,6 +157,15 @@ class _SeedTabState extends State<SeedTab> {
           value: _searchNostr,
           onChanged: (v) => setState(() => _searchNostr = v),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.onChainSearchLabel,
+              style: Theme.of(context).textTheme.bodyMedium),
+          subtitle: Text(l10n.onChainSearchHint,
+              style: Theme.of(context).textTheme.bodySmall),
+          value: _searchOnChain,
+          onChanged: (v) => setState(() => _searchOnChain = v),
+        ),
         const SizedBox(height: 8),
         FilledButton(
           onPressed: () {
@@ -163,8 +174,8 @@ class _SeedTabState extends State<SeedTab> {
             final passphrase = _passphraseController.text.isEmpty
                 ? null
                 : _passphraseController.text;
-            widget.onScan(
-                mnemonic, passphrase, _scriptFilter, _nonStandardPaths, _searchNostr);
+            widget.onScan(mnemonic, passphrase, _scriptFilter, _nonStandardPaths,
+                _searchNostr, _searchOnChain);
           },
           child: Text(l10n.scanAccountsAction),
         ),

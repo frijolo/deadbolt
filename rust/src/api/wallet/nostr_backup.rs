@@ -993,6 +993,7 @@ pub async fn import_nostr_backup(
     device_key_hex: String,
     wallets_dir: String,
     wallet_name_override: Option<String>,
+    network_hint: String,
 ) -> Result<NostrImportResult> {
     let payload: serde_json::Value = serde_json::from_slice(&backup_bytes)
         .map_err(|e| anyhow!("Invalid Nostr backup format: {e}"))?;
@@ -1047,15 +1048,33 @@ pub async fn import_nostr_backup(
                 .to_string()
         });
 
-    // Determine network
-    let network_str = payload["network"].as_str().unwrap_or("bitcoin");
+    // Priority: payload > hint > descriptor analysis > "bitcoin"
+    let network_str: String = payload["network"]
+        .as_str()
+        .and_then(|n| crate::api::model::APINetwork::try_from(n).ok())
+        .map(|n| n.as_str().to_string())
+        .or_else(|| {
+            crate::api::model::APINetwork::try_from(network_hint.as_str())
+                .ok()
+                .map(|n| n.as_str().to_string())
+        })
+        .or_else(|| {
+            crate::core::descriptor::DescriptorAnalyzer::analyze(&descriptor)
+                .ok()
+                .map(|a| {
+                    crate::api::model::APINetwork::from(a.network())
+                        .as_str()
+                        .to_string()
+                })
+        })
+        .unwrap_or("bitcoin".to_string());
 
     // Create the wallet (DeviceKey-protected — watch-only)
     let (path, row) = create_wallet_db(
         &wallets_dir,
         &name,
         &descriptor,
-        network_str,
+        &network_str,
         &device_key_hex,
         WalletProtectionRequest::DeviceKey,
     )?;
