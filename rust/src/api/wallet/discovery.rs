@@ -271,44 +271,6 @@ pub fn first_address_from_descriptor(
         .to_string())
 }
 
-/// Returns the wallet type derived from a descriptor.
-/// This parses the descriptor to determine if it's P2PKH, P2WPKH, P2SH, P2WSH, or P2TR.
-pub fn wallet_type_from_descriptor(descriptor: &str) -> crate::api::model::APIWalletType {
-    use crate::api::model::APIWalletType;
-    let descriptor_lower = descriptor.to_lowercase();
-
-    // Check for Taproot (P2TR) - contains "tr("
-    if descriptor_lower.contains("tr(") {
-        return APIWalletType::P2TR;
-    }
-    // Check for P2WSH - contains "wpkh(" inside wsh()
-    if descriptor_lower.contains("wsh(") && descriptor_lower.contains("wpkh(") {
-        return APIWalletType::P2WSH;
-    }
-    // Check for P2SH-WPKH - contains "wpkh(" inside sh()
-    if descriptor_lower.contains("sh(") && descriptor_lower.contains("wpkh(") {
-        return APIWalletType::P2SH_WPKH;
-    }
-    // Check for P2SH-P2WSH (nested segwit) - contains "wpkh(" or "wsh(" inside sh()
-    if descriptor_lower.contains("sh(") && descriptor_lower.contains("wsh(") {
-        return APIWalletType::P2SH_WSH;
-    }
-    // Check for P2WPKH - contains "wpkh(" directly
-    if descriptor_lower.contains("wpkh(") {
-        return APIWalletType::P2WPKH;
-    }
-    // Check for P2PKH - contains "pkh(" directly
-    if descriptor_lower.contains("pkh(") {
-        return APIWalletType::P2PKH;
-    }
-    // Check for P2SH - contains "sh(" directly
-    if descriptor_lower.contains("sh(") {
-        return APIWalletType::P2SH;
-    }
-
-    APIWalletType::Unknown
-}
-
 // ───────────────────────────────────────────────────────────────────────────
 // Hardware-wallet account discovery
 // ───────────────────────────────────────────────────────────────────────────

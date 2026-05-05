@@ -119,6 +119,48 @@ impl PubKey {
         Ok(self.xpub()?.network == NetworkKind::from(network))
     }
 
+    /// Validate MFP format (8 hexadecimal characters).
+    pub fn validate_mfp_format(mfp: &str) -> Result<()> {
+        if mfp.len() != 8 {
+            return Err(anyhow::anyhow!(
+                "Master fingerprint must be exactly 8 characters"
+            ));
+        }
+        if !mfp.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(anyhow::anyhow!(
+                "Master fingerprint must contain only hexadecimal characters (0-9, a-f)"
+            ));
+        }
+        Ok(())
+    }
+
+    /// Validate that this key's xpub is compatible with the given network.
+    /// Returns an error with the expected key prefix when the network mismatches.
+    pub fn validate_network(&self, network: Network) -> Result<()> {
+        if self.is_compatible_with_network(network)? {
+            return Ok(());
+        }
+        let expected_prefix = match network {
+            Network::Bitcoin => "xpub, ypub, or zpub",
+            Network::Testnet => "tpub, upub, or vpub",
+            Network::Testnet4 => "tpub (testnet4)",
+            Network::Signet => "tpub (signet)",
+            Network::Regtest => "tpub (regtest)",
+        };
+        let network_name = match network {
+            Network::Bitcoin => "mainnet",
+            Network::Testnet => "testnet",
+            Network::Testnet4 => "testnet4",
+            Network::Signet => "signet",
+            Network::Regtest => "regtest",
+        };
+        Err(anyhow::anyhow!(
+            "Key is not compatible with {} network. Expected {}",
+            network_name,
+            expected_prefix
+        ))
+    }
+
     /// Check if this key is unspendable (NUMS point)
     pub fn is_unspendable(&self) -> bool {
         self.is_unspendable

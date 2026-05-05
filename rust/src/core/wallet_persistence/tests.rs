@@ -1,3 +1,8 @@
+use super::labels::{
+    ensure_coin_labels_table, ensure_tx_labels_table, get_all_address_labels,
+    get_tx_label_with_flag, set_address_label, set_tx_label, validate_table_name,
+};
+use super::seed_storage::{ensure_seed_entries_table, insert_seed_entry, list_seed_entries};
 use super::*;
 use bdk_wallet::bitcoin::Network;
 use tempfile::tempdir;

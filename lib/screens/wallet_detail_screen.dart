@@ -1,54 +1,38 @@
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus, XFile;
 
-import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
-import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/utils/api_network_extensions.dart';
 export 'package:deadbolt/cubit/wallet_detail_cubit.dart' show APIUtxo;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
-import 'package:deadbolt/errors.dart' show sanitizeForLog;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/wallet_security_screen.dart';
-import 'package:deadbolt/screens/export_backup_dialog.dart'
-    show showExportBackupDialog;
-import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
 import 'package:deadbolt/widgets/mfp_badge.dart';
-import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
 import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
-import 'package:deadbolt/widgets/text_export_sheet.dart'
-    show showTextExportSheet;
 import 'package:deadbolt/widgets/popup_menu_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
-import 'package:deadbolt/widgets/text_import_sheet.dart'
-    show showTextImportSheet, showPsbtImportSheet;
 import 'package:deadbolt/screens/create_tx_screen.dart';
-import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 import 'package:deadbolt/screens/wallet_detail/receive_dialog.dart';
-import 'package:deadbolt/screens/sweep_wif_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/transactions_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/addresses_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/coins_tab.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_overview_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_descriptor_tab.dart';
-import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart'
-    show showPublishBackupSheet;
+import 'package:deadbolt/screens/wallet_detail/export_flow.dart' show showExportChoiceSheet, ExportChoice, exportLabels, exportDescriptor, exportBackup;
+import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart' show showPublishBackupSheet;
+import 'package:deadbolt/screens/wallet_detail/import_flow.dart' show showImportChoiceSheet;
+import 'package:deadbolt/screens/wallet_detail/migration_flow.dart' show migrateWalletToProject;
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -61,7 +45,7 @@ class WalletDetailScreen extends StatelessWidget {
     final l10n = context.l10n;
     return BlocProvider(
       create: (ctx) {
-        return WalletDetailCubit(
+        return WalletDetailCubit.create(
           service: ctx.read<WalletService>(),
           syncService: ctx.read<WalletSyncService>(),
         )..load(walletPath,
@@ -215,13 +199,13 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       case _WalletMenuAction.sync:
         context.read<WalletDetailCubit>().sync();
       case _WalletMenuAction.rescan:
-        _confirmRescan(context, state);
+        _handleRescan(context, state);
       case _WalletMenuAction.exportLabels:
-        _exportWithChoice(context, state);
+        _handleExport(context, state);
       case _WalletMenuAction.importLabels:
-        _importWithChoice(context, state);
+        _handleImport(context, state);
       case _WalletMenuAction.generateProject:
-        _generateProjectFromWallet(context, state);
+        _handleGenerateProject(context, state);
       case _WalletMenuAction.lock:
         context.read<WalletDetailCubit>().lockWallet();
         Navigator.of(context).pop();
@@ -247,93 +231,7 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     showWalletDialog(context, ReceiveDialog(address: address));
   }
 
-  Future<void> _generateProjectFromWallet(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final projectCubit = context.read<ProjectListCubit>();
-    final db = context.read<AppDatabase>();
-
-    final existingProject = projectCubit.state is ProjectListLoaded
-        ? (projectCubit.state as ProjectListLoaded)
-            .projects
-            .where((p) => p.descriptor == state.walletInfo.descriptor)
-            .firstOrNull
-        : null;
-
-    if (existingProject != null && context.mounted) {
-      widget.onNavigate?.call(1);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProjectDetailScreen(
-            db: db,
-            projectId: existingProject.id,
-            onNavigate: widget.onNavigate,
-          ),
-        ),
-      );
-      return;
-    }
-
-    try {
-      final projectId = await projectCubit.createProject(
-        descriptor: state.walletInfo.descriptor,
-        name: state.walletInfo.name,
-      );
-      if (!context.mounted) return;
-      await _copyWalletLabelsToProject(
-        db: db,
-        projectId: projectId,
-        keyLabels: state.keyLabels,
-        pathLabels: state.pathLabels,
-      );
-      if (!context.mounted) return;
-      widget.onNavigate?.call(1);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProjectDetailScreen(
-            db: db,
-            projectId: projectId,
-            onNavigate: widget.onNavigate,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        showErrorToastException(e);
-      }
-    }
-  }
-
-  Future<void> _copyWalletLabelsToProject({
-    required AppDatabase db,
-    required int projectId,
-    required Map<String, String> keyLabels,
-    required Map<int, String> pathLabels,
-  }) async {
-    try {
-      final keys = await db.getKeysForProject(projectId);
-      for (final key in keys) {
-        final label = keyLabels[key.mfp];
-        if (label != null && label.isNotEmpty) {
-          await db.updateKeyName(key.id, label);
-        }
-      }
-      final paths = await db.getSpendPathsForProject(projectId);
-      for (final path in paths) {
-        final label = pathLabels[path.rustId];
-        if (label != null && label.isNotEmpty) {
-          await db.updateSpendPathName(path.id, label);
-        }
-      }
-    } catch (e, st) {
-      debugPrint('Failed to copy wallet labels to project: ${sanitizeForLog(e.toString())}\n${sanitizeForLog(st.toString())}');
-    }
-  }
-
-  Future<void> _confirmRescan(
+  Future<void> _handleRescan(
     BuildContext context,
     WalletDetailLoaded state,
   ) async {
@@ -361,244 +259,51 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     }
   }
 
-  Future<void> _exportBackup(
+  Future<void> _handleExport(
     BuildContext context,
     WalletDetailLoaded state,
   ) async {
-    final walletPath = state.walletInfo.walletPath;
-    final walletName = state.walletInfo.name;
-    final service = context.read<WalletService>();
-    final deviceKey = await service.getOrCreateEncryptionKey();
-    final openPassword = service.getCachedPassword(walletPath);
-
-    if (!context.mounted) return;
-
-    final opts = await showExportBackupDialog(context);
-    if (opts == null || !context.mounted) return;
-
-    if (!context.mounted) return;
-
-    final List<int> backupBytes;
-    try {
-      backupBytes = await rust_backup.exportWalletBackup(
-        walletPath: walletPath,
-        deviceKeyHex: deviceKey,
-        openPassword: openPassword,
-        exportProtection: opts.protectionType,
-        exportPassword: opts.password,
-        securityLevel: opts.securityLevel,
-      );
-    } catch (e) {
-      if (context.mounted) showErrorToastException(e);
-      return;
-    }
-
-    if (!context.mounted) return;
-
-    final safeName = walletName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    final fileName = '$safeName.deadbolt';
-
-    // Desktop: native save dialog. Mobile: share sheet.
-    if (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS) {
-      try {
-        final tempDir = await getTemporaryDirectory();
-        final file = File(p.join(tempDir.path, fileName));
-        await file.writeAsBytes(backupBytes);
-        if (context.mounted) {
-          await SharePlus.instance.share(
-            ShareParams(
-              files: [XFile(file.path, mimeType: 'application/octet-stream')],
-              subject: fileName,
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) showErrorToastException(e);
-      }
-    } else {
-      try {
-        final savedPath = await FilePicker.platform.saveFile(
-          fileName: fileName,
-          type: FileType.any,
-          bytes: Uint8List.fromList(backupBytes),
-        );
-        if (savedPath == null) return;
-        // FilePicker writes bytes on some platforms but not all; always write to be safe.
-        await File(savedPath).writeAsBytes(backupBytes);
-        if (context.mounted) showSuccessToast(context.l10n.backupSaved);
-      } catch (e) {
-        if (context.mounted) showErrorToastException(e);
-      }
-    }
-  }
-
-  Future<void> _exportLabels(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final cubit = context.read<WalletDetailCubit>();
-    final l10n = context.l10n;
-    final content = await cubit.exportBip329Labels();
-    if (!context.mounted) return;
-    if (content == null || content.isEmpty) {
-      showErrorToast(l10n.exportBip329Empty);
-      return;
-    }
-    final safeName = state.walletInfo.name
-        .replaceAll(RegExp(r'[^\w\-]'), '_')
-        .toLowerCase();
-    showTextExportSheet(
-      context,
-      text: content,
-      fileName: '${safeName}_labels',
-      copiedMessage: l10n.exportBip329Copied,
-      fileExtension: 'jsonl',
-      bigText: true,
-    );
-  }
-
-  Future<void> _exportDescriptor(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final l10n = context.l10n;
-    final safeName = state.walletInfo.name
-        .replaceAll(RegExp(r'[^\w\-]'), '_')
-        .toLowerCase();
-    await showDescriptorExportSheet(
-      context,
-      descriptor: state.walletInfo.descriptor,
-      fileName: '${safeName}_descriptor',
-      copiedMessage: l10n.copiedToClipboard,
-    );
-  }
-
-  Future<void> _exportWithChoice(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final l10n = context.l10n;
-    final choice = await showSheet<_ExportChoice>(context, (ctx) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ListTile(
-          leading: const Icon(Icons.label_outline),
-          title: Text(l10n.exportLabelsOption),
-          onTap: () => Navigator.of(ctx).pop(_ExportChoice.labels),
-        ),
-        ListTile(
-          leading: const Icon(Icons.schema_outlined),
-          title: Text(l10n.descriptorLabel),
-          onTap: () => Navigator.of(ctx).pop(_ExportChoice.descriptor),
-        ),
-        ListTile(
-          leading: const Icon(Icons.save_alt_outlined),
-          title: Text(l10n.walletExportLabel),
-          onTap: () => Navigator.of(ctx).pop(_ExportChoice.wallet),
-        ),
-        ListTile(
-          leading: const Icon(Icons.backup_outlined),
-          title: Text(l10n.publishBackupMenu),
-          onTap: () => Navigator.of(ctx).pop(_ExportChoice.nostr),
-        ),
-        const SizedBox(height: 8),
-      ],
-    ));
-    if (choice == null || !context.mounted) return;
-    if (choice == _ExportChoice.labels) {
-      _exportLabels(context, state);
-    } else if (choice == _ExportChoice.descriptor) {
-      _exportDescriptor(context, state);
-    } else if (choice == _ExportChoice.nostr) {
-      showPublishBackupSheet(context, state: state);
-    } else {
-      _exportBackup(context, state);
-    }
-  }
-
-  Future<void> _importLabels(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final l10n = context.l10n;
-    final content = await showTextImportSheet(context, bigText: true);
-    if (content == null || content.trim().isEmpty) return;
-    if (!context.mounted) return;
-    final ok = await context.read<WalletDetailCubit>().importBip329Labels(content);
-    if (context.mounted && ok) showSuccessToast(l10n.importBip329Success);
-  }
-
-  Future<void> _importWithChoice(
-    BuildContext context,
-    WalletDetailLoaded state,
-  ) async {
-    final l10n = context.l10n;
-    final choice = await showSheet<_ImportChoice>(context, (ctx) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ListTile(
-          leading: const Icon(Icons.label_outline),
-          title: Text(l10n.exportLabelsOption),
-          onTap: () => Navigator.of(ctx).pop(_ImportChoice.labels),
-        ),
-        ListTile(
-          leading: const Icon(Icons.receipt_long_outlined),
-          title: Text(l10n.importPsbtOption),
-          onTap: () => Navigator.of(ctx).pop(_ImportChoice.psbt),
-        ),
-        ListTile(
-          leading: const Icon(Icons.vpn_key_outlined),
-          title: Text(ctx.l10n.sweepWifTitle),
-          onTap: () => Navigator.of(ctx).pop(_ImportChoice.sweepWif),
-        ),
-        const SizedBox(height: 8),
-      ],
-    ));
+    final choice = await showExportChoiceSheet(context);
     if (choice == null || !context.mounted) return;
     switch (choice) {
-      case _ImportChoice.labels:
-        _importLabels(context, state);
-      case _ImportChoice.psbt:
-        _importPsbt(context);
-      case _ImportChoice.sweepWif:
-        _openSweepWif(context, state);
+      case ExportChoice.labels:
+        await exportLabels(context, state);
+      case ExportChoice.descriptor:
+        await exportDescriptor(context, state);
+      case ExportChoice.wallet:
+        await exportBackup(context, state);
+      case ExportChoice.nostr:
+        showPublishBackupSheet(context, state: state);
     }
   }
 
-  Future<void> _importPsbt(BuildContext context) async {
-    final l10n = context.l10n;
-    final psbtBase64 = await showPsbtImportSheet(context);
-    if (psbtBase64 == null || psbtBase64.isEmpty) return;
-    if (!context.mounted) return;
-    try {
-      final imported =
-          await context.read<WalletDetailCubit>().importPsbt(psbtBase64);
-      if (imported == null) return;
-      if (context.mounted) {
-        showSuccessToast(
-          imported.wasMerged ? l10n.importPsbtMerged : l10n.importPsbtSaved,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) showErrorToastException(e);
-    }
-  }
-
-  void _openSweepWif(BuildContext context, WalletDetailLoaded state) {
-    final cubit = context.read<WalletDetailCubit>();
-    SweepWifScreen.push(
+  Future<void> _handleImport(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    await showImportChoiceSheet(
       context,
+      walletPath: state.walletInfo.walletPath,
       network: state.walletInfo.network,
-      currentWalletPath: state.walletInfo.walletPath,
-      getNextAddress: () => cubit.getNextReceiveAddress(),
-      getAddressForWallet: (path) => cubit.getNextReceiveAddressFor(path),
-      onSwept: () => cubit.sync(),
+    );
+  }
+
+  Future<void> _handleGenerateProject(
+    BuildContext context,
+    WalletDetailLoaded state,
+  ) async {
+    await migrateWalletToProject(
+      context: context,
+      descriptor: state.walletInfo.descriptor,
+      walletName: state.walletInfo.name,
+      keyLabels: state.keyLabels,
+      pathLabels: state.pathLabels,
+      onNavigate: widget.onNavigate!,
     );
   }
 
   Widget _buildElectrumPrivacyWarning(BuildContext context, WalletDetailLoaded state) {
-    if (state.walletInfo.network != APINetwork.bitcoin) return const SizedBox.shrink();
+    if (!state.walletInfo.network.isMainnet) return const SizedBox.shrink();
     final settings = context.watch<SettingsCubit>().state;
     if (settings.electrumUrlForNetwork(APINetwork.bitcoin) != AppSettings.kDefaultElectrumMainnet) {
       return const SizedBox.shrink();
@@ -681,8 +386,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                     onReceiveTap: () => _openReceiveFlow(context, state),
                     onSyncTap: () => _onMenuAction(context, _WalletMenuAction.sync, state),
                     onRescanTap: () => _onMenuAction(context, _WalletMenuAction.rescan, state),
-                    onExportLabelsTap: () => _exportWithChoice(context, state),
-                    onImportLabelsTap: () => _importWithChoice(context, state),
+                    onExportLabelsTap: () => _handleExport(context, state),
+                    onImportLabelsTap: () => _handleImport(context, state),
                     onHwTap: () => showHwActionsSheet(
                       context,
                       walletName: state.walletInfo.name,
@@ -741,10 +446,6 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 }
 
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
-
-enum _ExportChoice { labels, descriptor, wallet, nostr }
-
-enum _ImportChoice { labels, psbt, sweepWif }
 
 const _kElectrumPrivacyWarningHiddenUntilKey = 'electrumPrivacyWarningHiddenUntil';
 

@@ -25,7 +25,9 @@ fn test_mnemonic_mfp_matches_descriptor() -> anyhow::Result<()> {
 
 #[test]
 fn test_load_signers_self_transfer() -> anyhow::Result<()> {
-    use crate::core::wallet_persistence::{ensure_seed_entries_table, insert_seed_entry};
+    use crate::core::wallet_persistence::seed_storage::{
+        ensure_seed_entries_table, insert_seed_entry,
+    };
     use bdk_wallet::chain::TxUpdate;
 
     let dir = tempdir()?;
@@ -126,7 +128,9 @@ fn test_load_signers_taproot_multi_derivation_index() -> anyhow::Result<()> {
     use crate::core::descriptor_builder::{build_descriptor, SpendPathDef};
     use crate::core::pubkey::PubKey;
     use crate::core::seed::{mnemonic_to_root_xprv, root_xprv_to_mfp};
-    use crate::core::wallet_persistence::{ensure_seed_entries_table, insert_seed_entry};
+    use crate::core::wallet_persistence::seed_storage::{
+        ensure_seed_entries_table, insert_seed_entry,
+    };
 
     let secp = Secp256k1::new();
     let root_xprv = mnemonic_to_root_xprv(TEST_MNEMONIC, "", Network::Testnet)?;

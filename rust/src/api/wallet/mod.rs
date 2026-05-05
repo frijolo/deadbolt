@@ -8,8 +8,8 @@ use crate::api::model::{
     APIFiatPrice, APIHotKeyInfo, APIHotKeyList, APIImportPsbtResult, APIKeychain, APINetwork,
     APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus,
     APIRbfInfo, APIRecipient, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APISecurityLevel,
-    APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat, APIUtxo, APIUtxoDetails,
-    APIWalletInfo, APIWalletProtection, APIXpubSlot,
+    APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat, APITxPreview, APIUtxo,
+    APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
 use crate::core::descriptor_parser::{
     extract_xpub_derivation_map, extract_xpub_mfp_map, xpub_slots_from_descriptor,
@@ -32,18 +32,29 @@ use crate::core::wallet_info::{
     wallet_needs_xpub, wallet_network_hint, WalletProtectionRequest,
 };
 use crate::core::wallet_meta::{delete_meta, read_meta, write_meta};
+use crate::core::wallet_persistence::fiat_storage::{
+    clear_fiat_prices as clear_fiat_prices_db, get_fiat_prices as get_fiat_prices_db,
+    store_fiat_price as store_fiat_price_db,
+};
+use crate::core::wallet_persistence::labels::{
+    get_address_label_with_flag, get_all_address_labels_with_flag, get_all_coin_labels_with_flag,
+    get_all_key_labels, get_all_path_labels, get_all_tx_labels_with_flag, get_coin_label_with_flag,
+    get_tx_label_with_flag, set_address_label as db_set_address_label,
+    set_coin_label as db_set_coin_label, set_key_label as db_set_key_label,
+    set_path_label as db_set_path_label, set_tx_label as db_set_tx_label, tx_has_explicit_label,
+};
+use crate::core::wallet_persistence::propagation::{
+    cascade_delete_label, propagate_label, EntityType,
+};
+use crate::core::wallet_persistence::psbt_storage::{
+    delete_psbt_row, ensure_unsigned_txs_table, get_psbt_row, get_psbt_row_by_txid, insert_psbt,
+    list_psbt_rows, update_psbt_data, update_psbt_label, PsbtRow,
+};
+use crate::core::wallet_persistence::seed_storage::{
+    delete_seed_entry, insert_seed_entry, list_seed_entries,
+};
 use crate::core::wallet_persistence::{
-    cascade_delete_label, clear_fiat_prices as clear_fiat_prices_db, delete_psbt_row,
-    delete_seed_entry, ensure_unsigned_txs_table, get_address_label_with_flag,
-    get_all_address_labels_with_flag, get_all_coin_labels_with_flag, get_all_key_labels,
-    get_all_path_labels, get_all_tx_labels_with_flag, get_coin_label_with_flag,
-    get_fiat_prices as get_fiat_prices_db, get_psbt_row, get_psbt_row_by_txid,
-    get_tx_label_with_flag, insert_psbt, insert_seed_entry, list_psbt_rows, list_seed_entries,
-    open_encrypted_connection, propagate_label, read_wallet_info,
-    set_address_label as db_set_address_label, set_coin_label as db_set_coin_label,
-    set_key_label as db_set_key_label, set_path_label as db_set_path_label,
-    set_tx_label as db_set_tx_label, store_fiat_price as store_fiat_price_db, touch_last_synced,
-    tx_has_explicit_label, update_psbt_data, update_psbt_label, EntityType, PsbtRow, WalletInfoRow,
+    open_encrypted_connection, read_wallet_info, touch_last_synced, WalletInfoRow,
 };
 
 pub mod backup;
@@ -56,6 +67,12 @@ pub mod nostr_backup;
 mod ops;
 mod psbt;
 mod queries;
+
+// Detail query submodules (extracted from queries.rs)
+mod detail_address;
+mod detail_cpfp;
+mod detail_rbf;
+mod detail_tx;
 
 pub use backup::*;
 pub use descriptor_backup::{
@@ -1118,6 +1135,33 @@ pub fn strip_psbt_for_hw(psbt_base64: String) -> Result<String> {
     }
 
     Ok(psbt_to_base64(&psbt))
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Shared helpers for detail query modules
+// ───────────────────────────────────────────────────────────────────────────
+
+type LabelMap = std::collections::HashMap<String, (String, bool)>;
+
+/// Extract (block_height, confirmation_time) from a ChainPosition, returning None for unconfirmed.
+pub(crate) fn chain_conf_info(
+    pos: &bdk_wallet::chain::ChainPosition<bdk_wallet::chain::ConfirmationBlockTime>,
+) -> (Option<u32>, Option<u64>) {
+    if let bdk_wallet::chain::ChainPosition::Confirmed { anchor, .. } = pos {
+        (Some(anchor.block_id.height), Some(anchor.confirmation_time))
+    } else {
+        (None, None)
+    }
+}
+
+/// Load all three label maps in one call. Used by detail query functions that
+/// need tx, address, and coin labels simultaneously.
+pub(crate) fn load_all_label_maps(conn: &rusqlite::Connection) -> (LabelMap, LabelMap, LabelMap) {
+    (
+        get_all_tx_labels_with_flag(conn).unwrap_or_default(),
+        get_all_address_labels_with_flag(conn).unwrap_or_default(),
+        get_all_coin_labels_with_flag(conn).unwrap_or_default(),
+    )
 }
 
 #[cfg(test)]

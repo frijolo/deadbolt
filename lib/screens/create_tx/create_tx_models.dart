@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +32,17 @@ class TxSummary {
     required this.hasChange,
     this.insufficientFunds = false,
   });
+
+  /// Adapt a Rust-side preview into the TxSummary shape consumed by the fee widgets.
+  factory TxSummary.fromPreview(APITxPreview p) => TxSummary(
+        feeSats: p.feeSats.toInt(),
+        changeSats: p.changeSats.toInt(),
+        sendSats: p.sendSats.toInt(),
+        feeRate: p.feeRateSatPerVb,
+        totalWu: p.totalWu.toInt(),
+        hasChange: p.hasChange,
+        insufficientFunds: p.insufficientFunds,
+      );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -76,16 +86,12 @@ class RecipientEntry {
 
   final addressCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
-  int? wu; // output weight units from addressOutputWu()
 
   /// Parses the amount field stripping thousands separators.
   int get rawAmount => int.tryParse(amountCtrl.text.replaceAll(',', '').trim()) ?? 0;
   bool editMode = true;
-  bool resolvingWu = false;
-  Timer? debounce;
 
   void dispose() {
-    debounce?.cancel();
     addressCtrl.dispose();
     amountCtrl.dispose();
   }

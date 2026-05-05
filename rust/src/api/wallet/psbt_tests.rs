@@ -236,3 +236,370 @@ fn test_import_psbt_wrong_wallet_returns_error() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// preview_psbt tests
+// ---------------------------------------------------------------------------
+
+/// Build a recipient address (External index 1) for the given wallet.
+fn recv_addr_for(wallet: &APIWallet) -> String {
+    let core = wallet.lock_wallet().unwrap();
+    core.wallet
+        .peek_address(KeychainKind::External, 1)
+        .address
+        .to_string()
+}
+
+/// Owner (key-path) spend path of the inheritance descriptor — no timelocks.
+fn owner_spend_path() -> crate::core::spend_path::SpendPath {
+    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC).unwrap();
+    analyzer
+        .spend_paths()
+        .unwrap()
+        .into_iter()
+        .find(|sp| sp.rel_timelock == 0 && sp.abs_timelock == 0)
+        .expect("owner spend path not found")
+}
+
+/// Single-recipient drain: send_sats == input − fee, has_change == false.
+#[test]
+fn test_preview_drain_single_recipient() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let preview = wallet.preview_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 0, // ignored for drain
+        }],
+        Some(0),
+        Some(2.0),
+        None,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        vec![],
+    )?;
+
+    assert!(!preview.insufficient_funds);
+    assert!(!preview.has_change, "drain must not have a change output");
+    assert_eq!(preview.change_sats, 0);
+    assert_eq!(
+        preview.send_sats + preview.fee_sats,
+        1_000_000,
+        "drain must consume the full input (send + fee == input)"
+    );
+    assert_eq!(preview.recipients.len(), 1);
+    assert_eq!(preview.recipients[0].amount_sat, preview.send_sats);
+    Ok(())
+}
+
+/// Explicit amount with change: change_sats > 0 and >= dust limit, send + change + fee == input.
+#[test]
+fn test_preview_explicit_amount_with_change() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let preview = wallet.preview_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 600_000,
+        }],
+        None,
+        Some(2.0),
+        None,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        vec![],
+    )?;
+
+    assert!(!preview.insufficient_funds);
+    assert!(preview.has_change, "should produce a change output");
+    assert!(preview.change_sats >= 546, "change must be above dust");
+    assert_eq!(preview.send_sats, 600_000);
+    assert_eq!(
+        preview.send_sats + preview.change_sats + preview.fee_sats,
+        1_000_000,
+        "send + change + fee == input"
+    );
+    Ok(())
+}
+
+/// Insufficient funds is reported as a flag, not as an error — UI must keep rendering.
+#[test]
+fn test_preview_insufficient_funds_flag() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let preview = wallet.preview_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 2_000_000, // > balance
+        }],
+        None,
+        Some(2.0),
+        None,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        vec![],
+    )?;
+
+    assert!(preview.insufficient_funds);
+    assert_eq!(preview.fee_sats, 0);
+    assert_eq!(preview.send_sats, 0);
+    Ok(())
+}
+
+/// preview must reject the absent / both-set fee inputs at the API boundary.
+#[test]
+fn test_preview_requires_exactly_one_fee_input() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let utxos = vec![APICoinControl {
+        txid: funding_txid.to_string(),
+        vout: 0,
+    }];
+    let policy = APIPolicyPath::from_spendpath(&sp)?;
+
+    // Neither set → error.
+    let neither = wallet.preview_psbt(
+        vec![APIRecipient {
+            address: recv.clone(),
+            amount_sat: 100_000,
+        }],
+        None,
+        None,
+        None,
+        utxos.clone(),
+        policy.clone(),
+        sp.id,
+        vec![],
+    );
+    assert!(neither.is_err());
+
+    // Both set → error.
+    let both = wallet.preview_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 100_000,
+        }],
+        None,
+        Some(2.0),
+        Some(500),
+        utxos,
+        policy,
+        sp.id,
+        vec![],
+    );
+    assert!(both.is_err());
+    Ok(())
+}
+
+/// Rate ↔ Absolute round-trip: preview with rate r produces fee F. Preview with absolute F
+/// produces a rate within ±1 sat/vB of r (the +1 sat drift the old Dart code worked around).
+#[test]
+fn test_preview_rate_abs_idempotence() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let utxos = vec![APICoinControl {
+        txid: funding_txid.to_string(),
+        vout: 0,
+    }];
+    let policy = APIPolicyPath::from_spendpath(&sp)?;
+
+    let recipients = vec![APIRecipient {
+        address: recv,
+        amount_sat: 600_000,
+    }];
+
+    let by_rate = wallet.preview_psbt(
+        recipients.clone(),
+        None,
+        Some(3.5),
+        None,
+        utxos.clone(),
+        policy.clone(),
+        sp.id,
+        vec![],
+    )?;
+    let by_abs = wallet.preview_psbt(
+        recipients,
+        None,
+        None,
+        Some(by_rate.fee_sats),
+        utxos,
+        policy,
+        sp.id,
+        vec![],
+    )?;
+
+    assert_eq!(
+        by_rate.fee_sats, by_abs.fee_sats,
+        "fee must be invariant under rate→abs round-trip"
+    );
+    assert_eq!(
+        by_rate.total_wu, by_abs.total_wu,
+        "weight must be invariant"
+    );
+    assert!(
+        (by_rate.fee_rate_sat_per_vb - by_abs.fee_rate_sat_per_vb).abs() < 0.01,
+        "rate must round-trip within rounding tolerance: rate={} abs_rate={}",
+        by_rate.fee_rate_sat_per_vb,
+        by_abs.fee_rate_sat_per_vb
+    );
+    Ok(())
+}
+
+/// rbf_min_fee_sats = sum(orig_fee + descendant_fees) + new_vbytes + 1.
+/// Empty rbf_infos → None.
+#[test]
+fn test_preview_rbf_min_fee_sats() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let utxos = vec![APICoinControl {
+        txid: funding_txid.to_string(),
+        vout: 0,
+    }];
+    let policy = APIPolicyPath::from_spendpath(&sp)?;
+    let recipients = vec![APIRecipient {
+        address: recv,
+        amount_sat: 600_000,
+    }];
+
+    let no_rbf = wallet.preview_psbt(
+        recipients.clone(),
+        None,
+        Some(2.0),
+        None,
+        utxos.clone(),
+        policy.clone(),
+        sp.id,
+        vec![],
+    )?;
+    assert!(no_rbf.rbf_min_fee_sats.is_none());
+
+    let with_rbf = wallet.preview_psbt(
+        recipients,
+        None,
+        Some(2.0),
+        None,
+        utxos,
+        policy,
+        sp.id,
+        vec![APIRbfInfo {
+            orig_fee_sat: 1_000,
+            orig_vsize: 100,
+            orig_fee_rate_sat_per_vb: 10.0,
+            descendant_count: 1,
+            descendant_fee_sat: Some(500),
+            descendant_vsize: 50,
+            min_fee_sat: 1_500,
+            min_fee_rate_sat_per_vb: 10.0,
+        }],
+    )?;
+    let new_vbytes = ((with_rbf.total_wu as f64) / 4.0).ceil() as u64;
+    assert_eq!(
+        with_rbf.rbf_min_fee_sats,
+        Some(1_000 + 500 + new_vbytes + 1),
+        "rbf_min must equal orig_fee + descendant_fees + new_vbytes + 1"
+    );
+    Ok(())
+}
+
+/// Drain plus an explicit recipient: drain output gets remainder; non-drain has explicit amount.
+#[test]
+fn test_preview_drain_with_other_recipient() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+
+    // Two distinct receive addresses.
+    let recv0 = {
+        let core = wallet.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(KeychainKind::External, 1)
+            .address
+            .to_string()
+    };
+    let recv1 = {
+        let core = wallet.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(KeychainKind::External, 2)
+            .address
+            .to_string()
+    };
+
+    let preview = wallet.preview_psbt(
+        vec![
+            APIRecipient {
+                address: recv0,
+                amount_sat: 100_000,
+            },
+            APIRecipient {
+                address: recv1,
+                amount_sat: 0, // ignored — this is the drain
+            },
+        ],
+        Some(1),
+        Some(2.0),
+        None,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        vec![],
+    )?;
+
+    assert!(!preview.insufficient_funds);
+    assert!(
+        !preview.has_change,
+        "drain absorbs leftover, no change output"
+    );
+    assert_eq!(
+        preview.recipients[0].amount_sat, 100_000,
+        "non-drain keeps explicit amount"
+    );
+    let drain_amount = preview.recipients[1].amount_sat;
+    assert!(drain_amount > 0, "drain recipient must receive something");
+    assert_eq!(
+        100_000 + drain_amount + preview.fee_sats,
+        1_000_000,
+        "explicit + drain + fee == input"
+    );
+    Ok(())
+}

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rusqlite::Connection;
 
-use super::{
+use super::labels::{
     address_has_explicit_label, coin_has_explicit_label, set_address_label, set_coin_label,
     set_tx_label, tx_has_explicit_label, validate_table_name,
 };

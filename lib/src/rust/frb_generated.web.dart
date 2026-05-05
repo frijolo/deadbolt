@@ -294,6 +294,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APITxMissingFiat dco_decode_api_tx_missing_fiat(dynamic raw);
 
   @protected
+  APITxPreview dco_decode_api_tx_preview(dynamic raw);
+
+  @protected
   APIUtxo dco_decode_api_utxo(dynamic raw);
 
   @protected
@@ -344,6 +347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletType dco_decode_box_autoadd_api_wallet_type(dynamic raw);
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
@@ -419,6 +425,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> dco_decode_list_api_pub_key(dynamic raw);
+
+  @protected
+  List<APIRbfInfo> dco_decode_list_api_rbf_info(dynamic raw);
 
   @protected
   List<APIRecipient> dco_decode_list_api_recipient(dynamic raw);
@@ -526,6 +535,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIWalletType? dco_decode_opt_box_autoadd_api_wallet_type(dynamic raw);
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -835,6 +847,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APITxMissingFiat sse_decode_api_tx_missing_fiat(SseDeserializer deserializer);
 
   @protected
+  APITxPreview sse_decode_api_tx_preview(SseDeserializer deserializer);
+
+  @protected
   APIUtxo sse_decode_api_utxo(SseDeserializer deserializer);
 
   @protected
@@ -901,6 +916,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType sse_decode_box_autoadd_api_wallet_type(
     SseDeserializer deserializer,
   );
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
@@ -996,6 +1014,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIPubKey> sse_decode_list_api_pub_key(SseDeserializer deserializer);
+
+  @protected
+  List<APIRbfInfo> sse_decode_list_api_rbf_info(SseDeserializer deserializer);
 
   @protected
   List<APIRecipient> sse_decode_list_api_recipient(
@@ -1147,6 +1168,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIWalletType? sse_decode_opt_box_autoadd_api_wallet_type(
     SseDeserializer deserializer,
   );
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -1534,6 +1558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_tx_preview(APITxPreview self, SseSerializer serializer);
+
+  @protected
   void sse_encode_api_utxo(APIUtxo self, SseSerializer serializer);
 
   @protected
@@ -1610,6 +1637,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     APIWalletType self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_i_64(
@@ -1732,6 +1762,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_pub_key(
     List<APIPubKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_rbf_info(
+    List<APIRbfInfo> self,
     SseSerializer serializer,
   );
 
@@ -1929,6 +1965,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     APIWalletType? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(

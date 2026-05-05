@@ -48,7 +48,7 @@ use crate::core::key_protection::{
     wrap_with_xpub, XpubSlot,
 };
 use crate::core::wallet_info::{create_wallet_db, resolve_wallet_key, WalletProtectionRequest};
-use crate::core::wallet_persistence::get_descriptor_sigs_as_json;
+use crate::core::wallet_persistence::descriptor_sig_storage::get_descriptor_sigs_as_json;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -955,7 +955,9 @@ pub async fn fetch_nostr_backup(
             .unwrap_or(crate::api::model::APINetwork::Bitcoin);
         let first_address =
             super::discovery::first_address_from_descriptor(descriptor.to_string(), network).ok();
-        let wallet_type = super::discovery::wallet_type_from_descriptor(descriptor);
+        let wallet_type = crate::core::descriptor::DescriptorAnalyzer::analyze(descriptor)
+            .map(|a| crate::api::model::APIWalletType::from(a.wallet_type()))
+            .unwrap_or(crate::api::model::APIWalletType::Unknown);
         let descriptor_sig_verification = Some(verify_descriptor_sigs_from_payload(
             &inner, descriptor, bare_xpub,
         ));

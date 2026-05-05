@@ -200,6 +200,35 @@ impl DescriptorParser {
     ///
     /// Uses BDK's Descriptor::Pkh/Wpkh/Wsh/Sh/Tr variants.
     /// This works without creating a wallet.
+    /// Validate that this descriptor's keys are compatible with the requested
+    /// network family (mainnet vs testnet). Signet/Testnet/Testnet4/Regtest are
+    /// all considered the same family for descriptor key prefixes.
+    pub fn check_network_compatibility(&self, network: Network) -> Result<()> {
+        let detected = self.detect_network()?;
+        let descriptor_is_mainnet = detected == Network::Bitcoin;
+        let selected_is_mainnet = network == Network::Bitcoin;
+        if descriptor_is_mainnet != selected_is_mainnet {
+            let descriptor_family = if descriptor_is_mainnet {
+                "mainnet"
+            } else {
+                "testnet"
+            };
+            let selected_name = match network {
+                Network::Bitcoin => "mainnet",
+                Network::Testnet => "testnet",
+                Network::Testnet4 => "testnet4",
+                Network::Signet => "signet",
+                Network::Regtest => "regtest",
+            };
+            return Err(anyhow::anyhow!(
+                "Descriptor uses {} keys but '{}' was selected",
+                descriptor_family,
+                selected_name,
+            ));
+        }
+        Ok(())
+    }
+
     pub fn wallet_type(&self) -> WalletType {
         match &self.parsed {
             Descriptor::Pkh(_) => WalletType::P2PKH,

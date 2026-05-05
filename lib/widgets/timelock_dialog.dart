@@ -82,9 +82,9 @@ class _TimelockDialogState extends State<TimelockDialog> {
 
   double get _maxSliderValue {
     if (_mode == TimelockMode.relative) {
-      return 65535;
+      return kRelativeTimelockMax.toDouble();
     } else if (_mode == TimelockMode.absolute && _absType == AbsoluteTimelockType.blocks) {
-      return 499999999;
+      return kAbsoluteMaxBlockHeight.toDouble();
     }
     return 0;
   }
@@ -94,12 +94,12 @@ class _TimelockDialogState extends State<TimelockDialog> {
     if (_mode == TimelockMode.none) return null;
 
     if (_mode == TimelockMode.relative) {
-      if (_relValue > 65535) return l.timelockValueMax;
+      if (_relValue > kRelativeTimelockMax) return l.timelockValueMax;
     } else if (_mode == TimelockMode.absolute) {
       if (_absType == AbsoluteTimelockType.blocks) {
-        if (_absValue > 0 && _absValue >= 500000000) return l.blockHeightMax;
+        if (_absValue > 0 && _absValue >= kAbsoluteLockTimeThreshold) return l.blockHeightMax;
       } else {
-        if (_absValue > 0 && _absValue < 500000000) return l.timestampMin;
+        if (_absValue > 0 && _absValue < kAbsoluteLockTimeThreshold) return l.timestampMin;
       }
     }
     return null;
@@ -163,7 +163,7 @@ class _TimelockDialogState extends State<TimelockDialog> {
                 onSelectionChanged: (Set<RelativeTimelockType> selection) {
                   setState(() {
                     _relType = selection.first;
-                    if (_relType == RelativeTimelockType.time && _relValue > 65535) {
+                    if (_relType == RelativeTimelockType.time && _relValue > kRelativeTimelockMax) {
                       _relValue = 0;
                     }
                     _updateTextField();

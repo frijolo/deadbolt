@@ -409,6 +409,308 @@ impl APIWallet {
         })
     }
 
+    /// Preview the result of building an unsigned tx — fee, change, send, weight — without
+    /// constructing or persisting a PSBT. Mirrors `create_psbt` inputs so the UI can show
+    /// what BDK would actually do, and so a subsequent `create_psbt` produces matching numbers.
+    ///
+    /// Exactly one of `fee_rate_sat_per_vb` / `fee_absolute_sat` must be `Some`.
+    ///
+    /// `rbf_infos` (optional) lets the preview compute `rbf_min_fee_sats` — the BIP-125
+    /// Rule 4 / PaysForRBF threshold for the *new* tx vsize. Pass the same RBF infos the UI
+    /// already fetched per conflicting mempool tx; pass empty when not replacing anything.
+    ///
+    /// Insufficient-funds is returned as a flag in the preview rather than as an error, so
+    /// the screen can render gracefully while the user is still typing amounts.
+    #[frb(sync)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn preview_psbt(
+        &self,
+        recipients: Vec<APIRecipient>,
+        max_recipient_index: Option<u32>,
+        fee_rate_sat_per_vb: Option<f64>,
+        fee_absolute_sat: Option<u64>,
+        selected_utxos: Vec<APICoinControl>,
+        policy_path: Vec<APIPolicyPath>,
+        spend_path_id: u32,
+        rbf_infos: Vec<APIRbfInfo>,
+    ) -> Result<APITxPreview> {
+        use bdk_wallet::bitcoin::{Amount, FeeRate, ScriptBuf};
+        use bdk_wallet::KeychainKind;
+        use std::collections::BTreeMap;
+
+        if recipients.is_empty() {
+            return Err(anyhow::anyhow!("At least one recipient is required"));
+        }
+        match (fee_rate_sat_per_vb, fee_absolute_sat) {
+            (Some(_), None) | (None, Some(_)) => {}
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Exactly one of fee_rate_sat_per_vb / fee_absolute_sat must be set"
+                ))
+            }
+        }
+
+        let mut core = self.lock_wallet()?;
+        let network = core.wallet.network();
+
+        // Parse recipient addresses up front — this validates them and produces the canonical
+        // string we return so the UI stops re-parsing per keystroke.
+        struct ParsedRecipient {
+            address: String,
+            script: ScriptBuf,
+        }
+        let parsed_recipients: Vec<ParsedRecipient> = recipients
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let addr = crate::core::address::parse_address(&r.address, network)
+                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?;
+                Ok(ParsedRecipient {
+                    address: addr.to_string(),
+                    script: addr.script_pubkey(),
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        let policy_map: BTreeMap<String, Vec<usize>> = policy_path
+            .into_iter()
+            .map(|pp| {
+                (
+                    pp.policy_id,
+                    pp.path.into_iter().map(|x| x as usize).collect(),
+                )
+            })
+            .collect();
+
+        let resolved = resolve_selected_utxos(&core, &selected_utxos)?;
+
+        // Per-path satisfaction weight from descriptor analysis. BDK's TxBuilder uses
+        // `max_weight_to_satisfy()` for fee estimation, which over-estimates for taproot
+        // multi-path descriptors (always returns the worst-case script-path weight even
+        // when the user has selected the cheaper key-path). Use the spend path's
+        // pre-computed actual weight so different paths produce different fees.
+        let path_weights: Option<(u64, u64, u64)> = load_spend_paths(&core.conn)
+            .ok()
+            .and_then(|paths| paths.into_iter().find(|p| p.id == spend_path_id))
+            .map(|sp| (sp.wu_base as u64, sp.wu_in as u64, sp.wu_out as u64));
+
+        // Per-recipient output weight (constant — depends only on the address, not the path).
+        let recipients_wu: u64 = parsed_recipients
+            .iter()
+            .map(|p| {
+                bdk_wallet::bitcoin::TxOut {
+                    value: bdk_wallet::bitcoin::Amount::ZERO,
+                    script_pubkey: p.script.clone(),
+                }
+                .weight()
+                .to_wu()
+            })
+            .sum();
+
+        let n_inputs = resolved.len() as u64;
+        let path_wu_no_change = path_weights.map(|(b, i, _)| b + n_inputs * i + recipients_wu);
+        let path_wu_with_change =
+            path_weights.map(|(b, i, o)| b + n_inputs * i + recipients_wu + o);
+
+        // When given a rate, convert it to an absolute fee using the path's actual weight
+        // so BDK builds with that exact fee instead of computing one from max_weight_to_satisfy.
+        // For drain mode there's no change output, so use wu_no_change.
+        let path_derived_fee_abs: Option<u64> = match (fee_rate_sat_per_vb, path_weights) {
+            (Some(rate), Some(_)) => {
+                let wu = if max_recipient_index.is_some() {
+                    path_wu_no_change.unwrap()
+                } else {
+                    path_wu_with_change.unwrap()
+                };
+                Some((rate * wu as f64 / 4.0).ceil() as u64)
+            }
+            _ => None,
+        };
+
+        // Insufficient-funds preview: zero-filled, but with parsed recipients and rbf info.
+        let insufficient_preview = || -> APITxPreview {
+            APITxPreview {
+                fee_sats: 0,
+                fee_rate_sat_per_vb: fee_rate_sat_per_vb.unwrap_or(0.0),
+                change_sats: 0,
+                send_sats: 0,
+                total_wu: 0,
+                has_change: false,
+                insufficient_funds: true,
+                recipients: parsed_recipients
+                    .iter()
+                    .zip(recipients.iter())
+                    .map(|(pr, r)| APIRecipient {
+                        address: pr.address.clone(),
+                        amount_sat: r.amount_sat,
+                    })
+                    .collect(),
+                rbf_min_fee_sats: None,
+            }
+        };
+
+        let mut psbt = {
+            let mut builder = core.wallet.build_tx();
+
+            // Prefer the path-derived absolute fee so BDK does not size change using its
+            // worst-case `max_weight_to_satisfy()`.
+            if let Some(abs) = path_derived_fee_abs.or(fee_absolute_sat) {
+                builder.fee_absolute(Amount::from_sat(abs));
+            } else if let Some(rate) = fee_rate_sat_per_vb {
+                let micro = (rate * 1000.0).round() as u64;
+                let fr = FeeRate::from_sat_per_kwu(micro / 4);
+                builder.fee_rate(fr);
+            }
+
+            for (i, (r, pr)) in recipients.iter().zip(parsed_recipients.iter()).enumerate() {
+                if Some(i as u32) == max_recipient_index {
+                    builder.drain_to(pr.script.clone());
+                    if resolved.is_empty() {
+                        builder.drain_wallet();
+                    }
+                } else {
+                    builder.add_recipient(pr.script.clone(), Amount::from_sat(r.amount_sat));
+                }
+            }
+            if !resolved.is_empty() {
+                for r in &resolved {
+                    if let Some((psbt_input, weight)) = &r.foreign {
+                        builder.add_foreign_utxo(r.outpoint, psbt_input.clone(), *weight)?;
+                    } else {
+                        builder.add_utxo(r.outpoint)?;
+                    }
+                }
+                builder.manually_selected_only();
+            }
+
+            if !policy_map.is_empty() {
+                builder.policy_path(policy_map.clone(), KeychainKind::External);
+                builder.policy_path(policy_map, KeychainKind::Internal);
+            }
+
+            match builder.finish() {
+                Ok(p) => p,
+                Err(e) => {
+                    let msg = format!("{e}").to_lowercase();
+                    if msg.contains("insufficient")
+                        || msg.contains("outputbelowdustlimit")
+                        || msg.contains("dust")
+                    {
+                        return Ok(insufficient_preview());
+                    }
+                    return Err(anyhow::anyhow!("preview build failed: {}", e));
+                }
+            }
+        };
+
+        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
+        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
+
+        // Identify recipient outputs vs change.
+        let recipient_scripts: std::collections::HashSet<ScriptBuf> =
+            parsed_recipients.iter().map(|p| p.script.clone()).collect();
+        let mut send_sats: u64 = 0;
+        let mut change_sats: u64 = 0;
+        for out in &psbt.unsigned_tx.output {
+            if recipient_scripts.contains(&out.script_pubkey) {
+                send_sats += out.value.to_sat();
+            } else {
+                change_sats += out.value.to_sat();
+            }
+        }
+        let has_change = change_sats > 0;
+
+        let fee_sats = psbt.fee()?.to_sat();
+
+        // Total weight: prefer the per-path actual weight (so taproot key-path is
+        // correctly cheaper than script-path). Fall back to BDK's max-based weight
+        // when the spend path is unknown.
+        let total_wu = if let (Some(no_change), Some(with_change)) =
+            (path_wu_no_change, path_wu_with_change)
+        {
+            if has_change {
+                with_change
+            } else {
+                no_change
+            }
+        } else {
+            let base_wu = psbt.unsigned_tx.weight().to_wu();
+            let mut sat_wu: u64 = 0;
+            for r in &resolved {
+                let w = if let Some((_, weight)) = &r.foreign {
+                    weight.to_wu()
+                } else {
+                    let keychain = core
+                        .wallet
+                        .get_utxo(r.outpoint)
+                        .map(|u| u.keychain)
+                        .unwrap_or(KeychainKind::External);
+                    core.wallet
+                        .public_descriptor(keychain)
+                        .max_weight_to_satisfy()
+                        .map(|w| w.to_wu())
+                        .unwrap_or(500)
+                };
+                sat_wu += w;
+            }
+            base_wu + sat_wu
+        };
+        let vbytes = (total_wu as f64) / 4.0;
+        let effective_rate = if vbytes > 0.0 {
+            fee_sats as f64 / vbytes
+        } else {
+            0.0
+        };
+
+        // Final recipients: drain recipient reads its actual assigned amount.
+        let final_recipients: Vec<APIRecipient> = recipients
+            .iter()
+            .zip(parsed_recipients.iter())
+            .enumerate()
+            .map(|(i, (r, pr))| {
+                let amount_sat = if Some(i as u32) == max_recipient_index {
+                    psbt.unsigned_tx
+                        .output
+                        .iter()
+                        .find(|o| o.script_pubkey == pr.script)
+                        .map(|o| o.value.to_sat())
+                        .unwrap_or(0)
+                } else {
+                    r.amount_sat
+                };
+                APIRecipient {
+                    address: pr.address.clone(),
+                    amount_sat,
+                }
+            })
+            .collect();
+
+        // BIP-125 Rule 4 / PaysForRBF: replacement fee must strictly exceed
+        // sum(orig_fee + descendant_fees) + new_vsize × 1 sat/vB.
+        let rbf_min_fee_sats = if rbf_infos.is_empty() {
+            None
+        } else {
+            let cluster: u64 = rbf_infos
+                .iter()
+                .map(|i| i.orig_fee_sat + i.descendant_fee_sat.unwrap_or(0))
+                .sum();
+            let new_vbytes = vbytes.ceil() as u64;
+            Some(cluster + new_vbytes + 1)
+        };
+
+        Ok(APITxPreview {
+            fee_sats,
+            fee_rate_sat_per_vb: effective_rate,
+            change_sats,
+            send_sats,
+            total_wu,
+            has_change,
+            insufficient_funds: false,
+            recipients: final_recipients,
+            rbf_min_fee_sats,
+        })
+    }
+
     /// Return all saved unsigned PSBTs for this wallet, newest-first.
     pub fn list_psbts(&self) -> Result<Vec<APIPsbtInfo>> {
         let core = self.lock_wallet()?;

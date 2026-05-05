@@ -359,7 +359,10 @@ class _EncryptionSectionState extends State<_EncryptionSection> {
           accessTitle: l10n.biometricWalletUnlockReason,
         ),
       );
-      await cubit.enableBiometricSlot(promptInfo);
+      await cubit.enableBiometricSlot(
+        (cubit.state as WalletDetailLoaded).walletInfo.walletPath,
+        promptInfo,
+      );
       if (!context.mounted) return;
       final newState = cubit.state;
       setState(() {
@@ -369,7 +372,9 @@ class _EncryptionSectionState extends State<_EncryptionSection> {
       });
     } else {
       setState(() => _biometricLoading = true);
-      await cubit.disableAllBiometricSlots();
+      await cubit.disableAllBiometricSlots(
+        (cubit.state as WalletDetailLoaded).walletInfo.walletPath,
+      );
       if (!context.mounted) return;
       setState(() {
         _hasBiometricSlot = false;

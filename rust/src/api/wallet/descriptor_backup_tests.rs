@@ -92,7 +92,7 @@ fn split_package_fees_low_rate_meets_relay_minimum() {
     assert!(commit_fee > 0);
     let commit_vbytes = commit_wu.div_ceil(4);
     assert!(
-        commit_fee >= ((commit_vbytes as f64 * 1.0).ceil() as u64).max(1) + 1,
+        commit_fee > ((commit_vbytes as f64 * 1.0).ceil() as u64).max(1),
         "commit_fee {} too low for {}",
         commit_fee,
         commit_vbytes

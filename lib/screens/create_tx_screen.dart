@@ -12,7 +12,6 @@ import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/services/wallet_service.dart';
-import 'package:deadbolt/src/rust/api/analyzer.dart' show addressOutputWu;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
@@ -32,10 +31,10 @@ import 'package:deadbolt/screens/create_tx/rbf_card.dart';
 import 'package:deadbolt/screens/create_tx/cpfp_banner.dart';
 import 'package:deadbolt/screens/create_tx/selected_path_card.dart';
 
-// Outputs below this threshold are not created (absorbed into fee).
-const _dustLimit = 546;
-
 final _bitcoinUriPrefixRe = RegExp(r'^bitcoin:', caseSensitive: false);
+
+/// Debounce window between input changes and the next preview FFI call.
+const _kPreviewDebounceWindow = Duration(milliseconds: 250);
 
 /// Screen for building an unsigned PSBT. Coin selection happens inside this
 /// screen via [CoinSelectorScreen].
@@ -134,6 +133,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   final _rateFocusNode = FocusNode();
   final _totalFocusNode = FocusNode();
 
+  /// Latest tx preview from Rust. Null while pending or when inputs are invalid.
+  APITxPreview? _preview;
+  Timer? _previewTimer;
+
   @override
   void initState() {
     super.initState();
@@ -148,11 +151,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       _recipients[0].addressCtrl.text = widget.preFilledRecipient!;
       _recipients[0].editMode = false;
       _maxRecipientIndex = 0;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _onRecipientChanged(widget.preFilledRecipient!, 0);
-      });
     }
     _loadFeePresets();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshPreview();
+    });
   }
 
   APINetwork get _currentNetwork => widget.network;
@@ -186,6 +189,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   @override
   void dispose() {
     _blockSnapshotTimer?.cancel();
+    _previewTimer?.cancel();
     for (final entry in _recipients) {
       entry.dispose();
     }
@@ -197,56 +201,101 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     super.dispose();
   }
 
+  // ─── Preview refresh ──────────────────────────────────────────────────────
+  //
+  // The screen owns no fee math anymore. Whenever the form mutates we ask Rust
+  // for a tx preview (debounced to ~250 ms while typing). The preview is the
+  // authoritative source for fee_sats, change_sats, total_wu, and the BIP-125
+  // Rule 4 minimum fee. `_preview == null` means inputs are not yet sufficient
+  // (missing coins, path, or address) — the UI just renders a `—` row.
+
+  void _refreshPreview({bool immediate = false}) {
+    _previewTimer?.cancel();
+    if (immediate) {
+      _runPreview();
+    } else {
+      _previewTimer = Timer(_kPreviewDebounceWindow, _runPreview);
+    }
+  }
+
+  void _runPreview() {
+    if (!mounted) return;
+    final path = _selectedPath;
+    if (path == null || _selectedUtxos.isEmpty) {
+      setState(() => _preview = null);
+      return;
+    }
+    // Need at least one address; recipients with empty addresses make the FFI
+    // throw, so bail early to keep the preview stable while typing.
+    if (_recipients.any((r) => r.addressCtrl.text.trim().isEmpty)) {
+      setState(() => _preview = null);
+      return;
+    }
+
+    final useAbsolute = _feeEditMode == FeeEditMode.total;
+    final feeAbs = useAbsolute ? int.tryParse(_totalFeeCtrl.text.trim()) : null;
+    final feeRate = useAbsolute ? null : double.tryParse(_feeRateCtrl.text.trim());
+    if (useAbsolute && (feeAbs == null || feeAbs <= 0)) {
+      setState(() => _preview = null);
+      return;
+    }
+    if (!useAbsolute && (feeRate == null || feeRate <= 0)) {
+      setState(() => _preview = null);
+      return;
+    }
+
+    final cubit = context.read<WalletDetailCubit>();
+    final preview = cubit.previewPsbt(
+      recipients: _buildApiRecipients(),
+      maxRecipientIndex: _maxRecipientIndex,
+      feeRateSatPerVb: feeRate,
+      feeAbsoluteSat: feeAbs == null ? null : BigInt.from(feeAbs),
+      selectedUtxos: _buildSelectedUtxos(),
+      policyPath: path.policyPath,
+      spendPathId: path.id,
+      rbfInfos: _rbfInfos.values.whereType<APIRbfInfo>().toList(),
+    );
+    setState(() => _preview = preview);
+  }
+
   // ─── Fee callbacks ────────────────────────────────────────────────────────
 
-  void _onFeeRateChanged(String _) => setState(() {
-    _selectedPresetIndex = null;
-  });
-  void _onTotalFeeChanged(String _) => setState(() {});
-  void _onAmountChanged(String _) => setState(() {});
+  void _onFeeRateChanged(String _) {
+    setState(() => _selectedPresetIndex = null);
+    _refreshPreview();
+  }
+  void _onTotalFeeChanged(String _) {
+    _refreshPreview();
+    setState(() {});
+  }
+  void _onAmountChanged(String _) {
+    _refreshPreview();
+    setState(() {});
+  }
 
   void _confirmRecipient(int index) {
     if (_recipients[index].addressCtrl.text.trim().isEmpty) return;
     setState(() => _recipients[index].editMode = false);
+    _refreshPreview(immediate: true);
   }
 
-  /// Sync totalFee controller from current summary when confirming feeRate edit.
+  /// Sync totalFee controller from current preview when confirming feeRate edit.
   void _confirmFeeRate() {
     final summary = _txSummary;
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
     setState(() => _feeEditMode = FeeEditMode.none);
+    _refreshPreview(immediate: true);
   }
 
-  /// Back-compute fee rate from user-entered total fee.
-  /// Uses the actual tx weight from _txSummary (includes change output when present)
-  /// to avoid rate drift when toggling between the two fee edit modes.
-  void _syncRateFromTotal() {
-    final fee = int.tryParse(_totalFeeCtrl.text);
-    if (fee == null || fee <= 0) return;
-    // Prefer the actual weight from the current summary — prevents upward drift.
-    final summary = _txSummary;
-    if (summary != null) {
-      _feeRateCtrl.text = _rateForExactSats(fee, summary.totalWu);
-      return;
+  /// After editing total fee, mirror the back-computed rate from the preview into
+  /// _feeRateCtrl. Uses 8 decimals: the BIP-125 ImprovesFeerateDiagram check requires
+  /// the new rate to *strictly* exceed maxOrigRate, so a 2-decimal round (e.g. 1.51)
+  /// would tie with an orig rate of 1.51 sat/vB and fail validation.
+  void _syncRateFromTotalUsingPreview() {
+    final p = _preview;
+    if (p != null && !p.insufficientFunds && p.feeRateSatPerVb > 0) {
+      _feeRateCtrl.text = p.feeRateSatPerVb.toStringAsFixed(8);
     }
-    // Fallback when summary is unavailable (missing coins / path / recipients).
-    final path = _selectedPath;
-    if (path == null) return;
-    final n = _selectedUtxos.length;
-    if (n == 0) return;
-    final recipientsWu = _recipients.map((r) => r.wu ?? 0).fold(0, (s, w) => s + w);
-    if (recipientsWu == 0) return;
-    final wuNoChange = path.wuBase + n * path.wuIn + recipientsWu;
-    _feeRateCtrl.text = _rateForExactSats(fee, wuNoChange);
-  }
-
-  /// Returns a sat/vB rate string floored at 8 decimal places such that
-  /// ceil(rate × totalWu / 4) == feeSats exactly, avoiding the +1 sat drift
-  /// that standard rounding causes when the 3rd decimal rounds up.
-  static String _rateForExactSats(int feeSats, int totalWu) {
-    final vbytes = totalWu / 4.0;
-    final floored = (feeSats / vbytes * 1e8).floor() / 1e8;
-    return floored.toStringAsFixed(8);
   }
 
   // ─── RBF / CPFP helpers ──────────────────────────────────────────────────
@@ -264,17 +313,14 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       if (!_rbfInfos.containsKey(txid)) {
         _rbfInfos[txid] = null;
         cubit.getRbfInfo(txid).then((info) {
-          if (mounted) setState(() => _rbfInfos[txid] = info);
+          if (!mounted) return;
+          setState(() => _rbfInfos[txid] = info);
+          _refreshPreview(immediate: true);
         });
       }
     }
     _loadCpfpInfo();
   }
-
-  int _totalConflictFee(List<APIRbfInfo> infos) => infos.fold<int>(
-        0,
-        (s, i) => s + i.origFeeSat.toInt() + (i.descendantFeeSat?.toInt() ?? 0),
-      );
 
   /// Loads CPFP ancestor fee info for all unconfirmed UTXOs' parent txids.
   /// Passes all unique parent txids so Rust can BFS the full ancestor chain.
@@ -299,39 +345,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   int get _selectedSats =>
       _selectedUtxos.fold(0, (sum, u) => sum + u.valueSat.toInt());
 
-  void _onRecipientChanged(String value, int index) {
-    final entry = _recipients[index];
-    entry.debounce?.cancel();
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      setState(() {
-        entry.wu = null;
-        entry.resolvingWu = false;
-      });
-      return;
-    }
-    setState(() => entry.resolvingWu = true);
-    entry.debounce = Timer(const Duration(milliseconds: 400), () async {
-      if (!mounted) return;
-      try {
-        final wu = await addressOutputWu(address: trimmed);
-        if (mounted) {
-          setState(() {
-            entry.wu = wu.toInt();
-            entry.resolvingWu = false;
-          });
-        }
-      } catch (e) {
-        debugPrint('[wu resolve error] $e');
-        if (mounted) setState(() { entry.wu = null; entry.resolvingWu = false; });
-      }
-    });
-  }
+  void _onRecipientChanged(String value, int index) => _refreshPreview();
 
   void _addRecipient() {
-    setState(() {
-      _recipients.add(RecipientEntry());
-    });
+    setState(() => _recipients.add(RecipientEntry()));
+    _refreshPreview(immediate: true);
   }
 
   void _removeRecipient(int index) {
@@ -353,110 +371,23 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         }
       }
     });
+    _refreshPreview(immediate: true);
   }
 
   void _toggleMaxForEntry(int index) {
     setState(() {
       _maxRecipientIndex = (_maxRecipientIndex == index) ? null : index;
     });
+    _refreshPreview(immediate: true);
   }
 
   // ─── Transaction estimate ────────────────────────────────────────────────
 
+  /// Adapter over the Rust-side preview. Null while the preview is pending or
+  /// inputs are insufficient — UI treats that the same way it always has.
   TxSummary? get _txSummary {
-    final path = _selectedPath;
-    if (path == null || _selectedUtxos.isEmpty) return null;
-    // All entries must have WU resolved.
-    if (_recipients.any((r) => r.wu == null)) return null;
-
-    final n = _selectedUtxos.length;
-    final totalIn = _selectedSats;
-    final recipientsWu = _recipients.fold(0, (s, r) => s + r.wu!);
-    final wuNoChange = path.wuBase + n * path.wuIn + recipientsWu;
-    final wuWithChange = wuNoChange + path.wuOut;
-
-    final hasDrain = _maxRecipientIndex != null;
-
-    // Determine fee rate — branch by active edit mode.
-    double? rate;
-    if (_feeEditMode == FeeEditMode.total) {
-      final fee = int.tryParse(_totalFeeCtrl.text);
-      if (fee == null || fee <= 0) return null;
-      if (!hasDrain) {
-        // Total explicit outputs. Pick denominator that matches actual tx structure.
-        final totalAmount = _recipients.fold(0, (s, r) => s + r.rawAmount);
-        final remainderIfExactFee = totalIn - totalAmount - fee;
-        rate = remainderIfExactFee >= _dustLimit
-            ? fee / (wuWithChange / 4.0) // change output present
-            : fee / (wuNoChange / 4.0);  // no change output
-      } else {
-        rate = fee / (wuNoChange / 4.0); // drain: no change output
-      }
-    } else {
-      rate = double.tryParse(_feeRateCtrl.text);
-    }
-    if (rate == null || rate <= 0) return null;
-
-    if (hasDrain) {
-      final fee = (rate * wuNoChange / 4.0).ceil();
-      // Non-drain recipients have explicit amounts.
-      final nonDrainAmount = _recipients
-          .asMap()
-          .entries
-          .where((e) => e.key != _maxRecipientIndex)
-          .fold(0, (s, e) => s + e.value.rawAmount);
-      final drainAmount = totalIn - nonDrainAmount - fee;
-      return TxSummary(
-        feeSats: fee,
-        changeSats: 0,
-        sendSats: drainAmount > 0 ? drainAmount : 0,
-        feeRate: rate,
-        totalWu: wuNoChange,
-        hasChange: false,
-        insufficientFunds: drainAmount <= 0,
-      );
-    }
-
-    // All amounts explicit.
-    final totalAmount = _recipients.fold(0, (s, r) => s + r.rawAmount);
-    if (totalAmount <= 0) return null;
-
-    final feeWithChange = (rate * wuWithChange / 4.0).ceil();
-    final change = totalIn - totalAmount - feeWithChange;
-
-    if (change >= _dustLimit) {
-      return TxSummary(
-        feeSats: feeWithChange,
-        changeSats: change,
-        sendSats: totalAmount,
-        feeRate: rate,
-        totalWu: wuWithChange,
-        hasChange: true,
-      );
-    } else {
-      final feeNoChange = (rate * wuNoChange / 4.0).ceil();
-      final leftover = totalIn - totalAmount - feeNoChange;
-      if (leftover < 0) {
-        return TxSummary(
-          feeSats: feeNoChange,
-          changeSats: 0,
-          sendSats: totalAmount,
-          feeRate: rate,
-          totalWu: wuNoChange,
-          hasChange: false,
-          insufficientFunds: true,
-        );
-      }
-      // Leftover dust goes to miner.
-      return TxSummary(
-        feeSats: feeNoChange + leftover,
-        changeSats: 0,
-        sendSats: totalAmount,
-        feeRate: (feeNoChange + leftover) / (wuNoChange / 4.0),
-        totalWu: wuNoChange,
-        hasChange: false,
-      );
-    }
+    final p = _preview;
+    return p == null ? null : TxSummary.fromPreview(p);
   }
 
   // ─── Actions ─────────────────────────────────────────────────────────────
@@ -595,6 +526,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     if (result != null) {
       setState(() => _selectedUtxos = result);
       _updateRbfInfos();
+      _refreshPreview(immediate: true);
     }
   }
 
@@ -764,16 +696,6 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                                       truncate: true,
                                     ),
                                   ),
-                                  if (entry.resolvingWu)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 6),
-                                      child: SizedBox(
-                                        width: 12,
-                                        height: 12,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
@@ -965,6 +887,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       _feeRateCtrl.text = rates[index].toStringAsFixed(1);
       _feeEditMode = FeeEditMode.none;
     });
+    _refreshPreview(immediate: true);
     final summary = _txSummary;
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
   }
@@ -1037,19 +960,20 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       }
     }
     if (_feeEditMode != FeeEditMode.none) {
-      if (_feeEditMode == FeeEditMode.total) _syncRateFromTotal();
+      if (_feeEditMode == FeeEditMode.total) _syncRateFromTotalUsingPreview();
       setState(() => _feeEditMode = FeeEditMode.none);
+      _refreshPreview(immediate: true);
       return null;
     }
     final minFeeRate = context.read<SettingsCubit>().state.minFeeRate;
-    final rate = double.tryParse(_feeRateCtrl.text.trim());
-    if (rate == null || rate < minFeeRate) {
+    final summary = _txSummary;
+    final rate = summary?.feeRate ?? double.tryParse(_feeRateCtrl.text.trim()) ?? 0.0;
+    if (rate <= 0 || rate < minFeeRate) {
       setState(() => _feeEditMode = FeeEditMode.rate);
       return null;
     }
     // Two independent RBF checks (Bitcoin Core ReplacementChecks):
     final resolvedRbfInfos = _rbfInfos.values.whereType<APIRbfInfo>().toList();
-    final summary = _txSummary;
     if (resolvedRbfInfos.isNotEmpty) {
       // 1. ImprovesFeerateDiagram: new_rate must strictly exceed orig_rate.
       final maxOrigRate = resolvedRbfInfos.fold<double>(
@@ -1061,15 +985,13 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         setState(() => _feeEditMode = FeeEditMode.rate);
         return null;
       }
-      // 2. BIP-125 Rule 4 (PaysForRBF): new_fee must exceed conflict cluster fee + new_vsize.
-      if (summary != null) {
-        final newVsize = (summary.totalWu / 4.0).ceil();
-        final totalConflict = _totalConflictFee(resolvedRbfInfos);
-        if (summary.feeSats <= totalConflict + newVsize) {
-          showErrorToast(context.l10n.rbfAbsFeeTooLow(totalConflict + newVsize + 1));
-          setState(() => _feeEditMode = FeeEditMode.total);
-          return null;
-        }
+      // 2. BIP-125 Rule 4 (PaysForRBF) — Rust-side `rbf_min_fee_sats` is the
+      // strict lower bound (cluster fee + new vsize + 1).
+      final minFee = _preview?.rbfMinFeeSats?.toInt();
+      if (summary != null && minFee != null && summary.feeSats < minFee) {
+        showErrorToast(context.l10n.rbfAbsFeeTooLow(minFee));
+        setState(() => _feeEditMode = FeeEditMode.total);
+        return null;
       }
     }
     if (!_formKey.currentState!.validate()) return null;
@@ -1188,6 +1110,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         label: label.isEmpty ? null : label,
         electrumUrl: electrumUrl,
       );
+      if (txid == null) return;
       if (mounted) {
         showSuccessToast(context.l10n.directSendSuccess(txid));
         Navigator.of(context).pop();
@@ -1235,13 +1158,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
     final currentRate = parsedCtrlRate ?? 0.0;
 
-    // BIP-125 Rule 4: new_fee > conflict_cluster + new_vsize; +1 is the smallest valid integer.
-    int rbfMinFeeSats = 0;
-    if (resolvedRbfInfos.isNotEmpty && summary != null) {
-      final newVsize = (summary.totalWu / 4.0).ceil();
-      final totalConflict = _totalConflictFee(resolvedRbfInfos);
-      rbfMinFeeSats = totalConflict + newVsize + 1;
-    }
+    // BIP-125 Rule 4 / PaysForRBF — Rust returns the strict lower bound directly.
+    final int rbfMinFeeSats = _preview?.rbfMinFeeSats?.toInt() ?? 0;
 
     final String? rateErrorText =
         currentRate > 0 && currentRate < effectiveMinRate
@@ -1383,6 +1301,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                             ? effectiveMinRate.toStringAsFixed(2)
                             : feeRateDisplay;
                         setState(() => _feeEditMode = FeeEditMode.rate);
+                        _refreshPreview(immediate: true);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) _rateFocusNode.requestFocus();
                         });
@@ -1408,13 +1327,18 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                             ? rbfMinFeeSats.toString()
                             : (feeSats > 0 ? feeSats.toString() : '');
                         setState(() => _feeEditMode = FeeEditMode.total);
+                        // Recompute the preview with the new absolute fee so the rate
+                        // field tracks the auto-filled value — without this, validation
+                        // would still see the stale low rate from the previous preview.
+                        _refreshPreview(immediate: true);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) _totalFocusNode.requestFocus();
                         });
                       },
                       onDone: () {
-                        _syncRateFromTotal();
+                        _syncRateFromTotalUsingPreview();
                         setState(() => _feeEditMode = FeeEditMode.none);
+                        _refreshPreview(immediate: true);
                       },
                     ),
                   ),
@@ -1466,7 +1390,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                         );
                       })
                       .toList(),
-                  onChanged: (p) => setState(() => _selectedPath = p),
+                  onChanged: (p) {
+                    setState(() => _selectedPath = p);
+                    _refreshPreview(immediate: true);
+                  },
                   validator: (v) => v == null ? l10n.createTxSpendPathHint : null,
                 ),
 

@@ -1,3 +1,4 @@
+import 'package:deadbolt/models/editable_models.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_api;
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -105,5 +106,76 @@ class ProjectDescriptorService {
       );
     }
     return kNoAbsoluteTimelock;
+  }
+
+  /// Validate the structural integrity of edited spend paths against the
+  /// keys available in the project. Returns a list of human-readable error
+  /// messages; an empty list means the paths are valid.
+  List<String> validatePaths(
+    List<EditableSpendPath> paths,
+    Set<String> availableMfps,
+    bool isTaproot,
+  ) {
+    final errors = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final path = paths[i];
+      if (path.mfps.isEmpty) {
+        errors.add('Spend path ${i + 1}: Must have at least one key');
+      }
+      for (final mfp in path.mfps) {
+        if (!availableMfps.contains(mfp)) {
+          errors.add('Spend path ${i + 1}: Key $mfp not found');
+        }
+      }
+      if (path.threshold < 1) {
+        errors.add('Spend path ${i + 1}: Threshold must be at least 1');
+      }
+      if (path.threshold > path.mfps.length) {
+        errors.add('Spend path ${i + 1}: Threshold cannot exceed number of keys');
+      }
+    }
+    if (isTaproot) {
+      final keyPathCount = paths.where((p) => p.isKeyPath).length;
+      if (keyPathCount > 1) {
+        errors.add('Only one spend path can be marked as key-path in Taproot descriptors.');
+      }
+    }
+    return errors;
+  }
+
+  /// Convert edited keys into FFI [APIPubKey] values, filtering out keys
+  /// not referenced by any active spend path.
+  List<APIPubKey> buildApiKeys(List<EditableKey> editedKeys, Set<String> usedMfps) {
+    return editedKeys
+        .where((k) => usedMfps.contains(k.mfp))
+        .map((k) => APIPubKey(
+              mfp: k.mfp,
+              derivationPath: k.derivationPath,
+              xpub: k.xpub,
+            ))
+        .toList();
+  }
+
+  /// Convert edited spend paths into FFI [APISpendPathDef] values, applying
+  /// the timelock-mode logic so inactive timelocks become no-ops.
+  List<APISpendPathDef> buildApiPaths(List<EditableSpendPath> editedPaths) {
+    return editedPaths.map((ep) {
+      return APISpendPathDef(
+        threshold: ep.threshold,
+        mfps: ep.mfps,
+        relTimelock: buildRelativeTimelock(
+          timelockMode: ep.timelockMode,
+          relTimelockType: ep.relTimelockType,
+          relTimelockValue: ep.relTimelockValue,
+        ),
+        absTimelock: buildAbsoluteTimelock(
+          timelockMode: ep.timelockMode,
+          absTimelockType: ep.absTimelockType,
+          absTimelockValue: ep.absTimelockValue,
+        ),
+        isKeyPath: ep.isKeyPath,
+        priority: ep.priority,
+      );
+    }).toList();
   }
 }

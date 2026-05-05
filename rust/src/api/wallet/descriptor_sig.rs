@@ -7,10 +7,11 @@ use crate::core::bip322::{
 };
 use crate::core::descriptor::DescriptorAnalyzer;
 use crate::core::seed::seed_entry_to_root_xprv;
-use crate::core::wallet_persistence::{
+use crate::core::wallet_persistence::descriptor_sig_storage::{
     delete_descriptor_sig as db_delete_sig, insert_descriptor_sig as db_insert_sig,
-    list_descriptor_sigs, read_wallet_info,
+    list_descriptor_sigs,
 };
+use crate::core::wallet_persistence::read_wallet_info;
 
 // ---------------------------------------------------------------------------
 // Helpers

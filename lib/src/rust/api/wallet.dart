@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wallet/descriptor_backup.dart';
 import 'wallet/descriptor_sig.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `lock_wallet`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`
+// These functions are ignored because they are not marked as `pub`: `apply_psbt_label_to_tx`, `chain_conf_info`, `create_electrum_client`, `create_raw_electrum_client`, `derive_and_format_keyspec`, `load_all_label_maps`, `lock_wallet`, `protection_for_path`, `psbt_effective_label`, `psbt_from_base64`, `psbt_to_base64`, `resolve_label`, `row_to_api_info`, `row_to_api_psbt_loaded`, `row_to_api_psbt`
 
 /// Return all wallets found in wallets_dir, sorted newest-first.
 Future<List<APIWalletInfo>> listWallets({
@@ -603,6 +603,29 @@ abstract class ApiWallet implements RustOpaqueInterface {
   ///
   /// Also returns the temporary descriptor string required for BB02 registration.
   APIPrepareDescriptorSigPsbt prepareDescriptorSigPsbt({required String mfp});
+
+  /// Preview the result of building an unsigned tx — fee, change, send, weight — without
+  /// constructing or persisting a PSBT. Mirrors `create_psbt` inputs so the UI can show
+  /// what BDK would actually do, and so a subsequent `create_psbt` produces matching numbers.
+  ///
+  /// Exactly one of `fee_rate_sat_per_vb` / `fee_absolute_sat` must be `Some`.
+  ///
+  /// `rbf_infos` (optional) lets the preview compute `rbf_min_fee_sats` — the BIP-125
+  /// Rule 4 / PaysForRBF threshold for the *new* tx vsize. Pass the same RBF infos the UI
+  /// already fetched per conflicting mempool tx; pass empty when not replacing anything.
+  ///
+  /// Insufficient-funds is returned as a flag in the preview rather than as an error, so
+  /// the screen can render gracefully while the user is still typing amounts.
+  APITxPreview previewPsbt({
+    required List<APIRecipient> recipients,
+    int? maxRecipientIndex,
+    double? feeRateSatPerVb,
+    BigInt? feeAbsoluteSat,
+    required List<APICoinControl> selectedUtxos,
+    required List<APIPolicyPath> policyPath,
+    required int spendPathId,
+    required List<APIRbfInfo> rbfInfos,
+  });
 
   /// Repropagate all existing explicit labels to their related entities.
   /// Useful after imports or migrations. Clears all auto labels first.

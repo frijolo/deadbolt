@@ -12,6 +12,7 @@ import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart'
     show deriveKeyspec, deriveKeyspecFromXprv, validateMnemonic;
+import 'package:deadbolt/utils/api_network_extensions.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
@@ -45,7 +46,7 @@ String _defaultDerivationPath(
   bool isMultiPath = false,
   int accountIndex = 0,
 }) {
-  final coin = network == APINetwork.bitcoin ? '0' : '1';
+  final coin = network.coinType;
   final a = "$accountIndex'";
   return switch (walletType) {
     APIWalletType.p2Pkh => "m/44'/$coin'/$a",
@@ -102,7 +103,7 @@ List<_QuickPath> _quickPaths(
   APINetwork network, {
   bool isMultiPath = false,
 }) {
-  final coin = network == APINetwork.bitcoin ? '0' : '1';
+  final coin = network.coinType;
   final paths = <_QuickPath>[];
 
   if (walletType == null || walletType == APIWalletType.p2Wpkh) {

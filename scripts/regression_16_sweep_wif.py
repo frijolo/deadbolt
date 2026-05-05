@@ -90,12 +90,16 @@ async def phase_create_wallet(d: UIDriver) -> None:
     await wait_for(d, "Enter manually", "method picker visible",
                    retries=8, delay=0.5)
     await click_label(d, "Enter manually", delay=0.5)
+    # Wait for the key-type method picker to fully animate in.
+    await asyncio.sleep(1.0)
     await wait_for(d, "Watch Only", "manual entry tabs visible",
                    retries=8, delay=0.5)
 
+    # The key type options (Hot Key, Import seed, etc.) appear after the
+    # manual-entry tabs are visible; give extra retries for this transition.
     await click_label(d, "Hot Key", delay=0.5)
     await wait_for(d, "Seed phrase", "Hot Key seed form visible",
-                   retries=8, delay=0.5)
+                   retries=15, delay=0.8)
 
     await fill_field(d, "Seed phrase", MNEMONIC)
     await wait_for(d, "Derived keyspec", "keyspec derived",

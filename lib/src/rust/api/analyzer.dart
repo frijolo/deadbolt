@@ -35,28 +35,6 @@ Future<void> validateDescriptorNetwork({
   network: network,
 );
 
-/// Calculate the weight units (WU) of a transaction output for the given address.
-///
-/// The result only depends on the scriptPubKey type (P2PKH=136, P2SH=128,
-/// P2WPKH=124, P2WSH=172, P2TR=172). Network validation is skipped so
-/// mainnet, testnet, signet, and regtest addresses are all accepted.
-Future<BigInt> addressOutputWu({required String address}) =>
-    RustLib.instance.api.crateApiAnalyzerAddressOutputWu(address: address);
-
-/// Calculate the deterministic rustId for a spend path
-/// Delegates to core::spend_path::calculate_spend_path_id (single source of truth)
-Future<int> calculateSpendPathId({
-  required int threshold,
-  required List<String> mfps,
-  required int relTimelock,
-  required int absTimelock,
-}) => RustLib.instance.api.crateApiAnalyzerCalculateSpendPathId(
-  threshold: threshold,
-  mfps: mfps,
-  relTimelock: relTimelock,
-  absTimelock: absTimelock,
-);
-
 /// Format a Taproot descriptor for Liana compatibility.
 ///
 /// Liana requires the NUMS unspendable xpub (used as TR internal key when no
@@ -70,18 +48,6 @@ Future<int> calculateSpendPathId({
 Future<String?> formatDescriptorForLiana({required String descriptor}) =>
     RustLib.instance.api.crateApiAnalyzerFormatDescriptorForLiana(
       descriptor: descriptor,
-    );
-
-/// Decode legacy relative timelock consensus value (for database migration)
-Future<APIRelativeTimelock> decodeLegacyRelTimelock({required int consensus}) =>
-    RustLib.instance.api.crateApiAnalyzerDecodeLegacyRelTimelock(
-      consensus: consensus,
-    );
-
-/// Decode legacy absolute timelock consensus value (for database migration)
-Future<APIAbsoluteTimelock> decodeLegacyAbsTimelock({required int consensus}) =>
-    RustLib.instance.api.crateApiAnalyzerDecodeLegacyAbsTimelock(
-      consensus: consensus,
     );
 
 /// Calculate spend path rustId from semantic timelock values

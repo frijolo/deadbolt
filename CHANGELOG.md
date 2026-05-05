@@ -37,6 +37,9 @@ All notable changes to Deadbolt are documented here, newest first.
   instead of blocking wallet open.
 - **Android backup and iOS file sharing disabled** — Wallet data is excluded from Android device
   backups and is not accessible via the iOS Files app.
+- **PSBT preview** — Before signing, the transaction preview computes exact fee in sats, effective
+  fee rate, change amount, per-recipient amounts (including drain), and BIP-125 RBF minimum fee.
+  Insufficient funds returns a flag instead of an error so the UI keeps rendering.
 
 ### Fixes
 - **Heir key sharing allowed** — Multiple heirs can now share the same xpub key with different

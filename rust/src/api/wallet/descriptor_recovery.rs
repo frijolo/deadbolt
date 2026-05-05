@@ -105,7 +105,9 @@ fn descriptor_meta(descriptor: &str) -> DescriptorMeta {
     let first_address =
         super::discovery::first_address_from_descriptor(descriptor.to_string(), network.into())
             .ok();
-    let wallet_type = Some(super::discovery::wallet_type_from_descriptor(descriptor));
+    let wallet_type = Some(crate::api::model::APIWalletType::from(
+        analyzer.wallet_type(),
+    ));
     DescriptorMeta {
         first_address,
         wallet_type,

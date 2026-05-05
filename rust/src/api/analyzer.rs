@@ -77,46 +77,8 @@ pub fn build_descriptor(
 /// testnet variant, and vice versa. Returns Ok(()) when compatible, or an
 /// error with a human-readable explanation.
 pub fn validate_descriptor_network(descriptor: String, network: APINetwork) -> Result<()> {
-    use bdk_wallet::bitcoin::Network;
-
-    let detected =
-        crate::core::descriptor_parser::DescriptorParser::parse(&descriptor)?.detect_network()?;
-    let descriptor_is_mainnet = detected == Network::Bitcoin;
-    let selected_is_mainnet = network == APINetwork::Bitcoin;
-
-    if descriptor_is_mainnet != selected_is_mainnet {
-        let descriptor_family = if descriptor_is_mainnet {
-            "mainnet"
-        } else {
-            "testnet"
-        };
-        return Err(anyhow::anyhow!(
-            "Descriptor uses {} keys but '{}' was selected",
-            descriptor_family,
-            network.display_name(),
-        ));
-    }
-    Ok(())
-}
-
-/// Calculate the weight units (WU) of a transaction output for the given address.
-///
-/// The result only depends on the scriptPubKey type (P2PKH=136, P2SH=128,
-/// P2WPKH=124, P2WSH=172, P2TR=172). Network validation is skipped so
-/// mainnet, testnet, signet, and regtest addresses are all accepted.
-pub fn address_output_wu(address: String) -> anyhow::Result<u64> {
-    crate::core::address::address_output_wu(&address).map_err(Into::into)
-}
-
-/// Calculate the deterministic rustId for a spend path
-/// Delegates to core::spend_path::calculate_spend_path_id (single source of truth)
-pub fn calculate_spend_path_id(
-    threshold: i32,
-    mfps: Vec<String>,
-    rel_timelock: u32,
-    abs_timelock: u32,
-) -> u32 {
-    spend_path::calculate_spend_path_id(threshold as usize, &mfps, rel_timelock, abs_timelock)
+    crate::core::descriptor_parser::DescriptorParser::parse(&descriptor)?
+        .check_network_compatibility(network.into())
 }
 
 /// Format a Taproot descriptor for Liana compatibility.
@@ -180,16 +142,6 @@ pub fn format_descriptor_for_liana(descriptor: String) -> Result<Option<String>>
     Ok(Some(liana_desc))
 }
 
-/// Decode legacy relative timelock consensus value (for database migration)
-pub fn decode_legacy_rel_timelock(consensus: u32) -> APIRelativeTimelock {
-    APIRelativeTimelock::from_consensus(consensus)
-}
-
-/// Decode legacy absolute timelock consensus value (for database migration)
-pub fn decode_legacy_abs_timelock(consensus: u32) -> APIAbsoluteTimelock {
-    APIAbsoluteTimelock::from_consensus(consensus)
-}
-
 /// Calculate spend path rustId from semantic timelock values
 /// Used when Flutter needs to compute rustId from type+value storage
 pub fn calculate_rustid_from_timelocks(
@@ -219,42 +171,10 @@ pub fn validate_key(
     xpub: String,
     network: APINetwork,
 ) -> Result<()> {
-    use bdk_wallet::bitcoin::Network;
-
-    // Validate MFP format (8 hex characters)
-    if mfp.len() != 8 {
-        return Err(anyhow::anyhow!(
-            "Master fingerprint must be exactly 8 characters"
-        ));
-    }
-    if !mfp.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(anyhow::anyhow!(
-            "Master fingerprint must contain only hexadecimal characters (0-9, a-f)"
-        ));
-    }
-
-    // Try to create the PubKey (validates format)
+    PubKey::validate_mfp_format(&mfp)?;
     let pubkey = PubKey::new(&mfp, &derivation_path, &xpub)
         .map_err(|e| anyhow::anyhow!("Invalid key format: {}", e))?;
-
-    // Check network compatibility
-    let core_network: Network = network.into();
-    if !pubkey.is_compatible_with_network(core_network)? {
-        let expected_prefix = match core_network {
-            Network::Bitcoin => "xpub, ypub, or zpub",
-            Network::Testnet => "tpub, upub, or vpub",
-            Network::Testnet4 => "tpub (testnet4)",
-            Network::Signet => "tpub (signet)",
-            Network::Regtest => "tpub (regtest)",
-        };
-        return Err(anyhow::anyhow!(
-            "Key is not compatible with {} network. Expected {}",
-            APINetwork::from(core_network).display_name(),
-            expected_prefix
-        ));
-    }
-
-    Ok(())
+    pubkey.validate_network(network.into())
 }
 
 #[frb(init)]

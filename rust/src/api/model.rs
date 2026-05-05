@@ -654,6 +654,37 @@ pub struct APICpfpInfo {
     pub ancestor_count: u32,
 }
 
+/////////////////////
+// APITxPreview    //
+/////////////////////
+/// Preview of an unsigned transaction before persisting a PSBT.
+///
+/// All amounts are in sats. `fee_rate_sat_per_vb` is the back-computed effective rate
+/// even when the caller passed an absolute fee. `total_wu` is BDK's actual weight for the
+/// resulting tx (drain or change present). `has_change` is true when a change output was added.
+///
+/// `insufficient_funds` is set instead of returning an error so the UI can render
+/// gracefully while the user is still typing. Other fields hold sentinel zeros in that case.
+///
+/// `recipients` contains the canonical-encoded recipient addresses (parsed by BDK) and the
+/// final amounts — for the drain recipient the amount reflects what BDK actually assigned.
+///
+/// `rbf_min_fee_sats` is the minimum absolute fee (BIP-125 Rule 4 / PaysForRBF) that the
+/// replacement tx must strictly exceed, computed from the conflict cluster and the actual
+/// new tx vsize. None when no RBF conflicts were declared.
+#[derive(Clone)]
+pub struct APITxPreview {
+    pub fee_sats: u64,
+    pub fee_rate_sat_per_vb: f64,
+    pub change_sats: u64,
+    pub send_sats: u64,
+    pub total_wu: u64,
+    pub has_change: bool,
+    pub insufficient_funds: bool,
+    pub recipients: Vec<APIRecipient>,
+    pub rbf_min_fee_sats: Option<u64>,
+}
+
 //////////////////////////
 // APIPsbtSignerStatus  //
 //////////////////////////

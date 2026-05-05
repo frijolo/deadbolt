@@ -7,6 +7,7 @@ import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
+import 'package:deadbolt/services/project_hot_key_manager.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/utils/constants.dart';
 import 'package:deadbolt/utils/hot_key_helpers.dart';
@@ -15,7 +16,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
 
 // Re-export editable models so existing imports of this file keep working.
 export 'package:deadbolt/models/editable_models.dart';
@@ -109,6 +109,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   final ProjectDescriptorService _service;
   final WalletService? _walletService;
   final int projectId;
+  ProjectHotKeyManager? _hotKeyManager;
 
   final Map<String, int> _mfpColorMap = {};
 
@@ -120,6 +121,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   })  : _service = service ?? const ProjectDescriptorService(),
         _walletService = walletService,
         super(ProjectDetailLoading()) {
+    if (_walletService != null) {
+      _hotKeyManager = ProjectHotKeyManager(_walletService, projectId);
+    }
     load();
   }
 
@@ -536,44 +540,22 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   // Project hot-key (seed) management
   // ---------------------------------------------------------------------------
 
-  Future<({String appDir, String deviceKey})> _getAppDirAndKey() async {
-    final service = _walletService!;
-    final appDir = await service.getAppSupportDir();
-    final deviceKey = await service.getOrCreateEncryptionKey();
-    return (appDir: appDir, deviceKey: deviceKey);
-  }
-
   Future<List<APIHotKeyInfo>> _loadHotKeys() async {
-    if (_walletService == null) return [];
-    try {
-      final (:appDir, :deviceKey) = await _getAppDirAndKey();
-      return rust_wallet.listProjectHotKeys(
-        appSupportDir: appDir,
-        projectId: projectId,
-        deviceKeyHex: deviceKey,
-      );
-    } catch (_) {
-      return [];
-    }
+    if (_hotKeyManager == null) return [];
+    return _hotKeyManager!.loadHotKeys();
   }
 
   Future<APIHotKeyInfo?> addProjectMnemonicHotKey(
     String mnemonic,
     String? passphrase,
   ) async {
-    if (_walletService == null) return null;
+    if (_hotKeyManager == null) return null;
     final s = state;
     if (s is! ProjectDetailLoaded) return null;
     try {
-      final (:appDir, :deviceKey) = await _getAppDirAndKey();
       final network = APINetwork.values.byName(s.project.network);
-      final info = rust_wallet.addProjectMnemonicKey(
-        appSupportDir: appDir,
-        projectId: projectId,
-        mnemonic: mnemonic,
-        passphrase: passphrase,
-        network: network,
-        deviceKeyHex: deviceKey,
+      final info = await _hotKeyManager!.addMnemonic(
+        mnemonic, passphrase: passphrase, network: network,
       );
       emit(s.copyWith(hotKeys: upsertHotKey(s.hotKeys, info)));
       return info;
@@ -585,17 +567,11 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   }
 
   Future<APIHotKeyInfo?> addProjectXprvHotKey(String xprv) async {
-    if (_walletService == null) return null;
+    if (_hotKeyManager == null) return null;
     final s = state;
     if (s is! ProjectDetailLoaded) return null;
     try {
-      final (:appDir, :deviceKey) = await _getAppDirAndKey();
-      final info = rust_wallet.addProjectXprvKey(
-        appSupportDir: appDir,
-        projectId: projectId,
-        xprv: xprv,
-        deviceKeyHex: deviceKey,
-      );
+      final info = await _hotKeyManager!.addXprv(xprv);
       emit(s.copyWith(hotKeys: upsertHotKey(s.hotKeys, info)));
       return info;
     } catch (e, st) {
@@ -606,17 +582,11 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   }
 
   Future<void> deleteProjectHotKey(String mfp) async {
-    if (_walletService == null) return;
+    if (_hotKeyManager == null) return;
     final s = state;
     if (s is! ProjectDetailLoaded) return;
     try {
-      final (:appDir, :deviceKey) = await _getAppDirAndKey();
-      rust_wallet.deleteProjectHotKey(
-        appSupportDir: appDir,
-        projectId: projectId,
-        mfp: mfp,
-        deviceKeyHex: deviceKey,
-      );
+      await _hotKeyManager!.delete(mfp);
       emit(s.copyWith(hotKeys: removeHotKey(s.hotKeys, mfp)));
     } catch (e, st) {
       logError('ProjectDetailCubit.deleteProjectHotKey()', e, st);
@@ -625,15 +595,9 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
   }
 
   Future<String?> revealProjectSeed(String mfp) async {
-    if (_walletService == null) return null;
+    if (_hotKeyManager == null) return null;
     try {
-      final (:appDir, :deviceKey) = await _getAppDirAndKey();
-      return rust_wallet.revealProjectSeed(
-        appSupportDir: appDir,
-        projectId: projectId,
-        mfp: mfp,
-        deviceKeyHex: deviceKey,
-      );
+      return await _hotKeyManager!.reveal(mfp);
     } catch (e, st) {
       logError('ProjectDetailCubit.revealProjectSeed()', e, st);
       final s = state;
@@ -642,74 +606,6 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
       }
       return null;
     }
-  }
-
-  List<String> _validatePaths(
-    List<EditableSpendPath> paths,
-    Set<String> availableMfps,
-    bool isTaproot,
-  ) {
-    final errors = <String>[];
-    for (var i = 0; i < paths.length; i++) {
-      final path = paths[i];
-      if (path.mfps.isEmpty) {
-        errors.add('Spend path ${i + 1}: Must have at least one key');
-      }
-      for (final mfp in path.mfps) {
-        if (!availableMfps.contains(mfp)) {
-          errors.add('Spend path ${i + 1}: Key $mfp not found');
-        }
-      }
-      if (path.threshold < 1) {
-        errors.add('Spend path ${i + 1}: Threshold must be at least 1');
-      }
-      if (path.threshold > path.mfps.length) {
-        errors.add('Spend path ${i + 1}: Threshold cannot exceed number of keys');
-      }
-    }
-    if (isTaproot) {
-      final keyPathCount = paths.where((p) => p.isKeyPath).length;
-      if (keyPathCount > 1) {
-        errors.add('Only one spend path can be marked as key-path in Taproot descriptors.');
-      }
-    }
-    return errors;
-  }
-
-  List<APIPubKey> _buildApiKeys(List<EditableKey> editedKeys, Set<String> usedMfps) {
-    return editedKeys
-        .where((k) => usedMfps.contains(k.mfp))
-        .map((k) => APIPubKey(
-              mfp: k.mfp,
-              derivationPath: k.derivationPath,
-              xpub: k.xpub,
-            ))
-        .toList();
-  }
-
-  List<APISpendPathDef> _buildApiPaths(List<EditableSpendPath> editedPaths) {
-    return editedPaths.map((ep) {
-      final relTimelock = ep.timelockMode == TimelockMode.relative
-          ? APIRelativeTimelock(
-              timelockType: ep.relTimelockType.toRust(),
-              value: ep.relTimelockValue,
-            )
-          : kNoRelativeTimelock;
-      final absTimelock = ep.timelockMode == TimelockMode.absolute
-          ? APIAbsoluteTimelock(
-              timelockType: ep.absTimelockType.toRust(),
-              value: ep.absTimelockValue,
-            )
-          : kNoAbsoluteTimelock;
-      return APISpendPathDef(
-        threshold: ep.threshold,
-        mfps: ep.mfps,
-        relTimelock: relTimelock,
-        absTimelock: absTimelock,
-        isKeyPath: ep.isKeyPath,
-        priority: ep.priority,
-      );
-    }).toList();
   }
 
   Future<void> regenerateDescriptor({
@@ -731,7 +627,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
       final walletType = s.currentWalletType;
       final isTaproot = walletType == APIWalletType.p2Tr;
       final availableMfps = s.editedKeys!.map((k) => k.mfp).toSet();
-      final validationErrors = _validatePaths(s.editedPaths!, availableMfps, isTaproot);
+      final validationErrors = _service.validatePaths(s.editedPaths!, availableMfps, isTaproot);
 
       if (validationErrors.isNotEmpty) {
         // Show validation errors as toast, don't change state
@@ -788,8 +684,8 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
 
       // Convert edited keys and paths to API types
       final usedMfps = s.editedPaths!.expand((p) => p.mfps).toSet();
-      final apiKeys = _buildApiKeys(s.editedKeys!, usedMfps);
-      final apiPaths = _buildApiPaths(s.editedPaths!);
+      final apiKeys = _service.buildApiKeys(s.editedKeys!, usedMfps);
+      final apiPaths = _service.buildApiPaths(s.editedPaths!);
 
       // Build new descriptor via Rust (walletType already declared above)
       final newDescriptor = await _service.buildDescriptor(

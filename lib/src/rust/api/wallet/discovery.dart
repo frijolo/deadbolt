@@ -70,13 +70,6 @@ Future<String> firstAddressFromDescriptor({
   network: network,
 );
 
-/// Returns the wallet type derived from a descriptor.
-/// This parses the descriptor to determine if it's P2PKH, P2WPKH, P2SH, P2WSH, or P2TR.
-Future<APIWalletType> walletTypeFromDescriptor({required String descriptor}) =>
-    RustLib.instance.api.crateApiWalletDiscoveryWalletTypeFromDescriptor(
-      descriptor: descriptor,
-    );
-
 /// Returns every BIP-32 derivation path needed for hardware-wallet-based
 /// account discovery, grouped by wallet type.
 ///

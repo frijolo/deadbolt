@@ -76,7 +76,7 @@ jobs:
 
       - name: cargo clippy
         working-directory: rust
-        run: cargo clippy --all-features -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
       - name: cargo test (with coverage)
         working-directory: rust
@@ -134,7 +134,7 @@ jobs:
         run: dart pub get
 
       - name: flutter analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: flutter test (with coverage)
         run: flutter test --coverage

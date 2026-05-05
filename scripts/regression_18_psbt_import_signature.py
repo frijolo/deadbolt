@@ -230,11 +230,14 @@ async def phase_export_unsigned(d: UIDriver) -> str:
     print("\n  [phase 4] export unsigned PSBT to clipboard")
 
     await click_label(d, "Export PSBT", delay=0.5)
+    # The export sheet opens instantly but its content (Copy to clipboard button)
+    # may take a moment to appear in the semantics tree.  Start with a longer
+    # initial poll window to absorb that rendering delay.
     await wait_for(d, "Copy to clipboard", "export sheet opened",
-                   retries=10, delay=0.5)
+                   retries=20, delay=0.8)
     await click_label(d, "Copy to clipboard", delay=0.5)
     await wait_absent(d, "Copy to clipboard", "export sheet closed",
-                      retries=10, delay=0.4)
+                       retries=10, delay=0.4)
 
     await asyncio.sleep(0.3)
     unsigned_psbt = _read_clipboard()
@@ -268,11 +271,11 @@ async def phase_export_signed(d: UIDriver, unsigned_psbt: str) -> str:
     print("\n  [phase 6] export signed PSBT to clipboard")
 
     await click_label(d, "Export PSBT", delay=0.5)
-    await wait_for(d, "Copy to clipboard", "export sheet opened",
-                   retries=10, delay=0.5)
+    await wait_for(d, "Copy to clipboard", "signed export sheet opened",
+                   retries=20, delay=0.8)
     await click_label(d, "Copy to clipboard", delay=0.5)
     await wait_absent(d, "Copy to clipboard", "export sheet closed",
-                      retries=10, delay=0.4)
+                       retries=10, delay=0.4)
 
     await asyncio.sleep(0.3)
     signed_psbt = _read_clipboard()

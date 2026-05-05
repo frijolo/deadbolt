@@ -14,6 +14,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' as rust_analyzer;
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/utils/api_network_extensions.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show copyProjectKeysToWallet;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -102,13 +103,12 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
       final p = widget.preselectedProject!;
       _nameController.text = p.name;
       final projectNetwork = APINetwork.values.byName(p.network);
-      if (projectNetwork == APINetwork.bitcoin) {
+      if (projectNetwork.isMainnet) {
         _selectedNetwork = APINetwork.bitcoin;
       } else {
         // For testnet projects, prefer the app's current testnet variant.
         final appNet = context.read<SettingsCubit>().state.network;
-        _selectedNetwork =
-            (appNet != APINetwork.bitcoin) ? appNet : APINetwork.testnet;
+        _selectedNetwork = appNet.isMainnet ? APINetwork.testnet : appNet;
       }
     } else {
       _selectedNetwork = context.read<SettingsCubit>().state.network;

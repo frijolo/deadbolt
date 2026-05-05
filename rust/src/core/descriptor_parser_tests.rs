@@ -61,3 +61,25 @@ fn test_canonical_descriptor_idempotent() -> Result<()> {
     assert_eq!(canonical1, canonical2);
     Ok(())
 }
+
+#[test]
+fn test_check_network_compatibility_match() -> Result<()> {
+    let descriptor = "wpkh([089177d9/84h/1h/0h]tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)";
+    let parser = DescriptorParser::parse(descriptor)?;
+    parser.check_network_compatibility(Network::Signet)?;
+    parser.check_network_compatibility(Network::Testnet)?;
+    Ok(())
+}
+
+#[test]
+fn test_check_network_compatibility_mismatch_reports_selected() -> Result<()> {
+    let descriptor = "wpkh([089177d9/84h/1h/0h]tpubDChwdeVd7pBThLN5uKs5m83Eqv6ozCiLibqpswK3VtMFZcGv8L9ZUq6V56UYMzKfM4Bfsgy2b9HrFhRSoSKp1f3omLp17G74m4CzkUKsicG/<0;1>/*)";
+    let parser = DescriptorParser::parse(descriptor)?;
+    let err = parser
+        .check_network_compatibility(Network::Bitcoin)
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("testnet keys"), "got: {err}");
+    assert!(err.contains("'mainnet' was selected"), "got: {err}");
+    Ok(())
+}

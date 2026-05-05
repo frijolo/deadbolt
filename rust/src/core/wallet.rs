@@ -8,7 +8,8 @@ use crate::core::seed::{
     make_private_descriptor, root_xprv_to_mfp, seed_entry_to_root_xprv, split_multipath_descriptor,
     strip_descriptor_checksum,
 };
-use crate::core::wallet_persistence::{list_seed_entries, load_or_create_wallet};
+use crate::core::wallet_persistence::load_or_create_wallet;
+use crate::core::wallet_persistence::seed_storage::list_seed_entries;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WalletType {

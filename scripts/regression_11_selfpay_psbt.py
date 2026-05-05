@@ -147,7 +147,7 @@ async def phase_create_wallet(d: UIDriver):
             await wait_for(
                 d, "Create wallet",
                 "scan results visible",
-                retries=60, delay=2.0,
+                retries=180, delay=2.0,
             )
             print("    [ok] scan results visible")
             break

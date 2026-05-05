@@ -2,11 +2,13 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::collections::HashSet;
 
-use super::{
-    ensure_address_labels_table, ensure_coin_labels_table, ensure_descriptor_sigs_table,
-    ensure_fiat_prices_table, ensure_key_labels_table, ensure_path_labels_table,
-    ensure_seed_entries_table, ensure_tx_labels_table,
+use super::descriptor_sig_storage::ensure_descriptor_sigs_table;
+use super::fiat_storage::ensure_fiat_prices_table;
+use super::labels::{
+    ensure_address_labels_table, ensure_coin_labels_table, ensure_key_labels_table,
+    ensure_path_labels_table, ensure_tx_labels_table,
 };
+use super::seed_storage::ensure_seed_entries_table;
 
 /// Current target schema version for wallet databases.
 /// Bump this constant and add a new migration step whenever the schema changes.

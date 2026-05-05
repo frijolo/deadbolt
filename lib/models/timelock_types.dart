@@ -50,3 +50,19 @@ const kNoAbsoluteTimelock = APIAbsoluteTimelock(
   timelockType: APIAbsoluteTimelockType.blocks,
   value: 0,
 );
+
+// ---------------------------------------------------------------------------
+// Bitcoin consensus boundaries — must stay in sync with Rust
+// (`rust/src/api/model.rs`, `APIAbsoluteTimelock` / `APIRelativeTimelock`).
+// ---------------------------------------------------------------------------
+
+/// nLockTime threshold from BIP-65: values below it are interpreted as block
+/// heights, values >= it as Unix timestamps.
+const int kAbsoluteLockTimeThreshold = 500000000;
+
+/// Maximum block height for an absolute (height-based) timelock.
+const int kAbsoluteMaxBlockHeight = kAbsoluteLockTimeThreshold - 1;
+
+/// Maximum value (BIP-68 SEQUENCE_LOCKTIME_MASK) for a relative timelock,
+/// applies to both block and time encodings before scaling.
+const int kRelativeTimelockMax = 0xFFFF; // 65535

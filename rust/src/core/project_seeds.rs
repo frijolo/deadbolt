@@ -4,7 +4,8 @@ use zeroize::Zeroizing;
 
 use crate::core::key_protection::{generate_data_key, unwrap_key, wrap_key, ProtectionMeta};
 use crate::core::wallet_meta::{meta_exists, read_meta, write_meta};
-use crate::core::wallet_persistence::{open_encrypted_connection, SeedEntry};
+use crate::core::wallet_persistence::open_encrypted_connection;
+use crate::core::wallet_persistence::seed_storage::SeedEntry;
 
 pub fn project_seeds_db_path(app_support_dir: &str) -> String {
     format!("{}/project_seeds.db", app_support_dir)

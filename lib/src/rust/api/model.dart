@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -1278,6 +1278,72 @@ class APITxMissingFiat {
           runtimeType == other.runtimeType &&
           txid == other.txid &&
           confirmationTime == other.confirmationTime;
+}
+
+/// Preview of an unsigned transaction before persisting a PSBT.
+///
+/// All amounts are in sats. `fee_rate_sat_per_vb` is the back-computed effective rate
+/// even when the caller passed an absolute fee. `total_wu` is BDK's actual weight for the
+/// resulting tx (drain or change present). `has_change` is true when a change output was added.
+///
+/// `insufficient_funds` is set instead of returning an error so the UI can render
+/// gracefully while the user is still typing. Other fields hold sentinel zeros in that case.
+///
+/// `recipients` contains the canonical-encoded recipient addresses (parsed by BDK) and the
+/// final amounts — for the drain recipient the amount reflects what BDK actually assigned.
+///
+/// `rbf_min_fee_sats` is the minimum absolute fee (BIP-125 Rule 4 / PaysForRBF) that the
+/// replacement tx must strictly exceed, computed from the conflict cluster and the actual
+/// new tx vsize. None when no RBF conflicts were declared.
+class APITxPreview {
+  final BigInt feeSats;
+  final double feeRateSatPerVb;
+  final BigInt changeSats;
+  final BigInt sendSats;
+  final BigInt totalWu;
+  final bool hasChange;
+  final bool insufficientFunds;
+  final List<APIRecipient> recipients;
+  final BigInt? rbfMinFeeSats;
+
+  const APITxPreview({
+    required this.feeSats,
+    required this.feeRateSatPerVb,
+    required this.changeSats,
+    required this.sendSats,
+    required this.totalWu,
+    required this.hasChange,
+    required this.insufficientFunds,
+    required this.recipients,
+    this.rbfMinFeeSats,
+  });
+
+  @override
+  int get hashCode =>
+      feeSats.hashCode ^
+      feeRateSatPerVb.hashCode ^
+      changeSats.hashCode ^
+      sendSats.hashCode ^
+      totalWu.hashCode ^
+      hasChange.hashCode ^
+      insufficientFunds.hashCode ^
+      recipients.hashCode ^
+      rbfMinFeeSats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APITxPreview &&
+          runtimeType == other.runtimeType &&
+          feeSats == other.feeSats &&
+          feeRateSatPerVb == other.feeRateSatPerVb &&
+          changeSats == other.changeSats &&
+          sendSats == other.sendSats &&
+          totalWu == other.totalWu &&
+          hasChange == other.hasChange &&
+          insufficientFunds == other.insufficientFunds &&
+          recipients == other.recipients &&
+          rbfMinFeeSats == other.rbfMinFeeSats;
 }
 
 class APIUtxo {

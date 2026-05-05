@@ -165,3 +165,56 @@ fn test_taproot_without_keypath_excludes_nums() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_validate_mfp_format_accepts_valid() {
+    assert!(PubKey::validate_mfp_format("73c5da0a").is_ok());
+    assert!(PubKey::validate_mfp_format("ABCDEF01").is_ok());
+}
+
+#[test]
+fn test_validate_mfp_format_rejects_wrong_length() {
+    let err = PubKey::validate_mfp_format("73c5da0")
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("exactly 8 characters"), "got: {err}");
+    let err = PubKey::validate_mfp_format("73c5da0aa")
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("exactly 8 characters"), "got: {err}");
+}
+
+#[test]
+fn test_validate_mfp_format_rejects_non_hex() {
+    let err = PubKey::validate_mfp_format("zzzzzzzz")
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("hexadecimal"), "got: {err}");
+}
+
+#[test]
+fn test_validate_network_ok_for_signet_key() -> Result<()> {
+    let pk = PubKey::new(
+        "73c5da0a",
+        "44'/1'/0'",
+        "tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba",
+    )?;
+    pk.validate_network(Network::Signet)?;
+    Ok(())
+}
+
+#[test]
+fn test_validate_network_rejects_mainnet_for_testnet_key() -> Result<()> {
+    let pk = PubKey::new(
+        "73c5da0a",
+        "44'/1'/0'",
+        "tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba",
+    )?;
+    let err = pk
+        .validate_network(Network::Bitcoin)
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("not compatible with mainnet"), "got: {err}");
+    assert!(err.contains("xpub, ypub, or zpub"), "got: {err}");
+    Ok(())
+}

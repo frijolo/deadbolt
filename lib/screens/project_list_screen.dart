@@ -12,6 +12,7 @@ import 'package:deadbolt/screens/create_project_dialog.dart';
 import 'package:deadbolt/screens/create_wallet_dialog.dart';
 import 'package:deadbolt/screens/project_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/utils/api_network_extensions.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/utils/export_sheet.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
@@ -85,7 +86,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
 
   void _showNetworkTierPicker(BuildContext context, AppSettings settings) {
     final settingsCubit = context.read<SettingsCubit>();
-    final isCurrentlyMainnet = settings.network == APINetwork.bitcoin;
+    final isCurrentlyMainnet = settings.network.isMainnet;
     final l10n = context.l10n;
     showDialog(
       context: context,
@@ -141,7 +142,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
               child: GestureDetector(
                 onTap: () => _showNetworkTierPicker(context, settings),
                 child: MfpBadge(
-                  label: settings.network == APINetwork.bitcoin
+                  label: settings.network.isMainnet
                       ? l10n.networkMainnet
                       : l10n.networkTestnet,
                   color: AppAccent.color,
@@ -193,7 +194,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
   Widget _buildLoadedBody(BuildContext context,
       List<Project> allProjects, AppSettings settings) {
     final l10n = context.l10n;
-    final currentIsMainnet = settings.network == APINetwork.bitcoin;
+    final currentIsMainnet = settings.network.isMainnet;
     final visibleProjects = _applyOrder(
       allProjects
           .where((p) => (p.network == APINetwork.bitcoin.name) == currentIsMainnet)
