@@ -10,6 +10,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/wallet/nostr_backup.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/utils/wallet_complexity.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
 
 Future<void> showNostrBackupSheet(
@@ -188,6 +189,12 @@ class _NostrBackupContentState extends State<_NostrBackupContent> {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     final ts = Theme.of(context).textTheme;
+    final singlesig = isDescriptorTriviallyRecoverable(widget.state);
+    final noteText = singlesig
+        ? l10n.backupSinglesigShortNote
+        : l10n.nostrBackupSecurityNote;
+    final noteIcon = singlesig ? Icons.privacy_tip_outlined : Icons.info_outline;
+    final noteColor = singlesig ? cs.error : cs.onSurfaceVariant;
 
     return SingleChildScrollView(
       child: Column(
@@ -206,12 +213,12 @@ class _NostrBackupContentState extends State<_NostrBackupContent> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: cs.onSurfaceVariant),
+                  Icon(noteIcon, size: 16, color: noteColor),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      l10n.nostrBackupSecurityNote,
-                      style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                      noteText,
+                      style: ts.bodySmall?.copyWith(color: noteColor),
                     ),
                   ),
                 ],

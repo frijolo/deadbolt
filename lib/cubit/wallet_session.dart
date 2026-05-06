@@ -68,8 +68,17 @@ class WalletSession {
     final isUnlocked = _service.isUnlocked(walletPath);
     if (isUnlocked) {
       // Wallet is already unlocked (device key or cached credential) — open it.
-      final handle = await _service.openWallet(walletPath);
-      return WalletLoadCredentialResult(handle: handle);
+      try {
+        final handle = await _service.openWallet(walletPath);
+        return WalletLoadCredentialResult(handle: handle);
+      } catch (_) {
+        // Cached credential did not open the wallet (e.g. wrong password just
+        // provided). Evict so the next attempt re-prompts instead of looping
+        // on the same bad credential.
+        _service.evictPassword(walletPath);
+        _service.evictBiometricKey(walletPath);
+        rethrow;
+      }
     }
 
     // Check both flags in parallel — each reads the .meta sidecar once.

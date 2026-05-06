@@ -103,6 +103,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get descriptorHint => 'Pega tu descriptor Bitcoin aquí...';
 
   @override
+  String get descriptorViewAlias => 'Alias';
+
+  @override
+  String get descriptorViewRaw => 'Raw';
+
+  @override
   String get networkLabel => 'Red';
 
   @override
@@ -2551,6 +2557,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get publishBackupTitle => 'Publicar Respaldo';
+
+  @override
+  String get publishBackupSinglesigTitle => 'Respaldo no recomendado';
+
+  @override
+  String get publishBackupSinglesigBody =>
+      'Esta es una wallet singlesig. Su descriptor se recupera por completo desde la seed (o el xpub) mediante el discovery estándar — no necesita respaldo externo. Publicarlo en Nostr u on-chain solo añade un riesgo de privacidad al asociar tu xpub a datos públicos adicionales.';
+
+  @override
+  String get publishBackupSinglesigContinue =>
+      'Entiendo, mostrar opciones de todos modos';
+
+  @override
+  String get backupSinglesigShortNote =>
+      'No recomendado para singlesig: el descriptor es recuperable desde la seed vía discovery. Publicarlo solo añade riesgo de privacidad.';
 
   @override
   String get nostrBackupMenu => 'Respaldo Nostr';

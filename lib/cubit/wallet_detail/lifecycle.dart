@@ -251,6 +251,9 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
       unawaited(loadDescriptorAnalysis());
     } catch (e, stackTrace) {
       logError('WalletDetailCubit.load()', e, stackTrace);
+      // Defensive: ensure no stale credentials survive a failed open, so the
+      // next tap re-prompts for password instead of replaying the failure.
+      opener.lock(walletPath);
       emit(WalletDetailError(formatRustError(e)));
     }
   }

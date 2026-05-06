@@ -8,6 +8,7 @@ import 'package:deadbolt/cubit/project_list_cubit.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
+import 'package:deadbolt/models/project_export.dart' show buildKeyLabels;
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/screens/wallet_detail_screen.dart';
 import 'package:deadbolt/services/wallet_service.dart';
@@ -20,6 +21,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
 import 'package:deadbolt/errors.dart' show sanitizeForLog;
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/descriptor_tab.dart' show DescriptorDisplay;
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/protection_section.dart';
@@ -89,6 +91,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   late APINetwork _selectedNetwork;
   bool _isCreating = false;
   bool _deleteProject = false;
+  Map<String, String> _projectKeyLabels = const {};
 
   // Protection
   APIProtectionType _protectionType = APIProtectionType.deviceKey;
@@ -110,8 +113,19 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
         final appNet = context.read<SettingsCubit>().state.network;
         _selectedNetwork = appNet.isMainnet ? APINetwork.testnet : appNet;
       }
+      _loadProjectKeyLabels(p.id, context.read<AppDatabase>());
     } else {
       _selectedNetwork = context.read<SettingsCubit>().state.network;
+    }
+  }
+
+  Future<void> _loadProjectKeyLabels(int projectId, AppDatabase db) async {
+    try {
+      final keys = await db.getKeysForProject(projectId);
+      if (!mounted) return;
+      setState(() => _projectKeyLabels = buildKeyLabels(keys));
+    } catch (e) {
+      debugPrint('Failed to load project key labels: ${sanitizeForLog(e.toString())}');
     }
   }
 
@@ -282,21 +296,16 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
   Widget _buildDescriptorCard(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.descriptorLabel, style: theme.textTheme.labelMedium),
-            const SizedBox(height: 6),
-            SelectableText(
-              widget.preselectedProject!.descriptor,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.descriptorLabel, style: theme.textTheme.titleSmall),
+        DescriptorDisplay(
+          descriptor: widget.preselectedProject!.descriptor,
+          keyLabels: _projectKeyLabels,
+          shrinkWrap: true,
         ),
-      ),
+      ],
     );
   }
 

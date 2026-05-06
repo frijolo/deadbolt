@@ -25,61 +25,18 @@ class DescriptorTab extends StatefulWidget {
 }
 
 class _DescriptorTabState extends State<DescriptorTab> {
-  bool _showAlias = true;
-  late String _aliasDescriptor;
-
-  @override
-  void initState() {
-    super.initState();
-    _aliasDescriptor =
-        buildAliasDescriptor(widget.descriptor, widget.keyLabels);
-  }
-
-  @override
-  void didUpdateWidget(DescriptorTab old) {
-    super.didUpdateWidget(old);
-    if (old.descriptor != widget.descriptor ||
-        !mapEquals(old.keyLabels, widget.keyLabels)) {
-      _aliasDescriptor =
-          buildAliasDescriptor(widget.descriptor, widget.keyLabels);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = Theme.of(context).colorScheme;
-
-    final spans = _showAlias
-        ? tokenizeAlias(_aliasDescriptor, colors)
-        : tokenizeRaw(widget.descriptor, colors);
 
     return Column(
       children: [
         if (widget.isDirty)
           _StaleBanner(label: l10n.descriptorOutdatedBanner),
-        _ModeToggle(
-          showAlias: _showAlias,
-          onToggle: (v) => setState(() => _showAlias = v),
-        ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: SelectableText.rich(
-                    TextSpan(
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                      children: spans,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          child: DescriptorDisplay(
+            descriptor: widget.descriptor,
+            keyLabels: widget.keyLabels,
           ),
         ),
         Padding(
@@ -107,11 +64,120 @@ class _DescriptorTabState extends State<DescriptorTab> {
   }
 }
 
+/// Read-only tokenized view of a descriptor with an Alias/Raw toggle.
+///
+/// When [shrinkWrap] is false (default) the content fills its parent and
+/// scrolls internally — used by [DescriptorTab]. When [shrinkWrap] is true the
+/// widget sizes to its content with no inner scroll, suitable for embedding in
+/// an outer scroll view (e.g. dialog forms).
+class DescriptorDisplay extends StatefulWidget {
+  final String descriptor;
+  final Map<String, String> keyLabels;
+  final bool shrinkWrap;
+
+  const DescriptorDisplay({
+    super.key,
+    required this.descriptor,
+    this.keyLabels = const {},
+    this.shrinkWrap = false,
+  });
+
+  @override
+  State<DescriptorDisplay> createState() => _DescriptorDisplayState();
+}
+
+class _DescriptorDisplayState extends State<DescriptorDisplay> {
+  bool _showAlias = true;
+  late String _aliasDescriptor;
+
+  @override
+  void initState() {
+    super.initState();
+    _aliasDescriptor =
+        buildAliasDescriptor(widget.descriptor, widget.keyLabels);
+  }
+
+  @override
+  void didUpdateWidget(DescriptorDisplay old) {
+    super.didUpdateWidget(old);
+    if (old.descriptor != widget.descriptor ||
+        !mapEquals(old.keyLabels, widget.keyLabels)) {
+      _aliasDescriptor =
+          buildAliasDescriptor(widget.descriptor, widget.keyLabels);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+
+    final spans = _showAlias
+        ? tokenizeAlias(_aliasDescriptor, colors)
+        : tokenizeRaw(widget.descriptor, colors);
+
+    final card = ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: double.infinity),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: SelectableText.rich(
+            TextSpan(
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              children: spans,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final toggle = _ModeToggle(
+      showAlias: _showAlias,
+      onToggle: (v) => setState(() => _showAlias = v),
+      aliasLabel: l10n.descriptorViewAlias,
+      rawLabel: l10n.descriptorViewRaw,
+    );
+
+    if (widget.shrinkWrap) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          toggle,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: card,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        toggle,
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: card,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ModeToggle extends StatelessWidget {
   final bool showAlias;
   final ValueChanged<bool> onToggle;
+  final String aliasLabel;
+  final String rawLabel;
 
-  const _ModeToggle({required this.showAlias, required this.onToggle});
+  const _ModeToggle({
+    required this.showAlias,
+    required this.onToggle,
+    required this.aliasLabel,
+    required this.rawLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -119,16 +185,16 @@ class _ModeToggle extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: SegmentedButton<bool>(
         showSelectedIcon: false,
-        segments: const [
+        segments: [
           ButtonSegment(
             value: true,
-            label: Text('Alias'),
-            icon: Icon(Icons.label_outline, size: 14),
+            label: Text(aliasLabel),
+            icon: const Icon(Icons.label_outline, size: 14),
           ),
           ButtonSegment(
             value: false,
-            label: Text('Raw'),
-            icon: Icon(Icons.code, size: 14),
+            label: Text(rawLabel),
+            icon: const Icon(Icons.code, size: 14),
           ),
         ],
         selected: {showAlias},

@@ -86,6 +86,7 @@ void showTextExportSheet(
   String fileExtension = 'txt',
   bool bigText = false,
   List<ExportSheetAction> extraItems = const [],
+  ShowAsTextBuilder? showAsTextBuilder,
 }) {
   final l10n = context.l10n;
   showSheet<void>(context, (ctx) => Column(
@@ -134,7 +135,7 @@ void showTextExportSheet(
             title: Text(l10n.showAsText),
             onTap: () {
               Navigator.pop(ctx);
-              _showAsTextDialog(context, text);
+              _showAsTextDialog(context, text, builder: showAsTextBuilder);
             },
           ),
           for (final item in extraItems)
@@ -232,8 +233,22 @@ Future<void> _shareAsFile(
   }
 }
 
-void _showAsTextDialog(BuildContext context, String text) {
+typedef ShowAsTextBuilder = Widget Function(BuildContext context, String text);
+
+void _showAsTextDialog(
+  BuildContext context,
+  String text, {
+  ShowAsTextBuilder? builder,
+}) {
   final l10n = context.l10n;
+  final content = builder != null
+      ? builder(context, text)
+      : SelectableText(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+              ),
+        );
   showSheet<void>(context, (ctx) => Column(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,12 +263,7 @@ void _showAsTextDialog(BuildContext context, String text) {
         constraints: const BoxConstraints(maxHeight: 300),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: SelectableText(
-            text,
-            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
-          ),
+          child: content,
         ),
       ),
       Align(

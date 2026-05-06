@@ -103,6 +103,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get descriptorHint => 'Paste your Bitcoin descriptor here...';
 
   @override
+  String get descriptorViewAlias => 'Alias';
+
+  @override
+  String get descriptorViewRaw => 'Raw';
+
+  @override
   String get networkLabel => 'Network';
 
   @override
@@ -2531,6 +2537,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get publishBackupTitle => 'Publish Backup';
+
+  @override
+  String get publishBackupSinglesigTitle => 'Backup not recommended';
+
+  @override
+  String get publishBackupSinglesigBody =>
+      'This is a singlesig wallet. Its descriptor can be fully recovered from the seed (or xpub) via standard wallet discovery — no external backup is needed. Publishing it to Nostr or on-chain only adds a privacy risk by linking your xpub to extra public data.';
+
+  @override
+  String get publishBackupSinglesigContinue =>
+      'I understand, show options anyway';
+
+  @override
+  String get backupSinglesigShortNote =>
+      'Not recommended for singlesig: descriptor is recoverable from the seed via discovery. Publishing it only adds privacy risk.';
 
   @override
   String get nostrBackupMenu => 'Nostr Backup';

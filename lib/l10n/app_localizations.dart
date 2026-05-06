@@ -278,6 +278,18 @@ abstract class AppLocalizations {
   /// **'Paste your Bitcoin descriptor here...'**
   String get descriptorHint;
 
+  /// No description provided for @descriptorViewAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Alias'**
+  String get descriptorViewAlias;
+
+  /// No description provided for @descriptorViewRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw'**
+  String get descriptorViewRaw;
+
   /// No description provided for @networkLabel.
   ///
   /// In en, this message translates to:
@@ -4657,6 +4669,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Publish Backup'**
   String get publishBackupTitle;
+
+  /// No description provided for @publishBackupSinglesigTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup not recommended'**
+  String get publishBackupSinglesigTitle;
+
+  /// No description provided for @publishBackupSinglesigBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a singlesig wallet. Its descriptor can be fully recovered from the seed (or xpub) via standard wallet discovery — no external backup is needed. Publishing it to Nostr or on-chain only adds a privacy risk by linking your xpub to extra public data.'**
+  String get publishBackupSinglesigBody;
+
+  /// No description provided for @publishBackupSinglesigContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand, show options anyway'**
+  String get publishBackupSinglesigContinue;
+
+  /// No description provided for @backupSinglesigShortNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recommended for singlesig: descriptor is recoverable from the seed via discovery. Publishing it only adds privacy risk.'**
+  String get backupSinglesigShortNote;
 
   /// No description provided for @nostrBackupMenu.
   ///

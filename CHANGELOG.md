@@ -6,7 +6,16 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### Fixes
+- **Stale credential on failed wallet open** — Evicts cached password and biometric key when
+  `openWallet` fails, so the next tap re-prompts instead of replaying the same failure.
+- **Singlesig publish backup privacy warning** — Publish and Nostr backup flows now warn when the
+  descriptor is trivially recoverable from the seed (singlesig), since publishing adds unnecessary
+  privacy risk. The publish flow requires explicit confirmation to proceed.
+
 ### New Features
+- **Descriptor display widget** — Extracted `DescriptorDisplay` with Alias / Raw toggle for reuse
+  across the app (create wallet dialog, export sheet, descriptor tab).
 - **On-chain descriptor backup** — Wallets can publish an encrypted descriptor backup embedded in a
   Bitcoin Signet transaction (commit/reveal scheme). Any cosigner can recover the wallet from their
   xpub alone, without the seed phrase.

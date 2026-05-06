@@ -11,6 +11,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLiana;
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/descriptor_tab.dart' show DescriptorDisplay;
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 import 'package:deadbolt/widgets/text_export_sheet.dart';
 
@@ -67,6 +68,10 @@ Future<void> showDescriptorExportSheet(
     text: exportText,
     fileName: fileName,
     copiedMessage: copiedMessage,
+    showAsTextBuilder: (ctx, text) => DescriptorDisplay(
+      descriptor: text,
+      shrinkWrap: true,
+    ),
   );
 }
 

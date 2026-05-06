@@ -17,6 +17,7 @@ import 'package:deadbolt/src/rust/api/wallet/descriptor_backup.dart' as rust_bac
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/utils/wallet_complexity.dart';
 import 'package:deadbolt/widgets/copy_icon_button.dart';
 import 'package:deadbolt/widgets/fee_histogram_widget.dart';
 import 'package:deadbolt/widgets/fee_presets_widget.dart';
@@ -496,6 +497,12 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
     final ts = Theme.of(context).textTheme;
     final spendPaths = _spendPaths;
     final keyLabels = _keyLabels;
+    final singlesig = isDescriptorTriviallyRecoverable(widget.state);
+    final noteText = singlesig
+        ? l10n.backupSinglesigShortNote
+        : l10n.onChainBackupSecurityNote;
+    final noteIcon = singlesig ? Icons.privacy_tip_outlined : Icons.info_outline;
+    final noteColor = singlesig ? cs.error : cs.onSurfaceVariant;
     final utxoMaxConfHeight = _selectedUtxos
         .where((u) => u.confirmationHeight != null)
         .map((u) => u.confirmationHeight!.toInt())
@@ -516,12 +523,12 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 16, color: cs.onSurfaceVariant),
+                Icon(noteIcon, size: 16, color: noteColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    l10n.onChainBackupSecurityNote,
-                    style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    noteText,
+                    style: ts.bodySmall?.copyWith(color: noteColor),
                   ),
                 ),
               ],
