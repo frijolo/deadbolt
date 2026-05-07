@@ -7,6 +7,7 @@
 ///
 /// Prerequisite: `cargo build --release` (or any prior `flutter build linux`)
 /// must have produced `rust/target/release/librust_lib_deadbolt.so`.
+@Tags(['integration'])
 library;
 
 import 'dart:io';

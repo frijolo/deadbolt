@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:deadbolt/l10n/app_localizations.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart';
 
 // Complex multisig descriptor reused from regression_02_multisig_wsh.py:
@@ -29,6 +30,8 @@ const _kLabels = {
 
 Widget _wrap(Widget child, {double width = 600, double height = 800}) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: SizedBox(
         width: width,
@@ -163,6 +166,8 @@ void main() {
     testWidgets('shrinkWrap=true renders inside a scrolling parent',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: ListView(
             children: const [

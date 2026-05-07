@@ -6,6 +6,7 @@ pub mod descriptor_parser;
 pub mod error;
 pub mod hw;
 pub mod key_protection;
+pub mod op_return;
 pub mod project_seeds;
 pub mod pubkey;
 pub mod seed;

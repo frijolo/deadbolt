@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,6 +10,8 @@ import 'package:deadbolt/screens/psbt_detail_screen.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/op_return_encoding.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -921,6 +924,9 @@ class _RelatedAddressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = address;
+    if (a.opReturnData != null) {
+      return _OpReturnRow(data: a.opReturnData!);
+    }
     final hasLabel = a.effectiveLabel?.isNotEmpty == true;
     final scheme = Theme.of(context).colorScheme;
     final inner = Padding(
@@ -983,6 +989,98 @@ class _RelatedAddressRow extends StatelessWidget {
       );
     }
     return inner;
+  }
+}
+
+class _OpReturnRow extends StatelessWidget {
+  final Uint8List data;
+  const _OpReturnRow({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final decoded = decodeOpReturnDual(data);
+    final textValue = decoded.text;
+    final hexValue = decoded.hex;
+    final display = textValue ?? hexValue;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.notes_outlined, size: 14),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.opReturnRecipientLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
+                ),
+                const SizedBox(height: 2),
+                SelectableText(
+                  display,
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            iconSize: 14,
+            tooltip: l10n.copyToClipboard,
+            icon: const Icon(Icons.copy_outlined),
+            onPressed: () {
+              if (textValue != null) {
+                _showCopyChoiceSheet(context, textValue, hexValue);
+              } else {
+                copyToClipboard(
+                  hexValue,
+                  successMessage: l10n.copiedToClipboard,
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCopyChoiceSheet(BuildContext context, String textValue, String hexValue) {
+    final l10n = context.l10n;
+    showSheet<void>(context, (ctx) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHandle(),
+            ListTile(
+              leading: const Icon(Icons.text_fields_outlined),
+              title: Text(l10n.opReturnCopyAsText),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await copyToClipboard(
+                  textValue,
+                  successMessage: l10n.copiedToClipboard,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.code),
+              title: Text(l10n.opReturnCopyAsHex),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await copyToClipboard(
+                  hexValue,
+                  successMessage: l10n.copiedToClipboard,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ));
   }
 }
 

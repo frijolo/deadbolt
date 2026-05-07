@@ -7425,11 +7425,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIRecipient dco_decode_api_recipient(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return APIRecipient(
       address: dco_decode_String(arr[0]),
       amountSat: dco_decode_u_64(arr[1]),
+      opReturnData: dco_decode_opt_list_prim_u_8_strict(arr[2]),
     );
   }
 
@@ -7437,14 +7438,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   APIRelatedAddress dco_decode_api_related_address(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return APIRelatedAddress(
       address: dco_decode_String(arr[0]),
       valueSat: dco_decode_opt_box_autoadd_u_64(arr[1]),
       effectiveLabel: dco_decode_opt_String(arr[2]),
       isAuto: dco_decode_bool(arr[3]),
       isMine: dco_decode_bool(arr[4]),
+      opReturnData: dco_decode_opt_list_prim_u_8_strict(arr[5]),
     );
   }
 
@@ -9025,7 +9027,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_address = sse_decode_String(deserializer);
     var var_amountSat = sse_decode_u_64(deserializer);
-    return APIRecipient(address: var_address, amountSat: var_amountSat);
+    var var_opReturnData = sse_decode_opt_list_prim_u_8_strict(deserializer);
+    return APIRecipient(
+      address: var_address,
+      amountSat: var_amountSat,
+      opReturnData: var_opReturnData,
+    );
   }
 
   @protected
@@ -9038,12 +9045,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_effectiveLabel = sse_decode_opt_String(deserializer);
     var var_isAuto = sse_decode_bool(deserializer);
     var var_isMine = sse_decode_bool(deserializer);
+    var var_opReturnData = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return APIRelatedAddress(
       address: var_address,
       valueSat: var_valueSat,
       effectiveLabel: var_effectiveLabel,
       isAuto: var_isAuto,
       isMine: var_isMine,
+      opReturnData: var_opReturnData,
     );
   }
 
@@ -10954,6 +10963,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.address, serializer);
     sse_encode_u_64(self.amountSat, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.opReturnData, serializer);
   }
 
   @protected
@@ -10967,6 +10977,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.effectiveLabel, serializer);
     sse_encode_bool(self.isAuto, serializer);
     sse_encode_bool(self.isMine, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.opReturnData, serializer);
   }
 
   @protected

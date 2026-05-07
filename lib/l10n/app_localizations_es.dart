@@ -1569,6 +1569,58 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createTxAddRecipient => 'Añadir destinatario';
 
   @override
+  String get createTxMoreOutputTypes => 'Más tipos de salida';
+
+  @override
+  String get opReturnAddOutput => 'Añadir datos OP_RETURN';
+
+  @override
+  String get opReturnInputLabel => 'Datos embebidos';
+
+  @override
+  String get opReturnHexToggle => 'Hex';
+
+  @override
+  String get opReturnUtf8Toggle => 'Texto';
+
+  @override
+  String get opReturnSizeWarning =>
+      'Salidas de más de 80 bytes podrían no ser propagadas por todos los nodos';
+
+  @override
+  String get opReturnRecipientLabel => 'Datos OP_RETURN';
+
+  @override
+  String get opReturnCannotBeMaxRecipient =>
+      'OP_RETURN no puede recibir el resto de fondos';
+
+  @override
+  String get opReturnSingleLimit => 'Solo se permite una salida OP_RETURN';
+
+  @override
+  String get opReturnInvalidHex => 'Hex no válido';
+
+  @override
+  String get opReturnEmptyError => 'Los datos OP_RETURN están vacíos';
+
+  @override
+  String opReturnByteCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bytes',
+      one: '1 byte',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get opReturnCopyAsText => 'Copiar como texto';
+
+  @override
+  String get opReturnCopyAsHex => 'Copiar como hex';
+
+  @override
   String get createTxTotalOut => 'Total enviado';
 
   @override

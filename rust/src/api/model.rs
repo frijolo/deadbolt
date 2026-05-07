@@ -552,6 +552,10 @@ pub struct APIUtxo {
 pub struct APIRecipient {
     pub address: String,
     pub amount_sat: u64,
+    /// When `Some`, this recipient is an OP_RETURN data carrier instead of a
+    /// payment output. `address` is empty and `amount_sat` is ignored (forced to 0).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub op_return_data: Option<Vec<u8>>,
 }
 
 ////////////////////
@@ -737,7 +741,7 @@ pub struct APIRelatedTx {
 }
 
 /// Output address entry shown inside a transaction detail dialog.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct APIRelatedAddress {
     pub address: String,
     /// Amount at this address in this transaction. None when the previous
@@ -749,6 +753,9 @@ pub struct APIRelatedAddress {
     pub is_auto: bool,
     /// True if this address belongs to our wallet.
     pub is_mine: bool,
+    /// When `Some`, this output is an OP_RETURN data carrier; `address` is empty
+    /// and `value_sat` is 0 (Bitcoin standardness).
+    pub op_return_data: Option<Vec<u8>>,
 }
 
 /// Full detail for a transaction.

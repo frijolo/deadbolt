@@ -713,6 +713,25 @@
   "createTxEstChange": "Change",
   "createTxEstInsufficientFunds": "Insufficient funds",
   "createTxAddRecipient": "Add recipient",
+  "createTxMoreOutputTypes": "More output types",
+  "opReturnAddOutput": "Add OP_RETURN data",
+  "opReturnInputLabel": "Embedded data",
+  "opReturnHexToggle": "Hex",
+  "opReturnUtf8Toggle": "Text",
+  "opReturnSizeWarning": "Outputs over 80 bytes may not be relayed by all nodes",
+  "opReturnRecipientLabel": "OP_RETURN data",
+  "opReturnCannotBeMaxRecipient": "OP_RETURN cannot receive remaining funds",
+  "opReturnSingleLimit": "Only one OP_RETURN output allowed",
+  "opReturnInvalidHex": "Invalid hex",
+  "opReturnEmptyError": "OP_RETURN data is empty",
+  "opReturnByteCount": "{count, plural, =1{1 byte} other{{count} bytes}}",
+  "@opReturnByteCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "opReturnCopyAsText": "Copy as text",
+  "opReturnCopyAsHex": "Copy as hex",
   "createTxTotalOut": "Total out",
   "createTxSelectCoinsFirst": "Select coins to build a transaction",
   "walletSendButton": "Send",

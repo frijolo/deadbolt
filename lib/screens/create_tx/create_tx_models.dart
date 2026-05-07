@@ -82,10 +82,19 @@ class ThousandsSeparatorFormatter extends TextInputFormatter {
 
 /// Holds the per-recipient state for the multi-output send form.
 class RecipientEntry {
-  RecipientEntry();
+  RecipientEntry({this.isOpReturn = false});
 
   final addressCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
+
+  /// True when this entry is an OP_RETURN data carrier (no address, no amount).
+  final bool isOpReturn;
+
+  /// OP_RETURN payload as typed by the user. Only used when [isOpReturn] is true.
+  final opReturnCtrl = TextEditingController();
+
+  /// When true, [opReturnCtrl] is interpreted as hex; otherwise as UTF-8 text.
+  bool opReturnHexMode = false;
 
   /// Parses the amount field stripping thousands separators.
   int get rawAmount => int.tryParse(amountCtrl.text.replaceAll(',', '').trim()) ?? 0;
@@ -94,6 +103,7 @@ class RecipientEntry {
   void dispose() {
     addressCtrl.dispose();
     amountCtrl.dispose();
+    opReturnCtrl.dispose();
   }
 }
 

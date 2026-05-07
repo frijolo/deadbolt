@@ -85,6 +85,7 @@ fn create_and_export_psbt(
         vec![APIRecipient {
             address: recv_addr.to_string(),
             amount_sat: 500_000,
+            op_return_data: None,
         }],
         None,
         1_000,
@@ -274,6 +275,7 @@ fn test_preview_drain_single_recipient() -> anyhow::Result<()> {
         vec![APIRecipient {
             address: recv,
             amount_sat: 0, // ignored for drain
+            op_return_data: None,
         }],
         Some(0),
         Some(2.0),
@@ -313,6 +315,7 @@ fn test_preview_explicit_amount_with_change() -> anyhow::Result<()> {
         vec![APIRecipient {
             address: recv,
             amount_sat: 600_000,
+            op_return_data: None,
         }],
         None,
         Some(2.0),
@@ -351,6 +354,7 @@ fn test_preview_insufficient_funds_flag() -> anyhow::Result<()> {
         vec![APIRecipient {
             address: recv,
             amount_sat: 2_000_000, // > balance
+            op_return_data: None,
         }],
         None,
         Some(2.0),
@@ -390,6 +394,7 @@ fn test_preview_requires_exactly_one_fee_input() -> anyhow::Result<()> {
         vec![APIRecipient {
             address: recv.clone(),
             amount_sat: 100_000,
+            op_return_data: None,
         }],
         None,
         None,
@@ -406,6 +411,7 @@ fn test_preview_requires_exactly_one_fee_input() -> anyhow::Result<()> {
         vec![APIRecipient {
             address: recv,
             amount_sat: 100_000,
+            op_return_data: None,
         }],
         None,
         Some(2.0),
@@ -438,6 +444,7 @@ fn test_preview_rate_abs_idempotence() -> anyhow::Result<()> {
     let recipients = vec![APIRecipient {
         address: recv,
         amount_sat: 600_000,
+        op_return_data: None,
     }];
 
     let by_rate = wallet.preview_psbt(
@@ -496,6 +503,7 @@ fn test_preview_rbf_min_fee_sats() -> anyhow::Result<()> {
     let recipients = vec![APIRecipient {
         address: recv,
         amount_sat: 600_000,
+        op_return_data: None,
     }];
 
     let no_rbf = wallet.preview_psbt(
@@ -567,10 +575,12 @@ fn test_preview_drain_with_other_recipient() -> anyhow::Result<()> {
             APIRecipient {
                 address: recv0,
                 amount_sat: 100_000,
+                op_return_data: None,
             },
             APIRecipient {
                 address: recv1,
                 amount_sat: 0, // ignored — this is the drain
+                op_return_data: None,
             },
         ],
         Some(1),

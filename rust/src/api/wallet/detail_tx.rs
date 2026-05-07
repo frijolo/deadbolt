@@ -151,20 +151,14 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
             if input.previous_output.is_null() {
                 return APIRelatedAddress {
                     address: "Coinbase".to_string(),
-                    value_sat: None,
-                    effective_label: None,
-                    is_auto: false,
-                    is_mine: false,
+                    ..Default::default()
                 };
             }
             let prev_txid = input.previous_output.txid.to_string();
             let Some((spk, value)) = resolve_prev(input.previous_output) else {
                 return APIRelatedAddress {
                     address: format!("{}…:{}", &prev_txid[..8], input.previous_output.vout),
-                    value_sat: None,
-                    effective_label: None,
-                    is_auto: false,
-                    is_mine: false,
+                    ..Default::default()
                 };
             };
             if let Some((k, i)) = spk_index.index_of_spk(spk.clone()) {
@@ -177,6 +171,7 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
                     effective_label,
                     is_auto,
                     is_mine: true,
+                    ..Default::default()
                 }
             } else {
                 let addr_str = bdk_wallet::bitcoin::Address::from_script(&spk, network)
@@ -185,9 +180,7 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
                 APIRelatedAddress {
                     address: addr_str,
                     value_sat: Some(value),
-                    effective_label: None,
-                    is_auto: false,
-                    is_mine: false,
+                    ..Default::default()
                 }
             }
         })
@@ -198,6 +191,15 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
         .output
         .iter()
         .map(|output| {
+            if output.script_pubkey.is_op_return() {
+                return APIRelatedAddress {
+                    value_sat: Some(output.value.to_sat()),
+                    op_return_data: Some(crate::core::op_return::extract_op_return_payload(
+                        &output.script_pubkey,
+                    )),
+                    ..Default::default()
+                };
+            }
             if let Some((k, i)) = spk_index.index_of_spk(output.script_pubkey.clone()) {
                 let addr_str = wallet_inner.peek_address(*k, *i).address.to_string();
                 let (_, effective_label, is_auto) =
@@ -208,6 +210,7 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
                     effective_label,
                     is_auto,
                     is_mine: true,
+                    ..Default::default()
                 }
             } else {
                 let addr_str =
@@ -217,9 +220,7 @@ pub(super) fn get_tx_details_inner(wallet: &APIWallet, txid: String) -> Result<A
                 APIRelatedAddress {
                     address: addr_str,
                     value_sat: Some(output.value.to_sat()),
-                    effective_label: None,
-                    is_auto: false,
-                    is_mine: false,
+                    ..Default::default()
                 }
             }
         })

@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
+import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -18,7 +21,7 @@ class DirectSendConfirmSheet extends StatelessWidget {
     required this.onConfirm,
   });
 
-  final List<({String address, int amountSat})> recipients;
+  final List<({String address, int amountSat, Uint8List? opReturnData})> recipients;
   final int? feeSat;
   final int? changeSat;
   final double feeRateSatPerVb;
@@ -35,6 +38,8 @@ class DirectSendConfirmSheet extends StatelessWidget {
             ' (${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB)'
         : '${BitcoinFormatter.formatDouble(feeRateSatPerVb, 1)} sat/vB';
     final totalAmount = recipients.fold(0, (s, r) => s + r.amountSat);
+    final paymentRecipientCount =
+        recipients.where((r) => r.opReturnData == null).length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -59,24 +64,34 @@ class DirectSendConfirmSheet extends StatelessWidget {
           const SizedBox(height: 16),
           // One row per recipient (always, for visual consistency).
           for (int i = 0; i < recipients.length; i++) ...[
-            ConfirmRow(
-              label: '${l10n.psbtRecipient} ${i + 1}',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ColoredGroupText(text: recipients[i].address),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${BitcoinFormatter.formatNum(recipients[i].amountSat)} sats',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
+            if (recipients[i].opReturnData != null)
+              ConfirmRow(
+                label: l10n.opReturnRecipientLabel,
+                child: Text(
+                  decodeOpReturnForDisplay(recipients[i].opReturnData!),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(fontFamily: 'monospace'),
+                ),
+              )
+            else
+              ConfirmRow(
+                label: '${l10n.psbtRecipient} ${i + 1}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ColoredGroupText(text: recipients[i].address),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${BitcoinFormatter.formatNum(recipients[i].amountSat)} sats',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 8),
           ],
-          // Total amount row when >1 recipient.
-          if (recipients.length > 1) ...[
+          // Total amount row when >1 payment recipient.
+          if (paymentRecipientCount > 1) ...[
             ConfirmRow(
               label: l10n.createTxTotalOut,
               child: Text(

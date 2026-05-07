@@ -14,6 +14,9 @@ All notable changes to Deadbolt are documented here, newest first.
   privacy risk. The publish flow requires explicit confirmation to proceed.
 
 ### New Features
+- **OP_RETURN outputs** — Transactions can now embed arbitrary data in an OP_RETURN output
+  (hex or UTF-8 input, live byte counter, 80-byte relay warning). Confirm sheet and PSBT/tx
+  detail dialogs render the embedded data with copy-as-text and copy-as-hex actions.
 - **Descriptor display widget** — Extracted `DescriptorDisplay` with Alias / Raw toggle for reuse
   across the app (create wallet dialog, export sheet, descriptor tab).
 - **On-chain descriptor backup** — Wallets can publish an encrypted descriptor backup embedded in a

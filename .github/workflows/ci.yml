@@ -137,7 +137,7 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: flutter test (with coverage)
-        run: flutter test --coverage
+        run: flutter test --coverage --exclude-tags integration
 
       - name: Filter generated files from coverage
         run: |

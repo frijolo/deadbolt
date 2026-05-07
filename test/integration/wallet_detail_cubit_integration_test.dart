@@ -5,6 +5,7 @@
 /// credentials against a real Rust handle, cubit transitions through
 /// Loading → Loaded / NeedsPassword as expected, and close() tears down
 /// pending timers / subscriptions cleanly.
+@Tags(['integration'])
 library;
 
 import 'dart:io';

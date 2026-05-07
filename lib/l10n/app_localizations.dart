@@ -2882,6 +2882,90 @@ abstract class AppLocalizations {
   /// **'Add recipient'**
   String get createTxAddRecipient;
 
+  /// No description provided for @createTxMoreOutputTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'More output types'**
+  String get createTxMoreOutputTypes;
+
+  /// No description provided for @opReturnAddOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Add OP_RETURN data'**
+  String get opReturnAddOutput;
+
+  /// No description provided for @opReturnInputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded data'**
+  String get opReturnInputLabel;
+
+  /// No description provided for @opReturnHexToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex'**
+  String get opReturnHexToggle;
+
+  /// No description provided for @opReturnUtf8Toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get opReturnUtf8Toggle;
+
+  /// No description provided for @opReturnSizeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Outputs over 80 bytes may not be relayed by all nodes'**
+  String get opReturnSizeWarning;
+
+  /// No description provided for @opReturnRecipientLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OP_RETURN data'**
+  String get opReturnRecipientLabel;
+
+  /// No description provided for @opReturnCannotBeMaxRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'OP_RETURN cannot receive remaining funds'**
+  String get opReturnCannotBeMaxRecipient;
+
+  /// No description provided for @opReturnSingleLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one OP_RETURN output allowed'**
+  String get opReturnSingleLimit;
+
+  /// No description provided for @opReturnInvalidHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid hex'**
+  String get opReturnInvalidHex;
+
+  /// No description provided for @opReturnEmptyError.
+  ///
+  /// In en, this message translates to:
+  /// **'OP_RETURN data is empty'**
+  String get opReturnEmptyError;
+
+  /// No description provided for @opReturnByteCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 byte} other{{count} bytes}}'**
+  String opReturnByteCount(int count);
+
+  /// No description provided for @opReturnCopyAsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as text'**
+  String get opReturnCopyAsText;
+
+  /// No description provided for @opReturnCopyAsHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as hex'**
+  String get opReturnCopyAsHex;
+
   /// No description provided for @createTxTotalOut.
   ///
   /// In en, this message translates to:

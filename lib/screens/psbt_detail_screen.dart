@@ -9,6 +9,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
+import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -469,20 +470,29 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                         ),
                         const SizedBox(height: 12),
                         for (int i = 0; i < _psbt.recipients.length; i++) ...[
-                          _DetailRow(
-                            label: _psbt.recipients.length == 1
-                                ? l10n.psbtRecipient
-                                : '${l10n.psbtRecipient} ${i + 1}',
-                            value: _psbt.recipients[i].address,
-                            isAddress: true,
-                          ),
-                          const SizedBox(height: 4),
-                          _DetailRow(
-                            label: l10n.psbtAmount,
-                            value:
-                                '${BitcoinFormatter.formatNum(_psbt.recipients[i].amountSat.toInt())} sats',
-                          ),
-                          const SizedBox(height: 8),
+                          if (_psbt.recipients[i].opReturnData != null) ...[
+                            _DetailRow(
+                              label: l10n.opReturnRecipientLabel,
+                              value: decodeOpReturnForDisplay(
+                                  _psbt.recipients[i].opReturnData!),
+                            ),
+                            const SizedBox(height: 8),
+                          ] else ...[
+                            _DetailRow(
+                              label: _psbt.recipients.length == 1
+                                  ? l10n.psbtRecipient
+                                  : '${l10n.psbtRecipient} ${i + 1}',
+                              value: _psbt.recipients[i].address,
+                              isAddress: true,
+                            ),
+                            const SizedBox(height: 4),
+                            _DetailRow(
+                              label: l10n.psbtAmount,
+                              value:
+                                  '${BitcoinFormatter.formatNum(_psbt.recipients[i].amountSat.toInt())} sats',
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                         ],
                         if (_psbt.recipients.length > 1) ...[
                           _DetailRow(

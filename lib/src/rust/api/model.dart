@@ -828,10 +828,19 @@ class APIRecipient {
   final String address;
   final BigInt amountSat;
 
-  const APIRecipient({required this.address, required this.amountSat});
+  /// When `Some`, this recipient is an OP_RETURN data carrier instead of a
+  /// payment output. `address` is empty and `amount_sat` is ignored (forced to 0).
+  final Uint8List? opReturnData;
+
+  const APIRecipient({
+    required this.address,
+    required this.amountSat,
+    this.opReturnData,
+  });
 
   @override
-  int get hashCode => address.hashCode ^ amountSat.hashCode;
+  int get hashCode =>
+      address.hashCode ^ amountSat.hashCode ^ opReturnData.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -839,7 +848,8 @@ class APIRecipient {
       other is APIRecipient &&
           runtimeType == other.runtimeType &&
           address == other.address &&
-          amountSat == other.amountSat;
+          amountSat == other.amountSat &&
+          opReturnData == other.opReturnData;
 }
 
 /// Output address entry shown inside a transaction detail dialog.
@@ -859,12 +869,17 @@ class APIRelatedAddress {
   /// True if this address belongs to our wallet.
   final bool isMine;
 
+  /// When `Some`, this output is an OP_RETURN data carrier; `address` is empty
+  /// and `value_sat` is 0 (Bitcoin standardness).
+  final Uint8List? opReturnData;
+
   const APIRelatedAddress({
     required this.address,
     this.valueSat,
     this.effectiveLabel,
     required this.isAuto,
     required this.isMine,
+    this.opReturnData,
   });
 
   @override
@@ -873,7 +888,8 @@ class APIRelatedAddress {
       valueSat.hashCode ^
       effectiveLabel.hashCode ^
       isAuto.hashCode ^
-      isMine.hashCode;
+      isMine.hashCode ^
+      opReturnData.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -884,7 +900,8 @@ class APIRelatedAddress {
           valueSat == other.valueSat &&
           effectiveLabel == other.effectiveLabel &&
           isAuto == other.isAuto &&
-          isMine == other.isMine;
+          isMine == other.isMine &&
+          opReturnData == other.opReturnData;
 }
 
 /// Compact transaction summary shown inside coin/address detail dialogs.

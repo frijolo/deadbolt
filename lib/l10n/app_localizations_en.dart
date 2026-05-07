@@ -1565,6 +1565,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTxAddRecipient => 'Add recipient';
 
   @override
+  String get createTxMoreOutputTypes => 'More output types';
+
+  @override
+  String get opReturnAddOutput => 'Add OP_RETURN data';
+
+  @override
+  String get opReturnInputLabel => 'Embedded data';
+
+  @override
+  String get opReturnHexToggle => 'Hex';
+
+  @override
+  String get opReturnUtf8Toggle => 'Text';
+
+  @override
+  String get opReturnSizeWarning =>
+      'Outputs over 80 bytes may not be relayed by all nodes';
+
+  @override
+  String get opReturnRecipientLabel => 'OP_RETURN data';
+
+  @override
+  String get opReturnCannotBeMaxRecipient =>
+      'OP_RETURN cannot receive remaining funds';
+
+  @override
+  String get opReturnSingleLimit => 'Only one OP_RETURN output allowed';
+
+  @override
+  String get opReturnInvalidHex => 'Invalid hex';
+
+  @override
+  String get opReturnEmptyError => 'OP_RETURN data is empty';
+
+  @override
+  String opReturnByteCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bytes',
+      one: '1 byte',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get opReturnCopyAsText => 'Copy as text';
+
+  @override
+  String get opReturnCopyAsHex => 'Copy as hex';
+
+  @override
   String get createTxTotalOut => 'Total out';
 
   @override

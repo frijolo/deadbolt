@@ -15,6 +15,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
+import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -225,9 +226,15 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       setState(() => _preview = null);
       return;
     }
-    // Need at least one address; recipients with empty addresses make the FFI
-    // throw, so bail early to keep the preview stable while typing.
-    if (_recipients.any((r) => r.addressCtrl.text.trim().isEmpty)) {
+    // Need at least one address; payment recipients with empty addresses make
+    // the FFI throw, so bail early to keep the preview stable while typing.
+    // OP_RETURN recipients are *always* preview-eligible: an empty payload
+    // encodes to a 0-byte push, which is a valid OP_RETURN. Letting the preview
+    // run keeps fee/vbytes/RBF-min in sync the moment the user toggles MAX,
+    // even if they haven't typed the payload yet.
+    final hasIncompletePayment = _recipients
+        .any((r) => !r.isOpReturn && r.addressCtrl.text.trim().isEmpty);
+    if (hasIncompletePayment) {
       setState(() => _preview = null);
       return;
     }
@@ -245,8 +252,16 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
 
     final cubit = context.read<WalletDetailCubit>();
+    final List<APIRecipient> apiRecipients;
+    try {
+      apiRecipients = _buildApiRecipients();
+    } on FormatException {
+      // Hex payload not yet valid while user is typing — skip preview silently.
+      setState(() => _preview = null);
+      return;
+    }
     final preview = cubit.previewPsbt(
-      recipients: _buildApiRecipients(),
+      recipients: apiRecipients,
       maxRecipientIndex: _maxRecipientIndex,
       feeRateSatPerVb: feeRate,
       feeAbsoluteSat: feeAbs == null ? null : BigInt.from(feeAbs),
@@ -352,6 +367,15 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _refreshPreview(immediate: true);
   }
 
+  void _addOpReturn() {
+    if (_recipients.any((r) => r.isOpReturn)) {
+      showErrorToast(context.l10n.opReturnSingleLimit);
+      return;
+    }
+    setState(() => _recipients.add(RecipientEntry(isOpReturn: true)));
+    _refreshPreview(immediate: true);
+  }
+
   void _removeRecipient(int index) {
     setState(() {
       _recipients[index].dispose();
@@ -375,6 +399,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   }
 
   void _toggleMaxForEntry(int index) {
+    if (_recipients[index].isOpReturn) {
+      showErrorToast(context.l10n.opReturnCannotBeMaxRecipient);
+      return;
+    }
     setState(() {
       _maxRecipientIndex = (_maxRecipientIndex == index) ? null : index;
     });
@@ -632,6 +660,105 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   // ─── Recipients ──────────────────────────────────────────────────────────
 
+  Widget _buildOpReturnCard(ThemeData theme, int index, RecipientEntry entry) {
+    final l10n = context.l10n;
+    final colorScheme = theme.colorScheme;
+    final dimColor = colorScheme.onSurface.withAlpha(AppAlpha.secondary);
+
+    int byteCount;
+    String? error;
+    try {
+      byteCount =
+          encodeOpReturnInput(entry.opReturnCtrl.text, hex: entry.opReturnHexMode).length;
+    } on FormatException {
+      byteCount = 0;
+      error = l10n.opReturnInvalidHex;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.notes_outlined, size: 16, color: dimColor),
+              const SizedBox(width: 6),
+              Text(l10n.opReturnRecipientLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(color: dimColor)),
+              const Spacer(),
+              SegmentedButton<bool>(
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                ),
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.opReturnUtf8Toggle)),
+                  ButtonSegment(value: true, label: Text(l10n.opReturnHexToggle)),
+                ],
+                selected: {entry.opReturnHexMode},
+                onSelectionChanged: (s) {
+                  setState(() => entry.opReturnHexMode = s.first);
+                  _refreshPreview(immediate: true);
+                },
+              ),
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  icon: const Icon(Icons.close),
+                  color: dimColor,
+                  onPressed: () => _removeRecipient(index),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: entry.opReturnCtrl,
+            minLines: 1,
+            maxLines: 4,
+            autocorrect: false,
+            style: entry.opReturnHexMode
+                ? const TextStyle(fontFamily: 'monospace')
+                : null,
+            decoration: InputDecoration(
+              hintText: l10n.opReturnInputLabel,
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surface,
+              errorText: error,
+            ),
+            onChanged: (_) {
+              setState(() {});
+              _refreshPreview();
+            },
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              byteCount > 80
+                  ? '${l10n.opReturnByteCount(byteCount)} — ${l10n.opReturnSizeWarning}'
+                  : l10n.opReturnByteCount(byteCount),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: byteCount > 80 ? colorScheme.error : dimColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildRecipientList(
       BuildContext context, ThemeData theme, TxSummary? summary) {
     final l10n = context.l10n;
@@ -642,6 +769,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     for (int i = 0; i < _recipients.length; i++) {
       final entry = _recipients[i];
       final isMax = _maxRecipientIndex == i;
+
+      if (entry.isOpReturn) {
+        widgets.add(_buildOpReturnCard(theme, i, entry));
+        continue;
+      }
 
       widgets.add(
         Container(
@@ -821,15 +953,44 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       );
     }
 
-    // "+ Add recipient" button
+    // Primary CTA "+ Add recipient" with a tucked-away overflow menu for
+    // advanced output types (currently just OP_RETURN). The OP_RETURN item is
+    // intentionally demoted to keep the recipient flow uncluttered — the entry
+    // is shown but disabled when one already exists, so power users discover
+    // the limit naturally.
+    final hasOpReturn = _recipients.any((r) => r.isOpReturn);
     widgets.add(
-      Align(
-        alignment: Alignment.center,
-        child: TextButton.icon(
-          onPressed: _addRecipient,
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(l10n.createTxAddRecipient),
-        ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton.icon(
+            onPressed: _addRecipient,
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(l10n.createTxAddRecipient),
+          ),
+          PopupMenuButton<String>(
+            tooltip: l10n.createTxMoreOutputTypes,
+            icon: const Icon(Icons.more_horiz, size: 18),
+            padding: EdgeInsets.zero,
+            onSelected: (value) {
+              if (value == 'op_return') _addOpReturn();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem<String>(
+                value: 'op_return',
+                enabled: !hasOpReturn,
+                child: Row(
+                  children: [
+                    const Icon(Icons.notes_outlined, size: 16),
+                    const SizedBox(width: 8),
+                    Text(l10n.opReturnAddOutput),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
@@ -952,10 +1113,22 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
       showErrorToast(context.l10n.createTxSelectCoinsFirst);
       return null;
     }
-    // All recipients must have a non-empty address.
+    // All recipients must have a non-empty address (or, for OP_RETURN, a payload).
     for (int i = 0; i < _recipients.length; i++) {
-      if (_recipients[i].addressCtrl.text.trim().isEmpty) {
-        setState(() => _recipients[i].editMode = true);
+      final r = _recipients[i];
+      if (r.isOpReturn) {
+        if (r.opReturnCtrl.text.isEmpty) {
+          showErrorToast(context.l10n.opReturnEmptyError);
+          return null;
+        }
+        try {
+          encodeOpReturnInput(r.opReturnCtrl.text, hex: r.opReturnHexMode);
+        } on FormatException {
+          showErrorToast(context.l10n.opReturnInvalidHex);
+          return null;
+        }
+      } else if (r.addressCtrl.text.trim().isEmpty) {
+        setState(() => r.editMode = true);
         return null;
       }
     }
@@ -1005,11 +1178,19 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
   List<APIRecipient> _buildApiRecipients() =>
       _recipients.asMap().entries.map((e) {
-        final amountSat = e.key == _maxRecipientIndex
-            ? BigInt.zero
-            : BigInt.from(e.value.rawAmount);
+        final entry = e.value;
+        if (entry.isOpReturn) {
+          return APIRecipient(
+            address: '',
+            amountSat: BigInt.zero,
+            opReturnData:
+                encodeOpReturnInput(entry.opReturnCtrl.text, hex: entry.opReturnHexMode),
+          );
+        }
+        final amountSat =
+            e.key == _maxRecipientIndex ? BigInt.zero : BigInt.from(entry.rawAmount);
         return APIRecipient(
-          address: e.value.addressCtrl.text.trim(),
+          address: entry.addressCtrl.text.trim(),
           amountSat: amountSat,
         );
       }).toList();
@@ -1071,10 +1252,18 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     final summary = _txSummary;
     // Build display recipients (drain recipient shows calculated sendSats).
     final displayRecipients = _recipients.asMap().entries.map((e) {
+      final entry = e.value;
+      if (entry.isOpReturn) {
+        return (
+          address: '',
+          amountSat: 0,
+          opReturnData: encodeOpReturnInput(entry.opReturnCtrl.text, hex: entry.opReturnHexMode),
+        );
+      }
       final amount = (e.key == _maxRecipientIndex && summary != null && !summary.insufficientFunds)
           ? summary.sendSats
-          : e.value.rawAmount;
-      return (address: e.value.addressCtrl.text.trim(), amountSat: amount);
+          : entry.rawAmount;
+      return (address: entry.addressCtrl.text.trim(), amountSat: amount, opReturnData: null);
     }).toList();
 
     await showSheet<void>(context, (sheetCtx) {

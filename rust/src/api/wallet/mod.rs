@@ -235,6 +235,7 @@ fn row_to_api_psbt(
             vec![crate::api::model::APIRecipient {
                 address: row.recipient.clone(),
                 amount_sat: row.amount_sat,
+                op_return_data: None,
             }]
         });
     APIPsbtInfo {

@@ -7936,9 +7936,11 @@ impl SseDecode for crate::api::model::APIRecipient {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_address = <String>::sse_decode(deserializer);
         let mut var_amountSat = <u64>::sse_decode(deserializer);
+        let mut var_opReturnData = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::model::APIRecipient {
             address: var_address,
             amount_sat: var_amountSat,
+            op_return_data: var_opReturnData,
         };
     }
 }
@@ -7951,12 +7953,14 @@ impl SseDecode for crate::api::model::APIRelatedAddress {
         let mut var_effectiveLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_isAuto = <bool>::sse_decode(deserializer);
         let mut var_isMine = <bool>::sse_decode(deserializer);
+        let mut var_opReturnData = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::model::APIRelatedAddress {
             address: var_address,
             value_sat: var_valueSat,
             effective_label: var_effectiveLabel,
             is_auto: var_isAuto,
             is_mine: var_isMine,
+            op_return_data: var_opReturnData,
         };
     }
 }
@@ -10659,6 +10663,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIRecipient {
         [
             self.address.into_into_dart().into_dart(),
             self.amount_sat.into_into_dart().into_dart(),
+            self.op_return_data.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10683,6 +10688,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIRelatedAddress {
             self.effective_label.into_into_dart().into_dart(),
             self.is_auto.into_into_dart().into_dart(),
             self.is_mine.into_into_dart().into_dart(),
+            self.op_return_data.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11961,6 +11967,7 @@ impl SseEncode for crate::api::model::APIRecipient {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.address, serializer);
         <u64>::sse_encode(self.amount_sat, serializer);
+        <Option<Vec<u8>>>::sse_encode(self.op_return_data, serializer);
     }
 }
 
@@ -11972,6 +11979,7 @@ impl SseEncode for crate::api::model::APIRelatedAddress {
         <Option<String>>::sse_encode(self.effective_label, serializer);
         <bool>::sse_encode(self.is_auto, serializer);
         <bool>::sse_encode(self.is_mine, serializer);
+        <Option<Vec<u8>>>::sse_encode(self.op_return_data, serializer);
     }
 }
 

@@ -216,6 +216,74 @@ fn current_unix_secs() -> anyhow::Result<i64> {
         .as_secs() as i64)
 }
 
+// ---------------------------------------------------------------------------
+// Recipient parsing — shared by create_psbt and preview_psbt
+// ---------------------------------------------------------------------------
+
+/// Parsed form of one APIRecipient. Either a payment to an on-chain address
+/// or an OP_RETURN data carrier (`address` empty, value forced to 0).
+struct ParsedRecipient {
+    /// Canonical address string for a payment, or empty for OP_RETURN.
+    address: String,
+    /// Output script. For OP_RETURN, an OP_RETURN <push> script.
+    script: bdk_wallet::bitcoin::ScriptBuf,
+    /// Original payload bytes when this is an OP_RETURN recipient.
+    op_return_data: Option<Vec<u8>>,
+}
+
+/// Parse and validate every recipient in one pass.
+///
+/// Validations:
+/// - At most 1 OP_RETURN recipient (Bitcoin standardness).
+/// - OP_RETURN payload must fit a single push (≤ 520 bytes — `PushBytesBuf`
+///   enforces this; relay policy is stricter at 83 bytes but we don't enforce
+///   that here so app users can still craft non-standard data carriers if they
+///   need to).
+/// - OP_RETURN cannot be the `max_recipient_index` (drain_to has no meaning).
+/// - Payment addresses must parse on the wallet's network.
+fn parse_recipients(
+    recipients: &[APIRecipient],
+    network: bdk_wallet::bitcoin::Network,
+    max_recipient_index: Option<u32>,
+) -> Result<Vec<ParsedRecipient>> {
+    use bdk_wallet::bitcoin::script::PushBytesBuf;
+    use bdk_wallet::bitcoin::ScriptBuf;
+
+    let op_return_count = recipients
+        .iter()
+        .filter(|r| r.op_return_data.is_some())
+        .count();
+    if op_return_count > 1 {
+        return Err(anyhow::anyhow!("Only one OP_RETURN output allowed per tx"));
+    }
+
+    let mut out = Vec::with_capacity(recipients.len());
+    for (i, r) in recipients.iter().enumerate() {
+        if let Some(data) = &r.op_return_data {
+            if Some(i as u32) == max_recipient_index {
+                return Err(anyhow::anyhow!("OP_RETURN cannot receive remaining funds"));
+            }
+            let push = PushBytesBuf::try_from(data.clone()).map_err(|e| {
+                anyhow::anyhow!("OP_RETURN payload exceeds single-push limit: {}", e)
+            })?;
+            out.push(ParsedRecipient {
+                address: String::new(),
+                script: ScriptBuf::new_op_return(&push),
+                op_return_data: Some(data.clone()),
+            });
+        } else {
+            let addr = crate::core::address::parse_address(&r.address, network)
+                .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?;
+            out.push(ParsedRecipient {
+                address: addr.to_string(),
+                script: addr.script_pubkey(),
+                op_return_data: None,
+            });
+        }
+    }
+    Ok(out)
+}
+
 /// Load and parse the wallet's spend paths from its stored descriptor.
 fn load_spend_paths(
     conn: &rusqlite::Connection,
@@ -278,32 +346,18 @@ impl APIWallet {
             })
             .collect();
 
+        let parsed_recipients = parse_recipients(&recipients, network, max_recipient_index)?;
+
         let resolved = resolve_selected_utxos(&core, &selected_utxos)?;
 
         let mut builder = core.wallet.build_tx();
         builder.fee_absolute(Amount::from_sat(fee_absolute_sat));
 
-        // Parse recipient addresses into (canonical_address_string, script_pubkey) pairs.
-        use bdk_wallet::bitcoin::ScriptBuf;
-        struct ParsedRecipient {
-            address: String,
-            script: ScriptBuf,
-        }
-        let parsed_recipients: Vec<ParsedRecipient> = recipients
-            .iter()
-            .enumerate()
-            .map(|(i, r)| {
-                let addr = crate::core::address::parse_address(&r.address, network)
-                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?;
-                Ok(ParsedRecipient {
-                    address: addr.to_string(),
-                    script: addr.script_pubkey(),
-                })
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
-
         for (i, (r, pr)) in recipients.iter().zip(parsed_recipients.iter()).enumerate() {
-            if Some(i as u32) == max_recipient_index {
+            if pr.op_return_data.is_some() {
+                // OP_RETURN data carrier — value forced to 0.
+                builder.add_recipient(pr.script.clone(), Amount::ZERO);
+            } else if Some(i as u32) == max_recipient_index {
                 // This recipient gets the remainder (send-max semantics).
                 builder.drain_to(pr.script.clone());
                 if resolved.is_empty() {
@@ -344,7 +398,9 @@ impl APIWallet {
             .zip(parsed_recipients.iter())
             .enumerate()
             .map(|(i, (r, pr))| {
-                let amount_sat = if Some(i as u32) == max_recipient_index {
+                let amount_sat = if pr.op_return_data.is_some() {
+                    0
+                } else if Some(i as u32) == max_recipient_index {
                     psbt.unsigned_tx
                         .output
                         .iter()
@@ -357,10 +413,16 @@ impl APIWallet {
                 APIRecipient {
                     address: pr.address.clone(),
                     amount_sat,
+                    op_return_data: pr.op_return_data.clone(),
                 }
             })
             .collect();
-        let primary_recipient = final_recipients[0].address.clone();
+        // Use the first non-OP_RETURN recipient as the canonical "primary" for storage.
+        let primary_recipient = final_recipients
+            .iter()
+            .find(|r| r.op_return_data.is_none())
+            .map(|r| r.address.clone())
+            .unwrap_or_default();
         let total_amount_sat: u64 = final_recipients.iter().map(|r| r.amount_sat).sum();
 
         let recipients_json = serde_json::to_string(&final_recipients).ok();
@@ -453,24 +515,7 @@ impl APIWallet {
         let mut core = self.lock_wallet()?;
         let network = core.wallet.network();
 
-        // Parse recipient addresses up front — this validates them and produces the canonical
-        // string we return so the UI stops re-parsing per keystroke.
-        struct ParsedRecipient {
-            address: String,
-            script: ScriptBuf,
-        }
-        let parsed_recipients: Vec<ParsedRecipient> = recipients
-            .iter()
-            .enumerate()
-            .map(|(i, r)| {
-                let addr = crate::core::address::parse_address(&r.address, network)
-                    .map_err(|e| anyhow::anyhow!("Recipient {}: invalid address: {}", i + 1, e))?;
-                Ok(ParsedRecipient {
-                    address: addr.to_string(),
-                    script: addr.script_pubkey(),
-                })
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let parsed_recipients = parse_recipients(&recipients, network, max_recipient_index)?;
 
         let policy_map: BTreeMap<String, Vec<usize>> = policy_path
             .into_iter()
@@ -542,7 +587,12 @@ impl APIWallet {
                     .zip(recipients.iter())
                     .map(|(pr, r)| APIRecipient {
                         address: pr.address.clone(),
-                        amount_sat: r.amount_sat,
+                        amount_sat: if pr.op_return_data.is_some() {
+                            0
+                        } else {
+                            r.amount_sat
+                        },
+                        op_return_data: pr.op_return_data.clone(),
                     })
                     .collect(),
                 rbf_min_fee_sats: None,
@@ -563,7 +613,9 @@ impl APIWallet {
             }
 
             for (i, (r, pr)) in recipients.iter().zip(parsed_recipients.iter()).enumerate() {
-                if Some(i as u32) == max_recipient_index {
+                if pr.op_return_data.is_some() {
+                    builder.add_recipient(pr.script.clone(), Amount::ZERO);
+                } else if Some(i as u32) == max_recipient_index {
                     builder.drain_to(pr.script.clone());
                     if resolved.is_empty() {
                         builder.drain_wallet();
@@ -668,7 +720,9 @@ impl APIWallet {
             .zip(parsed_recipients.iter())
             .enumerate()
             .map(|(i, (r, pr))| {
-                let amount_sat = if Some(i as u32) == max_recipient_index {
+                let amount_sat = if pr.op_return_data.is_some() {
+                    0
+                } else if Some(i as u32) == max_recipient_index {
                     psbt.unsigned_tx
                         .output
                         .iter()
@@ -681,6 +735,7 @@ impl APIWallet {
                 APIRecipient {
                     address: pr.address.clone(),
                     amount_sat,
+                    op_return_data: pr.op_return_data.clone(),
                 }
             })
             .collect();
@@ -810,6 +865,15 @@ impl APIWallet {
         let import_recipients: Vec<APIRecipient> = recipient_outputs
             .iter()
             .map(|o| {
+                if o.script_pubkey.is_op_return() {
+                    return APIRecipient {
+                        address: String::new(),
+                        amount_sat: 0,
+                        op_return_data: Some(crate::core::op_return::extract_op_return_payload(
+                            &o.script_pubkey,
+                        )),
+                    };
+                }
                 let address = bdk_wallet::bitcoin::Address::from_script(
                     &o.script_pubkey,
                     core.wallet.network(),
@@ -819,11 +883,13 @@ impl APIWallet {
                 APIRecipient {
                     address,
                     amount_sat: o.value.to_sat(),
+                    op_return_data: None,
                 }
             })
             .collect();
         let recipient = import_recipients
-            .first()
+            .iter()
+            .find(|r| r.op_return_data.is_none())
             .map(|r| r.address.clone())
             .unwrap_or_default();
         let amount_sat: u64 = import_recipients.iter().map(|r| r.amount_sat).sum();
@@ -1649,3 +1715,7 @@ impl APIWallet {
 #[cfg(test)]
 #[path = "psbt_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "psbt_op_return_tests.rs"]
+mod op_return_tests;
