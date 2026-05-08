@@ -12,6 +12,9 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Singlesig publish backup privacy warning** — Publish and Nostr backup flows now warn when the
   descriptor is trivially recoverable from the seed (singlesig), since publishing adds unnecessary
   privacy risk. The publish flow requires explicit confirmation to proceed.
+- **Onchain backup recovery network hint** — Uses the active network instead of the unreliable
+  blob-stored network field when importing an onchain backup, fixing recovery for Signet backups
+  that previously carried "testnet".
 
 ### New Features
 - **OP_RETURN outputs** — Transactions can now embed arbitrary data in an OP_RETURN output
@@ -33,6 +36,9 @@ All notable changes to Deadbolt are documented here, newest first.
   screenshots by default. Can be disabled in Settings → Security.
 
 ### Improvements
+- **Auto-attach mnemonic key after onchain recovery** — When restoring a wallet from an onchain
+  backup via the Seed tab, the mnemonic is auto-registered as a hot key so the user does not have
+  to re-enter it.
 - **Copy confirmation toast** — All copy-to-clipboard actions now show a success toast so it is
   clear the text was copied.
 - **Biometric inactivity lock** — The app locks automatically after the configured idle timeout;

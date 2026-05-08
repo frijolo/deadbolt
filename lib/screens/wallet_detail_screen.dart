@@ -30,7 +30,7 @@ import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_overview_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/views/wallet_descriptor_tab.dart';
 import 'package:deadbolt/screens/wallet_detail/export_flow.dart' show showExportChoiceSheet, ExportChoice, exportLabels, exportDescriptor, exportBackup;
-import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart' show showPublishBackupSheet;
+
 import 'package:deadbolt/screens/wallet_detail/import_flow.dart' show showImportChoiceSheet;
 import 'package:deadbolt/screens/wallet_detail/migration_flow.dart' show migrateWalletToProject;
 
@@ -272,8 +272,6 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         await exportDescriptor(context, state);
       case ExportChoice.wallet:
         await exportBackup(context, state);
-      case ExportChoice.nostr:
-        showPublishBackupSheet(context, state: state);
     }
   }
 

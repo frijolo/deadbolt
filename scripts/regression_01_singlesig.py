@@ -27,6 +27,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     create_project, go_back, delete_project_from_list,
     extract_tab_count,
+    run_regression,
 )
 
 
@@ -70,110 +71,63 @@ CASES = [
 # Test function
 # ---------------------------------------------------------------------------
 
-async def test_singlesig_case(
-    d: UIDriver, project_name: str, mfp: str, descriptor: str
-):
-    """
-    Full regression sub-test for one singlesig descriptor type.
-    Raises AssertionError on failure.
-    """
-    print(f"\n--- {project_name} ---")
+async def test_singlesig(d: UIDriver):
+    """Run all singlesig sub-tests. Raises on first failure."""
+    total = len(CASES)
+    failed: list[str] = []
 
-    # 1. Create project (navigates to project detail on success)
-    await create_project(d, project_name, descriptor)
+    for name, mfp, desc in CASES:
+        print(f"\n--- {name} ---")
 
-    # 2. Read semantics once (project detail is now open)
-    sem = await d.cs_flat_text()
+        # 1. Create project (navigates to project detail on success)
+        await create_project(d, name, desc)
 
-    # 3. Verify tab labels — both must show count = 1
-    keys_count = extract_tab_count(sem, "Keys")
-    paths_count = extract_tab_count(sem, "Spend paths")
+        # 2. Read semantics once (project detail is now open)
+        sem = await d.cs_flat_text()
 
-    if keys_count is None:
-        raise AssertionError(f"'Keys (N)' tab label not found for {project_name}")
-    if keys_count != 1:
-        raise AssertionError(
-            f"Expected Keys count = 1, got {keys_count} for {project_name}"
-        )
-    print(f"    [ok] Keys (1) tab visible")
+        # 3. Verify tab labels — both must show count = 1
+        keys_count = extract_tab_count(sem, "Keys")
+        paths_count = extract_tab_count(sem, "Spend paths")
 
-    if paths_count is None:
-        raise AssertionError(f"'Spend paths (N)' tab label not found for {project_name}")
-    if paths_count != 1:
-        raise AssertionError(
-            f"Expected Spend paths count = 1, got {paths_count} for {project_name}"
-        )
-    print(f"    [ok] Spend paths (1) tab visible")
+        if keys_count is None:
+            raise AssertionError(f"'Keys (N)' tab label not found for {name}")
+        if keys_count != 1:
+            raise AssertionError(
+                f"Expected Keys count = 1, got {keys_count} for {name}"
+            )
+        print(f"    [ok] Keys (1) tab visible")
 
-    # 4. Verify MFP visible (appears in key card as uppercase or lowercase)
-    sem_lower = sem.lower()
-    if mfp.lower() not in sem_lower:
-        raise AssertionError(
-            f"MFP '{mfp}' not visible in project detail for {project_name}"
-        )
-    print(f"    [ok] MFP '{mfp}' visible")
+        if paths_count is None:
+            raise AssertionError(f"'Spend paths (N)' tab label not found for {name}")
+        if paths_count != 1:
+            raise AssertionError(
+                f"Expected Spend paths count = 1, got {paths_count} for {name}"
+            )
+        print(f"    [ok] Spend paths (1) tab visible")
 
-    # 5. Delete (go back → project list → delete via card menu)
-    await go_back(d)
-    await delete_project_from_list(d, project_name)
+        # 4. Verify MFP visible (appears in key card as uppercase or lowercase)
+        sem_lower = sem.lower()
+        if mfp.lower() not in sem_lower:
+            raise AssertionError(
+                f"MFP '{mfp}' not visible in project detail for {name}"
+            )
+        print(f"    [ok] MFP '{mfp}' visible")
 
-    print(f"    [PASS] {project_name}")
+        # 5. Delete (go back → project list → delete via card menu)
+        await go_back(d)
+        await delete_project_from_list(d, name)
+
+        print(f"    [PASS] {name}")
+
+    if failed:
+        raise AssertionError(f"{len(failed)}/{total} sub-tests failed: {failed}")
+    print(f"\n{'='*50}")
+    print(f"[RESULT] PASS — all {total} singlesig descriptor types OK")
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main():
-    d = UIDriver(sandbox=True)
-    failed: list[str] = []
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        for name, mfp, desc in CASES:
-            try:
-                await test_singlesig_case(d, name, mfp, desc)
-            except AssertionError as exc:
-                print(f"\n[FAIL] {name}: {exc}")
-                failed.append(name)
-                # Attempt to recover: navigate back to project list
-                try:
-                    await go_back(d)
-                except Exception:
-                    pass
-                try:
-                    await delete_project_from_list(d, name)
-                except Exception:
-                    pass
-
-    except AssertionError as exc:
-        with open('/tmp/reg01_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[FAIL] {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg01_cs_tree")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        with open('/tmp/reg01_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[ERROR] {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg01_cs_tree")
-        await d.close()
-        raise
-    finally:
-        await d.close()
-
-    total = len(CASES)
-    if failed:
-        print(f"\n{'='*50}")
-        print(f"[RESULT] FAIL — {len(failed)}/{total} sub-tests failed: {failed}")
-        sys.exit(1)
-    else:
-        print(f"\n{'='*50}")
-        print(f"[RESULT] PASS — all {total} singlesig descriptor types OK")
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_singlesig, "reg01"))

@@ -28,6 +28,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    run_regression,
 )
 
 # ---------------------------------------------------------------------------
@@ -136,29 +137,14 @@ async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
 # Sub-tests
 # ---------------------------------------------------------------------------
 
-async def test_guided_singlesig(d: UIDriver):
-    name = "Reg06-Guided-Singlesig"
+async def _run_guided_test(d: UIDriver, name: str, script: str | None):
+    """Common guided wallet creation flow."""
     print(f"\n--- {name} ---")
 
     await _open_guided_dialog(d)
     await fill_field(d, "Wallet name", name)
-    # Script: keep default 'SegWit' (native segwit P2WPKH for singlesig)
-    await _add_watch_only_key(d)
-    # Network: default is testnet — no change needed
-    await _create_and_verify(d, name)
-    await _verify_addresses_tab(d, name)
-    await go_back_to_wallet_list(d)
-    await delete_wallet_from_list(d, name)
-    print(f"    [PASS] {name}")
-
-
-async def test_guided_taproot(d: UIDriver):
-    name = "Reg06-Guided-Taproot"
-    print(f"\n--- {name} ---")
-
-    await _open_guided_dialog(d)
-    await fill_field(d, "Wallet name", name)
-    await _select_script(d, "Taproot")
+    if script is not None:
+        await _select_script(d, script)
     await _add_watch_only_key(d)
     await _create_and_verify(d, name)
     await _verify_addresses_tab(d, name)
@@ -171,67 +157,14 @@ async def test_guided_taproot(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-CASES = [
-    ("Reg06-Guided-Singlesig", test_guided_singlesig),
-    ("Reg06-Guided-Taproot",   test_guided_taproot),
-]
-
-
-async def main():
-    d = UIDriver(sandbox=True)
-    failed: list[str] = []
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        for name, fn in CASES:
-            try:
-                await fn(d)
-            except (AssertionError, Exception) as exc:
-                with open('/tmp/reg06_cs_tree', 'w') as f:
-                    f.write(await d.cs_tree_as_json())
-                print(f"\n[FAIL] {name}: {exc}")
-                print("    [debug] Full semantics tree written to /tmp/reg06_cs_tree")
-                failed.append(name)
-                # Recovery: try to get back to wallet list
-                for _ in range(3):
-                    try:
-                        await click_tooltip(d, "Back", delay=0.5)
-                    except Exception:
-                        break
-                    sem = await d.cs_flat_text()
-                    if '"Wallets"' in sem:
-                        break
-                try:
-                    await delete_wallet_from_list(d, name)
-                except Exception:
-                    pass
-    except AssertionError as exc:
-        with open('/tmp/reg06_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[FAIL] {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg06_cs_tree")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        with open('/tmp/reg06_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[ERROR] Unexpected exception: {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg06_cs_tree")
-        await d.close()
-        raise
-    finally:
-        await d.close()
-
-    total = len(CASES)
+async def test_guided_wallet(d: UIDriver):
+    """Run all guided wallet sub-tests. Raises on first failure."""
+    total = 2
+    await _run_guided_test(d, "Reg06-Guided-Singlesig", None)
+    await _run_guided_test(d, "Reg06-Guided-Taproot", "Taproot")
     print(f"\n{'='*50}")
-    if failed:
-        print(f"[RESULT] FAIL — {len(failed)}/{total} sub-tests failed: {failed}")
-        sys.exit(1)
-    else:
-        print(f"[RESULT] PASS — all {total} guided wallet creation sub-tests OK")
+    print(f"[RESULT] PASS — all {total} guided wallet creation sub-tests OK")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_guided_wallet, "reg06"))

@@ -675,3 +675,14 @@ async def run_regression(test_func, test_id: str):
             await d.close()
         except Exception:
             pass
+        # Kill any lingering deadbolt process (grandchild of test script).
+        # Without this, the shell tool waits indefinitely for the zombie.
+        _pgrep = subprocess.run(
+            ["pgrep", "-x", "deadbolt"], capture_output=True, text=True,
+        )
+        if _pgrep.returncode == 0 and _pgrep.stdout.strip():
+            for _pid in _pgrep.stdout.strip().split():
+                try:
+                    os.kill(int(_pid), 9)
+                except ProcessLookupError:
+                    pass

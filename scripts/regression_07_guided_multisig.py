@@ -30,6 +30,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    run_regression,
 )
 
 # ---------------------------------------------------------------------------
@@ -178,56 +179,18 @@ async def _verify_addresses_tab(d: UIDriver, wallet_name: str):
 # Sub-tests
 # ---------------------------------------------------------------------------
 
-async def test_guided_wsh_2of2(d: UIDriver):
-    name = "Reg07-Guided-WSH-2of2"
+async def _run_multisig_test(d: UIDriver, name: str, keys: list, threshold: int, script: str | None):
+    """Common guided multisig wallet creation flow."""
     print(f"\n--- {name} ---")
 
     await _open_guided_dialog(d)
     await fill_field(d, "Wallet name", name)
     await _select_multisig(d)
-    # Script: keep default 'SegWit' (native segwit P2WSH for multisig)
-    await _add_watch_only_key(d, _KEYS[0])
-    await _add_watch_only_key(d, _KEYS[1])
-    # Default threshold after 2 keys = 1; raise to 2
-    await _set_threshold(d, target=2, current=1)
-    await _create_and_verify(d, name)
-    await _verify_addresses_tab(d, name)
-    await go_back_to_wallet_list(d)
-    await delete_wallet_from_list(d, name)
-    print(f"    [PASS] {name}")
-
-
-async def test_guided_wsh_2of3(d: UIDriver):
-    name = "Reg07-Guided-WSH-2of3"
-    print(f"\n--- {name} ---")
-
-    await _open_guided_dialog(d)
-    await fill_field(d, "Wallet name", name)
-    await _select_multisig(d)
-    await _add_watch_only_key(d, _KEYS[0])
-    await _add_watch_only_key(d, _KEYS[1])
-    await _add_watch_only_key(d, _KEYS[2])
-    # Default threshold after 3 keys = 1; raise to 2
-    await _set_threshold(d, target=2, current=1)
-    await _create_and_verify(d, name)
-    await _verify_addresses_tab(d, name)
-    await go_back_to_wallet_list(d)
-    await delete_wallet_from_list(d, name)
-    print(f"    [PASS] {name}")
-
-
-async def test_guided_taproot_2of3(d: UIDriver):
-    name = "Reg07-Guided-TR-2of3"
-    print(f"\n--- {name} ---")
-
-    await _open_guided_dialog(d)
-    await fill_field(d, "Wallet name", name)
-    await _select_multisig(d)
-    await _select_script(d, "Taproot")
-    await _add_watch_only_key(d, _KEYS[0])
-    await _add_watch_only_key(d, _KEYS[1])
-    await _add_watch_only_key(d, _KEYS[2])
-    await _set_threshold(d, target=2, current=1)
+    if script is not None:
+        await _select_script(d, script)
+    for key in keys:
+        await _add_watch_only_key(d, key)
+    await _set_threshold(d, target=threshold, current=len(keys))
     await _create_and_verify(d, name)
     await _verify_addresses_tab(d, name)
     await go_back_to_wallet_list(d)
@@ -239,70 +202,15 @@ async def test_guided_taproot_2of3(d: UIDriver):
 # Entry point
 # ---------------------------------------------------------------------------
 
-CASES = [
-    ("Reg07-Guided-WSH-2of2",  test_guided_wsh_2of2),
-    ("Reg07-Guided-WSH-2of3",  test_guided_wsh_2of3),
-    ("Reg07-Guided-TR-2of3",   test_guided_taproot_2of3),
-]
-
-
-async def main():
-    d = UIDriver(sandbox=True)
-    failed: list[str] = []
-    try:
-        await d.launch()
-        d.raise_window()
-        await dismiss_startup_dialogs(d)
-
-        for name, fn in CASES:
-            try:
-                await fn(d)
-            except (AssertionError, Exception) as exc:
-                with open('/tmp/reg07_cs_tree', 'w') as f:
-                    f.write(await d.cs_tree_as_json())
-                print(f"\n[FAIL] {name}: {exc}")
-                print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
-                failed.append(name)
-                # Recovery: close any open sheet/dialog, then navigate back.
-                # click_tooltip never raises when node is absent (just warns),
-                # so check semantics explicitly before deciding to close or back.
-                for _ in range(6):
-                    sem = await d.cs_flat_text()
-                    if '"Wallets"' in sem:
-                        break
-                    if 'tooltip: "Close"' in sem:
-                        await click_tooltip(d, "Close", delay=0.5)
-                        continue
-                    await click_tooltip(d, "Back", delay=0.5)
-                try:
-                    await delete_wallet_from_list(d, name)
-                except Exception:
-                    pass
-    except AssertionError as exc:
-        with open('/tmp/reg07_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[FAIL] {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
-        await d.close()
-        sys.exit(1)
-    except Exception as exc:
-        with open('/tmp/reg07_cs_tree', 'w') as f:
-            f.write(await d.cs_tree_as_json())
-        print(f"\n[ERROR] Unexpected exception: {exc}")
-        print("    [debug] Full semantics tree written to /tmp/reg07_cs_tree")
-        await d.close()
-        raise
-    finally:
-        await d.close()
-
-    total = len(CASES)
+async def test_guided_multisig(d: UIDriver):
+    """Run all guided multisig sub-tests. Raises on first failure."""
+    total = 3
+    await _run_multisig_test(d, "Reg07-Guided-WSH-2of2", _KEYS[:2], 2, None)
+    await _run_multisig_test(d, "Reg07-Guided-WSH-2of3", _KEYS[:3], 2, None)
+    await _run_multisig_test(d, "Reg07-Guided-TR-2of3",   _KEYS[:3], 2, "Taproot")
     print(f"\n{'='*50}")
-    if failed:
-        print(f"[RESULT] FAIL — {len(failed)}/{total} sub-tests failed: {failed}")
-        sys.exit(1)
-    else:
-        print(f"[RESULT] PASS — all {total} guided multisig wallet creation sub-tests OK")
+    print(f"[RESULT] PASS — all {total} guided multisig wallet creation sub-tests OK")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_regression(test_guided_multisig, "reg07"))

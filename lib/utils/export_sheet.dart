@@ -13,7 +13,9 @@ import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLia
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart' show DescriptorDisplay;
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
-import 'package:deadbolt/widgets/text_export_sheet.dart';
+import 'package:deadbolt/widgets/text_export_sheet.dart' show ExportSheetAction, showTextExportSheet, showQrDialog;
+import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart' show showPublishBackupSheet;
+import 'package:deadbolt/cubit/wallet_detail_cubit.dart' show WalletDetailLoaded;
 
 /// Shows the Liana/Standard format dialog when the descriptor has a NUMS
 /// unspendable key, then opens the export sheet with the chosen text.
@@ -25,6 +27,7 @@ Future<void> showDescriptorExportSheet(
   required String descriptor,
   required String fileName,
   required String copiedMessage,
+  WalletDetailLoaded? state,
 }) async {
   final lianaDescriptor = await formatDescriptorForLiana(descriptor: descriptor);
 
@@ -63,11 +66,24 @@ Future<void> showDescriptorExportSheet(
   }
 
   if (!context.mounted) return;
+
+  final l10n = context.l10n;
+  final extraItems = state != null
+      ? [
+          (
+            icon: Icons.cloud_outlined,
+            label: l10n.publishBackupMenu,
+            onTap: () => showPublishBackupSheet(context, state: state),
+          ),
+        ]
+      : <ExportSheetAction>[];
+
   showTextExportSheet(
     context,
     text: exportText,
     fileName: fileName,
     copiedMessage: copiedMessage,
+    extraItems: extraItems,
     showAsTextBuilder: (ctx, text) => DescriptorDisplay(
       descriptor: text,
       shrinkWrap: true,

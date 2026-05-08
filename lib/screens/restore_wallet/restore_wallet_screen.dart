@@ -732,7 +732,12 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       _importBackup(
         bytes: backup.bytes,
         xpub: backup.xpub,
-        networkHint: backup.network ?? "bitcoin",
+        // The backup was discovered via the active network's Electrum
+        // endpoint, so the active network is the correct hint. The blob's
+        // own network field is unreliable (Signet backups can carry
+        // "testnet" because Signet shares Bitcoin's testnet magic in some
+        // legacy paths).
+        networkHint: _selectedNetwork.name,
         rustImport: rust_onchain.importOnchainBackup,
       );
 
@@ -755,6 +760,12 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       required String networkHint,
     }) rustImport,
   }) async {
+    // When the user reached the import button via the Seed tab, we still
+    // hold the mnemonic that derived the matching xpub. Carrying it through
+    // lets us auto-attach a hot key after import so the user does not have
+    // to re-enter the same words on the Descriptor → Keys tab.
+    final mnemonic = _lastSeedMnemonic;
+    final passphrase = _lastSeedPassphrase;
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -793,6 +804,20 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
         walletsDir: walletsDir,
         networkHint: networkHint,
       );
+      if (!mounted) return;
+      // Auto-attach the seed as a hot key when we have it. The recovery
+      // scanner only surfaced this backup because at least one descriptor
+      // key matched the xpub derived from `mnemonic`, so addMnemonicKey
+      // will find a matching MFP. Errors here are non-fatal — the wallet
+      // is already imported watch-only and the user can retry manually.
+      if (mnemonic != null) {
+        try {
+          final handle = await service.openWallet(result.wallet.walletPath);
+          handle.addMnemonicKey(mnemonic: mnemonic, passphrase: passphrase);
+        } catch (e) {
+          debugPrint('[restore auto-attach mnemonic] $e');
+        }
+      }
       if (!mounted) return;
       context.read<WalletListCubit>().refresh();
       if (mounted) {

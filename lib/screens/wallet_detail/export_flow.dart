@@ -13,11 +13,12 @@ import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet;
 import 'package:deadbolt/screens/export_backup_dialog.dart' show showExportBackupDialog;
+
 import 'package:deadbolt/utils/export_sheet.dart' show showDescriptorExportSheet;
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
 
-enum ExportChoice { labels, descriptor, wallet, nostr }
+enum ExportChoice { labels, descriptor, wallet }
 
 Future<ExportChoice?> showExportChoiceSheet(BuildContext context) async {
   final l10n = context.l10n;
@@ -41,11 +42,6 @@ Future<ExportChoice?> showExportChoiceSheet(BuildContext context) async {
             leading: const Icon(Icons.save_alt_outlined),
             title: Text(l10n.walletExportLabel),
             onTap: () => Navigator.of(ctx).pop(ExportChoice.wallet),
-          ),
-          ListTile(
-            leading: const Icon(Icons.backup_outlined),
-            title: Text(l10n.publishBackupMenu),
-            onTap: () => Navigator.of(ctx).pop(ExportChoice.nostr),
           ),
           const SizedBox(height: 8),
         ],
@@ -87,11 +83,13 @@ Future<void> exportDescriptor(
   final safeName = state.walletInfo.name
       .replaceAll(RegExp(r'[^\w\-]'), '_')
       .toLowerCase();
+
   await showDescriptorExportSheet(
     context,
     descriptor: state.walletInfo.descriptor,
     fileName: '${safeName}_descriptor',
     copiedMessage: l10n.copiedToClipboard,
+    state: state,
   );
 }
 
