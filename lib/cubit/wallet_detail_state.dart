@@ -1,4 +1,5 @@
 import 'package:deadbolt/cubit/loaded_wallet.dart' show LoadedWallet;
+import 'package:deadbolt/cubit/wallet_detail/wallet_detail_update.dart';
 import 'package:deadbolt/cubit/wallet_detail_session.dart'
     show
         WalletDetailView,
@@ -163,6 +164,31 @@ class WalletDetailLoaded extends WalletDetailState {
       errorMessage: identical(errorMessage, _kUndef)
           ? this.errorMessage
           : errorMessage as String?,
+    );
+  }
+
+  /// Apply a [WalletDetailUpdate] to produce a new [WalletDetailLoaded].
+  ///
+  /// Non-null fields in [update] replace the corresponding current values.
+  /// This is the programmatic alternative to [copyWith] and is useful when
+  /// the set of fields to update is computed at runtime.
+  WalletDetailLoaded apply(WalletDetailUpdate update) {
+    return WalletDetailLoaded._(
+      info: update.info ?? _info,
+      txPage: update.txPage ?? _txPage,
+      addresses: update.addresses ?? _addresses,
+      coins: update.coins ?? _coins,
+      descriptor: update.descriptor ?? _descriptor,
+      psbts: update.psbts ?? _psbts,
+      hotKeys: update.hotKeys ?? _hotKeys,
+      fiat: update.fiat ?? _fiat,
+      wallet: wallet,
+      selectedTab: update.selectedTab ?? selectedTab,
+      selectedAddressKeychain: update.selectedAddressKeychain ?? selectedAddressKeychain,
+      isSyncing: update.isSyncing ?? isSyncing,
+      errorMessage: identical(update.errorMessage, _kUndef)
+          ? errorMessage
+          : update.errorMessage as String?,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/config/app_settings_extensions.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/services/biometric_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';

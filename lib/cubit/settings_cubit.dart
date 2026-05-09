@@ -52,12 +52,13 @@ class AppSettings {
   static const kDefaultExplorerRegtest = '';
 
   static String defaultElectrumUrlFor(APINetwork net) =>
-      _electrumDefaults[net.suffix]!;
+      kElectrumDefaults[net.suffix]!;
 
   static String defaultExplorerUrlFor(APINetwork net) =>
-      _explorerDefaults[net.suffix]!;
+      kExplorerDefaults[net.suffix]!;
 
-  static const Map<String, String> _electrumDefaults = {
+  /// Default Electrum server URLs keyed by network suffix.
+  static const Map<String, String> kElectrumDefaults = {
     'Mainnet': kDefaultElectrumMainnet,
     'Testnet': kDefaultElectrumTestnet,
     'Testnet4': kDefaultElectrumTestnet4,
@@ -65,7 +66,8 @@ class AppSettings {
     'Regtest': kDefaultElectrumRegtest,
   };
 
-  static const Map<String, String> _explorerDefaults = {
+  /// Default explorer base URLs keyed by network suffix.
+  static const Map<String, String> kExplorerDefaults = {
     'Mainnet': kDefaultExplorerMainnet,
     'Testnet': kDefaultExplorerTestnet,
     'Testnet4': kDefaultExplorerTestnet4,
@@ -94,30 +96,8 @@ class AppSettings {
     this.biometricLockEnabled = false,
     this.biometricTimeoutMinutes = 1,
     this.inheritanceMinTimelockBlocks = AppSettings.kDefaultInheritanceMinTimelock,
-  })  : electrumUrls = electrumUrls ?? _electrumDefaults,
-        explorerUrls = explorerUrls ?? _explorerDefaults;
-
-  String electrumUrlForNetwork(APINetwork net) {
-    final suffix = net.suffix;
-    return electrumUrls[suffix] ?? _electrumDefaults[suffix]!;
-  }
-
-  String explorerBaseForNetwork(APINetwork net) {
-    final suffix = net.suffix;
-    return explorerUrls[suffix] ?? _explorerDefaults[suffix]!;
-  }
-
-  String explorerAddressUrl(APINetwork net, String address) {
-    final base = explorerBaseForNetwork(net);
-    if (base.isEmpty) return '';
-    return '$base/address/$address';
-  }
-
-  String explorerTxUrl(APINetwork net, String txid) {
-    final base = explorerBaseForNetwork(net);
-    if (base.isEmpty) return '';
-    return '$base/tx/$txid';
-  }
+  })  : electrumUrls = electrumUrls ?? kElectrumDefaults,
+        explorerUrls = explorerUrls ?? kExplorerDefaults;
 
   AppSettings copyWithElectrum(APINetwork network, String url) {
     final updated = Map<String, String>.from(electrumUrls);
@@ -218,14 +198,14 @@ class SettingsCubit extends Cubit<AppSettings> {
 
     // Build electrum URLs map: persisted values override defaults.
     final electrumUrls = <String, String>{};
-    for (final entry in AppSettings._electrumDefaults.entries) {
+    for (final entry in AppSettings.kElectrumDefaults.entries) {
       final key = 'electrum${entry.key}';
       electrumUrls[entry.key] = prefs.getString(key) ?? entry.value;
     }
 
     // Build explorer URLs map: persisted values override defaults.
     final explorerUrls = <String, String>{};
-    for (final entry in AppSettings._explorerDefaults.entries) {
+    for (final entry in AppSettings.kExplorerDefaults.entries) {
       final key = 'explorer${entry.key}';
       explorerUrls[entry.key] = prefs.getString(key) ?? entry.value;
     }

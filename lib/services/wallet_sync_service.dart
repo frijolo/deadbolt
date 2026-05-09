@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
+import 'package:deadbolt/config/app_settings_extensions.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/errors.dart' show sanitizeForLog, formatRustError;
 import 'package:deadbolt/services/wallet_service.dart';

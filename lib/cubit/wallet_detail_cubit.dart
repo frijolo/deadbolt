@@ -22,18 +22,6 @@ import 'package:deadbolt/cubit/wallet_opener.dart' show WalletOpener, WalletOpen
 // Re-export state hierarchy so existing imports of wallet_detail_cubit.dart keep compiling
 export 'package:deadbolt/cubit/wallet_detail_state.dart';
 
-// Re-export domain mixins (their public methods are part of the cubit's API)
-export 'package:deadbolt/cubit/wallet_detail/addresses.dart';
-export 'package:deadbolt/cubit/wallet_detail/coins.dart';
-export 'package:deadbolt/cubit/wallet_detail/descriptor.dart';
-export 'package:deadbolt/cubit/wallet_detail/fiat.dart';
-export 'package:deadbolt/cubit/wallet_detail/hot_keys.dart';
-export 'package:deadbolt/cubit/wallet_detail/lifecycle.dart';
-export 'package:deadbolt/cubit/wallet_detail/protection.dart';
-export 'package:deadbolt/cubit/wallet_detail/psbt.dart';
-export 'package:deadbolt/cubit/wallet_detail/rescan.dart';
-export 'package:deadbolt/cubit/wallet_detail/transactions.dart';
-
 // Re-export for the screen
 export 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
 export 'package:deadbolt/src/rust/api/model.dart'
