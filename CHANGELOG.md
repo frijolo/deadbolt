@@ -4,82 +4,29 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
-
-### Fixes
-- **Stale credential on failed wallet open** — Evicts cached password and biometric key when
-  `openWallet` fails, so the next tap re-prompts instead of replaying the same failure.
-- **Singlesig publish backup privacy warning** — Publish and Nostr backup flows now warn when the
-  descriptor is trivially recoverable from the seed (singlesig), since publishing adds unnecessary
-  privacy risk. The publish flow requires explicit confirmation to proceed.
-- **Onchain backup recovery network hint** — Uses the active network instead of the unreliable
-  blob-stored network field when importing an onchain backup, fixing recovery for Signet backups
-  that previously carried "testnet".
+## [v1.9.5]
 
 ### New Features
-- **OP_RETURN outputs** — Transactions can now embed arbitrary data in an OP_RETURN output
-  (hex or UTF-8 input, live byte counter, 80-byte relay warning). Confirm sheet and PSBT/tx
-  detail dialogs render the embedded data with copy-as-text and copy-as-hex actions.
-- **Descriptor display widget** — Extracted `DescriptorDisplay` with Alias / Raw toggle for reuse
-  across the app (create wallet dialog, export sheet, descriptor tab).
-- **On-chain descriptor backup** — Wallets can publish an encrypted descriptor backup embedded in a
-  Bitcoin Signet transaction (commit/reveal scheme). Any cosigner can recover the wallet from their
-  xpub alone, without the seed phrase.
-- **Biometric app lock (Android)** — Optional lock screen on cold start and on return from background
-  past a configurable timeout (immediate, 1 min, or 5 min).
-- **Biometric wallet unlock** — Password and XPub wallets can register a biometric slot for
-  one-touch unlock. The key is stored in the hardware-backed keystore and attempted automatically
-  on open, falling back to the password prompt if cancelled.
-- **Descriptor alias toggle** — The descriptor tab now has an Alias / Raw toggle. Alias mode
-  replaces key fingerprints with the user-defined key labels.
-- **Screenshot protection (Android)** — The screen is blocked from recent-apps thumbnails and
-  screenshots by default. Can be disabled in Settings → Security.
-
-### Improvements
-- **Auto-attach mnemonic key after onchain recovery** — When restoring a wallet from an onchain
-  backup via the Seed tab, the mnemonic is auto-registered as a hot key so the user does not have
-  to re-enter it.
-- **Copy confirmation toast** — All copy-to-clipboard actions now show a success toast so it is
-  clear the text was copied.
-- **Biometric inactivity lock** — The app locks automatically after the configured idle timeout;
-  any touch resets the timer. Locking clears all cached credentials and wipes the clipboard.
-- **Clipboard auto-clear for secrets** — Copying a seed phrase, WIF, or xprv clears the clipboard
-  after a configurable timeout (default 60 s). The copy toast shows the countdown; on Android 13+
-  the entry is also marked sensitive to suppress it from clipboard history overlays.
-- **Tor routing for price and fee requests** — CoinGecko and mempool.space requests route through
-  Tor when enabled in Settings.
-- **Key material zeroed in memory** — Key buffers are overwritten before deallocation; cached
-  credentials are zeroed on eviction.
-- **Log sanitization** — Extended keys and addresses are redacted in debug output.
-- **Corrupt hot-key row warnings** — A corrupt hot-key entry is skipped with a warning toast
-  instead of blocking wallet open.
-- **Android backup and iOS file sharing disabled** — Wallet data is excluded from Android device
-  backups and is not accessible via the iOS Files app.
-- **PSBT preview** — Before signing, the transaction preview computes exact fee in sats, effective
-  fee rate, change amount, per-recipient amounts (including drain), and BIP-125 RBF minimum fee.
-  Insufficient funds returns a flag instead of an error so the UI keeps rendering.
+- **Biometric & screenshot protection** — Add screenshot protection, biometric app lock, and per-wallet biometric unlock.
+- **Descriptor alias/raw toggle** — Add toggle in the descriptor tab with key-label substitution.
+- **On-chain descriptor backup** — Commit/reveal backup of descriptors via Signet.
+- **Wallet detail refactor** — Split cubit, add PSBT preview screen, descriptor backup UI, and expanded test suite.
+- **Descriptor display widget** — Add widget showing wallet descriptor with singlesig backup warning and stale credential fix.
+- **OP_RETURN output support** — Add OP_RETURN output creation in transaction builder and display in transaction detail.
+- **Seed recovery cache** — Cache first-address hash in wallet sidecar for fast locked-wallet seed recovery.
+- **Security hardening** — Zeroize key material, sanitize logs, and harden clipboard for secrets.
+- **Hot key corruption reporting** — Propagate RNG errors, expose corrupt hot keys in the list, and guard SQL table names.
+- **APIHotKeyList exposure** — Expose hot key list via Rust API with corrupt-row reporting; clean up Rust API surface.
+- **Clipboard timeout from settings** — Derive clipboard clear timeout from the biometric lock setting and add feedback toasts.
 
 ### Fixes
-- **Heir key sharing allowed** — Multiple heirs can now share the same xpub key with different
-  timelocks (e.g. two paths for the same person at 6 mo and 1 yr). Previously the MFP was
-  incorrectly excluded after being added to any heir slot.
-- **Duplicate timelock validated on edit** — Editing an heir's timelock now checks for conflicts
-  immediately and offers to fix or keep the duplicate, consistent with the add-heir flow.
-- **Addresses tab on first switch** — The Addresses tab now loads immediately on first selection
-  instead of appearing empty until the next sync.
-- **Receive addresses after sync** — The receive tab reflects new addresses immediately after a
-  sync, without a manual reload.
-- **Biometric lock on app switcher** — The inactivity timer now starts when the app enters the
-  app switcher, not only when fully paused.
-- **Bottom sheet safe area** — Bottom sheets no longer show an empty gap below the home indicator.
-- **PSBT spend-path detection** — Importing a PSBT now infers the active spending path from
-  nSequence / nLockTime instead of reading fingerprints from the PSBT inputs. This fixes incorrect
-  threshold and spend-path assignment for taproot wallets with timelocks.
-- **Electrum TLS race condition** — Installing the rustls CryptoProvider once at startup prevents a
-  crash that could occur when two Electrum connections were opened concurrently.
-- **PSBT anti-fee-sniping lock_time** — Importing a PSBT no longer misidentifies the spending path
-  when BDK sets a non-zero nLockTime for anti-fee-sniping. The lock_time is now only treated as an
-  absolute timelock when a descriptor spend path explicitly requires that exact value.
+- **Biometric hidden state & SafeArea** — Fix biometric hidden state, post-sync address emit, and showSheet SafeArea behavior.
+- **PSBT spend path inference** — Infer spend path from nSequence/nLockTime and install rustls provider at startup.
+- **Anti-fee-sniping lock_time** — Ignore lock_time in PSBT spend path inference.
+- **Mnemonic auto-attach** — Auto-attach mnemonic key after on-chain backup recovery and fix network hint.
+
+### Improvements
+- **Extracted shared helpers** — Extract shared copy/address/hex helpers, add sync no-op guards.
 
 ---
 
@@ -497,6 +444,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.5]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.5
 [v1.9.4]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.4
 [v1.9.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.3
 [v1.9.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.2
