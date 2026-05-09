@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1023,7 +1024,7 @@ class _OpReturnRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 SelectableText(
                   display,
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  style: const TextStyle(fontSize: 12, fontFamily: kMonospaceFontFamily),
                 ),
               ],
             ),

@@ -18,6 +18,7 @@ import 'package:deadbolt/src/rust/api/model.dart' show APIRecipient;
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
 import 'package:deadbolt/services/price_service.dart' show PriceProviderType;
 import 'package:deadbolt/services/wallet_sync_service.dart' show WalletSyncEvent;
+import 'package:deadbolt/config/constants.dart' show kPageSize;
 import 'package:deadbolt/utils/date_format.dart' show formatDate;
 
 // ---------------------------------------------------------------------------
@@ -106,7 +107,7 @@ class LoadedWalletImpl implements LoadedWallet {
   final ApiWallet _handle;
   final FiatPriceManager _fiat = FiatPriceManager();
 
-  static const _pageSize = 25;
+  static const _pageSize = kPageSize;
 
   LoadedWalletImpl(this._handle);
 

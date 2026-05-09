@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show DragStartBehavior;
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -214,7 +215,7 @@ class _WifDisplayDialog extends StatelessWidget {
             const SizedBox(height: 4),
             SelectableText(
               address,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
             ),
             const SizedBox(height: 16),
 
@@ -251,7 +252,7 @@ class _WifDisplayDialog extends StatelessWidget {
               ),
               child: SelectableText(
                 wif,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
               ),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show DragStartBehavior;
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -304,7 +305,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     setState(() => _broadcasting = true);
     try {
       final txid = await cubit.broadcastPsbt(_psbt.id.toInt(), electrumUrl);
-      if (context.mounted) {
+      if (!context.mounted) return;
+      if (txid != null) {
         showSuccessToast(l10n.psbtBroadcastSuccess(txid));
         Navigator.of(context).pop();
       }
@@ -692,7 +694,7 @@ class _StatusBadge extends StatelessWidget {
           label,
           style: TextStyle(
             color: color,
-            fontFamily: 'monospace',
+            fontFamily: kMonospaceFontFamily,
             fontSize: 12,
             letterSpacing: 1,
           ),

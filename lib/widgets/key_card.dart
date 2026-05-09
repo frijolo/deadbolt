@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart' show APINetwork;
@@ -120,7 +121,7 @@ class KeyCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       color: derivColor,
-                      fontFamily: 'monospace',
+                      fontFamily: kMonospaceFontFamily,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

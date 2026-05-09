@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/l10n/l10n.dart';
@@ -124,7 +125,7 @@ class _DescriptorDisplayState extends State<DescriptorDisplay> {
           padding: const EdgeInsets.all(12),
           child: SelectableText.rich(
             TextSpan(
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
               children: spans,
             ),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -35,7 +36,7 @@ class HwConnectedHeader extends StatelessWidget {
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(fontFamily: 'monospace'),
+                      ?.copyWith(fontFamily: kMonospaceFontFamily),
                 ),
             ],
           ),
@@ -160,7 +161,7 @@ class HwPairingView extends StatelessWidget {
         Text(
           code,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontFamily: 'monospace',
+                fontFamily: kMonospaceFontFamily,
                 letterSpacing: 8,
                 fontWeight: FontWeight.bold,
               ),

@@ -16,6 +16,7 @@ import 'package:deadbolt/cubit/wallet_detail_session.dart'
 import 'package:deadbolt/cubit/wallet_detail_state.dart';
 import 'package:deadbolt/cubit/wallet_op_result.dart' show Ok, Err, WalletOpResult;
 import 'package:deadbolt/cubit/wallet_opener.dart' show WalletOpener;
+import 'package:deadbolt/config/constants.dart' show kRetryDelay;
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart' show APIKeychain;
@@ -168,7 +169,7 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
       // Retry after 15 seconds when Electrum returns stale data (no such tx).
       // Rationale: Electrum mempool can take up to ~10s to propagate;
       // waiting 15s avoids thrashing on transient propagation delays.
-      _retryTimer = Timer(const Duration(seconds: 15), sync);
+      _retryTimer = Timer(kRetryDelay, sync);
       return;
     }
 

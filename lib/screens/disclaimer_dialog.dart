@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:deadbolt/config/constants.dart' show kDisclaimerHiddenUntilKey;
 import 'package:deadbolt/l10n/l10n.dart';
-
-const _kDisclaimerHiddenUntilKey = 'disclaimerHiddenUntil';
 
 /// Returns true if the disclaimer should be shown right now.
 Future<bool> shouldShowDisclaimer() async {
   final prefs = await SharedPreferences.getInstance();
-  final hiddenUntil = prefs.getInt(_kDisclaimerHiddenUntilKey);
+  final hiddenUntil = prefs.getInt(kDisclaimerHiddenUntilKey);
   if (hiddenUntil == null) return true;
   return DateTime.now().millisecondsSinceEpoch > hiddenUntil;
 }
@@ -16,7 +15,7 @@ Future<bool> shouldShowDisclaimer() async {
 Future<void> _suppressFor7Days() async {
   final prefs = await SharedPreferences.getInstance();
   final until = DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch;
-  await prefs.setInt(_kDisclaimerHiddenUntilKey, until);
+  await prefs.setInt(kDisclaimerHiddenUntilKey, until);
 }
 
 class DisclaimerDialog extends StatelessWidget {

@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -145,7 +146,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                           expands: true,
                           textAlignVertical: TextAlignVertical.top,
                           style: const TextStyle(
-                            fontFamily: 'monospace',
+                            fontFamily: kMonospaceFontFamily,
                             fontSize: 13,
                           ),
                         ),

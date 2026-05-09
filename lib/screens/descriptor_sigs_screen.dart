@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -257,7 +258,7 @@ class _KeyTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   color: colors.onSurface.withAlpha(AppAlpha.secondary),
-                  fontFamily: 'monospace',
+                  fontFamily: kMonospaceFontFamily,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -551,7 +552,7 @@ class _QRMessageSheetState extends State<_QRMessageSheet> {
                   child: SelectableText(
                     widget.message,
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(fontFamily: 'monospace'),
+                        ?.copyWith(fontFamily: kMonospaceFontFamily),
                   ),
                 ),
                 CopyIconButton(text: widget.message, size: 18),

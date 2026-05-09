@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -441,7 +442,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                 ),
               ),
               maxLines: 2,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
               onChanged: (_) => setState(() {
                 _resolvedAddresses = null;
                 _utxos = null;
@@ -590,7 +591,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
                               keyboardType: TextInputType.text,
                               autocorrect: false,
                               style: const TextStyle(
-                                  fontFamily: 'monospace', fontSize: 12),
+                                  fontFamily: kMonospaceFontFamily, fontSize: 12),
                               onSubmitted: (_) => _confirmDest(),
                               onTapOutside: (_) => _confirmDest(),
                             )

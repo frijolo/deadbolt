@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:deadbolt/theme/app_theme.dart';
 
 /// Renders a Bitcoin address, txid, or xpub with groups of 4 characters alternating
@@ -32,7 +33,7 @@ class ColoredGroupText extends StatelessWidget {
   TextStyle _baseStyle(BuildContext context) {
     final base = Theme.of(context).textTheme.bodySmall ?? const TextStyle();
     final sized = fontSize != null ? base.copyWith(fontSize: fontSize) : base;
-    return monospace ? sized.copyWith(fontFamily: 'monospace') : sized;
+    return monospace ? sized.copyWith(fontFamily: kMonospaceFontFamily) : sized;
   }
 
   List<String> _groups() {

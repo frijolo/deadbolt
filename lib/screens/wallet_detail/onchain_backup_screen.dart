@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -1045,7 +1046,7 @@ class _TxidRow extends StatelessWidget {
             Expanded(
               child: Text(
                 txid,
-                style: ts.bodySmall?.copyWith(fontFamily: 'monospace'),
+                style: ts.bodySmall?.copyWith(fontFamily: kMonospaceFontFamily),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'dart:math' show max;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
@@ -728,7 +729,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
             maxLines: 4,
             autocorrect: false,
             style: entry.opReturnHexMode
-                ? const TextStyle(fontFamily: 'monospace')
+                ? const TextStyle(fontFamily: kMonospaceFontFamily)
                 : null,
             decoration: InputDecoration(
               hintText: l10n.opReturnInputLabel,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:deadbolt/config/constants.dart' show kElectrumPrivacyWarningHiddenUntilKey;
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -445,8 +446,6 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
 
 enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
 
-const _kElectrumPrivacyWarningHiddenUntilKey = 'electrumPrivacyWarningHiddenUntil';
-
 class _ElectrumPrivacyWarningBanner extends StatefulWidget {
   const _ElectrumPrivacyWarningBanner();
 
@@ -465,7 +464,7 @@ class _ElectrumPrivacyWarningBannerState extends State<_ElectrumPrivacyWarningBa
 
   Future<void> _checkDismissed() async {
     final prefs = await SharedPreferences.getInstance();
-    final hiddenUntil = prefs.getInt(_kElectrumPrivacyWarningHiddenUntilKey);
+    final hiddenUntil = prefs.getInt(kElectrumPrivacyWarningHiddenUntilKey);
     final nowHidden = hiddenUntil != null && DateTime.now().millisecondsSinceEpoch < hiddenUntil;
     if (mounted) setState(() => _hidden = nowHidden);
   }
@@ -473,7 +472,7 @@ class _ElectrumPrivacyWarningBannerState extends State<_ElectrumPrivacyWarningBa
   Future<void> _dismissFor7Days() async {
     final prefs = await SharedPreferences.getInstance();
     final until = DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch;
-    await prefs.setInt(_kElectrumPrivacyWarningHiddenUntilKey, until);
+    await prefs.setInt(kElectrumPrivacyWarningHiddenUntilKey, until);
     if (mounted) setState(() => _hidden = true);
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/seed_export_screen.dart';
@@ -213,7 +214,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
                 ? l10n.rootPath
                 : widget.derivationPath,
             style: TextStyle(
-              fontFamily: 'monospace',
+              fontFamily: kMonospaceFontFamily,
               color: widget.derivationPath.isEmpty ? AppAccent.color : null,
             ),
           ),
@@ -392,7 +393,7 @@ class _KeySheetContentState extends State<_KeySheetContent> {
           children: [
             SelectableText(
               seed,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 13),
             ),
           ],
         ),

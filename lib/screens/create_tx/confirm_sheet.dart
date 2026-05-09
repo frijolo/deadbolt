@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/op_return_encoding.dart';
@@ -70,7 +71,7 @@ class DirectSendConfirmSheet extends StatelessWidget {
                 child: Text(
                   decodeOpReturnForDisplay(recipients[i].opReturnData!),
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(fontFamily: 'monospace'),
+                      ?.copyWith(fontFamily: kMonospaceFontFamily),
                 ),
               )
             else

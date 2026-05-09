@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -218,7 +219,7 @@ class _WordGrid extends StatelessWidget {
                 child: Text(
                   words[i],
                   style: const TextStyle(
-                    fontFamily: 'monospace',
+                    fontFamily: kMonospaceFontFamily,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),

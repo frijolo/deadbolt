@@ -6,6 +6,7 @@ import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/cubit/wallet_detail/lifecycle.dart';
 import 'package:deadbolt/cubit/wallet_detail_session.dart' show PsbtList, TransactionPage;
 import 'package:deadbolt/cubit/wallet_detail_state.dart';
+import 'package:deadbolt/config/constants.dart' show kPageSize;
 import 'package:deadbolt/cubit/wallet_op_result.dart' show Ok, Err;
 import 'package:deadbolt/src/rust/api/model.dart';
 
@@ -13,7 +14,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 /// "directSend" shortcut for hot single-sig wallets.
 mixin WalletDetailPsbt
     on Cubit<WalletDetailState>, CubitErrorLogger, WalletDetailLifecycle {
-  static const _pageSize = 25;
+  static const _pageSize = kPageSize;
 
   Future<APIRbfInfo?> getRbfInfo(String spendingTxid) async {
     final current = loadedState;
@@ -240,7 +241,7 @@ mixin WalletDetailPsbt
     }
   }
 
-  Future<String> broadcastPsbt(int id, String electrumUrl) async {
+  Future<String?> broadcastPsbt(int id, String electrumUrl) async {
     final current = loadedState;
     if (current == null) {
       throw StateError('Wallet not loaded');
@@ -248,7 +249,8 @@ mixin WalletDetailPsbt
     final result = await current.wallet.broadcastPsbt(id, electrumUrl);
     switch (result) {
       case Err(:final message):
-        throw Exception(message);
+        emit(current.copyWith(errorMessage: message));
+        return null;
       case Ok(:final value):
         final updatedPsbts = current.psbts.where((p) => p.id.toInt() != id).toList();
         final updatedAnalyses = Map<int, APIPsbtAnalysis>.from(current.psbtAnalyses)..remove(id);

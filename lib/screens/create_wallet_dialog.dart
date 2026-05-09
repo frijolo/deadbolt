@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -215,7 +216,7 @@ class _CreateWalletDialogState extends State<CreateWalletDialog> {
                       hintText: l10n.descriptorHint,
                       border: const OutlineInputBorder(),
                     ),
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    style: const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 13),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? l10n.descriptorEmpty
                         : null,

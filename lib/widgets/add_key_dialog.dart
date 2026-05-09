@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -72,7 +73,7 @@ Future<String?> _showDerivationPathPicker(
         controller: controller,
         autofocus: true,
         decoration: const InputDecoration(hintText: "m/86'/0'/0'"),
-        style: const TextStyle(fontFamily: 'monospace'),
+        style: const TextStyle(fontFamily: kMonospaceFontFamily),
       ),
       actions: [
         TextButton(
@@ -840,7 +841,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                                   : 'Key: ${widget.expectedMfp}',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontFamily: 'monospace',
+                                fontFamily: kMonospaceFontFamily,
                                 color: Theme.of(context).colorScheme.secondary,
                               ),
                             )
@@ -849,7 +850,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                               widget.editingKey!.mfp.toUpperCase(),
                               style: TextStyle(
                                 fontSize: 12,
-                                fontFamily: 'monospace',
+                                fontFamily: kMonospaceFontFamily,
                                 color: Theme.of(context).colorScheme.secondary,
                               ),
                             ),
@@ -1002,7 +1003,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.secondary,
-              fontFamily: 'monospace',
+              fontFamily: kMonospaceFontFamily,
             ),
           ),
           const SizedBox(height: 8),
@@ -1195,13 +1196,13 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       const SizedBox(width: 4),
       if (matches)
         Text('MFP: $_walletMfp',
-            style: const TextStyle(fontFamily: 'monospace'))
+            style: const TextStyle(fontFamily: kMonospaceFontFamily))
       else
         Expanded(
           child: Text(
             context.l10n.wrongKeyMfp(_walletMfp!, expected),
             style: const TextStyle(
-                color: Colors.red, fontSize: 12, fontFamily: 'monospace'),
+                color: Colors.red, fontSize: 12, fontFamily: kMonospaceFontFamily),
           ),
         ),
     ]);
@@ -1251,7 +1252,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           hintText: "84'/0'/0'",
           helperText: context.l10n.derivPathWithoutLeading,
         ),
-        style: const TextStyle(fontFamily: 'monospace'),
+        style: const TextStyle(fontFamily: kMonospaceFontFamily),
       ),
       if (quickPaths.isNotEmpty) ...[
         const SizedBox(height: 8),
@@ -1328,7 +1329,7 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               SelectableText(
                 _derivedKeyspec!,
                 style:
-                    const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
               ),
               const SizedBox(height: 6),
               TextButton.icon(

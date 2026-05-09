@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
@@ -643,7 +644,7 @@ class _PairingCode extends StatelessWidget {
         Text(
           code,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontFamily: 'monospace',
+                fontFamily: kMonospaceFontFamily,
                 letterSpacing: 8,
                 fontWeight: FontWeight.bold,
               ),
@@ -698,7 +699,7 @@ class _ReadyPanel extends StatelessWidget {
                   Text(
                     rootFingerprint,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
+                          fontFamily: kMonospaceFontFamily,
                         ),
                   ),
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' as rust_wallet;
@@ -140,7 +141,7 @@ class _XpubUnlockDialogState extends State<_XpubUnlockDialog> {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(label,
-                  style: const TextStyle(fontFamily: 'monospace')),
+                  style: const TextStyle(fontFamily: kMonospaceFontFamily)),
             );
           }).toList(),
         ),

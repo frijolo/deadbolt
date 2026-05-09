@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'dart:convert';
 import 'dart:io';
 
@@ -246,7 +247,7 @@ void _showAsTextDialog(
       : SelectableText(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
+                fontFamily: kMonospaceFontFamily,
               ),
         );
   showSheet<void>(context, (ctx) => Column(
