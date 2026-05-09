@@ -6,11 +6,6 @@ import 'package:meta/meta.dart';
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/cubit/wallet_detail_session.dart'
     show
-        WalletInfo,
-        TransactionPage,
-        AddressView,
-        CoinView,
-        PsbtList,
         WalletLoadSuccess,
         WalletLoadNeedsPassword;
 import 'package:deadbolt/cubit/wallet_detail_state.dart';
@@ -176,39 +171,7 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
     final current = loadedState;
     if (current == null) return;
 
-    final chain = reload.chain!;
-    emit(current.copyWith(
-      info: WalletInfo(
-        walletInfo: chain.info,
-        balance: chain.balance,
-        hasBiometricSlot: current.hasBiometricSlot,
-        tipHeight: chain.tipHeight,
-      ),
-      txPage: TransactionPage(
-        transactions: chain.transactions.transactions,
-        totalCount: chain.transactions.totalCount,
-        hasMore: chain.transactions.hasMore,
-        currentPage: 0,
-      ),
-      addresses: AddressView(
-        receiveAddresses: reload.receive?.addresses ?? current.receiveAddresses,
-        changeAddresses: reload.change?.addresses ?? current.changeAddresses,
-        receiveLoaded: (reload.receive?.addresses.isNotEmpty == true) || current.receiveAddressesLoaded,
-        changeLoaded: (reload.change?.addresses.isNotEmpty == true) || current.changeAddressesLoaded,
-        selectedKeychain: current.selectedAddressKeychain,
-      ),
-      coins: CoinView(
-        utxos: reload.coins?.utxos ?? current.utxos,
-        loaded: (reload.coins?.utxos.isNotEmpty == true) || current.utxosLoaded,
-      ),
-      psbts: PsbtList(
-        psbts: reload.psbts?.psbts ?? current.psbts,
-        analyses: reload.psbts?.analyses ?? current.psbtAnalyses,
-        loaded: current.psbtsLoaded,
-      ),
-      isSyncing: false,
-      errorMessage: null,
-    ));
+    emit(WalletDetailLoaded.fromSyncReload(current, reload));
     unawaited(fetchMissingFiatPrices());
   }
 

@@ -10,6 +10,7 @@ import 'package:deadbolt/cubit/wallet_detail_session.dart'
         DescriptorView,
         PsbtList,
         FiatPrices;
+import 'package:deadbolt/cubit/wallet_deltas.dart' show SyncReload;
 import 'package:deadbolt/src/rust/api/analyzer.dart' show APIAnalysisResult;
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
@@ -131,6 +132,57 @@ class WalletDetailLoaded extends WalletDetailState {
       hotKeys: view.hotKeys,
       fiat: view.fiat,
       wallet: wallet,
+    );
+  }
+
+  /// Rebuild [WalletDetailLoaded] after a successful sync reload.
+  ///
+  /// Every non-null field in [reload] replaces the corresponding value;
+  /// null fields preserve the previous state. This factory centralizes the
+  /// sync-path mapping so that adding a new state field forces a compile-time
+  /// update here instead of silently being dropped in a [copyWith] chain.
+  factory WalletDetailLoaded.fromSyncReload(
+    WalletDetailLoaded previous,
+    SyncReload reload,
+  ) {
+    final chain = reload.chain!;
+    return WalletDetailLoaded._(
+      info: WalletInfo(
+        walletInfo: chain.info,
+        balance: chain.balance,
+        hasBiometricSlot: previous.hasBiometricSlot,
+        tipHeight: chain.tipHeight,
+      ),
+      txPage: TransactionPage(
+        transactions: chain.transactions.transactions,
+        totalCount: chain.transactions.totalCount,
+        hasMore: chain.transactions.hasMore,
+        currentPage: 0,
+      ),
+      addresses: AddressView(
+        receiveAddresses: reload.receive?.addresses ?? previous.receiveAddresses,
+        changeAddresses: reload.change?.addresses ?? previous.changeAddresses,
+        receiveLoaded: (reload.receive?.addresses.isNotEmpty == true) || previous.receiveAddressesLoaded,
+        changeLoaded: (reload.change?.addresses.isNotEmpty == true) || previous.changeAddressesLoaded,
+        selectedKeychain: previous.selectedAddressKeychain,
+      ),
+      coins: CoinView(
+        utxos: reload.coins?.utxos ?? previous.utxos,
+        loaded: (reload.coins?.utxos.isNotEmpty == true) || previous.utxosLoaded,
+      ),
+      psbts: PsbtList(
+        psbts: reload.psbts?.psbts ?? previous.psbts,
+        analyses: reload.psbts?.analyses ?? previous.psbtAnalyses,
+        loaded: previous.psbtsLoaded,
+      ),
+      descriptor: previous._descriptor,
+      hotKeys: previous._hotKeys,
+      fiat: previous._fiat,
+      wallet: previous.wallet,
+      selectedTab: previous.selectedTab,
+      selectedAddressKeychain: previous.selectedAddressKeychain,
+      isSyncing: false,
+      errorMessage: null,
     );
   }
 
