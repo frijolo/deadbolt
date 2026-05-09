@@ -1,5 +1,10 @@
 use super::*;
 
+// All #[allow(deprecated)] in this file are for BDK 2.2.0+ deprecations:
+// - `get_signers()` / `add_signer()` / `SignerOrdering` — signer module moved to bitcoin::psbt (no drop-in replacement for runtime injection)
+// - `sign()` / `finalize_psbt()` / `SignOptions` — PSBT signing moved to bitcoin::psbt (no replacement for miniscript-aware finalization)
+// These will be removed once BDK exposes a stable replacement API.
+
 // ---------------------------------------------------------------------------
 // Shared UTXO resolution — used by create_psbt and prepare_backup_psbt
 // ---------------------------------------------------------------------------

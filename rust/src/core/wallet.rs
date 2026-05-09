@@ -1,4 +1,8 @@
 use anyhow::Result;
+
+// All #[allow(deprecated)] in this file are for BDK 2.2.0+ deprecations:
+// - `add_signer()` / `get_signers()` / `SignerOrdering` — signer module moved to bitcoin::psbt (no stable API for custom signer injection)
+// These will be removed once BDK exposes a stable replacement API.
 use bdk_wallet::bitcoin::Network;
 use bdk_wallet::rusqlite::Connection;
 use bdk_wallet::{KeychainKind, PersistedWallet, Wallet};

@@ -1,4 +1,8 @@
 use super::*;
+
+// #[allow(deprecated)] in this file is for BDK 2.2.0+ deprecations:
+// - `sign()` / `SignOptions` — PSBT signing moved to bitcoin::psbt (no replacement for miniscript-aware signing)
+// This will be removed once BDK exposes a stable replacement API.
 use bdk_wallet::bitcoin::secp256k1::Secp256k1;
 use bdk_wallet::bitcoin::{
     absolute::LockTime, transaction::Version, Amount, OutPoint, Sequence, Transaction, TxIn, TxOut,

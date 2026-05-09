@@ -29,67 +29,24 @@ pub fn generate_salt() -> Result<String> {
 
 /// AES-256-GCM wrap: encrypt `data_key_hex` under `wrapping_key_hex`.
 /// Returns hex(nonce || ciphertext || tag) where nonce is 12 random bytes.
+///
+/// Wrapper around [`encrypt_bytes`] that hex-encodes the output.
 pub fn wrap_key(data_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
-    let data_key_bytes = Zeroizing::new(
-        hex::decode(data_key_hex).map_err(|e| anyhow!("Invalid data key hex: {}", e))?,
-    );
-    let wrapping_key_bytes = Zeroizing::new(
-        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?,
-    );
-    if wrapping_key_bytes.len() != 32 {
-        return Err(anyhow!("Wrapping key must be 32 bytes"));
-    }
-
-    let cipher = Aes256Gcm::new_from_slice(&wrapping_key_bytes)
-        .map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
-
-    // Random 12-byte nonce
-    let mut nonce_bytes = Zeroizing::new([0u8; 12]);
-    OsRng
-        .try_fill_bytes(nonce_bytes.as_mut())
-        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
-    let nonce = Nonce::from_slice(nonce_bytes.as_ref());
-
-    let ciphertext = cipher
-        .encrypt(nonce, data_key_bytes.as_ref())
-        .map_err(|e| anyhow!("AES-GCM encrypt: {}", e))?;
-
-    // Encode as hex(nonce || ciphertext+tag)
-    let mut combined = nonce_bytes.to_vec();
-    combined.extend_from_slice(&ciphertext);
-    Ok(hex::encode(combined))
+    let plaintext =
+        hex::decode(data_key_hex).map_err(|e| anyhow!("Invalid data key hex: {}", e))?;
+    let encrypted = encrypt_bytes(wrapping_key_hex, &plaintext)?;
+    Ok(hex::encode(encrypted))
 }
 
 /// AES-256-GCM unwrap: decrypt the wrapped key produced by `wrap_key`.
 /// Input: hex(nonce || ciphertext || tag). Returns the original `data_key_hex`.
+///
+/// Wrapper around [`decrypt_bytes`] that hex-decodes the input and hex-encodes the output.
 pub fn unwrap_key(wrapped_key_hex: &str, wrapping_key_hex: &str) -> Result<String> {
-    let combined = Zeroizing::new(
-        hex::decode(wrapped_key_hex).map_err(|e| anyhow!("Invalid wrapped key hex: {}", e))?,
-    );
-    if combined.len() < 12 {
-        return Err(anyhow!("Wrapped key too short"));
-    }
-
-    let wrapping_key_bytes = Zeroizing::new(
-        hex::decode(wrapping_key_hex).map_err(|e| anyhow!("Invalid wrapping key hex: {}", e))?,
-    );
-    if wrapping_key_bytes.len() != 32 {
-        return Err(anyhow!("Wrapping key must be 32 bytes"));
-    }
-
-    let nonce = Nonce::from_slice(&combined[..12]);
-    let ciphertext = &combined[12..];
-
-    let cipher = Aes256Gcm::new_from_slice(&wrapping_key_bytes)
-        .map_err(|e| anyhow!("AES-GCM key init: {}", e))?;
-
-    let plaintext = Zeroizing::new(
-        cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|_| anyhow!("AES-GCM decrypt failed — wrong key or corrupted data"))?,
-    );
-
-    Ok(hex::encode(&*plaintext))
+    let combined =
+        hex::decode(wrapped_key_hex).map_err(|e| anyhow!("Invalid wrapped key hex: {}", e))?;
+    let plaintext = decrypt_bytes(wrapping_key_hex, &combined)?;
+    Ok(hex::encode(plaintext))
 }
 
 /// Argon2id KDF: derive a 32-byte key hex from a password and a salt hex.
