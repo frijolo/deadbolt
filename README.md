@@ -1,53 +1,96 @@
 # Deadbolt
 
-**A Bitcoin descriptor wallet with first-class multisig, Nostr backup, and built-in Tor**
+**A descriptor-based Bitcoin wallet with multisig, Nostr backup, and hardware wallet support**
 
-Built with Flutter (UI) and Rust (BDK core), Deadbolt manages Bitcoin wallets from their output descriptor. It works equally well as an air-gapped coordinator, a hot wallet, or a multisig co-signer — without requiring a trusted server or a cloud account.
+Deadbolt manages Bitcoin wallets directly from their output descriptor. No account creation, no cloud sync, no trusted server — your wallet lives on your device and connects only to the Electrum server you choose.
+
+Works as a hot wallet, an air-gapped coordinator, or a multisig co-signer.
 
 [![CI](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml/badge.svg)](https://github.com/frijolo/deadbolt/actions/workflows/ci.yml)
 [![Release](https://github.com/frijolo/deadbolt/actions/workflows/release.yml/badge.svg)](https://github.com/frijolo/deadbolt/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## What sets Deadbolt apart
+---
 
-**XPub-based wallet protection** — Wallets can be locked with any xpub from the descriptor instead of a password. Any co-signer key (or a connected BitBox02) unlocks the wallet directly — no password to remember or lose. Protection type (DeviceKey / Password / XPub) can be changed in-place at any time without export.
+## Key Features
 
-**Nostr encrypted backup** — Descriptors are encrypted per-xpub (Argon2id + AES-256-GCM) and published to Nostr relays. Each co-signer can independently locate and decrypt their own backup using only their xpub — no password, no seed phrase, no trusted server. See [docs/NOSTR_BACKUP.md](docs/NOSTR_BACKUP.md).
+### Wallet recovery
 
-**Inheritance wallets** — Creates Taproot multi-path descriptors where you control funds normally and a designated heir can access them after a configurable timelock (3 months to custom blocks). The overview shows the earliest heir-access date based on actual UTXOs; re-vault resets the clock in one tap.
+Recover your wallet from a BIP-39 seed, an xpub/keyspec, or a connected hardware wallet. Built-in discovery scans accounts for balance, and automatically surfaces any descriptor backups found on Nostr or on-chain. SeedQR import supported for Coldcard, SeedSigner, and Krux.
 
-**Embedded Tor, no daemon** — All Electrum connections route through a built-in arti Tor client. No system Tor installation required; the circuit persists across app restarts.
+### XPub-based wallet protection
 
-**Deep descriptor analysis** — Parses every descriptor type (P2PKH, P2WPKH, P2WSH, Taproot, miniscript, multipath `<0;1>/*`). Extracts all xpubs with derivation paths, enumerates every spend path, and calculates the vbyte weight for each — useful for understanding complex miniscript policies before committing funds.
+Unlock your wallet with any xpub from the descriptor instead of a password. In a multisig setup, any co-signer can open the wallet independently — no shared secret to distribute or lose. Protection type can be changed at any time without exporting the wallet.
 
-## Features
+### Nostr encrypted backup
 
-- **Wallet operations**: Build transactions with coin control and RBF; multi-recipient sends; direct sign-and-broadcast for hot wallets (no PSBT round-trip)
-- **Hardware wallet**: Sign PSBTs and export xpubs from a BitBox02 via USB (Android, Linux, Windows) — see [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)
-- **Hot signing keys**: Encrypted on-device keys for single-device workflows; seed export (word list, SeedQR, paper guide); WIF export and WIF sweep supported
-- **Descriptor ownership proofs**: Each participating key can sign the descriptor hash — proves the key has seen and approved the exact wallet setup. Stored in the wallet and included in Nostr backups. See [docs/DESCRIPTOR_SIGS.md](docs/DESCRIPTOR_SIGS.md)
-- **Wallet recovery** (unified screen with three tabs): restore from a BIP-39 seed phrase with gap-limit account discovery; recover via a connected BitBox02 without revealing your seed; or scan by xpub/keyspec alone — Nostr backups are surfaced automatically alongside on-chain results in all three flows; SeedQR payloads (standard and compact) accepted directly from the camera
-- **Labels**: BIP-329 import/export; Liana-format descriptor export
-- **QR / BC-UR**: Animated QR for descriptors and PSBTs; SeedQR import; compatible with Coldcard, SeedSigner, Krux
-- **Privacy**: No telemetry; sync only to your own Electrum server; optional Tor; fully offline descriptor analysis
-- **Cross-platform**: Android, Linux, Windows; GPG-signed releases
+Descriptors are encrypted per-xpub and published to Nostr relays. Each co-signer can independently locate and decrypt their own backup using only their xpub — no password, no seed phrase, no trusted server.
+
+### On-chain descriptor backup
+
+Publish encrypted descriptor backups to the Bitcoin blockchain itself. The descriptor is committed to a Taproot vault and revealed via on-chain transactions, making it recoverable by any co-signer even if Nostr relays are unavailable. Built-in health checks show backup status at a glance.
+
+### Hardware wallet support
+
+Sign PSBTs and export xpubs from a BitBox02 via USB. Private keys never leave the device.
+
+### Air-gapped workflows
+
+Export unsigned PSBTs as animated QR codes (BC-UR). Import signed results from any compatible signer like Coldcard, SeedSigner, or Krux.
+
+### Inheritance wallets
+
+Create Taproot wallets where you control funds normally and a designated heir can access them after a configurable timelock (3 months to custom block height). Re-vault resets the clock in one tap.
+
+### Deep descriptor analysis
+
+Deadbolt parses every descriptor type (P2PKH, P2WPKH, P2WSH, Taproot, miniscript, multipath) and shows you exactly what each spend path costs in fees — before you commit any funds.
+
+### Built-in Tor
+
+All Electrum connections route through an embedded Tor client. No system Tor installation required.
+
+### Privacy by design
+
+- No telemetry, analytics, or data collection
+- No built-in servers — sync only to your own Electrum server
+- Optional Tor routing
+- Descriptor analysis is fully offline
+
+---
+
+## Supported Descriptors
+
+Deadbolt works with all standard Bitcoin descriptor formats:
+
+- **Single-signature**: P2WPKH, P2SH-P2WPKH, P2PKH
+- **Multisig**: sortedmulti, unsorted multi, custom miniscript policies
+- **Taproot**: tr(), multi-path descriptors, internal key policies
+- **Inheritance**: Taproot multi-path with heir timelocks
+
+---
+
+## Platforms
+
+| Platform | Status |
+|----------|--------|
+| Android | ✅ Released |
+| Linux (x64) | ✅ Released |
+| Windows (x64) | ✅ Released |
+
+All releases are GPG-signed. Verify before installing — see [SECURITY.md](SECURITY.md).
+
+---
 
 ## Installation
 
 ### Android
 
-Download the latest APK from [Releases](https://github.com/frijolo/deadbolt/releases):
-
-```bash
-# Install via ADB
-adb install deadbolt-android.apk
-```
-
-Or install directly on your device.
+Download the latest APK from [Releases](https://github.com/frijolo/deadbolt/releases) and install on your device.
 
 ### Linux
 
-Download and extract the tarball:
+Download and extract the tarball from [Releases](https://github.com/frijolo/deadbolt/releases), then run:
 
 ```bash
 tar -xzf deadbolt-linux-x64.tar.gz
@@ -55,128 +98,72 @@ cd deadbolt
 ./deadbolt
 ```
 
-**Hardware wallet (BitBox02) on Linux**: a udev rule is required to access the HID device without root. See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md) for the one-line setup command.
+**BitBox02 on Linux**: a udev rule is needed for HID access. See [docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md).
 
 ### Windows
 
 1. Download `deadbolt-windows-x64.zip` from [Releases](https://github.com/frijolo/deadbolt/releases)
-2. Extract the ZIP file
+2. Extract the ZIP
 3. Run `deadbolt.exe`
 
-### Verifying Releases
+---
 
-Always verify releases before installation. See [SECURITY.md](SECURITY.md) for instructions.
+## Getting Started
 
-## Usage
+### 1. Create a wallet
 
-### Basic Workflow
+Deadbolt offers multiple ways to get started:
 
-1. **Enter or paste a Bitcoin descriptor** into the input field
-2. **Analyze** — Deadbolt extracts:
-   - Network type (mainnet/testnet/signet/regtest)
-   - Wallet type (single-sig, multisig, taproot, etc.)
-   - Public keys with derivation paths
-   - Spend paths with fee weights
-3. **Review** — Verify public keys match your expectations, understand spending conditions, estimate fees
+- **Import a descriptor** — paste any Bitcoin descriptor to analyze and manage an existing wallet
+- **Restore from seed** — recover a wallet from a BIP-39 phrase with automatic account discovery
+- **Connect BitBox02** — recover or create a wallet from a connected hardware wallet
+- **Create new** — generate a fresh single-sig, multisig, or inheritance wallet
 
-### Example Descriptors
+### 2. Analyze the descriptor
 
-**Single-sig P2WPKH (native SegWit)**:
-```
-wpkh([d34db33f/84h/0h/0h]xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q66ZEp4BT4NXvz7XbYKHpGnKpRYhF5HCkV4FWdE0hM1qLdLGj3AqnVLxjbqH9cPE/0/*)
-```
+Deadbolt parses the descriptor and shows:
 
-**2-of-3 multisig**:
-```
-wsh(sortedmulti(2,[aabbccdd/48h/0h/0h/2h]xpub6E2..., [11223344/48h/0h/0h/2h]xpub6Df..., [99887766/48h/0h/0h/2h]xpub6Fa...))
-```
+- Network (mainnet, testnet, signet, regtest)
+- Wallet type and spending conditions
+- All public keys with derivation paths
+- Every spend path with fee estimates
 
-**Taproot single-key**:
-```
-tr([d34db33f/86h/0h/0h]xpub6BgBgS...)
-```
+### 3. Manage your wallet
 
-### Signing Options
+- Check balances and transaction history
+- Create transactions with coin control and RBF
+- Send to multiple recipients
+- Receive with QR codes or addresses
+- Back up descriptors via Nostr or on-chain; import/export via QR or SeedQR
 
-- **Hot signing keys** — Encrypted key stored on-device; single-sig wallets sign and broadcast in one step without a PSBT round-trip
-- **BitBox02** — Connect via USB; private keys never leave the device
-- **Air-gapped coordinators** — Export unsigned PSBTs as animated BC-UR QR codes; import the signed result from any compatible signer (Coldcard, SeedSigner, Krux)
+---
 
-### What Deadbolt Does NOT Do
+## Technical Details
 
-- **Does NOT send data to third parties** — Wallet sync connects only to the Electrum server you configure (and optionally through Tor)
-- **Does NOT collect telemetry** — No analytics, tracking, or usage data of any kind
+For developers and advanced users:
 
-## Building from Source
+- **[docs/BUILDING.md](docs/BUILDING.md)** — Build from source, run tests
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** — Architecture, project structure, contribution guidelines
+- **[docs/NOSTR_BACKUP.md](docs/NOSTR_BACKUP.md)** — Nostr backup protocol details
+- **[docs/HARDWARE_WALLETS.md](docs/HARDWARE_WALLETS.md)** — BitBox02 setup and usage
+- **[docs/DESCRIPTOR_SIGS.md](docs/DESCRIPTOR_SIGS.md)** — Descriptor ownership proofs
+- **[SECURITY.md](SECURITY.md)** — Release verification, vulnerability reporting
+- [pubspec.yaml](pubspec.yaml) / [rust/Cargo.toml](rust/Cargo.toml) — Full dependency lists
 
-See [docs/BUILDING.md](docs/BUILDING.md) for prerequisites, build steps, and how to run tests.
-
-## Development
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for project structure, architecture overview, and contribution guidelines.
-
-## Security
-
-Deadbolt is Bitcoin-related software — security is critical. See [SECURITY.md](SECURITY.md) for:
-
-- Release verification instructions
-- Vulnerability reporting process
-- Security best practices
-- GPG key information
-
-**Always verify releases** before installation. Never trust, always verify.
-
-## Privacy
-
-- **No telemetry** — No analytics, tracking, or data collection
-- **No built-in servers** — Wallet sync connects only to the Electrum server you configure
-- **Optional Tor routing** — Enable the built-in Tor client to hide your wallet's IP address from the Electrum server
-- **Local storage only** — Data stays on your device
-- **Descriptor analysis is fully offline** — No network access needed to parse and analyze descriptors
-
-Be aware: descriptors contain public keys and reveal wallet structure. Avoid sharing descriptors with untrusted parties.
-
-## Dependencies
-
-### Rust
-
-- **bdk_wallet** (2.3.0) — Bitcoin descriptor parsing and wallet management
-- **arti-client** + **tor-rtcompat** (0.22) — Embedded Tor client
-- **bitbox-api** (0.9) + **async-hwi** (0.0.30) — BitBox02 hardware wallet integration
-- **flutter_rust_bridge** (2.11.1) — Dart ↔ Rust FFI
-- **rusqlite** (0.31, bundled-sqlcipher) — Encrypted SQLite storage
-- **anyhow** / **thiserror** — Error handling
-
-### Dart/Flutter
-
-- **flutter_rust_bridge** (2.11.1) — FFI bindings
-- **flutter_bloc** (9.1.1) — State management
-- **drift** (2.31.0) — SQLite database for project persistence
-
-See [pubspec.yaml](pubspec.yaml) and [rust/Cargo.toml](rust/Cargo.toml) for full dependency lists.
+---
 
 ## License
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
-
-- **Bitcoin Development Kit (BDK)** — For excellent Bitcoin descriptor libraries
-- **Flutter** and **Rust** communities — For amazing tools and documentation
-- Bitcoin Core developers — For descriptor specification and best practices
+---
 
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/frijolo/deadbolt/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/frijolo/deadbolt/discussions)
-- **Security**: See [SECURITY.md](SECURITY.md) for security-related concerns
-
-## Disclaimer
-
-Deadbolt is provided "as is" without warranty of any kind. While we strive for correctness and security, users should verify descriptors against multiple sources, test thoroughly before using in production, and not rely solely on Deadbolt for critical decisions.
-
-**Use at your own risk.**
+- **Security**: See [SECURITY.md](SECURITY.md)
 
 ---
 
-Made with love for the Bitcoin community. Not your keys, not your coins.
+**Use at your own risk.** Not your keys, not your coins.

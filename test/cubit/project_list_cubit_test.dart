@@ -48,6 +48,7 @@ void main() {
         wuIn: 50,
         wuOut: 30,
         trDepth: 0,
+        keyChanges: {},
         vbSweep: 120.0,
       ),
     ],

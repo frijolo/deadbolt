@@ -338,9 +338,17 @@ pub async fn hw_sign_psbt(
     psbt_base64: String,
     network: APINetwork,
     descriptor: Option<String>,
+    signer_chain_index: Option<u32>,
 ) -> Result<String> {
     session_guard!(guard, session, session_id);
-    hw::btc_sign_psbt(session, &psbt_base64, network, descriptor.as_deref()).await
+    hw::btc_sign_psbt(
+        session,
+        &psbt_base64,
+        network,
+        descriptor.as_deref(),
+        signer_chain_index,
+    )
+    .await
 }
 
 // ── Address display ────────────────────────────────────────────────────────────

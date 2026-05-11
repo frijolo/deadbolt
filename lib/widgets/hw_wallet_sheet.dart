@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,6 +29,10 @@ Future<String?> showHwSignSheet(
   // Required for policy wallets (multisig, taproot script-path).
   // Pass null for simple single-key wallets.
   String? descriptor,
+  // Per-MFP change index for the chosen spend path. Used in multi-leaf taproot
+  // descriptors so the device signs the user-selected leaf instead of the first
+  // one matching its fingerprint. Null disables filtering (single-leaf cases).
+  Map<String, int>? keyChanges,
 }) {
   return _showHwWalletSheet<String>(
     context,
@@ -35,6 +40,7 @@ Future<String?> showHwSignSheet(
     psbtBase64: psbtBase64,
     network: network,
     descriptor: descriptor,
+    keyChanges: keyChanges,
   );
 }
 
@@ -202,6 +208,7 @@ Future<T?> _showHwWalletSheet<T>(
   int? index,
   String? address,
   List<APIXpubSlot>? slots,
+  Map<String, int>? keyChanges,
 }) {
   return showSheet<T>(context, (_) => BlocProvider(
     create: (_) => HwWalletCubit()..scanDevices(),
@@ -217,6 +224,7 @@ Future<T?> _showHwWalletSheet<T>(
       index: index,
       address: address,
       slots: slots,
+      keyChanges: keyChanges,
     ),
   ));
 }
@@ -237,6 +245,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
   final int? index;
   final String? address;
   final List<APIXpubSlot>? slots;
+  final Map<String, int>? keyChanges;
 
   const _HwWalletSheet({
     super.key,
@@ -251,6 +260,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
     this.index,
     this.address,
     this.slots,
+    this.keyChanges,
   });
 
   @override
@@ -298,6 +308,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
                   psbtBase64: psbtBase64!,
                   network: network,
                   descriptor: policy,
+                  signerChainIndex: keyChanges?[state.rootFingerprint],
                 );
               }
               return;
@@ -310,6 +321,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
                 psbtBase64: psbtBase64!,
                 network: network,
                 descriptor: policy,
+                signerChainIndex: keyChanges?[state.rootFingerprint],
               );
               return;
             }
@@ -455,6 +467,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
             psbtBase64: psbtBase64!,
             network: network,
             descriptor: descriptor,
+            signerChainIndex: keyChanges?[rootFingerprint],
           );
         }
       case _HwMode.xpub:

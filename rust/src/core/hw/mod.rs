@@ -300,14 +300,38 @@ pub async fn btc_sign_psbt(
     psbt_base64: &str,
     network: APINetwork,
     descriptor: Option<&str>,
+    signer_chain_index: Option<u32>,
 ) -> Result<String> {
     use async_hwi::HWI as _;
     use base64::engine::general_purpose::STANDARD as B64;
     use base64::Engine as _;
+    use bdk_wallet::bitcoin::bip32::ChildNumber;
     use bdk_wallet::bitcoin::psbt::Psbt;
+    use bdk_wallet::bitcoin::secp256k1::XOnlyPublicKey;
+    use bdk_wallet::bitcoin::taproot::TapLeafHash;
+    use std::collections::BTreeMap;
+    type SavedTapOrigins =
+        BTreeMap<XOnlyPublicKey, (Vec<TapLeafHash>, bdk_wallet::bitcoin::bip32::KeySource)>;
 
     session.device.network = api_network_to_btc_network(network);
+    // Only extract a wallet-policy for descriptors that the BitBox treats as
+    // policies (miniscript wsh, taproot script-path, wsh(pk(...)), …). Native
+    // single-key types (P2WPKH, P2PKH, P2SH-P2WPKH, single-key P2TR) and plain
+    // BIP48 sortedmulti must keep policy=None — the firmware rejects those
+    // with InvalidInput when sent through the wallet-policies path.
     session.device.policy = descriptor
+        .filter(|d| {
+            let s = d.trim();
+            let is_native_tr =
+                s.starts_with("tr(") && !s.contains(',') && count_unique_xpubs(s) == 1;
+            let is_native = s.starts_with("wpkh(")
+                || s.starts_with("pkh(")
+                || s.starts_with("sh(wpkh(")
+                || is_native_tr;
+            let is_bip48_multisig =
+                s.starts_with("wsh(sortedmulti(") || s.starts_with("sh(wsh(sortedmulti(");
+            !is_native && !is_bip48_multisig
+        })
         .map(async_hwi::bitbox::extract_script_config_policy)
         .transpose()
         .map_err(|e| anyhow!("Invalid descriptor policy: {e}"))?;
@@ -317,11 +341,91 @@ pub async fn btc_sign_psbt(
         .map_err(|e| anyhow!("Invalid PSBT base64: {e}"))?;
     let mut psbt = Psbt::deserialize(&psbt_bytes).map_err(|e| anyhow!("Invalid PSBT: {e}"))?;
 
-    session
-        .device
-        .sign_tx(&mut psbt)
-        .await
-        .map_err(|e| anyhow!("BitBox02 signing failed: {e}"))?;
+    // BIP48 sortedmulti: bypass async_hwi.sign_tx and call bitbox-api directly
+    // with force_script_config=Multisig. The high-level sign_tx panics in
+    // bitbox-api's `script_config_from_utxo` because plain multisig configs
+    // are not inferable from PSBT inputs.
+    if let Some(ms_desc) = descriptor {
+        if let Some(ms) = parse_bip48_sortedmulti(ms_desc, &session.root_fingerprint) {
+            use bitbox_api::pb;
+            let coin = if network == APINetwork::Bitcoin {
+                pb::BtcCoin::Btc
+            } else {
+                pb::BtcCoin::Tbtc
+            };
+            let multisig_config = bitbox_api::btc::make_script_config_multisig(
+                ms.threshold,
+                &ms.xpubs,
+                ms.our_index,
+                ms.script_type,
+            );
+            let force = pb::BtcScriptConfigWithKeypath {
+                script_config: Some(multisig_config),
+                keypath: bitbox_api::Keypath::from(&ms.keypath_account).to_vec(),
+            };
+            session
+                .device
+                .client
+                .btc_sign_psbt(
+                    coin,
+                    &mut psbt,
+                    Some(force),
+                    pb::btc_sign_init_request::FormatUnit::Default,
+                )
+                .await
+                .map_err(|e| anyhow!("BitBox02 signing failed: {e}"))?;
+            return Ok(B64.encode(psbt.serialize()));
+        }
+    }
+
+    // BB02 signs the first tap_key_origin entry matching its master fingerprint
+    // (firmware/protocol limitation). For multi-leaf tr descriptors we prune the
+    // entries whose derivation path's change index does not match the spend path
+    // the user selected, then restore them after the device signs so the returned
+    // PSBT remains structurally complete for downstream finalization.
+    let signer_fp = session.root_fingerprint.clone();
+    let mut saved_origins: Vec<SavedTapOrigins> = Vec::new();
+    if let Some(chain_idx) = signer_chain_index {
+        for input in psbt.inputs.iter_mut() {
+            let to_remove: Vec<XOnlyPublicKey> = input
+                .tap_key_origins
+                .iter()
+                .filter_map(|(xonly, (_, (fp, path)))| {
+                    if fp.to_string() != signer_fp {
+                        return None;
+                    }
+                    let matches_chain = matches!(
+                        path.as_ref().iter().rev().nth(1),
+                        Some(ChildNumber::Normal { index }) if *index == chain_idx
+                    );
+                    if matches_chain {
+                        None
+                    } else {
+                        Some(*xonly)
+                    }
+                })
+                .collect();
+            let mut saved: SavedTapOrigins = BTreeMap::new();
+            for xonly in to_remove {
+                if let Some(value) = input.tap_key_origins.remove(&xonly) {
+                    saved.insert(xonly, value);
+                }
+            }
+            saved_origins.push(saved);
+        }
+    }
+
+    let sign_result = session.device.sign_tx(&mut psbt).await;
+
+    if !saved_origins.is_empty() {
+        for (input, saved) in psbt.inputs.iter_mut().zip(saved_origins) {
+            for (xonly, value) in saved {
+                input.tap_key_origins.insert(xonly, value);
+            }
+        }
+    }
+
+    sign_result.map_err(|e| anyhow!("BitBox02 signing failed: {e}"))?;
 
     Ok(B64.encode(psbt.serialize()))
 }
@@ -377,8 +481,39 @@ pub async fn btc_display_address(
     // Strip checksum so prefix checks work cleanly.
     let desc = descriptor.split('#').next().unwrap_or(descriptor);
 
+    // Fast path: BIP48 plain sortedmulti — must use the Multisig variant.
+    // The wallet-policies path returns "invalid input" from the firmware.
+    if let Some(ms) = parse_bip48_sortedmulti(desc, &session.root_fingerprint) {
+        use bdk_wallet::bitcoin::bip32::ChildNumber;
+        use bitbox_api::pb;
+        let coin = if network == APINetwork::Bitcoin {
+            pb::BtcCoin::Btc
+        } else {
+            pb::BtcCoin::Tbtc
+        };
+        let multisig_config = bitbox_api::btc::make_script_config_multisig(
+            ms.threshold,
+            &ms.xpubs,
+            ms.our_index,
+            ms.script_type,
+        );
+        // Address path = keypath_account + chain + index.
+        let full_path = ms
+            .keypath_account
+            .child(ChildNumber::from_normal_idx(chain).map_err(|e| anyhow!("{e}"))?)
+            .child(ChildNumber::from_normal_idx(index).map_err(|e| anyhow!("{e}"))?);
+        let keypath = bitbox_api::Keypath::from(&full_path);
+        return session
+            .device
+            .client
+            .btc_address(coin, &keypath, &multisig_config, true)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow!("Cannot display address: {e}"));
+    }
+
     if count_unique_xpubs(desc) >= 2 {
-        // Policy wallet: multisig, taproot script-path, or miniscript.
+        // Policy wallet: taproot script-path or miniscript wsh.
         // Set the policy on the device so display_address can find the right key.
         session.device.policy = Some(
             async_hwi::bitbox::extract_script_config_policy(descriptor)
@@ -433,12 +568,117 @@ pub async fn btc_display_address(
     }
 }
 
+/// Parsed representation of a BIP48 plain multisig descriptor that the BitBox02
+/// firmware accepts via the dedicated `Multisig` script_config variant
+/// (NOT the wallet-policies variant). Returns None for any descriptor that is
+/// not a flat `wsh(sortedmulti(...))` or `sh(wsh(sortedmulti(...)))` — those
+/// must keep going through `extract_script_config_policy`.
+struct Bip48Multisig {
+    threshold: u32,
+    xpubs: Vec<bdk_wallet::bitcoin::bip32::Xpub>,
+    our_index: u32,
+    script_type: bitbox_api::pb::btc_script_config::multisig::ScriptType,
+    keypath_account: bdk_wallet::bitcoin::bip32::DerivationPath,
+}
+
+fn parse_bip48_sortedmulti(descriptor: &str, our_mfp: &str) -> Option<Bip48Multisig> {
+    use bdk_wallet::bitcoin::bip32::{DerivationPath, Xpub};
+    use bitbox_api::pb;
+    use std::str::FromStr;
+
+    // Strip checksum and whitespace.
+    let d = descriptor.split('#').next().unwrap_or(descriptor).trim();
+
+    // Match prefix and capture inner args. Outer wrapper determines script type.
+    let (script_type, inner) = if let Some(s) = d
+        .strip_prefix("wsh(sortedmulti(")
+        .and_then(|s| s.strip_suffix("))"))
+    {
+        (pb::btc_script_config::multisig::ScriptType::P2wsh, s)
+    } else if let Some(s) = d
+        .strip_prefix("sh(wsh(sortedmulti(")
+        .and_then(|s| s.strip_suffix(")))"))
+    {
+        (pb::btc_script_config::multisig::ScriptType::P2wshP2sh, s)
+    } else {
+        return None;
+    };
+
+    // inner = "<threshold>,<keyspec>,<keyspec>..."
+    let mut split = inner.splitn(2, ',');
+    let threshold: u32 = split.next()?.trim().parse().ok()?;
+    let keys_str = split.next()?;
+
+    // Each keyspec: [mfp/path]xpub[/<0;1>/*]?
+    let re = regex::Regex::new(
+        r"\[([0-9a-fA-F]{8})/([^\]]+)\]([xyYzZtuUvV]pub[1-9A-HJ-NP-Za-km-z]{79,108})",
+    )
+    .ok()?;
+
+    let mut xpubs = Vec::new();
+    let mut our_index: Option<u32> = None;
+    let mut keypath_account: Option<DerivationPath> = None;
+    for (i, cap) in re.captures_iter(keys_str).enumerate() {
+        let mfp = cap.get(1)?.as_str();
+        let path = cap.get(2)?.as_str();
+        let xpub_str = cap.get(3)?.as_str();
+        let xpub = Xpub::from_str(xpub_str).ok()?;
+        xpubs.push(xpub);
+        if mfp.eq_ignore_ascii_case(our_mfp) {
+            our_index = Some(i as u32);
+            // Derivation path inside [] is in BIP48 form like "48'/1'/0'/2'" — no leading m/.
+            keypath_account = Some(DerivationPath::from_str(&format!("m/{}", path)).ok()?);
+        }
+    }
+
+    if xpubs.len() < 2 || threshold == 0 || threshold as usize > xpubs.len() {
+        return None;
+    }
+
+    Some(Bip48Multisig {
+        threshold,
+        xpubs,
+        our_index: our_index?,
+        script_type,
+        keypath_account: keypath_account?,
+    })
+}
+
 pub async fn btc_check_registration(
     session: &mut ConnectedSession,
     descriptor: &str,
     network: APINetwork,
 ) -> Result<bool> {
     session.device.network = api_network_to_btc_network(network);
+
+    // Fast path: plain BIP48 wsh(sortedmulti(...)) is registered as the Multisig
+    // variant, not as a wallet policy. The firmware rejects the policy variant
+    // for these with "invalid input".
+    if let Some(ms) = parse_bip48_sortedmulti(descriptor, &session.root_fingerprint) {
+        use bitbox_api::pb;
+        let pb_coin = if network == APINetwork::Bitcoin {
+            pb::BtcCoin::Btc
+        } else {
+            pb::BtcCoin::Tbtc
+        };
+        let multisig_config = bitbox_api::btc::make_script_config_multisig(
+            ms.threshold,
+            &ms.xpubs,
+            ms.our_index,
+            ms.script_type,
+        );
+        return session
+            .device
+            .client
+            .btc_is_script_config_registered(
+                pb_coin,
+                &multisig_config,
+                Some(&bitbox_api::Keypath::from(&ms.keypath_account)),
+            )
+            .await
+            .map_err(|e| anyhow!("Registration check failed: {e}"));
+    }
+
     session
         .device
         .is_policy_registered(descriptor)
@@ -518,19 +758,55 @@ pub async fn btc_register_descriptor(
         }
     }
 
-    // Parse the descriptor into a BtcScriptConfig::Policy.
+    let pb_coin = if network == APINetwork::Bitcoin {
+        pb::BtcCoin::Btc
+    } else {
+        pb::BtcCoin::Tbtc
+    };
+
+    // Fast path: plain BIP48 wsh(sortedmulti(...)) / sh(wsh(sortedmulti(...)))
+    // is registered as the Multisig variant with `keypath_account = Some(...)`.
+    // The firmware rejects the wallet-policies variant for these descriptors
+    // with InvalidInput (101).
+    if let Some(ms) = parse_bip48_sortedmulti(descriptor, &session.root_fingerprint) {
+        let multisig_config = bitbox_api::btc::make_script_config_multisig(
+            ms.threshold,
+            &ms.xpubs,
+            ms.our_index,
+            ms.script_type,
+        );
+        let kp = bitbox_api::Keypath::from(&ms.keypath_account);
+        let already = session
+            .device
+            .client
+            .btc_is_script_config_registered(pb_coin, &multisig_config, Some(&kp))
+            .await
+            .map_err(|e| anyhow!("Cannot check registration status: {e}"))?;
+        if already {
+            return Ok(false);
+        }
+        session
+            .device
+            .client
+            .btc_register_script_config(
+                pb_coin,
+                &multisig_config,
+                Some(&kp),
+                pb::btc_register_script_config_request::XPubType::AutoXpubTpub,
+                Some(wallet_name),
+            )
+            .await
+            .map_err(|e| anyhow!("Registration failed: {e}"))?;
+        return Ok(true);
+    }
+
+    // Generic policy / miniscript / taproot script-path path.
     // We bypass async-hwi's register_wallet wrapper to get distinct error messages
     // for the two separate firmware calls it makes.
     let script_config: pb::BtcScriptConfig =
         async_hwi::bitbox::extract_script_config_policy(descriptor)
             .map_err(|e| anyhow!("Cannot parse descriptor as a policy: {e}"))?
             .into();
-
-    let pb_coin = if network == APINetwork::Bitcoin {
-        pb::BtcCoin::Btc
-    } else {
-        pb::BtcCoin::Tbtc
-    };
 
     // Step 1: check whether already registered.
     let already = session

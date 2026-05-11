@@ -114,6 +114,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
+
+  @protected
   ApiWallet
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAPIWallet(
     dynamic raw,
@@ -501,6 +504,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
+
+  @protected
   NostrBackupResponse dco_decode_nostr_backup_response(dynamic raw);
 
   @protected
@@ -551,6 +557,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (double, String) dco_decode_record_f_32_string(dynamic raw);
+
+  @protected
+  (String, int) dco_decode_record_string_u_32(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -633,6 +642,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SpendPath
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Map<String, int> sse_decode_Map_String_u_32_None(
     SseDeserializer deserializer,
   );
 
@@ -1116,6 +1130,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<(String, int)> sse_decode_list_record_string_u_32(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   NostrBackupResponse sse_decode_nostr_backup_response(
     SseDeserializer deserializer,
   );
@@ -1184,6 +1203,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (double, String) sse_decode_record_f_32_string(SseDeserializer deserializer);
+
+  @protected
+  (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -1283,6 +1305,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpendPath(
     SpendPath self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_Map_String_u_32_None(
+    Map<String, int> self,
     SseSerializer serializer,
   );
 
@@ -1902,6 +1930,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_record_string_u_32(
+    List<(String, int)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_nostr_backup_response(
     NostrBackupResponse self,
     SseSerializer serializer,
@@ -1988,6 +2022,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_f_32_string(
     (double, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_u_32(
+    (String, int) self,
     SseSerializer serializer,
   );
 

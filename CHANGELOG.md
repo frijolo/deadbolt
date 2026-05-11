@@ -4,6 +4,18 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### New Features
+- **Multi-leaf taproot HW signing** — Pass per-MFP change index to BitBox02 so the device signs the correct leaf in multi-leaf taproot descriptors.
+- **BIP48 sortedmulti support** — Register, display addresses, and sign PSBTs for plain `wsh(sortedmulti(...))` and `sh(wsh(sortedmulti(...)))` descriptors via the BitBox02 Multisig variant.
+
+### Improvements
+- **keyChanges field on APISpendPath** — Added per-MFP change index to the spend path model for multi-leaf disambiguation.
+
+### Test Fixes
+- **On-chain backup regression** — Update vault validation to reflect §5.4 fee arithmetic (vault ≥ 330 sats dust threshold).
+
 ## [v1.9.5]
 
 ### New Features

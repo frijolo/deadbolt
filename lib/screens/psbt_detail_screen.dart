@@ -329,11 +329,20 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     final network = loaded?.walletInfo.network ?? APINetwork.bitcoin;
     final descriptor = loaded?.walletInfo.descriptor;
 
+    // Per-MFP change index for the chosen spend path. Lets the device pick the
+    // correct leaf in multi-leaf taproot descriptors.
+    final spendPath = widget.spendPath ??
+        loaded?.descriptorAnalysis?.spendPaths
+            .where((p) => p.id == _psbt.spendPathId.toInt())
+            .firstOrNull;
+    final keyChanges = spendPath?.keyChanges;
+
     final signedBase64 = await showHwSignSheet(
       context,
       psbtBase64: _psbt.psbtBase64,
       network: network,
       descriptor: descriptor,
+      keyChanges: keyChanges,
     );
 
     if (signedBase64 == null || !context.mounted) return;

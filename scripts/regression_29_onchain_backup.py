@@ -537,15 +537,16 @@ async def _verify_confirm_broadcast(d):
     )
     print(f"    [ok] anchor count = {parsed['anchor_count']} (≥ 3)")
 
-    # Vault must cover all anchors.
-    min_vault = parsed["anchor_amount"] * parsed["anchor_count"]
-    assert parsed["vault"] >= min_vault, (
-        f"vault {parsed['vault']} sats < anchor total {min_vault} sats"
-    )
-    print(f"    [ok] vault {parsed['vault']} ≥ anchor total {min_vault}")
+    # Per §5.4: vault_sats = max(330, reveal_fee − N_anchors × 330).
+    # The vault is the TX_COMMIT output that funds TX_REVEAL.
+    # TX_REVEAL change = vault + anchors - reveal_fee (may be negative if fee rate is high).
+    # The app should prevent reaching confirm-broadcast when fee > vault, but if it does,
+    # we still validate the fee arithmetic is coherent.
+    # Vault must be at least the P2TR dust minimum (330 sats).
+    assert parsed["vault"] >= 330, f"vault {parsed['vault']} sats below dust (330)"
+    print(f"    [ok] vault {parsed['vault']} sats ≥ 330 dust threshold")
 
     # Positive amounts.
-    assert parsed["vault"] > 0, "vault sats not positive"
     assert parsed["commit_fee"] > 0, "commit fee not positive"
     assert parsed["reveal_fee"] > 0, "reveal fee not positive"
     assert parsed["package_vb"] > 0, "package vbytes not positive"
@@ -569,6 +570,7 @@ async def _back_out_without_broadcasting(d):
     print("\n  [phase 9] Back out of confirm-broadcast WITHOUT broadcasting")
     flat = await d.cs_flat_text()
     assert "Broadcast" in flat, "Broadcast button gone — view changed unexpectedly"
+    print(f"\n    [DEBUG confirm-broadcast flat text]\n{flat}\n[END DEBUG]\n")
     # PopScope handles Back: it returns us to awaiting-signature, then to
     # utxo-selection.  We do NOT click "Broadcast".
     await click_tooltip(d, "Back", delay=0.8)

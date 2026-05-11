@@ -338,6 +338,11 @@ pub struct APISpendPath {
 
     pub tr_depth: i32,
 
+    /// Per-MFP change index (0=external, 1=internal, taproot leaf chain index, …).
+    /// Used by callers (e.g. HW signing) to disambiguate which leaf each cosigner
+    /// belongs to in multi-leaf taproot descriptors.
+    pub key_changes: std::collections::HashMap<String, u32>,
+
     // Calculated
     pub vb_sweep: f32,
 }
@@ -357,6 +362,11 @@ impl TryFrom<&SpendPath> for APISpendPath {
             wu_in: sp.wu_in,
             wu_out: sp.wu_out,
             tr_depth: (sp.tr_depth as i32) - 1,
+            key_changes: sp
+                .key_changes
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect(),
             vb_sweep: sp.estimate_tx_vb(1, 1),
         })
     }

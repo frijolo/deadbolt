@@ -882,6 +882,9 @@ class APIRelatedAddress {
     this.opReturnData,
   });
 
+  static Future<APIRelatedAddress> default_() =>
+      RustLib.instance.api.crateApiModelApiRelatedAddressDefault();
+
   @override
   int get hashCode =>
       address.hashCode ^
@@ -1061,6 +1064,11 @@ class APISpendPath {
   final int wuIn;
   final int wuOut;
   final int trDepth;
+
+  /// Per-MFP change index (0=external, 1=internal, taproot leaf chain index, …).
+  /// Used by callers (e.g. HW signing) to disambiguate which leaf each cosigner
+  /// belongs to in multi-leaf taproot descriptors.
+  final Map<String, int> keyChanges;
   final double vbSweep;
 
   const APISpendPath({
@@ -1074,6 +1082,7 @@ class APISpendPath {
     required this.wuIn,
     required this.wuOut,
     required this.trDepth,
+    required this.keyChanges,
     required this.vbSweep,
   });
 
@@ -1095,6 +1104,7 @@ class APISpendPath {
       wuIn.hashCode ^
       wuOut.hashCode ^
       trDepth.hashCode ^
+      keyChanges.hashCode ^
       vbSweep.hashCode;
 
   @override
@@ -1112,6 +1122,7 @@ class APISpendPath {
           wuIn == other.wuIn &&
           wuOut == other.wuOut &&
           trDepth == other.trDepth &&
+          keyChanges == other.keyChanges &&
           vbSweep == other.vbSweep;
 }
 
