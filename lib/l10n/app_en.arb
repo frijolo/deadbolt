@@ -1089,6 +1089,7 @@
   "hwSkipLegacyLabel": "Skip legacy (P2PKH) derivations",
   "hwSkipLegacyHint": "Avoids device confirmation prompts for m/44\u2019 paths",
   "searchNostrScanningHint": "Also searching Nostr relays for descriptor backups…",
+  "onChainScanningHint": "Also searching for on-chain descriptor backups…",
   "nostrBackupFoundOnScan": "Nostr backup found",
   "importFromNostrBackup": "Restore from Nostr",
   "nostrImportTamperTitle": "Verify after import",

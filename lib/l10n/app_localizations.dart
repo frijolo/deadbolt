@@ -4454,6 +4454,12 @@ abstract class AppLocalizations {
   /// **'Also searching Nostr relays for descriptor backups…'**
   String get searchNostrScanningHint;
 
+  /// No description provided for @onChainScanningHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also searching for on-chain descriptor backups…'**
+  String get onChainScanningHint;
+
   /// No description provided for @nostrBackupFoundOnScan.
   ///
   /// In en, this message translates to:

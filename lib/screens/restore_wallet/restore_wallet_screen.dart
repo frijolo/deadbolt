@@ -142,6 +142,9 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
   // Seed credentials from the last seed scan; null when using xpub/HW tab.
   String? _lastSeedMnemonic;
   String? _lastSeedPassphrase;
+  // Active search modes for the current scan (used by scanning-phase UI).
+  bool _searchNostrActive = false;
+  bool _searchOnChainActive = false;
 
   // ── Results ────────────────────────────────────────────────────────────────
   List<APIAccountInfo> _accounts = [];
@@ -186,6 +189,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       _accounts = [];
       _totalScanned = 0;
       _nostrAllRelaysFailed = false;
+      _searchNostrActive = false;
+      _searchOnChainActive = false;
     });
   }
 
@@ -201,6 +206,10 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     _lastSeedMnemonic = mnemonic;
     _lastSeedPassphrase = passphrase;
     _resetScanState(_ScanPhase.scanning);
+    setState(() {
+      _searchNostrActive = searchNostr;
+      _searchOnChainActive = searchOnChain;
+    });
 
     final types = scriptFilter != null
         ? [scriptFilter]
@@ -285,6 +294,10 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     _lastSeedMnemonic = null;
     _lastSeedPassphrase = null;
     _resetScanState(_ScanPhase.scanning);
+    setState(() {
+      _searchNostrActive = searchNostr;
+      _searchOnChainActive = searchOnChain;
+    });
 
     final url = _electrumUrl;
 
@@ -356,6 +369,8 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     setState(() {
       _derivedCount = 0;
       _totalToDeriving = 0;
+      _searchNostrActive = searchNostr;
+      _searchOnChainActive = searchOnChain;
     });
 
     final url = _electrumUrl;
@@ -372,21 +387,23 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       setState(() => _totalToDeriving = total);
 
       // 2. Derive xpubs from device.
+      final cubit = context.read<HwWalletCubit>();
       final keyspecsByType = <rust_discovery.APIWalletTypeKeyspecs>[];
       for (final typeEntry in pathsByType) {
         final keyspecs = <String>[];
         for (final path in typeEntry.paths) {
-          final keyspec = await rust_hw.hwGetXpub(
-            sessionId: sessionId,
-            derivationPath: path,
-            network: _selectedNetwork,
+          final keyspec = await cubit.callHw(
+            rust_hw.hwGetXpub(
+              sessionId: sessionId,
+              derivationPath: path,
+              network: _selectedNetwork,
+            ),
           );
           keyspecs.add(keyspec);
           _derivedCount++;
           if (!mounted) return;
+          setState(() {});
         }
-        // One rebuild per type rather than per key.
-        setState(() {});
         keyspecsByType.add(rust_discovery.APIWalletTypeKeyspecs(
           walletType: typeEntry.walletType,
           keyspecs: keyspecs,
@@ -1014,12 +1031,22 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
               style: textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
-            Text(
-              l10n.searchNostrScanningHint,
-              style: textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
+            if (_searchNostrActive) ...[
+              const SizedBox(height: 4),
+              Text(
+                l10n.searchNostrScanningHint,
+                style: textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (_searchOnChainActive) ...[
+              const SizedBox(height: 4),
+              Text(
+                l10n.onChainScanningHint,
+                style: textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),

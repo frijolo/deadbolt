@@ -201,8 +201,8 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
   /// Wraps [operation] with the USB dispatch loop on Android; passes it
   /// through unchanged on other platforms.
   ///
-  /// This method is also called by [HwWalletProtocol] operations when they
-  /// need to run a Rust FFI call through the USB dispatch loop on Android.
+  /// Provides the implementation for the abstract [HwWalletProtocol.callHw]
+  /// when both mixins are mixed into [HwWalletCubit].
   Future<T> callHw<T>(Future<T> operation) =>
       Platform.isAndroid ? _runWithDispatch(operation) : operation;
 

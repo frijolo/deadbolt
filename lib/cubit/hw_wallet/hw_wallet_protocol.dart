@@ -4,9 +4,6 @@
 // displayAddress, signPsbt. Each method emits operating state, calls the
 // Rust FFI, and emits the done/error state.
 
-import 'dart:async';
-import 'dart:io' show Platform;
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/errors.dart';
@@ -17,14 +14,15 @@ import 'hw_wallet_states.dart';
 
 /// Mixin que aporta los métodos de operación Bitcoin sobre un [Cubit].
 ///
-/// Cada método llama a `emit()` (heredado de Cubit) y a `_callHw`
-/// (inline: dispatch USB en Android, directo en desktop).
+/// Cada método llama a `emit()` (heredado de Cubit) y a `callHw`
+/// (declarado abstracto, implementado por [HwWalletPlatform] cuando se
+/// mezcla junto a este).
 mixin HwWalletProtocol on Cubit<HwWalletState> {
   /// Wraps [operation] with the USB dispatch loop on Android; passes it
   /// through unchanged on other platforms.
-  Future<T> _callHw<T>(Future<T> operation) =>
-      Platform.isAndroid ? operation : operation;
-
+  ///
+  /// Implemented by [HwWalletPlatform] when mixed in together.
+  Future<T> callHw<T>(Future<T> operation);
   Future<void> getXpub({
     required String sessionId,
     required String productString,
@@ -39,7 +37,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
       operationLabel: 'Exporting xpub…',
     ));
     try {
-      final xpub = await _callHw(rust_hw.hwGetXpub(
+      final xpub = await callHw(rust_hw.hwGetXpub(
         sessionId: sessionId,
         derivationPath: derivationPath,
         network: network,
@@ -70,7 +68,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
       operationLabel: 'Registering wallet on device…',
     ));
     try {
-      await _callHw(rust_hw.hwRegisterDescriptor(
+      await callHw(rust_hw.hwRegisterDescriptor(
         sessionId: sessionId,
         walletName: walletName,
         policy: policy,
@@ -101,7 +99,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
       operationLabel: 'Checking registration…',
     ));
     try {
-      final isRegistered = await _callHw(rust_hw.hwCheckRegistration(
+      final isRegistered = await callHw(rust_hw.hwCheckRegistration(
         sessionId: sessionId,
         descriptor: descriptor,
         network: network,
@@ -133,7 +131,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
       operationLabel: 'Confirm address on device…',
     ));
     try {
-      await _callHw(rust_hw.hwDisplayAddress(
+      await callHw(rust_hw.hwDisplayAddress(
         sessionId: sessionId,
         descriptor: descriptor,
         network: network,
@@ -167,7 +165,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
       operationLabel: 'Confirm on device…',
     ));
     try {
-      final signed = await _callHw(rust_hw.hwSignPsbt(
+      final signed = await callHw(rust_hw.hwSignPsbt(
         sessionId: sessionId,
         psbtBase64: psbtBase64,
         network: network,

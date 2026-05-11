@@ -18,7 +18,7 @@ import 'hw_wallet/hw_wallet_states.dart';
 export 'hw_wallet/hw_wallet_states.dart';
 
 // BTC operation result types — callers pattern-match on these
-export 'hw_wallet/hw_wallet_protocol.dart';
+export 'hw_wallet/hw_wallet_states.dart' show HwWalletResult, HwXpubResult, HwSignedPsbtResult, HwRegisteredResult, HwCheckRegistrationResult, HwAddressDisplayedResult;
 
 // ─── Cubit ────────────────────────────────────────────────────────────────────
 

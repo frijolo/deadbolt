@@ -12,6 +12,10 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **keyChanges field on APISpendPath** — Added per-MFP change index to the spend path model for multi-leaf disambiguation.
+- **Conditional scanning hints on restore** — Show Nostr and on-chain scan hints only when those search modes are active for the current scan.
+
+### Fixes
+- **HW xpub derivation on Android** — Route HW xpub derivation in the restore flow through the cubit dispatch loop so it works on Android.
 
 ### Test Fixes
 - **On-chain backup regression** — Update vault validation to reflect §5.4 fee arithmetic (vault ≥ 330 sats dust threshold).

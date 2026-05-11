@@ -2455,6 +2455,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'También buscando backups de descriptor en relays Nostr…';
 
   @override
+  String get onChainScanningHint =>
+      'También buscando respaldos de descriptor on-chain…';
+
+  @override
   String get nostrBackupFoundOnScan => 'Backup Nostr encontrado';
 
   @override
