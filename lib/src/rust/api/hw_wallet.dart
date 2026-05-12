@@ -100,6 +100,13 @@ Future<void> waitHwPairingAndroid({required String sessionId}) => RustLib
 void hwDisconnect({required String sessionId}) =>
     RustLib.instance.api.crateApiHwWalletHwDisconnect(sessionId: sessionId);
 
+/// Drops the active hardware wallet session without touching the device.
+///
+/// Intended for cases where the transport is already gone (USB detach,
+/// permission revoked, power loss). Does not require a session ID.
+void hwInvalidateActiveSession() =>
+    RustLib.instance.api.crateApiHwWalletHwInvalidateActiveSession();
+
 /// Exports the extended public key at `derivation_path` from the connected device (desktop).
 ///
 /// Returns a descriptor-ready key, e.g. `[aabbccdd/48'/0'/0'/2']xpubXXX...`.

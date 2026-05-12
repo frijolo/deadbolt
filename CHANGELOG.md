@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **BitBox02 over USB on Android** — Connect, pair, register descriptors, fetch xpubs, sign PSBTs, and verify addresses on a BitBox02 via USB HID. Handles detach/retach cleanly, including while backgrounded.
 - **Multi-leaf taproot HW signing** — Pass per-MFP change index to BitBox02 so the device signs the correct leaf in multi-leaf taproot descriptors.
 - **BIP48 sortedmulti support** — Register, display addresses, and sign PSBTs for plain `wsh(sortedmulti(...))` and `sh(wsh(sortedmulti(...)))` descriptors via the BitBox02 Multisig variant.
 

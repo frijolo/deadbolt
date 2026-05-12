@@ -227,7 +227,40 @@ pub async fn disconnect(session_id: &str) -> Result<()> {
             *lock = None;
         }
     }
+    #[cfg(target_os = "android")]
+    {
+        android::clear_pending_pairing(Some(session_id)).await;
+    }
     Ok(())
+}
+
+/// Drops the active session and any in-flight pairing state without sending
+/// anything to the device.
+///
+/// Use this when the transport is known to be gone (USB cable unplugged,
+/// device powered off, OS revoked permission). Unlike [`disconnect`], this:
+/// - does not require a `session_id` (the caller often doesn't have one
+///   at the point a detach event is observed);
+/// - does not attempt any I/O on the device.
+pub async fn invalidate_active_session() {
+    // Wake any in-flight protocol task FIRST so it unwinds, drops its
+    // `session_guard!` MutexGuard on `connected_lock`, and releases the
+    // `read_rx` mutex. Otherwise the `connected_lock().lock().await` below
+    // would deadlock against an in-flight operation (e.g. xpub fetch) that
+    // is holding the guard while parked on `read_rx.recv()` — which is
+    // exactly what a detach mid-operation triggers.
+    #[cfg(target_os = "android")]
+    android::cancel_inflight_session();
+
+    *connected_lock().lock().await = None;
+    #[cfg(not(target_os = "android"))]
+    {
+        *pairing_lock().lock().await = None;
+    }
+    #[cfg(target_os = "android")]
+    {
+        android::clear_pending_pairing(None).await;
+    }
 }
 
 // ── Shared BTC operations (all platforms) ────────────────────────────────────

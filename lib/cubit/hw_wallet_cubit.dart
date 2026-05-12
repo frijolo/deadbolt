@@ -29,5 +29,13 @@ export 'hw_wallet/hw_wallet_states.dart' show HwWalletResult, HwXpubResult, HwSi
 /// [HwWalletProtocol] mixin.
 class HwWalletCubit extends Cubit<HwWalletState>
     with HwWalletPlatform, HwWalletProtocol {
-  HwWalletCubit() : super(HwWalletIdle());
+  HwWalletCubit() : super(HwWalletIdle()) {
+    initPlatform();
+  }
+
+  @override
+  Future<void> close() async {
+    await disposePlatform();
+    return super.close();
+  }
 }

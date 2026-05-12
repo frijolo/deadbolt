@@ -7,6 +7,18 @@ license = "MIT OR Apache-2.0"
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[[bin]]
+name = "tor_test"
+# Diagnostic-only binary. Gated behind a non-default feature so the regular
+# Android/cargokit build does not try to link it (the i686-android target
+# fails on 64-bit atomic intrinsics in debug mode). Build manually with:
+#   cargo build --bin tor_test --features bin_tor_test
+required-features = ["bin_tor_test"]
+
+[features]
+default = []
+bin_tor_test = []
+
 [dependencies]
 flutter_rust_bridge = "=2.12.0"
 bdk_wallet = { version = "2.3.0", features = ["rusqlite", "keys-bip39", "compiler"] }

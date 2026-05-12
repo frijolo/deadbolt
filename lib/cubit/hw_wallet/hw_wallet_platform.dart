@@ -5,8 +5,9 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,6 +24,80 @@ import 'hw_wallet_states.dart';
 /// Los métodos de esta mixin se mezclan directamente en [HwWalletCubit]
 /// para que `emit` y `state` estén disponibles sin referencia explícita.
 mixin HwWalletPlatform on Cubit<HwWalletState> {
+  // ── USB lifecycle subscription (Android only) ─────────────────────────────
+
+  StreamSubscription<HwUsbEvent>? _usbEventsSub;
+  AppLifecycleListener? _lifecycleListener;
+
+  /// Set to true when a detach is observed mid-operation so [_runWithDispatch]
+  /// can exit cleanly instead of looping on stale channels. Also gates
+  /// [returnToReady] so a fatal session loss never restores a Ready state.
+  bool _detachCanceled = false;
+
+  /// Initialises platform-level listeners (USB attach/detach on Android,
+  /// app lifecycle for stale-session detection).
+  /// Safe to call multiple times; subsequent calls are no-ops.
+  void initPlatform() {
+    if (!Platform.isAndroid) return;
+    _usbEventsSub ??= AndroidHwChannel.events.listen(_onUsbEvent);
+    _lifecycleListener ??= AppLifecycleListener(
+      onResume: () => unawaited(_validateSessionOnResume()),
+    );
+  }
+
+  Future<void> disposePlatform() async {
+    await _usbEventsSub?.cancel();
+    _usbEventsSub = null;
+    _lifecycleListener?.dispose();
+    _lifecycleListener = null;
+  }
+
+  /// Validates the active session on app resume.
+  ///
+  /// A detach/retach that happens while the app is backgrounded can leave the
+  /// Kotlin side closed (via the broadcast receiver) without Dart ever seeing
+  /// the event — or worse, with the device replugged under a new
+  /// `/dev/bus/usb/00X/0YY` path. Either way the cubit's cached session is
+  /// stale. We probe the plugin's liveness and, if dead, force a clean
+  /// disconnect so the UI returns to a scannable state instead of failing on
+  /// the next USB op.
+  Future<void> _validateSessionOnResume() async {
+    if (!Platform.isAndroid) return;
+    final s = state;
+    final hasSession =
+        s is HwWalletReady || s is HwWalletOperating || s is HwWalletDone;
+    if (!hasSession) return;
+    final alive = await AndroidHwChannel.isSessionAlive().catchError((_) => false);
+    if (alive) return;
+    _invalidateSession('Hardware wallet was disconnected');
+  }
+
+  void _onUsbEvent(HwUsbEvent event) {
+    switch (event) {
+      case HwUsbDetached(:final wasOpen):
+        if (wasOpen) _invalidateSession('Hardware wallet disconnected');
+    }
+  }
+
+  /// Drops Rust+Kotlin transport state without touching cubit state.
+  ///
+  /// Invariant: any path that detects a dead transport (detach event, resume
+  /// liveness probe, NOT_OPEN/DEVICE_DETACHED from the dispatch loop) must go
+  /// through here so Rust+Kotlin stay in sync. `closeDevice` is unawaited and
+  /// best-effort — by the time we reach here the device is already gone.
+  void _invalidateTransport() {
+    _detachCanceled = true;
+    rust_hw.hwInvalidateActiveSession();
+    unawaited(AndroidHwChannel.closeDevice().catchError((_) {}));
+  }
+
+  /// Drops transport state and emits a terminal [HwWalletError].
+  void _invalidateSession(String message) {
+    _invalidateTransport();
+    if (isClosed) return;
+    emit(HwWalletError(message: message));
+  }
+
   // ── Session restore ───────────────────────────────────────────────────────
 
   /// Checks if a HW session is already active in Rust. If so, emits
@@ -42,7 +117,13 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
 
   /// Transitions back to [HwWalletReady] after an operation completes or errors,
   /// keeping the sheet open for further actions.
+  ///
+  /// Never restores Ready when [_detachCanceled] is true — a transport-level
+  /// failure (detach, NOT_OPEN, etc.) invalidates the cached session, and
+  /// pretending we're still connected would just produce another failure on
+  /// the next op.
   void returnToReady() {
+    if (_detachCanceled) return;
     final s = state;
     if (s is HwWalletDone) {
       emit(HwWalletReady(
@@ -59,6 +140,7 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
   // ── Scanning ─────────────────────────────────────────────────────────────
 
   Future<void> scanDevices() async {
+    _detachCanceled = false;
     emit(HwWalletScanning());
     try {
       final List<APIHwDevice> devices;
@@ -84,6 +166,7 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
   // ── Connection ────────────────────────────────────────────────────────────
 
   Future<void> connectDevice(String devicePath) async {
+    _detachCanceled = false;
     emit(HwWalletConnecting());
     try {
       if (Platform.isAndroid) {
@@ -118,13 +201,10 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
   }
 
   Future<void> _connectAndroid(String deviceName) async {
-    // Ensure USB permission is granted
-    bool hasPermission = await AndroidHwChannel.requestPermission(deviceName);
-    if (!hasPermission) {
-      // Permission dialog was shown; wait briefly and re-check
-      await Future<void>.delayed(const Duration(seconds: 1));
-      hasPermission = await AndroidHwChannel.requestPermission(deviceName);
-    }
+    _detachCanceled = false;
+    // Awaits the permission broadcast on the Kotlin side (or its 60 s
+    // timeout). Returns true only after the user actually accepts.
+    final hasPermission = await AndroidHwChannel.requestPermission(deviceName);
     if (!hasPermission) {
       emit(HwWalletError(
         message: 'USB permission not granted. '
@@ -191,6 +271,7 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
       rust_hw.hwDisconnect(sessionId: sid);
     }
     if (Platform.isAndroid) {
+      _detachCanceled = false;
       AndroidHwChannel.closeDevice();
     }
     emit(HwWalletIdle());
@@ -220,33 +301,96 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
   Future<T> _runWithDispatch<T>(Future<T> protocolFuture) async {
     final completer = Completer<T>();
 
-    protocolFuture.then(completer.complete).catchError((Object e, StackTrace st) {
-      completer.completeError(e, st);
+    // Guarded completion: the dispatch loop may complete the completer first
+    // via _handleDispatchPlatformError (e.g. on a USB write error); the
+    // protocol future may then resolve with its own error and race here.
+    protocolFuture.then((value) {
+      if (!completer.isCompleted) completer.complete(value);
+    }).catchError((Object e, StackTrace st) {
+      if (!completer.isCompleted) completer.completeError(e, st);
     });
 
     while (!completer.isCompleted) {
+      if (_detachCanceled) {
+        // Device was unplugged mid-operation. Stop pumping channels; the
+        // operation will surface its own error once it observes the broken
+        // transport (or when the user retries from a clean state).
+        completer.completeError(
+          PlatformException(code: 'DEVICE_DETACHED', message: 'Hardware wallet disconnected'),
+        );
+        break;
+      }
+
       final outgoing = await rust_hw.androidHwPollWritePacket();
 
       if (outgoing == null) {
-        // Nothing pending — yield briefly.
-        await Future<void>.delayed(const Duration(milliseconds: 1));
+        // Nothing pending — yield briefly. Rust is between sentinels (computing
+        // the next message), which is typically sub-millisecond, so 5 ms is
+        // imperceptible while keeping FFI poll churn at ~200/s instead of ~1000/s.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
         continue;
       }
 
       if (outgoing.isEmpty) {
         // Read-needed sentinel: Rust is blocking on a USB read.
         if (!completer.isCompleted) {
-          final incoming = await AndroidHwChannel.readPacket();
-          await rust_hw.androidHwDeliverReadPacket(data: incoming);
+          try {
+            final incoming = await AndroidHwChannel.readPacket();
+            await rust_hw.androidHwDeliverReadPacket(data: incoming);
+          } on PlatformException catch (e, st) {
+            _handleDispatchPlatformError(e, st, completer);
+            break;
+          }
         }
         continue;
       }
 
       // Non-empty: write this 64-byte HID packet to USB.
-      await AndroidHwChannel.writePacket(Uint8List.fromList(outgoing));
+      try {
+        await AndroidHwChannel.writePacket(Uint8List.fromList(outgoing));
+      } on PlatformException catch (e, st) {
+        _handleDispatchPlatformError(e, st, completer);
+        break;
+      }
     }
 
     return completer.future;
+  }
+
+  /// Maps Kotlin-side USB errors to dispatch-loop outcomes.
+  ///
+  /// - `READ_CANCELED`: triggered by [closeActiveConnection] (detach handler or
+  ///   explicit close). The detach handler has already invalidated state and
+  ///   emitted an error; here we just unwind without surfacing a second one.
+  /// - `DEVICE_DETACHED`: the connection went away while the worker thread was
+  ///   blocked on bulkTransfer. Invalidate Rust state and surface a clear
+  ///   error so the cubit returns to a scannable state.
+  /// - anything else: propagate as-is.
+  void _handleDispatchPlatformError<T>(
+    PlatformException e,
+    StackTrace st,
+    Completer<T> completer,
+  ) {
+    switch (e.code) {
+      case 'READ_CANCELED':
+        if (!completer.isCompleted) {
+          completer.completeError(
+            PlatformException(code: 'READ_CANCELED', message: 'Operation canceled'),
+            st,
+          );
+        }
+        return;
+      case 'DEVICE_DETACHED':
+      case 'NOT_OPEN':
+        // NOT_OPEN means Kotlin closed the connection out-of-band (typically
+        // a backgrounded detach the EventChannel missed). Same teardown as
+        // an explicit detach; the awaiting operation will emit HwWalletError.
+        _invalidateTransport();
+        if (!completer.isCompleted) completer.completeError(e, st);
+        return;
+      default:
+        if (!completer.isCompleted) completer.completeError(e, st);
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -273,8 +417,7 @@ mixin HwWalletPlatform on Cubit<HwWalletState> {
         productString: info.productString,
         rootFingerprint: info.rootFingerprint,
       ));
-    } catch (_) {
-      // Fall back to placeholder if session info is unavailable
+    } catch (e) {
       emit(HwWalletReady(
         sessionId: sessionId,
         productString: 'BitBox02',

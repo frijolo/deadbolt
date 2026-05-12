@@ -12,11 +12,12 @@
 ///   USB.read() → packet
 ///   androidHwDeliverReadPacket() ────► read_tx: Dart→Rust USB packets
 /// ```
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use tokio::sync::{mpsc, Mutex as TokioMutex};
+use tokio::sync::{mpsc, Mutex as TokioMutex, Notify};
 
 use bitbox_api::communication::{Error as CommError, ReadWrite, U2fHidCommunication, FIRMWARE_CMD};
 use bitbox_api::runtime::TokioRuntime;
@@ -35,6 +36,18 @@ struct IoChannels {
     /// Dart → Rust: USB HID packets received from the device.
     read_tx: mpsc::Sender<Vec<u8>>,
     read_rx: TokioMutex<mpsc::Receiver<Vec<u8>>>,
+    /// Notifier tripped when the current session is cancelled (USB detach,
+    /// invalidate_active_session). Any in-flight `read()` registers a
+    /// `notified()` future before awaiting and selects between it and the
+    /// channel `recv()` so it can unwind and release the mutex.
+    cancel_notify: Notify,
+    /// Persistent cancel flag. `Notify::notify_waiters` only wakes tasks that
+    /// are already parked on `.notified()` at the moment of firing; a task
+    /// that is between two `read()` calls (e.g. just processed an incoming
+    /// packet and is computing the next request) would miss the wake and
+    /// then re-park forever. The flag closes that race: every `read()`
+    /// checks it on entry and short-circuits if a cancel happened.
+    cancel_flag: AtomicBool,
 }
 
 static IO_CHANNELS: OnceLock<IoChannels> = OnceLock::new();
@@ -48,8 +61,23 @@ fn io_channels() -> &'static IoChannels {
             write_rx: TokioMutex::new(write_rx),
             read_tx,
             read_rx: TokioMutex::new(read_rx),
+            cancel_notify: Notify::new(),
+            cancel_flag: AtomicBool::new(false),
         }
     })
+}
+
+/// Wakes any in-flight `read()` so it returns `CommError::Read` and releases
+/// the `read_rx` mutex for the next session. Idempotent.
+pub(super) fn cancel_inflight_session() {
+    io_channels().cancel_flag.store(true, Ordering::SeqCst);
+    io_channels().cancel_notify.notify_waiters();
+}
+
+/// Clears the cancel flag so a fresh session is not aborted by a leftover
+/// cancel from a previous one. Call at the start of `connect()`.
+pub(super) fn reset_cancellation() {
+    io_channels().cancel_flag.store(false, Ordering::SeqCst);
 }
 
 // ── Dart-facing I/O functions ─────────────────────────────────────────────────
@@ -97,19 +125,40 @@ impl ReadWrite for ChannelTransport {
     /// An empty `Vec` is enqueued in `write_tx` as a sentinel so the Dart
     /// dispatch loop knows to read USB even though there is no outgoing packet.
     /// The loop distinguishes writes (non-empty) from read-needed (empty).
+    ///
+    /// Returns `CommError::Read` when the session is cancelled (USB detach,
+    /// invalidate_active_session) so the awaiting task can unwind and release
+    /// the `read_rx` mutex for the next session.
     async fn read(&self) -> Result<Vec<u8>, CommError> {
+        // Short-circuit if a cancel was fired while we were between reads.
+        // `Notify::notify_waiters` does not store permits, so without this
+        // flag check the wake would be silently dropped and the next park
+        // would block forever.
+        if io_channels().cancel_flag.load(Ordering::SeqCst) {
+            return Err(CommError::Read);
+        }
+        // Register interest in the cancellation notify BEFORE doing any await,
+        // so a cancel fired between now and our first park is captured.
+        let cancelled = io_channels().cancel_notify.notified();
+        tokio::pin!(cancelled);
+
         // Unbounded send is sync and infallible (only fails if receiver dropped).
         io_channels()
             .write_tx
             .send(vec![])
             .map_err(|_| CommError::Write)?;
-        io_channels()
-            .read_rx
-            .lock()
-            .await
-            .recv()
-            .await
-            .ok_or(CommError::Read)
+
+        let mut guard = tokio::select! {
+            biased;
+            _ = cancelled.as_mut() => return Err(CommError::Read),
+            g = io_channels().read_rx.lock() => g,
+        };
+
+        tokio::select! {
+            biased;
+            _ = cancelled.as_mut() => Err(CommError::Read),
+            res = guard.recv() => res.ok_or(CommError::Read),
+        }
     }
 }
 
@@ -129,6 +178,23 @@ fn pending_lock() -> &'static TokioMutex<Option<PendingAndroidPairing>> {
     PENDING_ANDROID_PAIRING.get_or_init(|| TokioMutex::new(None))
 }
 
+/// Clears the pending Android pairing.
+///
+/// If `session_id` is `Some`, only clears when the pending pairing matches it
+/// (used by per-session disconnect). `None` unconditionally drops (used by
+/// `invalidate_active_session`).
+pub(super) async fn clear_pending_pairing(session_id: Option<&str>) {
+    let mut lock = pending_lock().lock().await;
+    let matches = match (lock.as_ref(), session_id) {
+        (None, _) => false,
+        (Some(_), None) => true,
+        (Some(p), Some(sid)) => p.session_id == sid,
+    };
+    if matches {
+        *lock = None;
+    }
+}
+
 // ── Pairing flow ──────────────────────────────────────────────────────────────
 
 /// Connect to a BitBox02 and run the Noise XX pairing handshake.
@@ -141,6 +207,13 @@ pub async fn connect(
     noise_dir: String,
     product_string: String,
 ) -> Result<(String, Option<String>)> {
+    // Wake any leftover task from a previous failed session so it releases
+    // `read_rx`. Without this, the drain below would deadlock on the mutex.
+    cancel_inflight_session();
+    // Clear the cancel flag set above so this fresh session is not aborted
+    // by it on the first read. (Any leftover task wakes synchronously off
+    // the notify before this line, so racing is not possible.)
+    reset_cancellation();
     // Drain any stale data left in the channels from a previous (failed) session.
     {
         let mut rx = io_channels().write_rx.lock().await;

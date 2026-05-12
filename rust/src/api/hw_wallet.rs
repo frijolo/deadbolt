@@ -43,6 +43,17 @@ fn sync_rt() -> &'static tokio::runtime::Runtime {
     })
 }
 
+/// Drives `fut` to completion from a `#[frb(sync)]` entry point.
+///
+/// Uses the current tokio runtime if one is active (rare for sync FFI), else
+/// falls back to the lazily-initialised [`sync_rt`].
+fn run_sync<F: std::future::Future>(fut: F) -> F::Output {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => handle.block_on(fut),
+        Err(_) => sync_rt().block_on(fut),
+    }
+}
+
 // ── Session guard macro ───────────────────────────────────────────────────────
 
 /// Acquires the connected-session lock, asserts that a session is active, and
@@ -92,10 +103,7 @@ pub fn get_hw_session_info(session_id: String) -> Result<APIHwSessionInfo> {
             _ => Err(anyhow!("Session not found: {session_id}")),
         }
     }
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => handle.block_on(inner(session_id)),
-        Err(_) => sync_rt().block_on(inner(session_id)),
-    }
+    run_sync(inner(session_id))
 }
 
 /// Returns session info for the currently active hardware wallet session,
@@ -112,10 +120,7 @@ pub fn hw_active_session() -> Option<APIHwSessionInfo> {
             .as_ref()
             .map(session_info_from)
     }
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => handle.block_on(inner()),
-        Err(_) => sync_rt().block_on(inner()),
-    }
+    run_sync(inner())
 }
 
 fn session_info_from(s: &hw::ConnectedSession) -> APIHwSessionInfo {
@@ -276,11 +281,16 @@ pub async fn wait_hw_pairing_android(session_id: String) -> Result<()> {
 /// Disconnects the hardware wallet session and releases all resources.
 #[frb(sync)]
 pub fn hw_disconnect(session_id: String) -> Result<()> {
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => handle.block_on(hw::disconnect(&session_id))?,
-        Err(_) => sync_rt().block_on(hw::disconnect(&session_id))?,
-    }
-    Ok(())
+    run_sync(hw::disconnect(&session_id))
+}
+
+/// Drops the active hardware wallet session without touching the device.
+///
+/// Intended for cases where the transport is already gone (USB detach,
+/// permission revoked, power loss). Does not require a session ID.
+#[frb(sync)]
+pub fn hw_invalidate_active_session() {
+    run_sync(hw::invalidate_active_session())
 }
 
 // ── xpub export ───────────────────────────────────────────────────────────────
