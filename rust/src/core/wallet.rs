@@ -33,13 +33,37 @@ pub enum WalletType {
 pub struct CoreWallet {
     pub wallet: PersistedWallet<Connection>,
     pub conn: Connection,
+    /// Lazily-computed spend paths for the wallet descriptor. The descriptor is
+    /// immutable for the lifetime of this `CoreWallet`, so analyzing it once
+    /// avoids ~50 ms of miniscript parsing per `preview_psbt` call (the dominant
+    /// cost when tapping the fee field on Android with multipath taproot wallets).
+    pub spend_paths_cache: std::sync::OnceLock<Vec<crate::core::spend_path::SpendPath>>,
 }
 
 impl CoreWallet {
     /// Open (or create) the encrypted BDK wallet at `path`.
     pub fn open(path: &str, descriptor: &str, network: Network, key_hex: &str) -> Result<Self> {
         let (wallet, conn) = load_or_create_wallet(path, descriptor, network, key_hex)?;
-        Ok(Self { wallet, conn })
+        Ok(Self {
+            wallet,
+            conn,
+            spend_paths_cache: std::sync::OnceLock::new(),
+        })
+    }
+
+    /// Return cached spend paths for this wallet's descriptor, computing them
+    /// on first call. Subsequent calls return the cached slice (essentially free).
+    pub fn cached_spend_paths(&self) -> Result<&[crate::core::spend_path::SpendPath]> {
+        if let Some(paths) = self.spend_paths_cache.get() {
+            return Ok(paths.as_slice());
+        }
+        let info = crate::core::wallet_persistence::read_wallet_info(&self.conn)?;
+        let paths = crate::core::descriptor::DescriptorAnalyzer::analyze(&info.descriptor)
+            .map_err(|e| anyhow::anyhow!("descriptor analysis failed: {}", e))?
+            .spend_paths()
+            .map_err(|e| anyhow::anyhow!("spend path extraction failed: {}", e))?;
+        // get_or_init guards against a race where two threads compute the same value.
+        Ok(self.spend_paths_cache.get_or_init(|| paths).as_slice())
     }
 
     /// Persist any pending wallet state to the SQLite file.

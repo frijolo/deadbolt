@@ -14,6 +14,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ### Improvements
 - **keyChanges field on APISpendPath** — Added per-MFP change index to the spend path model for multi-leaf disambiguation.
 - **Conditional scanning hints on restore** — Show Nostr and on-chain scan hints only when those search modes are active for the current scan.
+- **Create TX responsiveness on multipath wallets** — Cache descriptor spend paths per wallet session so tapping the fee field, toggling MAX, or switching spend path no longer pays the ~50 ms miniscript-analysis cost on every preview.
 
 ### Fixes
 - **HW xpub derivation on Android** — Route HW xpub derivation in the restore flow through the cubit dispatch loop so it works on Android.

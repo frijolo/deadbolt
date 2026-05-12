@@ -77,14 +77,15 @@ void main() {
     await cubit.close();
   });
 
-  test('broadcastPsbt error: throws; happy: returns txid and reloads page', () async {
+  test('broadcastPsbt error: returns null and emits errorMessage; happy: returns txid and reloads page', () async {
     final p = psbtFixture(id: 3);
     final cubit = await loadCubit(
       opener: opener, sync: sync, wallet: wallet,
       view: viewFixture(psbts: [p]),
     );
     when(() => wallet.broadcastPsbt(3, any())).thenAnswer((_) async => const Err('rejected'));
-    expect(() => cubit.broadcastPsbt(3, 'tcp://x'), throwsA(isA<Exception>()));
+    expect(await cubit.broadcastPsbt(3, 'tcp://x'), isNull);
+    expect((cubit.state as WalletDetailLoaded).errorMessage, 'rejected');
 
     when(() => wallet.broadcastPsbt(3, any())).thenAnswer((_) async => const Ok('txid_abc'));
     when(() => handle.getTransactions(page: any(named: 'page'), pageSize: any(named: 'pageSize')))

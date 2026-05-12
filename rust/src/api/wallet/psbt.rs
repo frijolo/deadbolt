@@ -184,14 +184,14 @@ fn sign_psbt_in_place(
 /// Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied" without this fixup.
 fn apply_timelock_fixup(
     psbt: &mut bdk_wallet::bitcoin::psbt::Psbt,
-    conn: &rusqlite::Connection,
+    core: &CoreWallet,
     spend_path_id: u32,
     has_foreign: bool,
 ) {
     if !has_foreign || spend_path_id == 0 {
         return;
     }
-    if let Ok(paths) = load_spend_paths(conn) {
+    if let Ok(paths) = core.cached_spend_paths() {
         if let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) {
             if sp.rel_timelock > 0 {
                 let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
@@ -289,17 +289,6 @@ fn parse_recipients(
     Ok(out)
 }
 
-/// Load and parse the wallet's spend paths from its stored descriptor.
-fn load_spend_paths(
-    conn: &rusqlite::Connection,
-) -> anyhow::Result<Vec<crate::core::spend_path::SpendPath>> {
-    let wallet_info = read_wallet_info(conn)?;
-    crate::core::descriptor::DescriptorAnalyzer::analyze(&wallet_info.descriptor)
-        .map_err(|e| anyhow::anyhow!("descriptor analysis failed: {}", e))?
-        .spend_paths()
-        .map_err(|e| anyhow::anyhow!("spend path extraction failed: {}", e))
-}
-
 impl APIWallet {
     // -----------------------------------------------------------------------
     // PSBT / coin-control
@@ -391,7 +380,7 @@ impl APIWallet {
         let mut psbt = builder.finish()?;
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
+        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
 
         let fee_sat = psbt.fee()?.to_sat();
         let txid = psbt.unsigned_tx.compute_txid().to_string();
@@ -539,9 +528,10 @@ impl APIWallet {
         // multi-path descriptors (always returns the worst-case script-path weight even
         // when the user has selected the cheaper key-path). Use the spend path's
         // pre-computed actual weight so different paths produce different fees.
-        let path_weights: Option<(u64, u64, u64)> = load_spend_paths(&core.conn)
+        let path_weights: Option<(u64, u64, u64)> = core
+            .cached_spend_paths()
             .ok()
-            .and_then(|paths| paths.into_iter().find(|p| p.id == spend_path_id))
+            .and_then(|paths| paths.iter().find(|p| p.id == spend_path_id))
             .map(|sp| (sp.wu_base as u64, sp.wu_in as u64, sp.wu_out as u64));
 
         // Per-recipient output weight (constant — depends only on the address, not the path).
@@ -661,7 +651,7 @@ impl APIWallet {
         };
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
+        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
 
         // Identify recipient outputs vs change.
         let recipient_scripts: std::collections::HashSet<ScriptBuf> =
@@ -929,7 +919,7 @@ impl APIWallet {
         };
         let raw_abs = imported.unsigned_tx.lock_time.to_consensus_u32();
 
-        let spend_paths = load_spend_paths(&core.conn)?;
+        let spend_paths = core.cached_spend_paths()?;
         let abs_tl = if raw_abs > 0 && spend_paths.iter().any(|sp| sp.abs_timelock == raw_abs) {
             raw_abs
         } else {
@@ -937,7 +927,7 @@ impl APIWallet {
         };
 
         let matched_sp = spend_paths
-            .into_iter()
+            .iter()
             .find(|sp| sp.rel_timelock == rel_tl && sp.abs_timelock == abs_tl)
             .ok_or_else(|| {
                 anyhow::anyhow!(
@@ -1324,7 +1314,7 @@ impl APIWallet {
         let mut psbt = builder.finish()?;
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core.conn, spend_path_id, has_foreign);
+        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
 
         core.persist()?;
 
