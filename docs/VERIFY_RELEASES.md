@@ -33,7 +33,7 @@ You only need to do this **once** (unless the key changes).
 
 ```bash
 # Download the public key from the repository
-curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc -o deadbolt-gpg-key.asc
+curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/master/GPG_PUBLIC_KEY.asc -o deadbolt-gpg-key.asc
 
 # Import the key
 gpg --import deadbolt-gpg-key.asc

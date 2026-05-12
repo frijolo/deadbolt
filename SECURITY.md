@@ -30,7 +30,7 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 
 ```bash
 # 1. Import the public key
-curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/main/GPG_PUBLIC_KEY.asc | gpg --import
+curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/master/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
 wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/SHA256SUMS
@@ -151,7 +151,7 @@ We will credit you in the security advisory unless you prefer to remain anonymou
    - Analyzes Bitcoin descriptors and manages on-device Bitcoin wallets
    - Supports hot signing keys (encrypted private keys stored locally) and BitBox02 hardware wallet signing
    - If you use hot signing keys, protect your device — the encrypted key material is stored in app-private storage. See [docs/WALLET_SECURITY.md](docs/WALLET_SECURITY.md) for the full security architecture
-   - Wallet sync connects only to the Electrum server you configure — no data sent to third parties
+   - Wallet sync connects to the Electrum server configured in Settings (ships with a public default; point it at your own for stricter privacy) — no data sent to third parties beyond that server
    - Optional built-in Tor routing (arti) hides your IP from the Electrum server; enable in Settings
    - Does NOT collect telemetry or analytics
 

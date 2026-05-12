@@ -5,9 +5,9 @@
 - **Flutter SDK** (latest stable): [Install Flutter](https://docs.flutter.dev/get-started/install)
   Requires **Dart SDK ≥ 3.10.7** (bundled with Flutter — check your version with `dart --version`)
 - **Rust toolchain** (latest stable): [Install Rust](https://rustup.rs/)
-- **flutter_rust_bridge_codegen** 2.11.1:
+- **flutter_rust_bridge_codegen** 2.12.0:
   ```bash
-  cargo install flutter_rust_bridge_codegen --version 2.11.1
+  cargo install flutter_rust_bridge_codegen --version 2.12.0
   ```
 - Platform-specific dependencies:
   - **Android**: Android SDK + NDK r26d

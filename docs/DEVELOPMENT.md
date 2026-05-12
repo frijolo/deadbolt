@@ -8,7 +8,7 @@ deadbolt/
 │   ├── main.dart                 # App entry point
 │   ├── screens/                  # UI screens
 │   │   └── wallet_detail/        # Wallet detail sub-screens (tabs, dialogs)
-│   ├── cubit/                    # BLoC state management (6 cubits)
+│   ├── cubit/                    # BLoC state management (per-feature cubits)
 │   ├── services/                 # WalletService, WalletSyncService,
 │   │                             #   ProjectDescriptorService, PriceService,
 │   │                             #   FeeEstimationService, MempoolBlocksService,
@@ -34,9 +34,11 @@ deadbolt/
 **UI Layer** (Dart/Flutter)
 - Material 3 UI with BLoC state management
 - Core cubits: `WalletListCubit`, `WalletDetailCubit`, `ProjectListCubit`,
-  `ProjectDetailCubit`, `SettingsCubit`, `HwWalletCubit`; screen-scoped: `DescriptorSigsCubit`
+  `ProjectDetailCubit`, `SettingsCubit`, `HwWalletCubit`, `BiometricLockCubit`;
+  screen-scoped: `DescriptorSigsCubit`. `WalletDetailCubit` is composed from
+  per-domain mixins under `lib/cubit/wallet_detail/`.
 
-**FFI Bridge** (flutter_rust_bridge 2.11.1)
+**FFI Bridge** (flutter_rust_bridge 2.12.0)
 - Type-safe Dart ↔ Rust communication
 - Bindings auto-generated from `rust/src/api/`; never edit `lib/src/rust/` by hand
 
@@ -52,10 +54,14 @@ deadbolt/
 |--------|---------|
 | `api/analyzer.rs` | Descriptor parsing, spend path analysis, fee weight, Liana export |
 | `api/wallet/ops.rs` | Wallet CRUD, sync, protection types |
+| `api/wallet/queries.rs` | Wallet read-side queries (balances, UTXOs, transactions) |
 | `api/wallet/psbt.rs` | PSBT build, sign, merge, broadcast |
 | `api/wallet/labels.rs` | BIP-329 label import/export |
 | `api/wallet/backup.rs` | `.deadbolt` encrypted backup export/import |
 | `api/wallet/nostr_backup.rs` | Nostr backup publish, fetch, delete |
+| `api/wallet/descriptor_backup.rs` / `descriptor_recovery.rs` | On-chain commit/reveal descriptor backup + recovery |
+| `api/wallet/descriptor_sig.rs` | Descriptor ownership proofs (BB02-BIP322, hot key, QR) |
+| `api/wallet/detail_tx.rs` / `detail_address.rs` / `detail_rbf.rs` / `detail_cpfp.rs` | Wallet detail tab queries and RBF/CPFP construction |
 | `api/wallet/discovery.rs` | BIP-44 gap-limit account discovery across script types |
 | `api/hw_wallet.rs` | Hardware wallet FFI (xpub export, PSBT sign, message sign) |
 | `api/wif_sweep.rs` | WIF sweep: resolve addresses, fetch UTXOs, build/sign/broadcast |

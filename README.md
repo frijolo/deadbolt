@@ -28,7 +28,7 @@ Descriptors are encrypted per-xpub and published to Nostr relays. Each co-signer
 
 ### On-chain descriptor backup
 
-Publish encrypted descriptor backups to the Bitcoin blockchain itself. The descriptor is committed to a Taproot vault and revealed via on-chain transactions, making it recoverable by any co-signer even if Nostr relays are unavailable. Built-in health checks show backup status at a glance.
+Publish encrypted descriptor backups to the Bitcoin blockchain itself. The descriptor is committed to a Taproot vault and revealed via on-chain transactions, making it recoverable by any co-signer from any Electrum server with no out-of-band coordination. Built-in health checks show backup status at a glance.
 
 ### Hardware wallet support
 
@@ -53,7 +53,7 @@ All Electrum connections route through an embedded Tor client. No system Tor ins
 ### Privacy by design
 
 - No telemetry, analytics, or data collection
-- No built-in servers — sync only to your own Electrum server
+- No Deadbolt-operated infrastructure — point the wallet at any Electrum server, including your own
 - Optional Tor routing
 - Descriptor analysis is fully offline
 
@@ -65,8 +65,7 @@ Deadbolt works with all standard Bitcoin descriptor formats:
 
 - **Single-signature**: P2WPKH, P2SH-P2WPKH, P2PKH
 - **Multisig**: sortedmulti, unsorted multi, custom miniscript policies
-- **Taproot**: tr(), multi-path descriptors, internal key policies
-- **Inheritance**: Taproot multi-path with heir timelocks
+- **Taproot**: tr(), multi-path descriptors (including inheritance with heir timelocks), internal key policies
 
 ---
 
@@ -115,7 +114,7 @@ cd deadbolt
 Deadbolt offers multiple ways to get started:
 
 - **Import a descriptor** — paste any Bitcoin descriptor to analyze and manage an existing wallet
-- **Restore from seed** — recover a wallet from a BIP-39 phrase with automatic account discovery
+- **Restore from xpub/keyspec** — recover a wallet from a public key with automatic account discovery, no seed words entered into the app
 - **Connect BitBox02** — recover or create a wallet from a connected hardware wallet
 - **Create new** — generate a fresh single-sig, multisig, or inheritance wallet
 
@@ -134,7 +133,7 @@ Deadbolt parses the descriptor and shows:
 - Create transactions with coin control and RBF
 - Send to multiple recipients
 - Receive with QR codes or addresses
-- Back up descriptors via Nostr or on-chain; import/export via QR or SeedQR
+- Back up descriptors via Nostr or on-chain; export/import descriptors and PSBTs via animated QR (BC-UR)
 
 ---
 
