@@ -2508,12 +2508,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addKeyHwSubtitle => 'USB or Bluetooth device';
 
   @override
-  String get addKeyManualTitle => 'Enter manually';
-
-  @override
-  String get addKeyManualSubtitle => 'Watch Only (xpub) or Hot Key (seed)';
-
-  @override
   String get validating => 'Validating...';
 
   @override
@@ -3068,4 +3062,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onChainBadge => 'On-chain';
+
+  @override
+  String get generateMnemonicTitle => 'New mnemonic';
+
+  @override
+  String get generateMnemonicStep1Title => 'Generate';
+
+  @override
+  String get generateMnemonicStep2Title => 'Verify backup';
+
+  @override
+  String get generateMnemonicStep3Title => 'Configure key';
+
+  @override
+  String get generateMnemonicLengthLabel => 'Length';
+
+  @override
+  String get generateMnemonicLength12 => '12 words';
+
+  @override
+  String get generateMnemonicLength24 => '24 words';
+
+  @override
+  String get generateMnemonicGenerateButton => 'Generate mnemonic';
+
+  @override
+  String get generateMnemonicRegenerate => 'Regenerate';
+
+  @override
+  String get generateMnemonicWarning =>
+      'Write these words down on paper, in order. They will not be shown again. Anyone with access to them can spend your bitcoin.';
+
+  @override
+  String get generateMnemonicBackupDone => 'I have written them down';
+
+  @override
+  String get generateMnemonicVerifyIntro =>
+      'Type each word in the position requested. All positions must match before you can continue.';
+
+  @override
+  String generateMnemonicVerifyWordLabel(int pos) {
+    return 'Word #$pos';
+  }
+
+  @override
+  String get generateMnemonicVerifyError =>
+      'Some words do not match. Check your notes and try again.';
+
+  @override
+  String get generateMnemonicShuffleAgain => 'Shuffle order again';
+
+  @override
+  String get generateMnemonicContinue => 'Continue';
+
+  @override
+  String get generateMnemonicBack => 'Back';
+
+  @override
+  String get generateMnemonicDone => 'Add key';
+
+  @override
+  String get addKeyCapacityWatchOnlyTitle => 'Watch-only key';
+
+  @override
+  String get addKeyCapacityWatchOnlySubtitle =>
+      'An xpub you can monitor but not sign with.';
+
+  @override
+  String get addKeyCapacityHotTitle => 'Hot key';
+
+  @override
+  String get addKeyCapacityHotSubtitle =>
+      'Holds the seed on this device so it can sign.';
+
+  @override
+  String get addKeyWatchSourcePasteTitle => 'Enter manually';
+
+  @override
+  String get addKeyWatchSourcePasteSubtitle => 'From clipboard or typed in.';
+
+  @override
+  String get addKeyManualDialogTitle => 'Enter key';
+
+  @override
+  String get addKeyManualHint =>
+      '[mfp/path]xpub\n\nor one line per field:\nmfp\nm/path\nxpub';
+
+  @override
+  String get addKeyManualFormatError =>
+      'Format not recognized. Paste a [mfp/path]xpub keyspec or three lines (mfp, path, xpub).';
+
+  @override
+  String get addKeyWatchSourceScanTitle => 'Scan QR';
+
+  @override
+  String get addKeyWatchSourceScanSubtitle =>
+      'Read a keyspec QR code with the camera.';
+
+  @override
+  String get addKeyWatchSourceFileTitle => 'Load file';
+
+  @override
+  String get addKeyWatchSourceFileSubtitle =>
+      'Open a text/JSON file with the keyspec.';
+
+  @override
+  String get addKeyWatchSourceHwTitle => 'Hardware wallet';
+
+  @override
+  String get addKeyWatchSourceHwSubtitle =>
+      'Export xpub from a BitBox02 or compatible device.';
+
+  @override
+  String get addKeyHotSourceGenerateTitle => 'Generate new mnemonic';
+
+  @override
+  String get addKeyHotSourceGenerateSubtitle =>
+      'Create a fresh seed and verify the backup.';
+
+  @override
+  String get addKeyHotSourceExistingTitle => 'Enter existing mnemonic';
+
+  @override
+  String get addKeyHotSourceExistingSubtitle =>
+      'Type or scan a 12/24-word seed.';
+
+  @override
+  String get addKeyHotSourceXprvTitle => 'Enter xprv';
+
+  @override
+  String get addKeyHotSourceXprvSubtitle => 'Paste a master xprv (depth 0).';
 }

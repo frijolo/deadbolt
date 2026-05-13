@@ -52,6 +52,7 @@ from regression_helpers import (                       # noqa: E402
     go_back_to_wallet_list, delete_wallet_from_list,
     set_active_network_signet, run_regression,
     click_popup_item,
+    open_hot_existing_mnemonic,
 )
 
 
@@ -84,15 +85,7 @@ async def phase_create_wallet(d: UIDriver) -> None:
     await fill_field(d, "Wallet name", WALLET_NAME)
 
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible",
-                   retries=8, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "manual entry tabs visible",
-                   retries=8, delay=0.5)
-
-    await click_label(d, "Hot Key", delay=0.5)
-    await wait_for(d, "Seed phrase", "Hot Key seed form visible",
-                   retries=8, delay=0.5)
+    await open_hot_existing_mnemonic(d)
 
     await fill_field(d, "Seed phrase", MNEMONIC)
     await wait_for(d, "Derived keyspec", "keyspec derived",

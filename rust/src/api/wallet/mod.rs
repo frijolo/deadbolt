@@ -1111,6 +1111,47 @@ pub fn bip39_entropy_to_mnemonic(entropy: Vec<u8>) -> anyhow::Result<String> {
     Ok(mnemonic.to_string())
 }
 
+/// Generates a fresh BIP39 mnemonic of `word_count` words (12 or 24).
+///
+/// Entropy pipeline (defense-in-depth, matching SeedSigner/Trezor practice
+/// rather than feeding raw OS RNG into BIP39 directly):
+/// 1. Sample 64 bytes from the OS CSPRNG (`OsRng`) — always 64, regardless of
+///    final word count, so the RNG pool is consumed maximally.
+/// 2. SHA-256 the 64-byte buffer → 32 bytes of normalized entropy.
+/// 3. Truncate to 16 bytes for 12 words, or use all 32 bytes for 24 words.
+/// 4. Hand the entropy to BIP39 (`Mnemonic::from_entropy`), which appends the
+///    standard 4-bit / 8-bit checksum.
+///
+/// All intermediate buffers are zeroized before return.
+#[frb(sync)]
+pub fn generate_mnemonic(word_count: u8) -> anyhow::Result<String> {
+    use anyhow::anyhow;
+    use bdk_wallet::keys::bip39::Mnemonic;
+    use rand::rngs::OsRng;
+    use rand::TryRngCore;
+    use sha2::{Digest, Sha256};
+    use zeroize::Zeroize;
+
+    let entropy_len = match word_count {
+        12 => 16usize,
+        24 => 32usize,
+        _ => return Err(anyhow!("word_count must be 12 or 24, got {word_count}")),
+    };
+
+    let mut raw = [0u8; 64];
+    OsRng
+        .try_fill_bytes(&mut raw)
+        .map_err(|e| anyhow!("OS RNG failed: {e}"))?;
+
+    let mut hash = Sha256::digest(raw);
+    raw.zeroize();
+
+    let mnemonic = Mnemonic::from_entropy(&hash[..entropy_len])?;
+    hash.zeroize();
+
+    Ok(mnemonic.to_string())
+}
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.

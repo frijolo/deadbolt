@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/gap_stepper.dart';
 import 'package:deadbolt/widgets/mnemonic_entry_field.dart';
 
 import 'restore_wallet_screen.dart' show RestoreScriptType;
@@ -184,51 +185,3 @@ class _SeedTabState extends State<SeedTab> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Gap limit stepper (reusable across tabs)
-// ---------------------------------------------------------------------------
-
-class GapStepper extends StatelessWidget {
-  final String label;
-  final int value;
-  final VoidCallback? onDecrement;
-  final VoidCallback? onIncrement;
-
-  const GapStepper({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onDecrement,
-    required this.onIncrement,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
-            onPressed: onDecrement,
-            visualDensity: VisualDensity.compact,
-          ),
-          SizedBox(
-            width: 36,
-            child: Center(
-              child: Text('$value', style: theme.textTheme.titleSmall),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
-            onPressed: onIncrement,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
-      ),
-    );
-  }
-}

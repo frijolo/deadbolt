@@ -2526,12 +2526,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get addKeyHwSubtitle => 'Dispositivo USB o Bluetooth';
 
   @override
-  String get addKeyManualTitle => 'Ingresar manualmente';
-
-  @override
-  String get addKeyManualSubtitle => 'Watch Only (xpub) o Hot Key (semilla)';
-
-  @override
   String get validating => 'Validando...';
 
   @override
@@ -3090,4 +3084,137 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onChainBadge => 'On-chain';
+
+  @override
+  String get generateMnemonicTitle => 'Nuevo mnemonic';
+
+  @override
+  String get generateMnemonicStep1Title => 'Generar';
+
+  @override
+  String get generateMnemonicStep2Title => 'Verificar copia de seguridad';
+
+  @override
+  String get generateMnemonicStep3Title => 'Configurar clave';
+
+  @override
+  String get generateMnemonicLengthLabel => 'Longitud';
+
+  @override
+  String get generateMnemonicLength12 => '12 palabras';
+
+  @override
+  String get generateMnemonicLength24 => '24 palabras';
+
+  @override
+  String get generateMnemonicGenerateButton => 'Generar mnemonic';
+
+  @override
+  String get generateMnemonicRegenerate => 'Regenerar';
+
+  @override
+  String get generateMnemonicWarning =>
+      'Anota estas palabras en papel, en orden. No se mostrarán de nuevo. Cualquiera con acceso a ellas puede gastar tus bitcoin.';
+
+  @override
+  String get generateMnemonicBackupDone => 'Las he anotado';
+
+  @override
+  String get generateMnemonicVerifyIntro =>
+      'Escribe cada palabra en la posición indicada. Todas las posiciones deben coincidir para continuar.';
+
+  @override
+  String generateMnemonicVerifyWordLabel(int pos) {
+    return 'Palabra #$pos';
+  }
+
+  @override
+  String get generateMnemonicVerifyError =>
+      'Algunas palabras no coinciden. Revisa tus notas e inténtalo de nuevo.';
+
+  @override
+  String get generateMnemonicShuffleAgain => 'Barajar de nuevo';
+
+  @override
+  String get generateMnemonicContinue => 'Continuar';
+
+  @override
+  String get generateMnemonicBack => 'Atrás';
+
+  @override
+  String get generateMnemonicDone => 'Añadir clave';
+
+  @override
+  String get addKeyCapacityWatchOnlyTitle => 'Clave watch-only';
+
+  @override
+  String get addKeyCapacityWatchOnlySubtitle =>
+      'Un xpub que puedes monitorizar pero no firmar.';
+
+  @override
+  String get addKeyCapacityHotTitle => 'Clave hot';
+
+  @override
+  String get addKeyCapacityHotSubtitle =>
+      'Guarda la semilla en este dispositivo para firmar.';
+
+  @override
+  String get addKeyWatchSourcePasteTitle => 'Introducir manualmente';
+
+  @override
+  String get addKeyWatchSourcePasteSubtitle =>
+      'Desde el portapapeles o tecleado.';
+
+  @override
+  String get addKeyManualDialogTitle => 'Introducir clave';
+
+  @override
+  String get addKeyManualHint =>
+      '[mfp/path]xpub\n\no bien una línea por campo:\nmfp\nm/path\nxpub';
+
+  @override
+  String get addKeyManualFormatError =>
+      'No se reconoce el formato. Pega un keyspec [mfp/path]xpub o tres líneas (mfp, ruta, xpub).';
+
+  @override
+  String get addKeyWatchSourceScanTitle => 'Escanear QR';
+
+  @override
+  String get addKeyWatchSourceScanSubtitle =>
+      'Lee un QR con keyspec usando la cámara.';
+
+  @override
+  String get addKeyWatchSourceFileTitle => 'Cargar archivo';
+
+  @override
+  String get addKeyWatchSourceFileSubtitle =>
+      'Abre un archivo de texto/JSON con el keyspec.';
+
+  @override
+  String get addKeyWatchSourceHwTitle => 'Hardware wallet';
+
+  @override
+  String get addKeyWatchSourceHwSubtitle =>
+      'Exporta xpub desde un BitBox02 o dispositivo compatible.';
+
+  @override
+  String get addKeyHotSourceGenerateTitle => 'Generar mnemonic nuevo';
+
+  @override
+  String get addKeyHotSourceGenerateSubtitle =>
+      'Crea una semilla fresca y verifica la copia.';
+
+  @override
+  String get addKeyHotSourceExistingTitle => 'Introducir mnemonic existente';
+
+  @override
+  String get addKeyHotSourceExistingSubtitle =>
+      'Escribe o escanea una semilla de 12/24 palabras.';
+
+  @override
+  String get addKeyHotSourceXprvTitle => 'Introducir xprv';
+
+  @override
+  String get addKeyHotSourceXprvSubtitle =>
+      'Pega un xprv maestro (profundidad 0).';
 }

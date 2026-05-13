@@ -27,6 +27,8 @@ from regression_helpers import (  # noqa: E402
     navigate_wallets, click_label, click_tooltip, fill_field,
     set_active_network_signet, go_back_to_wallet_list,
     delete_wallet_from_list, wait_for_tooltip, run_regression,
+    open_watch_only_manual_entry, fill_manual_keyspec,
+    open_watch_only_hardware_wallet,
 )
 from hw_helpers import (  # noqa: E402
     connect_hw_in_open_sheet, wait_for_user,
@@ -49,17 +51,9 @@ async def _add_cosigner_watchonly(d: UIDriver):
     """Add watch-only cosigner (exact flow from reg34)."""
     print("\n  [phase 2b] add watch-only cosigner")
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible", retries=10, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "Watch Only / Hot Key chips visible",
-                   retries=10, delay=0.5)
-    await click_label(d, "Watch Only", delay=0.4)
-    await wait_for(d, "Master Fingerprint (MFP)", "manual entry form visible",
-                   retries=10, delay=0.5)
-    await fill_field(d, "Master Fingerprint (MFP)", COSIGNER_MFP)
-    await fill_field(d, "Derivation Path", COSIGNER_PATH)
-    await fill_field(d, "Extended Public Key (xpub)", COSIGNER_XPUB)
-    await click_label(d, "Add", delay=0.8)
+    await open_watch_only_manual_entry(d)
+    await fill_manual_keyspec(d, mfp=COSIGNER_MFP, path=COSIGNER_PATH,
+                              xpub=COSIGNER_XPUB, compact=True)
     await wait_for(d, COSIGNER_MFP.lower(), "watch-only key card visible",
                    retries=15, delay=0.5)
     print("    [ok] cosigner added")
@@ -80,9 +74,7 @@ async def _create_wallet(d: UIDriver):
 
     print("\n  [phase 2b] add HW key")
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible", retries=10, delay=0.5)
-    await click_label(d, "Hardware wallet", delay=0.6)
-    await wait_for(d, "Derivation path", "derivation path picker visible", retries=10, delay=0.5)
+    await open_watch_only_hardware_wallet(d)
     await fill_field(d, "Derivation path", HW_DERIVATION_PATH)
     await click_label(d, "Confirm", delay=0.6)
 

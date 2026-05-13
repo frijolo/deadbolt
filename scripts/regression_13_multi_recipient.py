@@ -4,7 +4,7 @@ Regression test 13: Multi-recipient self-send transaction.
 
 Flow:
   0.  Settings → set Active Network to Signet
-  1.  Create SegWit singlesig wallet via Guided creation (Enter manually → Hot Key →
+  1.  Create SegWit singlesig wallet via Guided creation (Hot key → Enter existing mnemonic →
       mnemonic) — wallet is funded on Signet
   2.  Sync wallet — wait for UTXOs to appear
   3.  Open Send → add first recipient via "This wallet (Self)"
@@ -39,6 +39,7 @@ from regression_helpers import (                       # noqa: E402
     navigate_wallets, fill_field, click_label, click_tooltip,
     wait_for_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    open_hot_existing_mnemonic,
     set_active_network_signet, run_regression,
 )
 
@@ -79,7 +80,7 @@ async def phase_create_wallet_guided(d: UIDriver):
 
     Flow:
       Wallets → New → Guided creation → fill name → Add key →
-      Enter manually → Hot Key → paste mnemonic → wait for keyspec derivation →
+      Hot key → Enter existing mnemonic → paste mnemonic → wait for keyspec derivation →
       Add → HOT badge visible → Create wallet → wallet detail opens.
     """
     print(f"\n  [phase 1] create wallet via Guided creation: {WALLET_NAME}")
@@ -94,19 +95,10 @@ async def phase_create_wallet_guided(d: UIDriver):
     await fill_field(d, "Wallet name", WALLET_NAME)
     # Script type: SegWit (P2WPKH) is the default for singlesig — no click needed.
 
-    # Open key input sheet
+    # Open key input sheet → Hot key → Enter existing mnemonic
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible",
-                   retries=8, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "manual entry tabs visible",
-                   retries=8, delay=0.5)
-
-    # Switch from Watch Only to Hot Key
-    await click_label(d, "Hot Key", delay=0.5)
-    await wait_for(d, "Seed phrase", "Hot Key seed form visible",
-                   retries=8, delay=0.5)
-    print("    [ok] Hot Key tab active")
+    await open_hot_existing_mnemonic(d)
+    print("    [ok] Hot key mnemonic form active")
 
     # Enter 12-word mnemonic
     await fill_field(d, "Seed phrase", MNEMONIC)

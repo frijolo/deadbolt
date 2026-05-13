@@ -51,10 +51,15 @@ Future<T?> showSheet<T>(
 /// Use this in form sheets (those with a Save button) paired with
 /// [showSheet] `isDismissible: false` so users always have an explicit way
 /// to dismiss without losing data.
+///
+/// When [onBack] is non-null an `arrow_back` leading icon is shown before the
+/// title — used by multi-step wizards to navigate to the previous step
+/// without an inline button in the actions row.
 Widget sheetCloseTitle(
   BuildContext context,
   String title, {
   required VoidCallback onClose,
+  VoidCallback? onBack,
   String? tooltip,
 }) =>
     Column(
@@ -62,18 +67,28 @@ Widget sheetCloseTitle(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SheetHandle(),
-        Row(
-          children: [
-            Expanded(
-              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: tooltip,
-              visualDensity: VisualDensity.compact,
-              onPressed: onClose,
-            ),
-          ],
+        Padding(
+          padding: EdgeInsets.fromLTRB(onBack != null ? 4 : 16, 0, 4, 0),
+          child: Row(
+            children: [
+              if (onBack != null)
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onBack,
+                ),
+              Expanded(
+                child:
+                    Text(title, style: Theme.of(context).textTheme.titleLarge),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: tooltip,
+                visualDensity: VisualDensity.compact,
+                onPressed: onClose,
+              ),
+            ],
+          ),
         ),
       ],
     );

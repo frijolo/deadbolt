@@ -30,6 +30,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    open_watch_only_manual_entry, fill_manual_keyspec,
     run_regression,
 )
 
@@ -95,20 +96,15 @@ async def _select_script(d: UIDriver, label: str):
 
 async def _add_watch_only_key(d: UIDriver, key: dict):
     """
-    Add one Watch-Only key via the 'Enter manually' flow.
+    Add one Watch-Only key via the manual-entry sheet.
 
     key: dict with 'mfp', 'path', 'xpub' fields.
     """
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "Key input method picker visible")
+    await open_watch_only_manual_entry(d)
 
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "Manual entry form visible")
-
-    await fill_field(d, "Master Fingerprint (MFP)", key["mfp"])
-    await fill_field(d, "Derivation Path",           key["path"])
-    await fill_field(d, "Extended Public Key (xpub)", key["xpub"])
-    await click_label(d, "Add", delay=0.8)
+    await fill_manual_keyspec(d, mfp=key["mfp"], path=key["path"],
+                              xpub=key["xpub"], compact=True)
 
     await wait_for(d, key["mfp"].lower(), f"Key card for {key['mfp']} visible")
     print(f"    [ok] key '{key['mfp']}' added")

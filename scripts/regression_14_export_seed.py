@@ -4,7 +4,7 @@ Regression test 14: Seed export and WIF export from a hot-key wallet.
 
 Flow:
   0.  Settings → set Active Network to Signet
-  1.  Create SegWit singlesig wallet via Guided creation (Enter manually →
+  1.  Create SegWit singlesig wallet via Guided creation (Hot key →
       Hot Key → mnemonic)
   2.  Seed export — Descriptor tab → tap key card → View seed phrase →
       confirm dialog → SeedExportScreen:
@@ -37,6 +37,7 @@ from regression_helpers import (                       # noqa: E402
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
     set_active_network_signet, run_regression,
+    open_hot_existing_mnemonic,
 )
 
 
@@ -84,15 +85,7 @@ async def phase_create_wallet_guided(d: UIDriver):
     await fill_field(d, "Wallet name", WALLET_NAME)
 
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible",
-                   retries=8, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "manual entry tabs visible",
-                   retries=8, delay=0.5)
-
-    await click_label(d, "Hot Key", delay=0.5)
-    await wait_for(d, "Seed phrase", "Hot Key seed form visible",
-                   retries=8, delay=0.5)
+    await open_hot_existing_mnemonic(d)
     print("    [ok] Hot Key tab active")
 
     await fill_field(d, "Seed phrase", MNEMONIC)

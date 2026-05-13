@@ -28,6 +28,7 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    open_watch_only_manual_entry, fill_manual_keyspec,
     run_regression,
 )
 
@@ -61,27 +62,18 @@ async def _open_guided_dialog(d: UIDriver):
 
 async def _add_watch_only_key(d: UIDriver):
     """
-    In SimpleWalletDialog, add a Watch-Only key via the 'Enter manually' flow.
+    In SimpleWalletDialog, add a Watch-Only key via the manual-entry sheet.
 
-    Key input sheet flow (keyspec mode):
-      1. Method picker shows first: 'Enter manually' option.
-      2. Click 'Enter manually' → chips 'Watch Only' / 'Hot Key' appear.
-      3. 'Watch Only' (separateFields tab) is selected by default.
-      4. Fill MFP, derivation path, xpub → click 'Add'.
+    Key input sheet flow:
+      1. Capacity picker: 'Watch-only key' / 'Hot key'.
+      2. Click 'Watch-only key' → 'Enter manually' tile.
+      3. Fill compact keyspec → Confirm.
     """
-    # Click 'Add key' (OutlinedButton.icon when no key yet)
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "Key input method picker visible")
-    print("    [ok] method picker open")
+    await open_watch_only_manual_entry(d)
+    print("    [ok] manual entry sheet open")
 
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Watch Only", "Manual entry form visible")
-    print("    [ok] 'Watch Only' tab visible")
-
-    await fill_field(d, "Master Fingerprint (MFP)", _MFP)
-    await fill_field(d, "Derivation Path", _PATH)
-    await fill_field(d, "Extended Public Key (xpub)", _XPUB)
-    await click_label(d, "Add", delay=0.8)
+    await fill_manual_keyspec(d, mfp=_MFP, path=_PATH, xpub=_XPUB, compact=True)
     # Key card should appear with the MFP badge
     await wait_for(d, _MFP.lower(), "Key card with MFP visible")
     print(f"    [ok] key '{_MFP}' added")

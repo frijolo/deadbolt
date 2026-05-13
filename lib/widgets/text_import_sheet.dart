@@ -9,36 +9,55 @@ import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 
-enum _ImportAction { clipboard, qr, file, text }
+/// Source from which to import a text payload. Use [initialAction] on
+/// [showTextImportSheet] to skip the in-sheet picker and jump directly to
+/// the desired source — useful when the caller has its own picker.
+enum TextImportAction { clipboard, qr, file, text }
 
 /// Shows a bottom sheet with four import options that mirror [showTextExportSheet]:
 /// paste from clipboard, scan QR, load from file, and enter text manually.
+///
+/// If [initialAction] is non-null the in-sheet picker is skipped and the
+/// requested source is invoked directly.
+///
 /// Returns the imported text content, or null if cancelled.
-Future<String?> showTextImportSheet(BuildContext context, {bool bigText = false}) async {
+Future<String?> showTextImportSheet(
+  BuildContext context, {
+  bool bigText = false,
+  TextImportAction? initialAction,
+}) async {
+  if (initialAction != null) {
+    return switch (initialAction) {
+      TextImportAction.clipboard => _fromClipboard(context),
+      TextImportAction.qr => _fromQr(context),
+      TextImportAction.file => _fromFile(context),
+      TextImportAction.text => _fromTextDialog(context),
+    };
+  }
   final l10n = context.l10n;
-  final action = await showSheet<_ImportAction>(context, (ctx) => Column(
+  final action = await showSheet<TextImportAction>(context, (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SheetHandle(),
         if (!bigText) ListTile(
           leading: const Icon(Icons.paste_outlined),
           title: Text(l10n.pasteFromClipboard),
-          onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
+          onTap: () => Navigator.pop(ctx, TextImportAction.clipboard),
         ),
         ListTile(
           leading: const Icon(Icons.qr_code_scanner),
           title: Text(l10n.scanQrCode),
-          onTap: () => Navigator.pop(ctx, _ImportAction.qr),
+          onTap: () => Navigator.pop(ctx, TextImportAction.qr),
         ),
         ListTile(
           leading: const Icon(Icons.file_open_outlined),
           title: Text(l10n.fromFile),
-          onTap: () => Navigator.pop(ctx, _ImportAction.file),
+          onTap: () => Navigator.pop(ctx, TextImportAction.file),
         ),
         if (!bigText) ListTile(
           leading: const Icon(Icons.edit_note),
           title: Text(l10n.pasteText),
-          onTap: () => Navigator.pop(ctx, _ImportAction.text),
+          onTap: () => Navigator.pop(ctx, TextImportAction.text),
         ),
         const SizedBox(height: 8),
       ],
@@ -46,10 +65,10 @@ Future<String?> showTextImportSheet(BuildContext context, {bool bigText = false}
   );
   if (action == null || !context.mounted) return null;
   return switch (action) {
-    _ImportAction.clipboard => _fromClipboard(context),
-    _ImportAction.qr => _fromQr(context),
-    _ImportAction.file => _fromFile(context),
-    _ImportAction.text => _fromTextDialog(context),
+    TextImportAction.clipboard => _fromClipboard(context),
+    TextImportAction.qr => _fromQr(context),
+    TextImportAction.file => _fromFile(context),
+    TextImportAction.text => _fromTextDialog(context),
   };
 }
 
@@ -127,29 +146,29 @@ Future<String?> _fromTextDialog(BuildContext context) async {
 /// Returns a base64 PSBT string, or null if cancelled / error.
 Future<String?> showPsbtImportSheet(BuildContext context) async {
   final l10n = context.l10n;
-  final action = await showSheet<_ImportAction>(context, (ctx) => Column(
+  final action = await showSheet<TextImportAction>(context, (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SheetHandle(),
         ListTile(
           leading: const Icon(Icons.paste_outlined),
           title: Text(l10n.pasteFromClipboard),
-          onTap: () => Navigator.pop(ctx, _ImportAction.clipboard),
+          onTap: () => Navigator.pop(ctx, TextImportAction.clipboard),
         ),
         ListTile(
           leading: const Icon(Icons.qr_code_scanner),
           title: Text(l10n.scanQrCode),
-          onTap: () => Navigator.pop(ctx, _ImportAction.qr),
+          onTap: () => Navigator.pop(ctx, TextImportAction.qr),
         ),
         ListTile(
           leading: const Icon(Icons.file_open_outlined),
           title: Text(l10n.fromFile),
-          onTap: () => Navigator.pop(ctx, _ImportAction.file),
+          onTap: () => Navigator.pop(ctx, TextImportAction.file),
         ),
         ListTile(
           leading: const Icon(Icons.edit_note),
           title: Text(l10n.pasteText),
-          onTap: () => Navigator.pop(ctx, _ImportAction.text),
+          onTap: () => Navigator.pop(ctx, TextImportAction.text),
         ),
         const SizedBox(height: 8),
       ],
@@ -157,10 +176,10 @@ Future<String?> showPsbtImportSheet(BuildContext context) async {
   );
   if (action == null || !context.mounted) return null;
   return switch (action) {
-    _ImportAction.clipboard => _fromClipboard(context),
-    _ImportAction.qr => _fromQr(context),
-    _ImportAction.file => _psbtFromFile(context),
-    _ImportAction.text => _fromTextDialog(context),
+    TextImportAction.clipboard => _fromClipboard(context),
+    TextImportAction.qr => _fromQr(context),
+    TextImportAction.file => _psbtFromFile(context),
+    TextImportAction.text => _fromTextDialog(context),
   };
 }
 

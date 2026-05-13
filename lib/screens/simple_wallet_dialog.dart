@@ -1092,10 +1092,7 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1107,8 +1104,12 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
             onClose: () => Navigator.pop(context),
             tooltip: l10n.cancel,
           ),
-          const SizedBox(height: 16),
-
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           // Heir name
           TextField(
             controller: _nameController,
@@ -1279,6 +1280,9 @@ class _HeirSetupSheetState extends State<_HeirSetupSheet> {
                   : null,
               icon: Icon(_isEditing ? Icons.check : Icons.person_add_outlined, size: 18),
               label: Text(_isEditing ? l10n.save : l10n.addHeir),
+            ),
+          ),
+              ],
             ),
           ),
         ],

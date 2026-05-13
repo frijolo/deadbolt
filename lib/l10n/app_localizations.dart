@@ -4592,18 +4592,6 @@ abstract class AppLocalizations {
   /// **'USB or Bluetooth device'**
   String get addKeyHwSubtitle;
 
-  /// No description provided for @addKeyManualTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter manually'**
-  String get addKeyManualTitle;
-
-  /// No description provided for @addKeyManualSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch Only (xpub) or Hot Key (seed)'**
-  String get addKeyManualSubtitle;
-
   /// No description provided for @validating.
   ///
   /// In en, this message translates to:
@@ -5575,6 +5563,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On-chain'**
   String get onChainBadge;
+
+  /// No description provided for @generateMnemonicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New mnemonic'**
+  String get generateMnemonicTitle;
+
+  /// No description provided for @generateMnemonicStep1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get generateMnemonicStep1Title;
+
+  /// No description provided for @generateMnemonicStep2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify backup'**
+  String get generateMnemonicStep2Title;
+
+  /// No description provided for @generateMnemonicStep3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure key'**
+  String get generateMnemonicStep3Title;
+
+  /// No description provided for @generateMnemonicLengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get generateMnemonicLengthLabel;
+
+  /// No description provided for @generateMnemonicLength12.
+  ///
+  /// In en, this message translates to:
+  /// **'12 words'**
+  String get generateMnemonicLength12;
+
+  /// No description provided for @generateMnemonicLength24.
+  ///
+  /// In en, this message translates to:
+  /// **'24 words'**
+  String get generateMnemonicLength24;
+
+  /// No description provided for @generateMnemonicGenerateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate mnemonic'**
+  String get generateMnemonicGenerateButton;
+
+  /// No description provided for @generateMnemonicRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get generateMnemonicRegenerate;
+
+  /// No description provided for @generateMnemonicWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Write these words down on paper, in order. They will not be shown again. Anyone with access to them can spend your bitcoin.'**
+  String get generateMnemonicWarning;
+
+  /// No description provided for @generateMnemonicBackupDone.
+  ///
+  /// In en, this message translates to:
+  /// **'I have written them down'**
+  String get generateMnemonicBackupDone;
+
+  /// No description provided for @generateMnemonicVerifyIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Type each word in the position requested. All positions must match before you can continue.'**
+  String get generateMnemonicVerifyIntro;
+
+  /// No description provided for @generateMnemonicVerifyWordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Word #{pos}'**
+  String generateMnemonicVerifyWordLabel(int pos);
+
+  /// No description provided for @generateMnemonicVerifyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Some words do not match. Check your notes and try again.'**
+  String get generateMnemonicVerifyError;
+
+  /// No description provided for @generateMnemonicShuffleAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle order again'**
+  String get generateMnemonicShuffleAgain;
+
+  /// No description provided for @generateMnemonicContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get generateMnemonicContinue;
+
+  /// No description provided for @generateMnemonicBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get generateMnemonicBack;
+
+  /// No description provided for @generateMnemonicDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Add key'**
+  String get generateMnemonicDone;
+
+  /// No description provided for @addKeyCapacityWatchOnlyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch-only key'**
+  String get addKeyCapacityWatchOnlyTitle;
+
+  /// No description provided for @addKeyCapacityWatchOnlySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'An xpub you can monitor but not sign with.'**
+  String get addKeyCapacityWatchOnlySubtitle;
+
+  /// No description provided for @addKeyCapacityHotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hot key'**
+  String get addKeyCapacityHotTitle;
+
+  /// No description provided for @addKeyCapacityHotSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Holds the seed on this device so it can sign.'**
+  String get addKeyCapacityHotSubtitle;
+
+  /// No description provided for @addKeyWatchSourcePasteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter manually'**
+  String get addKeyWatchSourcePasteTitle;
+
+  /// No description provided for @addKeyWatchSourcePasteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'From clipboard or typed in.'**
+  String get addKeyWatchSourcePasteSubtitle;
+
+  /// No description provided for @addKeyManualDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter key'**
+  String get addKeyManualDialogTitle;
+
+  /// No description provided for @addKeyManualHint.
+  ///
+  /// In en, this message translates to:
+  /// **'[mfp/path]xpub\n\nor one line per field:\nmfp\nm/path\nxpub'**
+  String get addKeyManualHint;
+
+  /// No description provided for @addKeyManualFormatError.
+  ///
+  /// In en, this message translates to:
+  /// **'Format not recognized. Paste a [mfp/path]xpub keyspec or three lines (mfp, path, xpub).'**
+  String get addKeyManualFormatError;
+
+  /// No description provided for @addKeyWatchSourceScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR'**
+  String get addKeyWatchSourceScanTitle;
+
+  /// No description provided for @addKeyWatchSourceScanSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read a keyspec QR code with the camera.'**
+  String get addKeyWatchSourceScanSubtitle;
+
+  /// No description provided for @addKeyWatchSourceFileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load file'**
+  String get addKeyWatchSourceFileTitle;
+
+  /// No description provided for @addKeyWatchSourceFileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a text/JSON file with the keyspec.'**
+  String get addKeyWatchSourceFileSubtitle;
+
+  /// No description provided for @addKeyWatchSourceHwTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware wallet'**
+  String get addKeyWatchSourceHwTitle;
+
+  /// No description provided for @addKeyWatchSourceHwSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export xpub from a BitBox02 or compatible device.'**
+  String get addKeyWatchSourceHwSubtitle;
+
+  /// No description provided for @addKeyHotSourceGenerateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate new mnemonic'**
+  String get addKeyHotSourceGenerateTitle;
+
+  /// No description provided for @addKeyHotSourceGenerateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a fresh seed and verify the backup.'**
+  String get addKeyHotSourceGenerateSubtitle;
+
+  /// No description provided for @addKeyHotSourceExistingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter existing mnemonic'**
+  String get addKeyHotSourceExistingTitle;
+
+  /// No description provided for @addKeyHotSourceExistingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Type or scan a 12/24-word seed.'**
+  String get addKeyHotSourceExistingSubtitle;
+
+  /// No description provided for @addKeyHotSourceXprvTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter xprv'**
+  String get addKeyHotSourceXprvTitle;
+
+  /// No description provided for @addKeyHotSourceXprvSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a master xprv (depth 0).'**
+  String get addKeyHotSourceXprvSubtitle;
 }
 
 class _AppLocalizationsDelegate

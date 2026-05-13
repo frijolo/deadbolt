@@ -4,6 +4,15 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### New Features
+- **Generate mnemonic wizard** — A new 3-step in-app flow (generate → verify by typed positions → configure) lets you create a fresh BIP39 seed without leaving Deadbolt or relying on external tools. Entropy comes from the operating system's secure random source with additional hashing applied as defense-in-depth, and intermediate buffers are wiped from memory once the seed is handed off.
+
+### Improvements
+- **Restructured Add-key sheet** — The Add-key flow now opens at a capacity picker (Watch-only / Hot key) with per-source sub-pickers (manual, QR, file, hardware wallet, generate, existing mnemonic, xprv) instead of a single bloated dialog. Extracted shared widgets (`keyspec`, `derivation_path_helpers`, `gap_stepper`, `mnemonic_confirm_step`, `mnemonic_mfp_preview`) for reuse across the wizard and the manual paths.
+- **Multi-step sheet back navigation** — `sheetCloseTitle` now accepts an optional `onBack`, and `showTextImportSheet` accepts an `initialAction` to skip its in-sheet picker when the caller has its own.
+
 ## [v1.9.6]
 
 ### Improvements

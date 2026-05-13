@@ -338,6 +338,21 @@ List<String> bip39ValidLastWords({
 String bip39EntropyToMnemonic({required List<int> entropy}) =>
     RustLib.instance.api.crateApiWalletBip39EntropyToMnemonic(entropy: entropy);
 
+/// Generates a fresh BIP39 mnemonic of `word_count` words (12 or 24).
+///
+/// Entropy pipeline (defense-in-depth, matching SeedSigner/Trezor practice
+/// rather than feeding raw OS RNG into BIP39 directly):
+/// 1. Sample 64 bytes from the OS CSPRNG (`OsRng`) — always 64, regardless of
+///    final word count, so the RNG pool is consumed maximally.
+/// 2. SHA-256 the 64-byte buffer → 32 bytes of normalized entropy.
+/// 3. Truncate to 16 bytes for 12 words, or use all 32 bytes for 24 words.
+/// 4. Hand the entropy to BIP39 (`Mnemonic::from_entropy`), which appends the
+///    standard 4-bit / 8-bit checksum.
+///
+/// All intermediate buffers are zeroized before return.
+String generateMnemonic({required int wordCount}) =>
+    RustLib.instance.api.crateApiWalletGenerateMnemonic(wordCount: wordCount);
+
 /// Removes `non_witness_utxo` (full previous transaction, ~200-500 B per input)
 /// when `witness_utxo` is present (segwit/taproot inputs), plus all `proprietary`
 /// and `unknown` fields from global, inputs, and outputs.

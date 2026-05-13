@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/gap_stepper.dart';
 import 'package:deadbolt/widgets/text_import_sheet.dart';
 
-import '_seed_tab.dart' show GapStepper;
 import 'restore_wallet_screen.dart' show RestoreScriptType;
 
 // ---------------------------------------------------------------------------

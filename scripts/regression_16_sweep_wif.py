@@ -4,7 +4,7 @@ Regression test 16: Sweep WIF — full flow including real broadcast on Signet.
 
 Flow:
   0.  Settings → set Active Network to Signet
-  1.  Create SegWit singlesig wallet via Guided creation (Enter manually →
+  1.  Create SegWit singlesig wallet via Guided creation (Hot key →
       Hot Key → mnemonic) — same funded Signet wallet as reg11/reg14/reg15.
   2.  Sync and wait for confirmed coins.
   3.  Export WIF of a guaranteed-funded address to clipboard:
@@ -50,6 +50,7 @@ from regression_helpers import (                       # noqa: E402
     go_back_to_wallet_list, delete_wallet_from_list,
     set_active_network_signet, run_regression,
     click_popup_item,
+    open_hot_existing_mnemonic,
 )
 
 
@@ -87,19 +88,7 @@ async def phase_create_wallet(d: UIDriver) -> None:
     await fill_field(d, "Wallet name", WALLET_NAME)
 
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible",
-                   retries=8, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    # Wait for the key-type method picker to fully animate in.
-    await asyncio.sleep(1.0)
-    await wait_for(d, "Watch Only", "manual entry tabs visible",
-                   retries=8, delay=0.5)
-
-    # The key type options (Hot Key, Import seed, etc.) appear after the
-    # manual-entry tabs are visible; give extra retries for this transition.
-    await click_label(d, "Hot Key", delay=0.5)
-    await wait_for(d, "Seed phrase", "Hot Key seed form visible",
-                   retries=15, delay=0.8)
+    await open_hot_existing_mnemonic(d)
 
     await fill_field(d, "Seed phrase", MNEMONIC)
     await wait_for(d, "Derived keyspec", "keyspec derived",

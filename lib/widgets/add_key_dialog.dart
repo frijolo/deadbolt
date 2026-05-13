@@ -3,6 +3,7 @@ import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard;
 
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/cubit/project_detail_cubit.dart';
@@ -11,131 +12,32 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/src/rust/api/wallet.dart'
-    show deriveKeyspec, deriveKeyspecFromXprv, validateMnemonic;
-import 'package:deadbolt/utils/api_network_extensions.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
-import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
+import 'package:deadbolt/widgets/derivation_path_helpers.dart';
+import 'package:deadbolt/widgets/dialog_helpers.dart'
+    show SheetHandle, sheetCloseTitle, showSheet;
+import 'package:deadbolt/widgets/generate_mnemonic_sheet.dart'
+    show showGenerateMnemonicSheet;
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
+import 'package:deadbolt/widgets/keyspec.dart';
+import 'package:deadbolt/widgets/mnemonic_confirm_step.dart';
 import 'package:deadbolt/widgets/mnemonic_entry_field.dart';
+import 'package:deadbolt/widgets/mnemonic_mfp_preview.dart' show MnemonicMfpPreview, MfpPreview;
 import 'package:deadbolt/widgets/text_import_sheet.dart';
 
-/// Pattern for parsing keyspec format: [mfp/path]xpub
-final kKeyspecPattern = RegExp(r'^\[([0-9a-fA-F]{8})/([^\]]+)\](.+)$');
-
-/// Result returned by [showKeyspecSheet].
-/// [keyspec] is always populated; [mnemonic]/[passphrase]/[xprv] are set only
-/// when the user entered the key via seed — allowing callers to store a hot key.
-typedef KeyspecResult = ({
-  String keyspec,
-  String? mnemonic,
-  String? passphrase,
-  String? xprv,
-});
-
-/// Returns the standard BIP derivation path for the given wallet type and network.
-///
-/// For P2TR:
-/// - [isMultiPath] = true (e.g. inheritance/miniscript) → always m/48'/.../2'
-/// - [isMultiPath] = false: [existingKeyCount] = 0 → m/86' (single-sig),
-///   [existingKeyCount] > 0 → m/48'/.../2' (multi-signer)
-/// [accountIndex] selects the BIP44 account level (default 0).
-String _defaultDerivationPath(
-  APIWalletType walletType,
-  APINetwork network,
-  int existingKeyCount, {
-  bool isMultiPath = false,
-  int accountIndex = 0,
-}) {
-  final coin = network.coinType;
-  final a = "$accountIndex'";
-  return switch (walletType) {
-    APIWalletType.p2Pkh => "m/44'/$coin'/$a",
-    APIWalletType.p2Wpkh => "m/84'/$coin'/$a",
-    APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/$a",
-    APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/$a/1'",
-    APIWalletType.p2Tr =>
-      (isMultiPath || existingKeyCount > 0) ? "m/48'/$coin'/$a/2'" : "m/86'/$coin'/$a",
-    APIWalletType.unknown => "m/86'/$coin'/$a",
-  };
-}
-
-Future<String?> _showDerivationPathPicker(
-  BuildContext context,
-  String initialPath,
-) async {
-  final controller = TextEditingController(text: initialPath);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(context.l10n.keyDerivPathLabel),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: const InputDecoration(hintText: "m/86'/0'/0'"),
-        style: const TextStyle(fontFamily: kMonospaceFontFamily),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(context.l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: () {
-            final path = controller.text.trim();
-            if (path.isNotEmpty) Navigator.pop(ctx, path);
-          },
-          child: Text(context.l10n.confirm),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Quick-path suggestion for the seed tabs.
-class _QuickPath {
-  final String path;
-  final String label;
-  const _QuickPath(this.path, this.label);
-}
-
-List<_QuickPath> _quickPaths(
-  APIWalletType? walletType,
-  APINetwork network, {
-  bool isMultiPath = false,
-}) {
-  final coin = network.coinType;
-  final paths = <_QuickPath>[];
-
-  if (walletType == null || walletType == APIWalletType.p2Wpkh) {
-    paths.add(_QuickPath("84'/$coin'/0'", 'BIP84 (Native SegWit)'));
-  }
-  if (walletType == null || walletType == APIWalletType.p2Tr) {
-    if (!isMultiPath) {
-      paths.add(_QuickPath("86'/$coin'/0'", 'BIP86 (Taproot single-sig)'));
-    }
-    paths.add(_QuickPath("48'/$coin'/0'/2'", 'BIP48 multisig (Taproot)'));
-  }
-  if (walletType == null ||
-      walletType == APIWalletType.p2Wsh ||
-      walletType == APIWalletType.p2ShWsh) {
-    paths.add(_QuickPath("48'/$coin'/0'/2'", 'BIP48 multisig (Native SegWit)'));
-    paths.add(_QuickPath("48'/$coin'/0'/1'", 'BIP48 multisig (P2SH-SegWit)'));
-  }
-  if (walletType == null || walletType == APIWalletType.p2Sh) {
-    paths.add(_QuickPath("49'/$coin'/0'", 'BIP49 (P2SH-SegWit)'));
-  }
-  if (walletType == null || walletType == APIWalletType.p2Pkh) {
-    paths.add(_QuickPath("44'/$coin'/0'", 'BIP44 (Legacy)'));
-  }
-
-  final seen = <String>{};
-  return paths.where((p) => seen.add(p.path)).toList();
-}
-
-enum _AddKeyTab { separateFields, seed }
+export 'package:deadbolt/widgets/keyspec.dart'
+    show KeyspecResult, kKeyspecPattern, parseManualKeyspec;
 
 enum _SeedType { mnemonic, xprv }
+
+/// Stage of the picker shown above the form (only in add-new-key mode).
+///
+/// The flow is:
+///   capacity → (watchSources | hotSources) → form
+///
+/// In wallet mode (`make hot`) the user enters `hotSources` directly.
+/// In edit mode the picker is skipped entirely.
+enum _PickerStage { capacity, watchSources, hotSources, form }
 
 // ---------------------------------------------------------------------------
 // Public entry points
@@ -337,342 +239,414 @@ class _AddKeySheet extends StatefulWidget {
 }
 
 class _AddKeySheetState extends State<_AddKeySheet> {
-  late _AddKeyTab _tab;
   _SeedType _seedType = _SeedType.mnemonic;
-  bool _showMethodPicker = false;
+  late _PickerStage _stage;
   String? _errorText;
-
-  // --- Separate fields ---
-  final _mfpController = TextEditingController();
-  final _pathSepController = TextEditingController();
-  final _xpubController = TextEditingController();
 
   // --- Mnemonic ---
   final _mnemonicController = TextEditingController();
-  final _passphraseController = TextEditingController();
-  bool _showPassphrase = false;
 
   // --- xprv ---
   final _xprvController = TextEditingController();
 
-  // --- Account index (keyspec mode only, for seed tab) ---
-  int _accountIndex = 0;
-
-  // --- Shared: derivation path for mnemonic/xprv tabs (project mode only) ---
-  late final TextEditingController _derivPathController;
-
-  // --- Live-derive state (project mode: full keyspec) ---
-  String? _derivedKeyspec;
-  String? _deriveError;
-  bool _deriving = false;
-  Timer? _debounce;
-
-  // --- Wallet mode: MFP preview via validateMnemonic ---
-  String? _walletMfp;
-  String? _walletMfpError;
-  bool _walletValidating = false;
-  Timer? _walletDebounce;
+  KeyspecResult? _capturedKeyspecResult;
+  MfpPreview? _capturedMfpPreview;
 
   bool get _isEditMode => widget.editingKey != null;
 
   @override
   void initState() {
     super.initState();
-    _tab = (widget.walletMode || _isEditMode)
-        ? _AddKeyTab.seed
-        : _AddKeyTab.separateFields;
-    _showMethodPicker = !_isEditMode && !widget.walletMode;
-
-    if (_isEditMode) {
-      final k = widget.editingKey!;
-      _mfpController.text = k.mfp;
-      _pathSepController.text = k.derivationPath;
-      _xpubController.text = k.xpub;
-    }
-
-    final paths = _quickPaths(widget.walletType, widget.network,
-        isMultiPath: widget.isMultiPath);
-    final suggested = widget.walletType != null
-        ? _defaultDerivationPath(
-            widget.walletType!,
-            widget.network,
-            widget.existingKeyCount,
-            isMultiPath: widget.isMultiPath,
-          ).replaceFirst('m/', '')
-        : '';
-    _derivPathController = TextEditingController(
-      text: widget.editingKey?.derivationPath.isNotEmpty == true
-          ? widget.editingKey!.derivationPath.replaceFirst('m/', '')
-          : suggested.isNotEmpty
-              ? suggested
-              : (paths.isNotEmpty ? paths.first.path : "84'/0'/0'"),
-    );
-
-    if (!widget.walletMode) {
-      _mnemonicController.addListener(_scheduleDerive);
-      _passphraseController.addListener(_scheduleDerive);
-      _xprvController.addListener(_scheduleDerive);
-      _derivPathController.addListener(_scheduleDerive);
-    } else {
-      _mnemonicController.addListener(_scheduleWalletValidate);
-      _passphraseController.addListener(_scheduleWalletValidate);
-    }
+    _mnemonicController.addListener(_onMnemonicChanged);
+    _stage = _isEditMode
+        ? _PickerStage.form
+        : (widget.walletMode
+            ? _PickerStage.hotSources
+            : _PickerStage.capacity);
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _walletDebounce?.cancel();
-    _mfpController.dispose();
-    _pathSepController.dispose();
-    _xpubController.dispose();
+    _mnemonicController.removeListener(_onMnemonicChanged);
     _mnemonicController.dispose();
-    _passphraseController.dispose();
     _xprvController.dispose();
-    _derivPathController.dispose();
     super.dispose();
   }
 
-  // --- Account index stepper ---
-
-  void _setAccountIndex(int i) {
-    if (!widget.keyspecMode) return;
-    setState(() => _accountIndex = i);
-    if (widget.walletType != null) {
-      _derivPathController.text = _defaultDerivationPath(
-        widget.walletType!,
-        widget.network,
-        widget.existingKeyCount,
-        isMultiPath: widget.isMultiPath,
-        accountIndex: _accountIndex,
-      ).replaceFirst('m/', '');
-    }
+  void _onMnemonicChanged() {
+    if (mounted) setState(() {});
   }
 
-  // --- Project mode: live derive full keyspec ---
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
 
-  void _scheduleDerive() {
-    if (_tab != _AddKeyTab.seed) return;
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), _derive);
-  }
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SheetHandle(),
+          Flexible(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                  16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+          // Title row with optional back + close button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_stage == _PickerStage.watchSources ||
+                  (_stage == _PickerStage.hotSources && !widget.walletMode))
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: l10n.cancel,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() {
+                    _stage = _PickerStage.capacity;
+                    _errorText = null;
+                  }),
+                ),
+              Expanded(
+                child: _isEditMode || widget.walletMode
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.walletMode
+                                ? (widget.expectedMfp != null
+                                    ? l10n.addPrivateKeyLabel
+                                    : l10n.addSigningKeyLabel)
+                                : l10n.editKeyTitle,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          if (widget.walletMode && widget.expectedMfp != null)
+                            Text(
+                              widget.keyLabel != null &&
+                                      widget.keyLabel!.isNotEmpty
+                                  ? '${widget.keyLabel} · ${widget.expectedMfp}'
+                                  : 'Key: ${widget.expectedMfp}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontFamily: kMonospaceFontFamily,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            )
+                          else if (_isEditMode)
+                            Text(
+                              widget.editingKey!.mfp.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontFamily: kMonospaceFontFamily,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                        ],
+                      )
+                    : Text(
+                        l10n.addKeyDialogTitle,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: l10n.cancel,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-  Future<void> _derive() async {
-    if (!mounted) return;
-    final path = _derivPathController.text.trim();
-    if (path.isEmpty) return;
-
-    if (_seedType == _SeedType.mnemonic) {
-      if (!_isValidWordCount) {
-        setState(() {
-          _derivedKeyspec = null;
-          _deriveError = null;
-        });
-        return;
-      }
-    } else {
-      if (_xprvController.text.trim().isEmpty) {
-        setState(() {
-          _derivedKeyspec = null;
-          _deriveError = null;
-        });
-        return;
-      }
-    }
-
-    setState(() {
-      _deriving = true;
-      _deriveError = null;
-    });
-
-    try {
-      final String keyspec;
-      if (_seedType == _SeedType.mnemonic) {
-        keyspec = await deriveKeyspec(
-          mnemonic: _mnemonicController.text.trim(),
-          passphrase: _passphraseController.text.isEmpty
-              ? null
-              : _passphraseController.text,
-          derivationPath: path,
-          network: widget.network,
-        );
-      } else {
-        keyspec = await deriveKeyspecFromXprv(
-          xprvStr: _xprvController.text.trim(),
-          derivationPath: path,
-        );
-      }
-      if (!mounted) return;
-      setState(() {
-        _derivedKeyspec = keyspec;
-        _deriving = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _deriveError = formatRustError(e);
-        _derivedKeyspec = null;
-        _deriving = false;
-      });
-    }
-  }
-
-  // --- Wallet mode: validate mnemonic for MFP preview ---
-
-  void _scheduleWalletValidate() {
-    _walletDebounce?.cancel();
-    _walletDebounce = Timer(
-      const Duration(milliseconds: 500),
-      _validateMnemonicForWallet,
+          if (_stage == _PickerStage.capacity)
+            _buildCapacityPicker(l10n)
+          else if (_stage == _PickerStage.watchSources)
+            _buildWatchSourcesPicker(l10n)
+          else if (_stage == _PickerStage.hotSources)
+            _buildHotSourcesPicker(l10n)
+          else ...[
+            Flexible(
+              child: SingleChildScrollView(
+                dragStartBehavior: DragStartBehavior.down,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSeedForm(),
+                  ],
+                ),
+              ),
+            ),
+            if (_errorText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _submit,
+                child: Text(
+                  widget.walletMode || _isEditMode
+                      ? l10n.addPrivateKeyLabel
+                      : l10n.add,
+                ),
+              ),
+            ),
+          ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Future<void> _validateMnemonicForWallet() async {
-    if (!mounted) return;
-    if (!_isValidWordCount) {
+  /// Step 1: pick between Watch-only and Hot.
+  Widget _buildCapacityPicker(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MethodTile(
+          key: const ValueKey('addKeyCapacity_watchOnly'),
+          icon: Icons.visibility_outlined,
+          title: l10n.addKeyCapacityWatchOnlyTitle,
+          subtitle: l10n.addKeyCapacityWatchOnlySubtitle,
+          onTap: () => setState(() {
+            _stage = _PickerStage.watchSources;
+            _errorText = null;
+          }),
+        ),
+        const SizedBox(height: 8),
+        _MethodTile(
+          key: const ValueKey('addKeyCapacity_hot'),
+          icon: Icons.local_fire_department_outlined,
+          title: l10n.addKeyCapacityHotTitle,
+          subtitle: l10n.addKeyCapacityHotSubtitle,
+          onTap: () => setState(() {
+            _stage = _PickerStage.hotSources;
+            _errorText = null;
+          }),
+        ),
+        if (_errorText != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _errorText!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Step 2a: Watch-only sources. Paste / Scan / File / Hardware + a small
+  /// secondary link to type the MFP/path/xpub fields by hand.
+  Widget _buildWatchSourcesPicker(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _MethodTile(
+          key: const ValueKey('addKeyWatch_paste'),
+          icon: Icons.content_paste_outlined,
+          title: l10n.addKeyWatchSourcePasteTitle,
+          subtitle: l10n.addKeyWatchSourcePasteSubtitle,
+          onTap: _onWatchManualEntry,
+        ),
+        const SizedBox(height: 8),
+        _MethodTile(
+          key: const ValueKey('addKeyWatch_scan'),
+          icon: Icons.qr_code_scanner,
+          title: l10n.addKeyWatchSourceScanTitle,
+          subtitle: l10n.addKeyWatchSourceScanSubtitle,
+          onTap: () => _onWatchTextSource(TextImportAction.qr),
+        ),
+        const SizedBox(height: 8),
+        _MethodTile(
+          key: const ValueKey('addKeyWatch_file'),
+          icon: Icons.file_open_outlined,
+          title: l10n.addKeyWatchSourceFileTitle,
+          subtitle: l10n.addKeyWatchSourceFileSubtitle,
+          onTap: () => _onWatchTextSource(TextImportAction.file),
+        ),
+        const SizedBox(height: 8),
+        _MethodTile(
+          key: const ValueKey('addKeyWatch_hw'),
+          icon: Icons.hardware,
+          title: l10n.addKeyWatchSourceHwTitle,
+          subtitle: l10n.addKeyWatchSourceHwSubtitle,
+          onTap: _onHardwareTapped,
+        ),
+        if (_errorText != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _errorText!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Step 2b: Hot key sources. Generate / Enter mnemonic / Enter xprv.
+  ///
+  /// Generate is hidden in wallet mode ("make hot" requires the seed of a
+  /// specific existing watch-only key — generating a new one would never match
+  /// the expected MFP).
+  Widget _buildHotSourcesPicker(AppLocalizations l10n) {
+    final canGenerate = !widget.walletMode && widget.walletType != null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (canGenerate) ...[
+          _MethodTile(
+            key: const ValueKey('addKeyHot_generate'),
+            icon: Icons.casino_outlined,
+            title: l10n.addKeyHotSourceGenerateTitle,
+            subtitle: l10n.addKeyHotSourceGenerateSubtitle,
+            onTap: _onGenerateMnemonicTapped,
+          ),
+          const SizedBox(height: 8),
+        ],
+        _MethodTile(
+          key: const ValueKey('addKeyHot_mnemonic'),
+          icon: Icons.password,
+          title: l10n.addKeyHotSourceExistingTitle,
+          subtitle: l10n.addKeyHotSourceExistingSubtitle,
+          onTap: () => setState(() {
+            _stage = _PickerStage.form;
+            _seedType = _SeedType.mnemonic;
+            _errorText = null;
+          }),
+        ),
+        const SizedBox(height: 8),
+        _MethodTile(
+          key: const ValueKey('addKeyHot_xprv'),
+          icon: Icons.vpn_key_outlined,
+          title: l10n.addKeyHotSourceXprvTitle,
+          subtitle: l10n.addKeyHotSourceXprvSubtitle,
+          onTap: () => setState(() {
+            _stage = _PickerStage.form;
+            _seedType = _SeedType.xprv;
+            _errorText = null;
+          }),
+        ),
+        if (_errorText != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _errorText!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Opens the manual entry dialog (accepts either `[mfp/path]xpub` or three
+  /// loose tokens in any order). Pipes parsed parts to [_addKeyFromParts].
+  Future<void> _onWatchManualEntry() async {
+    final parts = await _showManualKeyspecDialog(context);
+    if (parts == null || !mounted) return;
+    await _addKeyFromParts(
+      parts.mfp.toLowerCase(),
+      parts.path,
+      parts.xpub,
+    );
+  }
+
+  /// Generic text-import path: paste / scan QR / load file. The caller chooses
+  /// the source via [action]; the parsed keyspec is then handed to
+  /// [_addKeyFromParts].
+  Future<void> _onWatchTextSource(TextImportAction action) async {
+    final result = await showTextImportSheet(context, initialAction: action);
+    if (result == null || !mounted) return;
+    final match = kKeyspecPattern.firstMatch(result.trim());
+    if (match == null) {
       setState(() {
-        _walletMfp = null;
-        _walletMfpError = null;
-        _walletValidating = false;
+        _stage = _PickerStage.watchSources;
+        _errorText = context.l10n.invalidKeyspecFormat;
       });
       return;
     }
-    setState(() {
-      _walletValidating = true;
-      _walletMfpError = null;
-    });
-    try {
-      final info = await validateMnemonic(
-        mnemonic: _mnemonicController.text.trim(),
-        passphrase: _passphraseController.text.isEmpty
-            ? null
-            : _passphraseController.text,
-        network: widget.network,
-      );
-      if (!mounted) return;
-      setState(() {
-        _walletMfp = info.mfp;
-        _walletMfpError = null;
-        _walletValidating = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _walletMfp = null;
-        _walletMfpError = formatRustError(e);
-        _walletValidating = false;
-      });
-    }
+    await _addKeyFromParts(
+      match.group(1)!.toLowerCase(),
+      match.group(2)!,
+      match.group(3)!,
+    );
   }
 
-  int get _wordCount {
-    final words = _mnemonicController.text.trim().split(RegExp(r'\s+'));
-    return words.where((w) => w.isNotEmpty).length;
-  }
-
-  bool get _isValidWordCount => bip39ValidWordCounts.contains(_wordCount);
-
-  // --- Submit ---
-
-  Future<void> _submit() async {
-    if (widget.walletMode) {
-      await _submitWallet();
+  Future<void> _onGenerateMnemonicTapped() async {
+    if (widget.walletType == null) return;
+    final result = await showGenerateMnemonicSheet(
+      context,
+      network: widget.network,
+      walletType: widget.walletType!,
+      existingKeyCount: widget.existingKeyCount,
+      isMultiPath: widget.isMultiPath,
+    );
+    if (result == null || !mounted) return;
+    final match = kKeyspecPattern.firstMatch(result.keyspec);
+    if (match == null) {
+      setState(() {
+        _stage = _PickerStage.hotSources;
+        _errorText = context.l10n.invalidKeyspecFormat;
+      });
       return;
     }
-    setState(() => _errorText = null);
-
-    String mfp, path, xpub;
-
-    switch (_tab) {
-      case _AddKeyTab.separateFields:
-        mfp = _mfpController.text.trim().toLowerCase();
-        path = _pathSepController.text.trim();
-        xpub = _xpubController.text.trim();
-        if (mfp.isEmpty || path.isEmpty || xpub.isEmpty) {
-          setState(() => _errorText = context.l10n.allFieldsRequired);
-          return;
-        }
-
-      case _AddKeyTab.seed:
-        if (_derivedKeyspec == null) {
-          setState(
-              () => _errorText = _deriveError ?? context.l10n.deriveKeyFirst);
-          return;
-        }
-        final match = kKeyspecPattern.firstMatch(_derivedKeyspec!);
-        if (match == null) {
-          setState(() => _errorText = context.l10n.invalidDerivedKeyspec);
-          return;
-        }
-        mfp = match.group(1)!.toLowerCase();
-        path = match.group(2)!;
-        xpub = match.group(3)!;
-    }
-
-    String? seedMnemonic;
-    String? seedPassphrase;
-    String? seedXprv;
-    if (_tab == _AddKeyTab.seed) {
-      if (_seedType == _SeedType.mnemonic) {
-        seedMnemonic = _mnemonicController.text.trim();
-        seedPassphrase = _passphraseController.text.isNotEmpty
-            ? _passphraseController.text
-            : null;
-      } else {
-        seedXprv = _xprvController.text.trim();
-      }
-    }
-
-    await _addKeyFromParts(mfp, path, xpub,
-        seedMnemonic: seedMnemonic,
-        seedPassphrase: seedPassphrase,
-        seedXprv: seedXprv);
+    await _addKeyFromParts(
+      match.group(1)!.toLowerCase(),
+      match.group(2)!,
+      match.group(3)!,
+      seedMnemonic: result.mnemonic,
+      seedPassphrase: result.passphrase,
+      seedXprv: result.xprv,
+    );
   }
 
-  Future<void> _submitWallet() async {
-    setState(() => _errorText = null);
-
-    if (_seedType == _SeedType.mnemonic) {
-      if (_walletValidating) return;
-      if (_walletMfp == null || _walletMfpError != null) {
-        setState(() =>
-            _errorText = _walletMfpError ?? context.l10n.enterValidSeedPhrase);
-        return;
-      }
-      if (widget.expectedMfp != null &&
-          _walletMfp!.toLowerCase() != widget.expectedMfp!.toLowerCase()) {
-        setState(() => _errorText = context.l10n.mfpMismatch(
-            _walletMfp!, widget.expectedMfp!));
-        return;
-      }
-      final result = await widget.onAddMnemonic!(
-        _mnemonicController.text.trim(),
-        _passphraseController.text.isEmpty
-            ? null
-            : _passphraseController.text,
-      );
-      if (!mounted) return;
-      if (result != null) {
-        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
-        Navigator.pop(context, true);
-      }
-      // On null: cubit already emitted error toast via BlocListener.
-    } else {
-      final xprv = _xprvController.text.trim();
-      if (xprv.isEmpty) {
-        setState(() => _errorText = context.l10n.enterXprvKey);
-        return;
-      }
-      final result = await widget.onAddXprv!(xprv);
-      if (!mounted) return;
-      if (result != null) {
-        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
-        Navigator.pop(context, true);
-      }
+  Future<void> _onHardwareTapped() async {
+    final suggested = widget.walletType != null
+        ? defaultDerivationPath(
+            widget.walletType!,
+            widget.network,
+            widget.existingKeyCount,
+            isMultiPath: widget.isMultiPath,
+          )
+        : "m/86'/0'/0'";
+    final path = await showDerivationPathPicker(context, suggested);
+    if (path == null || !mounted) return;
+    final keyspec = await showHwXpubSheet(
+      context,
+      derivationPath: path,
+      network: widget.network,
+    );
+    if (keyspec == null || !mounted) return;
+    final match = kKeyspecPattern.firstMatch(keyspec.trim());
+    if (match == null) {
+      setState(() {
+        _stage = _PickerStage.watchSources;
+        _errorText = context.l10n.invalidKeyspecFormat;
+      });
+      return;
     }
+    await _addKeyFromParts(
+      match.group(1)!.toLowerCase(),
+      match.group(2)!,
+      match.group(3)!,
+    );
   }
 
-  /// Validates and adds (or updates) a key from parsed components (project mode).
   Future<void> _addKeyFromParts(String mfp, String path, String xpub,
       {String? seedMnemonic, String? seedPassphrase, String? seedXprv}) async {
     // In edit mode validate MFP matches
@@ -740,249 +714,76 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     Navigator.pop(context);
   }
 
-  // --- Method picker actions ---
-
-  Future<void> _onImportTapped() async {
-    final result = await showTextImportSheet(context);
-    if (result == null || !mounted) return;
-    final match = kKeyspecPattern.firstMatch(result.trim());
-    if (match == null) {
-      setState(() {
-        _showMethodPicker = false;
-        _errorText = context.l10n.invalidKeyspecFormat;
-      });
+  Future<void> _submit() async {
+    if (widget.walletMode) {
+      await _submitWallet();
       return;
     }
-    await _addKeyFromParts(
-      match.group(1)!.toLowerCase(),
-      match.group(2)!,
-      match.group(3)!,
-    );
-  }
+    setState(() => _errorText = null);
 
-  Future<void> _onHardwareTapped() async {
-    final suggested = widget.walletType != null
-        ? _defaultDerivationPath(
-            widget.walletType!,
-            widget.network,
-            widget.existingKeyCount,
-            isMultiPath: widget.isMultiPath,
-            accountIndex: _accountIndex,
-          )
-        : "m/86'/0'/0'";
-    final path = await _showDerivationPathPicker(context, suggested);
-    if (path == null || !mounted) return;
-    final keyspec = await showHwXpubSheet(
-      context,
-      derivationPath: path,
-      network: widget.network,
-    );
-    if (keyspec == null || !mounted) return;
-    final match = kKeyspecPattern.firstMatch(keyspec.trim());
-    if (match == null) {
-      setState(() {
-        _showMethodPicker = false;
-        _errorText = context.l10n.invalidKeyspecFormat;
-      });
+    final result = _capturedKeyspecResult;
+    if (result == null || result.keyspec.isEmpty) {
+      setState(() => _errorText = context.l10n.deriveKeyFirst);
       return;
     }
-    await _addKeyFromParts(
-      match.group(1)!.toLowerCase(),
-      match.group(2)!,
-      match.group(3)!,
-    );
+    final match = kKeyspecPattern.firstMatch(result.keyspec);
+    if (match == null) {
+      setState(() => _errorText = context.l10n.invalidDerivedKeyspec);
+      return;
+    }
+    final mfp = match.group(1)!.toLowerCase();
+    final path = match.group(2)!;
+    final xpub = match.group(3)!;
+
+    String? seedMnemonic;
+    String? seedPassphrase;
+    String? seedXprv;
+    if (_seedType == _SeedType.mnemonic) {
+      seedMnemonic = _mnemonicController.text.trim();
+      seedPassphrase = _capturedKeyspecResult?.passphrase;
+    } else {
+      seedXprv = _xprvController.text.trim();
+    }
+
+    await _addKeyFromParts(mfp, path, xpub,
+        seedMnemonic: seedMnemonic,
+        seedPassphrase: seedPassphrase,
+        seedXprv: seedXprv);
   }
 
-  // --- Build ---
+  Future<void> _submitWallet() async {
+    setState(() => _errorText = null);
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SheetHandle(),
-          Flexible(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                  16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-          // Title row with close button
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _isEditMode || widget.walletMode
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.walletMode
-                                ? (widget.expectedMfp != null
-                                    ? l10n.addPrivateKeyLabel
-                                    : l10n.addSigningKeyLabel)
-                                : l10n.editKeyTitle,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          if (widget.walletMode && widget.expectedMfp != null)
-                            Text(
-                              widget.keyLabel != null &&
-                                      widget.keyLabel!.isNotEmpty
-                                  ? '${widget.keyLabel} · ${widget.expectedMfp}'
-                                  : 'Key: ${widget.expectedMfp}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontFamily: kMonospaceFontFamily,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            )
-                          else if (_isEditMode)
-                            Text(
-                              widget.editingKey!.mfp.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontFamily: kMonospaceFontFamily,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            ),
-                        ],
-                      )
-                    : Text(
-                        l10n.addKeyDialogTitle,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: l10n.cancel,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (_showMethodPicker)
-            _buildMethodPicker(l10n)
-          else ...[
-            // Manual mode: chips + form
-            if (!_isEditMode && !widget.walletMode) ...[
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<_AddKeyTab>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: _AddKeyTab.separateFields,
-                      label: Text('Watch Only'),
-                      icon: Icon(Icons.visibility_outlined, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: _AddKeyTab.seed,
-                      label: Text('Hot Key'),
-                      icon: Icon(Icons.local_fire_department_outlined, size: 16),
-                    ),
-                  ],
-                  selected: {_tab},
-                  onSelectionChanged: (v) => setState(() {
-                    _tab = v.first;
-                    _errorText = null;
-                    _derivedKeyspec = null;
-                    _deriveError = null;
-                  }),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Flexible(
-              child: SingleChildScrollView(
-                dragStartBehavior: DragStartBehavior.down,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_tab == _AddKeyTab.separateFields)
-                      _buildSeparateFields(l10n),
-                    if (_tab == _AddKeyTab.seed) _buildSeedForm(),
-                  ],
-                ),
-              ),
-            ),
-
-            if (_errorText != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _errorText!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
-              ),
-
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _submit,
-                child: Text(
-                  widget.walletMode || _isEditMode
-                      ? l10n.addPrivateKeyLabel
-                      : l10n.add,
-                ),
-              ),
-            ),
-          ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMethodPicker(AppLocalizations l10n) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _MethodTile(
-          icon: Icons.download_outlined,
-          title: l10n.importAction,
-          subtitle: l10n.addKeyClipboardSubtitle,
-          onTap: _onImportTapped,
-        ),
-        const SizedBox(height: 8),
-        _MethodTile(
-          icon: Icons.hardware,
-          title: l10n.hwWalletTitle,
-          subtitle: l10n.addKeyHwSubtitle,
-          onTap: _onHardwareTapped,
-        ),
-        const SizedBox(height: 8),
-        _MethodTile(
-          icon: Icons.edit_outlined,
-          title: l10n.addKeyManualTitle,
-          subtitle: l10n.addKeyManualSubtitle,
-          onTap: () => setState(() => _showMethodPicker = false),
-          trailingIcon: Icons.chevron_right,
-        ),
-        if (_errorText != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _errorText!,
-            style: const TextStyle(color: Colors.red, fontSize: 12),
-          ),
-        ],
-      ],
-    );
+    if (_seedType == _SeedType.mnemonic) {
+      if (_capturedMfpPreview == null) {
+        setState(() => _errorText = context.l10n.enterValidSeedPhrase);
+        return;
+      }
+      final result = await widget.onAddMnemonic!(
+        _mnemonicController.text.trim(),
+        _capturedMfpPreview!.passphrase.isEmpty
+            ? null
+            : _capturedMfpPreview!.passphrase,
+      );
+      if (!mounted) return;
+      if (result != null) {
+        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
+        Navigator.pop(context, true);
+      }
+      // On null: cubit already emitted error toast via BlocListener.
+    } else {
+      final xprv = _xprvController.text.trim();
+      if (xprv.isEmpty) {
+        setState(() => _errorText = context.l10n.enterXprvKey);
+        return;
+      }
+      final result = await widget.onAddXprv!(xprv);
+      if (!mounted) return;
+      if (result != null) {
+        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
+        Navigator.pop(context, true);
+      }
+    }
   }
 
   Widget _buildSeedForm() {
@@ -991,8 +792,6 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       return _buildWalletSeedForm();
     }
 
-    final quickPaths = _quickPaths(widget.walletType, widget.network,
-        isMultiPath: widget.isMultiPath);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1008,47 +807,45 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           ),
           const SizedBox(height: 8),
         ],
-        // Mnemonic / xprv toggle
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<_SeedType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-                value: _SeedType.mnemonic,
-                label: Text('Mnemonic'),
-                icon: Icon(Icons.password, size: 16)),
-            ButtonSegment(
-                value: _SeedType.xprv,
-                label: Text('xprv'),
-                icon: Icon(Icons.vpn_key_outlined, size: 16)),
-          ],
-          selected: {_seedType},
-          onSelectionChanged: (s) => setState(() {
-            _seedType = s.first;
-            _derivedKeyspec = null;
-            _deriveError = null;
-          }),
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        ),
-        ),
-        const SizedBox(height: 12),
+        if (_isEditMode) ...[
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<_SeedType>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                    value: _SeedType.mnemonic,
+                    label: Text('Mnemonic'),
+                    icon: Icon(Icons.password, size: 16)),
+                ButtonSegment(
+                    value: _SeedType.xprv,
+                    label: Text('xprv'),
+                    icon: Icon(Icons.vpn_key_outlined, size: 16)),
+              ],
+              selected: {_seedType},
+              onSelectionChanged: (s) => setState(() {
+                _seedType = s.first;
+                _capturedKeyspecResult = null;
+              }),
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (_seedType == _SeedType.mnemonic) ...[
           MnemonicEntryField(controller: _mnemonicController),
           const SizedBox(height: 12),
-          TextField(
-            controller: _passphraseController,
-            obscureText: !_showPassphrase,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              labelText: context.l10n.bip39PassphraseLabel,
-              suffixIcon: IconButton(
-                icon: Icon(
-                    _showPassphrase ? Icons.visibility_off : Icons.visibility),
-                onPressed: () =>
-                    setState(() => _showPassphrase = !_showPassphrase),
-              ),
-            ),
+          MnemonicConfirmStep(
+            mnemonic: _mnemonicController.text.trim(),
+            network: widget.network,
+            walletType: widget.walletType,
+            existingKeyCount: widget.existingKeyCount,
+            isMultiPath: widget.isMultiPath,
+            showAccountStepper: widget.keyspecMode && widget.walletType != null,
+            requiredMfp: _isEditMode ? widget.editingKey!.mfp : null,
+            onResultChanged: (result) {
+              setState(() => _capturedKeyspecResult = result);
+            },
           ),
         ] else ...[
           TextField(
@@ -1061,112 +858,30 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             ),
           ),
         ],
-        const SizedBox(height: 12),
-        if (widget.keyspecMode && widget.walletType != null)
-          _buildAccountIndexStepper(),
-        ..._buildDerivPathField(quickPaths),
-        ..._buildDeriveResult(),
       ],
     );
   }
 
-  Widget _buildAccountIndexStepper() {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Text(l10n.accountIndexLabel, style: theme.textTheme.labelMedium),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
-            onPressed: _accountIndex > 0
-                ? () => _setAccountIndex(_accountIndex - 1)
-                : null,
-            visualDensity: VisualDensity.compact,
-          ),
-          SizedBox(
-            width: 32,
-            child: Center(
-              child: Text('$_accountIndex',
-                  style: theme.textTheme.titleSmall),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
-            onPressed: () => _setAccountIndex(_accountIndex + 1),
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Seed form in wallet mode: no derivation path, MFP preview instead.
+  ///
+  /// The seed type (mnemonic / xprv) is preselected by the Hot sources picker
+  /// tile the user tapped, so the inner toggle is omitted.
   Widget _buildWalletSeedForm() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<_SeedType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-                value: _SeedType.mnemonic,
-                label: Text('Mnemonic'),
-                icon: Icon(Icons.password, size: 16)),
-            ButtonSegment(
-                value: _SeedType.xprv,
-                label: Text('xprv'),
-                icon: Icon(Icons.vpn_key_outlined, size: 16)),
-          ],
-          selected: {_seedType},
-          onSelectionChanged: (s) => setState(() {
-            _seedType = s.first;
-            _walletMfp = null;
-            _walletMfpError = null;
-          }),
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
-        ),
-        ),
-        const SizedBox(height: 12),
         if (_seedType == _SeedType.mnemonic) ...[
-          MnemonicEntryField(
-            controller: _mnemonicController,
-            errorText: _walletMfpError,
-          ),
+          MnemonicEntryField(controller: _mnemonicController),
           const SizedBox(height: 12),
-          TextField(
-            controller: _passphraseController,
-            obscureText: !_showPassphrase,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              labelText: context.l10n.bip39PassphraseLabel,
-              suffixIcon: IconButton(
-                icon: Icon(
-                    _showPassphrase ? Icons.visibility_off : Icons.visibility),
-                onPressed: () =>
-                    setState(() => _showPassphrase = !_showPassphrase),
-              ),
-            ),
+          MnemonicMfpPreview(
+            mnemonic: _mnemonicController.text.trim(),
+            network: widget.network,
+            expectedMfp: widget.expectedMfp,
+            onMfpChanged: (preview) {
+              setState(() => _capturedMfpPreview = preview);
+            },
           ),
-          if (_walletValidating) ...[
-            const SizedBox(height: 8),
-            Row(children: [
-              const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: 8),
-              Text(context.l10n.validating, style: const TextStyle(fontSize: 12)),
-            ]),
-          ] else if (_walletMfp != null) ...[
-            const SizedBox(height: 8),
-            _buildWalletMfpPreview(),
-          ],
         ] else ...[
           TextField(
             controller: _xprvController,
@@ -1183,190 +898,149 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     );
   }
 
-  Widget _buildWalletMfpPreview() {
-    final expected = widget.expectedMfp;
-    final matches =
-        expected == null || _walletMfp!.toLowerCase() == expected.toLowerCase();
-    return Row(children: [
-      Icon(
-        matches ? Icons.check_circle : Icons.cancel,
-        color: matches ? Colors.green : Colors.red,
-        size: 16,
-      ),
-      const SizedBox(width: 4),
-      if (matches)
-        Text('MFP: $_walletMfp',
-            style: const TextStyle(fontFamily: kMonospaceFontFamily))
-      else
-        Expanded(
-          child: Text(
-            context.l10n.wrongKeyMfp(_walletMfp!, expected),
-            style: const TextStyle(
-                color: Colors.red, fontSize: 12, fontFamily: kMonospaceFontFamily),
-          ),
-        ),
-    ]);
-  }
-
-  Widget _buildSeparateFields(AppLocalizations l10n) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _mfpController,
-          enabled: !_isEditMode,
-          decoration: InputDecoration(
-            labelText: l10n.mfpLabel,
-            hintText: l10n.mfpHint,
-          ),
-          textCapitalization: TextCapitalization.none,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _pathSepController,
-          decoration: InputDecoration(
-            labelText: l10n.derivationPathLabel,
-            hintText: l10n.derivationPathHint,
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _xpubController,
-          decoration: InputDecoration(
-            labelText: l10n.xpubLabel,
-            hintText: l10n.xpubHint,
-          ),
-          maxLines: 2,
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildDerivPathField(List<_QuickPath> quickPaths) {
-    return [
-      TextField(
-        controller: _derivPathController,
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          labelText: context.l10n.keyDerivPathLabel,
-          hintText: "84'/0'/0'",
-          helperText: context.l10n.derivPathWithoutLeading,
-        ),
-        style: const TextStyle(fontFamily: kMonospaceFontFamily),
-      ),
-      if (quickPaths.isNotEmpty) ...[
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          children: [
-            for (final qp in quickPaths)
-              ActionChip(
-                label:
-                    Text(qp.label, style: const TextStyle(fontSize: 11)),
-                onPressed: () {
-                  _derivPathController.text = qp.path;
-                },
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-          ],
-        ),
-      ],
-      const SizedBox(height: 12),
-    ];
-  }
-
-  List<Widget> _buildDeriveResult() {
-    if (_deriving) {
-      return [
-        const Center(child: CircularProgressIndicator()),
-        const SizedBox(height: 8),
-      ];
-    }
-    if (_deriveError != null) {
-      return [
-        Text(_deriveError!,
-            style: const TextStyle(color: Colors.red, fontSize: 13)),
-        const SizedBox(height: 8),
-      ];
-    }
-    if (_derivedKeyspec != null) {
-      final match = kKeyspecPattern.firstMatch(_derivedKeyspec!);
-      final derivedMfp = match?.group(1)?.toLowerCase();
-      final mfpMatches = !_isEditMode ||
-          derivedMfp == widget.editingKey!.mfp.toLowerCase();
-
-      return [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: (mfpMatches ? Colors.green : Colors.red).withAlpha(AppAlpha.faint),
-            border: Border.all(
-                color:
-                    (mfpMatches ? Colors.green : Colors.red).withAlpha(AppAlpha.pale)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Icon(
-                  mfpMatches ? Icons.check_circle : Icons.cancel,
-                  color: mfpMatches ? Colors.green : Colors.red,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  context.l10n.derivedKeyspecLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: mfpMatches ? Colors.green : Colors.red,
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 4),
-              SelectableText(
-                _derivedKeyspec!,
-                style:
-                    const TextStyle(fontFamily: kMonospaceFontFamily, fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              TextButton.icon(
-                icon: const Icon(Icons.copy, size: 16),
-                label: Text(context.l10n.copy),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: () async {
-                  await copyToClipboard(_derivedKeyspec!, successMessage: context.l10n.keyCopied);
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ];
-    }
-    return [];
-  }
 }
 
 // ---------------------------------------------------------------------------
+
+/// Shows a bottom sheet with a single multi-line text field that accepts
+/// either a `[mfp/path]xpub` keyspec or three loose tokens (mfp, path, xpub)
+/// detected by content. The field offers a paste suffix icon.
+Future<({String mfp, String path, String xpub})?> _showManualKeyspecDialog(
+  BuildContext context,
+) async {
+  final result = await showSheet<({String mfp, String path, String xpub})>(
+    context,
+    (ctx) => const _ManualKeyspecSheet(),
+    isDismissible: false,
+  );
+  return result;
+}
+
+class _ManualKeyspecSheet extends StatefulWidget {
+  const _ManualKeyspecSheet();
+
+  @override
+  State<_ManualKeyspecSheet> createState() => _ManualKeyspecSheetState();
+}
+
+class _ManualKeyspecSheetState extends State<_ManualKeyspecSheet> {
+  final _controller = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _paste() async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) return;
+    _controller.text = text;
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
+  }
+
+  void _submit() {
+    final parsed = parseManualKeyspec(_controller.text);
+    if (parsed == null) {
+      setState(() => _errorText = context.l10n.addKeyManualFormatError);
+      return;
+    }
+    Navigator.pop(context, parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final media = MediaQuery.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            sheetCloseTitle(
+              context,
+              l10n.addKeyManualDialogTitle,
+              onClose: () => Navigator.pop(context),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                dragStartBehavior: DragStartBehavior.down,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      maxLines: 6,
+                      minLines: 4,
+                      dragStartBehavior: DragStartBehavior.down,
+                      style: const TextStyle(
+                        fontFamily: kMonospaceFontFamily,
+                        fontSize: 13,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: l10n.addKeyManualHint,
+                        hintStyle: TextStyle(
+                          fontFamily: kMonospaceFontFamily,
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        border: const OutlineInputBorder(),
+                        errorText: _errorText,
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.paste_outlined, size: 20),
+                          tooltip: l10n.pasteFromClipboard,
+                          onPressed: _paste,
+                        ),
+                      ),
+                      onChanged: (_) {
+                        if (_errorText != null) {
+                          setState(() => _errorText = null);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _submit,
+                        child: Text(l10n.confirm),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _MethodTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final IconData trailingIcon;
 
   const _MethodTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.trailingIcon = Icons.arrow_forward_ios,
   });
 
   @override
@@ -1399,7 +1073,7 @@ class _MethodTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(trailingIcon,
+            Icon(Icons.arrow_forward_ios,
                 size: 16, color: cs.onSurface.withAlpha(AppAlpha.border)),
           ],
         ),

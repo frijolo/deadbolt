@@ -49,6 +49,8 @@ from regression_helpers import (                       # noqa: E402
     dismiss_startup_dialogs,
     navigate_wallets, fill_field, click_label, click_tooltip,
     go_back_to_wallet_list, delete_wallet_from_list,
+    open_hot_existing_mnemonic, open_watch_only_manual_entry,
+    fill_manual_keyspec, wait_add_key_sheet_closed,
     set_active_network_signet, run_regression,
 )
 
@@ -142,11 +144,7 @@ async def _click_bottom_label(d: UIDriver, label: str):
 
 async def _add_owner_hot_key(d: UIDriver, mnemonic: str):
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "Key input method picker visible", retries=10, delay=0.5)
-    await click_label(d, "Enter manually", delay=0.5)
-    await wait_for(d, "Hot Key", "Watch Only / Hot Key chips visible", retries=10, delay=0.5)
-    await click_label(d, "Hot Key", delay=0.5)
-    await wait_for(d, "word1 word2 word3 ...", "Seed tab visible", retries=10, delay=0.5)
+    await open_hot_existing_mnemonic(d)
 
     mnemonic_rect = await d.cs_find_textfield_by_label("word1 word2 word3 ...")
     if mnemonic_rect is None:
@@ -161,7 +159,7 @@ async def _add_owner_hot_key(d: UIDriver, mnemonic: str):
     await asyncio.sleep(1.0)
     await wait_for(d, "Derived keyspec", "keyspec derived", retries=10, delay=0.5)
     await click_label(d, "Add", delay=1.0)
-    await wait_absent(d, "Enter manually", "key input closed", retries=15, delay=0.5)
+    await wait_add_key_sheet_closed(d)
 
 
 async def _add_heir(d: UIDriver, name: str, keyspec: str,
@@ -185,14 +183,8 @@ async def _add_heir(d: UIDriver, name: str, keyspec: str,
     )
 
     if not has_key_card:
-        await click_label(d, "Enter manually", delay=0.5)
-        await wait_for(d, "Watch Only", "Watch Only / Hot Key chips visible", retries=10, delay=0.5)
-        await click_label(d, "Watch Only", delay=0.5)
-        await wait_for(d, "Master Fingerprint (MFP)", "keyspec picker opened", retries=10, delay=0.5)
-        await fill_field(d, "Master Fingerprint (MFP)", mfp)
-        await fill_field(d, "Derivation Path", path)
-        await fill_field(d, "Extended Public Key (xpub)", xpub)
-        await click_label(d, "Add", delay=1.0)
+        await open_watch_only_manual_entry(d)
+        await fill_manual_keyspec(d, mfp=mfp, path=path, xpub=xpub, compact=True)
         await wait_for(d, mfp_lower, "key card with MFP visible", retries=15, delay=0.5)
         await asyncio.sleep(0.3)
 

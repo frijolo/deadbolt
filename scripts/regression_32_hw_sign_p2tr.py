@@ -33,6 +33,7 @@ from regression_helpers import (  # noqa: E402
     navigate_wallets, click_label, click_tooltip, fill_field,
     set_active_network_signet, go_back_to_wallet_list,
     delete_wallet_from_list, wait_for_tooltip, run_regression,
+    open_watch_only_hardware_wallet,
 )
 from hw_helpers import (  # noqa: E402
     connect_hw_in_open_sheet, wait_for_user, close_open_sheet,
@@ -59,9 +60,7 @@ async def _create_wallet_with_hw_xpub(d: UIDriver):
     await click_label(d, "Taproot", delay=0.4)
 
     await click_label(d, "Add key", delay=0.5)
-    await wait_for(d, "Enter manually", "method picker visible", retries=10, delay=0.5)
-    await click_label(d, "Hardware wallet", delay=0.6)
-    await wait_for(d, "Derivation path", "derivation path picker visible", retries=10, delay=0.5)
+    await open_watch_only_hardware_wallet(d)
     await fill_field(d, "Derivation path", DERIVATION_PATH)
     await click_label(d, "Confirm", delay=0.6)
 

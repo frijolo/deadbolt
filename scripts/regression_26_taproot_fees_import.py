@@ -183,7 +183,10 @@ async def _make_owner_key_hot(d: UIDriver):
     await wait_for(d, "Add private key", "key sheet open", retries=8, delay=0.5)
     await click_label(d, "Add private key", delay=0.5)
 
-    # showAddPrivateKeySheet opens in Hot Key mode (wallet mode, no method picker).
+    # showAddPrivateKeySheet opens in Hot Key mode and now starts on the
+    # hot-sources picker (Enter existing mnemonic / Enter xprv) before the form.
+    await wait_for(d, "Enter existing mnemonic", "hotSources picker", retries=8, delay=0.5)
+    await click_label(d, "Enter existing mnemonic", delay=0.5)
     await wait_for(d, "word1 word2 word3 ...", "mnemonic field", retries=8, delay=0.5)
     rect = await d.cs_find_textfield_by_label("word1 word2 word3 ...")
     if rect is None:

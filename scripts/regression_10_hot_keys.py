@@ -98,9 +98,14 @@ async def test_hot_keys(d: UIDriver):
     print("    [ok] key_edit_sheet opened — 'Add private key' visible")
 
     # 6. Click "Add private key" in the key_edit_sheet
-    #    → closes key_edit_sheet, opens addPrivateKeySheet (walletMode / SeedTab)
+    #    → closes key_edit_sheet, opens addPrivateKeySheet (walletMode → hotSources picker)
     await click_label(d, "Add private key", delay=1.2)
-    # The addPrivateKeySheet renders a MnemonicEntryField which shows "Seed phrase" label
+    # In wallet mode the sheet now opens on the hot-sources picker; pick
+    # "Enter existing mnemonic" to reach the seed form.
+    await wait_for(d, '"Enter existing mnemonic"', "addPrivateKeySheet hotSources picker visible",
+                   retries=8, delay=0.5)
+    await click_label(d, "Enter existing mnemonic", delay=0.6)
+    # The seed form renders a MnemonicEntryField which shows "Seed phrase" label
     await wait_for(d, '"Seed phrase"', "addPrivateKeySheet SeedTab visible",
                    retries=8, delay=0.5)
     print("    [ok] addPrivateKeySheet opened (mnemonic form visible)")
@@ -109,7 +114,7 @@ async def test_hot_keys(d: UIDriver):
     await click_label(d, "24", delay=0.4)
 
     # 7b. Enter mnemonic via clipboard paste (fill_field uses xclip + Ctrl+V)
-    await fill_field(d, "Seed phrase", MNEMONIC)
+    await fill_field(d, "word1 word2 word3 ...", MNEMONIC)
 
     # Wait for Rust BIP39 validation (debounce 250 ms + key derivation ~1-2 s)
     await asyncio.sleep(3.5)

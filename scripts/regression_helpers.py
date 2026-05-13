@@ -438,6 +438,118 @@ async def delete_project_from_list(d, name: str):
 
 
 # ---------------------------------------------------------------------------
+# Add-key sheet navigation helpers
+# ---------------------------------------------------------------------------
+#
+# The Add-key sheet now opens at the capacity picker (Watch-only / Hot key)
+# with sub-pickers per source. These helpers encapsulate the navigation so
+# regression scripts do not couple to tile labels.
+
+
+async def open_watch_only_manual_entry(d):
+    """
+    From the capacity picker, opens the manual-entry sheet:
+    'Watch-only key' → 'Enter manually'. Leaves the user on the sheet
+    with the multi-line text field visible.
+    """
+    await wait_for(d, "Watch-only key", "Add-key capacity picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Watch-only key", delay=0.4)
+    await wait_for(d, "Enter manually", "Watch-only sources picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Enter manually", delay=0.5)
+    await wait_for(d, "Enter key", "Manual keyspec sheet visible",
+                   retries=10, delay=0.5)
+
+
+async def fill_manual_keyspec(d, *, mfp: str, path: str, xpub: str,
+                              compact: bool = False):
+    """
+    Fill the manual-entry sheet's text field and press Confirm.
+
+    If `compact=True`, types a single ``[mfp/path]xpub`` string.
+    Otherwise types three lines (mfp\\npath\\nxpub) — exercises the
+    loose-token heuristic.
+    """
+    if compact:
+        value = f"[{mfp}/{path}]{xpub}"
+    else:
+        value = f"{mfp}\n{path}\n{xpub}"
+    # Target the TextField by its hint text (contains the keyspec format example)
+    await fill_field(d, "[mfp/path]xpub", value)
+    await click_label(d, "Confirm", delay=0.5)
+
+
+async def open_hot_existing_mnemonic(d):
+    """
+    From the capacity picker, navigate to the form that accepts an existing
+    BIP39 mnemonic: 'Hot key' → 'Enter existing mnemonic'.
+    """
+    await wait_for(d, "Hot key", "Add-key capacity picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Hot key", delay=0.4)
+    await wait_for(d, "Enter existing mnemonic", "Hot sources picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Enter existing mnemonic", delay=0.5)
+    await wait_for(d, "word1 word2 word3 ...", "Mnemonic seed form visible",
+                   retries=10, delay=0.5)
+
+
+async def open_hot_xprv(d):
+    """
+    From the capacity picker, navigate to the form that accepts a master xprv:
+    'Hot key' → 'Enter xprv'.
+    """
+    await wait_for(d, "Hot key", "Add-key capacity picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Hot key", delay=0.4)
+    await wait_for(d, "Enter xprv", "Hot sources picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Enter xprv", delay=0.5)
+    await wait_for(d, "Master xprv (depth 0)", "xprv form visible",
+                   retries=10, delay=0.5)
+
+
+async def wait_add_key_sheet_closed(d, retries: int = 15, delay: float = 0.5):
+    """Wait until the Add-key sheet has been popped (capacity tile gone)."""
+    await wait_absent(d, "Watch-only key", "Add-key sheet closed",
+                      retries=retries, delay=delay)
+
+
+async def open_hot_generate_new_mnemonic(d):
+    """
+    From the capacity picker, navigate to the generate-mnemonic wizard:
+    'Hot key' -> 'Generate new mnemonic'. Leaves the user on step 1 of
+    the wizard (Length selector + 'Generate mnemonic' button visible).
+    """
+    await wait_for(d, "Hot key", "Add-key capacity picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Hot key", delay=0.4)
+    await wait_for(d, "Generate new mnemonic", "Hot sources picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Generate new mnemonic", delay=0.6)
+    await wait_for(d, '"Generate mnemonic"',
+                   "Generate-mnemonic wizard step 1 visible",
+                   retries=10, delay=0.5)
+
+
+async def open_watch_only_hardware_wallet(d):
+    """
+    From the capacity picker, navigate to the hardware-wallet xpub import:
+    'Watch-only key' → 'Hardware wallet'. Leaves the user on the derivation
+    path picker dialog.
+    """
+    await wait_for(d, "Watch-only key", "Add-key capacity picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Watch-only key", delay=0.4)
+    await wait_for(d, "Hardware wallet", "Watch-only sources picker visible",
+                   retries=10, delay=0.5)
+    await click_label(d, "Hardware wallet", delay=0.6)
+    await wait_for(d, "Derivation path", "Derivation path picker visible",
+                   retries=10, delay=0.5)
+
+
+# ---------------------------------------------------------------------------
 # Wallet helpers
 # ---------------------------------------------------------------------------
 

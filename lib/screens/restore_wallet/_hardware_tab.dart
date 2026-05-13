@@ -6,9 +6,8 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
+import 'package:deadbolt/widgets/gap_stepper.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
-
-import '_seed_tab.dart' show GapStepper;
 
 // ---------------------------------------------------------------------------
 // Hardware tab — device connection + config before scan

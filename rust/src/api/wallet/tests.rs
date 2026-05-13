@@ -198,3 +198,61 @@ impl APIWallet {
         Ok(())
     }
 }
+
+mod generate_mnemonic_tests {
+    use super::super::generate_mnemonic;
+    use bdk_wallet::keys::bip39::{Language, Mnemonic};
+
+    #[test]
+    fn rejects_invalid_word_count() {
+        for n in [0u8, 1, 11, 13, 15, 18, 21, 23, 25, 255] {
+            assert!(
+                generate_mnemonic(n).is_err(),
+                "word_count {n} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn produces_12_words_with_valid_checksum() {
+        let phrase = generate_mnemonic(12).expect("generate 12");
+        assert_eq!(phrase.split_whitespace().count(), 12);
+        let parsed = Mnemonic::parse(&phrase).expect("valid BIP39 mnemonic with checksum");
+        assert_eq!(parsed.to_string(), phrase);
+    }
+
+    #[test]
+    fn produces_24_words_with_valid_checksum() {
+        let phrase = generate_mnemonic(24).expect("generate 24");
+        assert_eq!(phrase.split_whitespace().count(), 24);
+        let parsed = Mnemonic::parse(&phrase).expect("valid BIP39 mnemonic with checksum");
+        assert_eq!(parsed.to_string(), phrase);
+    }
+
+    #[test]
+    fn all_words_are_in_bip39_english_wordlist() {
+        let wordlist = Language::English.word_list();
+        for count in [12u8, 24] {
+            let phrase = generate_mnemonic(count).expect("generate");
+            for word in phrase.split_whitespace() {
+                assert!(
+                    wordlist.contains(&word),
+                    "word `{word}` not in BIP39 English wordlist"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn successive_calls_produce_distinct_mnemonics() {
+        // Smoke test that the RNG is actually random. With 128+ bits of entropy
+        // the collision probability is negligible; a repeat would indicate a
+        // broken pipeline.
+        let a = generate_mnemonic(12).expect("a");
+        let b = generate_mnemonic(12).expect("b");
+        let c = generate_mnemonic(24).expect("c");
+        let d = generate_mnemonic(24).expect("d");
+        assert_ne!(a, b);
+        assert_ne!(c, d);
+    }
+}
