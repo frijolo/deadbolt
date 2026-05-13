@@ -59,10 +59,20 @@ async def _switch_to_hardware_tab(d: UIDriver):
     """Tap the Hardware tab in the restore screen."""
     print("\n  [phase 2] switch to Hardware tab")
     await click_label(d, "Hardware", delay=0.8)
-    await wait_for(d, "Select a device",
-                    "hardware tab content visible",
-                    retries=15, delay=0.5)
-    print("    [ok] hardware tab active")
+    # The Hardware tab renders one of two states:
+    #   - device list with "Select a device" header (HW connected)
+    #   - empty state "No hardware wallet detected" (no HW)
+    # Either confirms the tab is active; SKIP is handled later by
+    # connect_hw_in_open_sheet when no device is present.
+    for _ in range(15):
+        flat = await d.cs_flat_text()
+        if "Select a device" in flat or "No hardware wallet detected" in flat:
+            print("    [ok] hardware tab active")
+            return
+        await asyncio.sleep(0.5)
+    raise AssertionError(
+        "Timeout: hardware tab content not visible after tapping Hardware"
+    )
 
 
 async def _start_hw_discovery(d: UIDriver, mfp: str):
