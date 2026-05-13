@@ -4,14 +4,12 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.6]
 
-### New Features
+### Improvements
 - **BitBox02 over USB on Android** — Connect, pair, register descriptors, fetch xpubs, sign PSBTs, and verify addresses on a BitBox02 via USB HID. Handles detach/retach cleanly, including while backgrounded.
 - **Multi-leaf taproot HW signing** — Pass per-MFP change index to BitBox02 so the device signs the correct leaf in multi-leaf taproot descriptors.
 - **BIP48 sortedmulti support** — Register, display addresses, and sign PSBTs for plain `wsh(sortedmulti(...))` and `sh(wsh(sortedmulti(...)))` descriptors via the BitBox02 Multisig variant.
-
-### Improvements
 - **keyChanges field on APISpendPath** — Added per-MFP change index to the spend path model for multi-leaf disambiguation.
 - **Conditional scanning hints on restore** — Show Nostr and on-chain scan hints only when those search modes are active for the current scan.
 - **Create TX responsiveness on multipath wallets** — Cache descriptor spend paths per wallet session so tapping the fee field, toggling MAX, or switching spend path no longer pays the ~50 ms miniscript-analysis cost on every preview.
@@ -462,6 +460,7 @@ Initial release of Deadbolt.
 [v1.4.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.4.0
 [v1.5.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.5.1
+[v1.9.6]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.6
 [v1.9.5]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.5
 [v1.9.4]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.4
 [v1.9.3]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.3
