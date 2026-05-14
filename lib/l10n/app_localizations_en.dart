@@ -48,15 +48,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuNew => 'New';
 
   @override
-  String get menuImport => 'Import';
-
-  @override
-  String get menuAbout => 'About';
-
-  @override
-  String get menuSettings => 'Settings';
-
-  @override
   String get noProjects => 'No projects yet.\nTap + to create one.';
 
   @override
@@ -68,24 +59,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get deleteProjectTooltip => 'Delete project';
-
-  @override
-  String get importFromFile => 'Import from file';
-
-  @override
   String get couldNotReadFile => 'Could not read file';
-
-  @override
-  String get projectImportedSuccess => 'Project imported successfully';
 
   @override
   String importFailed(String error) {
     return 'Import failed: $error';
   }
-
-  @override
-  String get newProjectTitle => 'New project';
 
   @override
   String get importDescriptorMode => 'Import descriptor';
@@ -116,9 +95,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletTypeLabel => 'Wallet type';
-
-  @override
-  String get selectWalletTypeTooltip => 'Select wallet type';
 
   @override
   String get analyzeAndSave => 'Analyze & Save';
@@ -176,14 +152,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageLabel => 'Language';
 
   @override
-  String get preferredNetworkLabel => 'Preferred Network';
-
-  @override
   String get activeNetworkLabel => 'Active Network';
-
-  @override
-  String get activeNetworkDescription =>
-      'Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.';
 
   @override
   String walletsHiddenOnOtherNetworks(int count) {
@@ -239,16 +208,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricLockSubtitle => 'Require biometrics to open the app';
 
   @override
-  String get biometricLockInfoTitle => 'Biometric Lock';
-
-  @override
-  String get biometricLockInfoBody =>
-      'When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.';
-
-  @override
-  String get biometricLockInfoEnable => 'Enable';
-
-  @override
   String get biometricTimeoutLabel => 'Lock after';
 
   @override
@@ -274,23 +233,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricWalletSectionTitle => 'Biometric unlock';
 
   @override
-  String get biometricWalletSectionBody =>
-      'Use fingerprint or face ID to open this wallet without typing your password.';
-
-  @override
   String get biometricWalletUnlockReason => 'Authenticate to open wallet';
-
-  @override
-  String get biometricWalletEnableFailed =>
-      'Could not enable biometric unlock. Try again.';
-
-  @override
-  String get biometricWalletDisableFailed =>
-      'Could not disable biometric unlock.';
-
-  @override
-  String get biometricWalletRootedWarning =>
-      'Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.';
 
   @override
   String get discardChangesTooltip => 'Discard changes';
@@ -328,45 +271,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addKeyDialogTitle => 'Add Key';
 
   @override
-  String get separateFieldsMode => 'Separate fields';
-
-  @override
-  String get fullKeyspecMode => 'Full keyspec';
-
-  @override
-  String get mfpLabel => 'Master Fingerprint (MFP)';
-
-  @override
-  String get mfpHint => 'e.g., c449c5c5';
-
-  @override
-  String get derivationPathLabel => 'Derivation Path';
-
-  @override
-  String get derivationPathHint => 'e.g., 48h/0h/0h/2h';
-
-  @override
-  String get xpubLabel => 'Extended Public Key (xpub)';
-
-  @override
-  String get xpubHint => 'xpub6...';
-
-  @override
-  String get fullKeyspecLabel => 'Full Keyspec';
-
-  @override
-  String get fullKeyspecHint => '[c449c5c5/48h/0h/0h/2h]xpub6...';
-
-  @override
-  String get fullKeyspecHelperText => 'Format: [mfp/path]xpub';
-
-  @override
-  String get allFieldsRequired => 'All fields are required';
-
-  @override
-  String get keyspecRequired => 'Keyspec is required';
-
-  @override
   String get invalidKeyspecFormat =>
       'Invalid keyspec format. Expected: [mfp/path]xpub';
 
@@ -383,9 +287,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copyToClipboard => 'Copy to clipboard';
-
-  @override
-  String get saveToDownloads => 'Save to Downloads';
 
   @override
   String get saveAs => 'Save as…';
@@ -447,16 +348,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qrAnimatedLabel => 'Animated (BC-UR)';
 
   @override
-  String get qrBytesPerFrame => 'Bytes/frame';
-
-  @override
-  String get qrEcLevel => 'Error correction';
-
-  @override
-  String get qrTooLargeForLevel =>
-      'Content too large for this error correction level';
-
-  @override
   String qrPart(int current, int total) {
     return '$current / $total';
   }
@@ -490,30 +381,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeWalletTypeTooltip => 'Change wallet type';
 
   @override
-  String spendPathMustHaveKey(int index) {
-    return 'Spend path $index: Must have at least one key';
-  }
-
-  @override
-  String spendPathKeyNotFound(int index, String mfp) {
-    return 'Spend path $index: Key $mfp not found';
-  }
-
-  @override
-  String spendPathThresholdMin(int index) {
-    return 'Spend path $index: Threshold must be at least 1';
-  }
-
-  @override
-  String spendPathThresholdExceeds(int index) {
-    return 'Spend path $index: Threshold cannot exceed number of keys';
-  }
-
-  @override
-  String get taprootOneKeyPath =>
-      'Only one spend path can be marked as key-path in Taproot descriptors.';
-
-  @override
   String get buildingDescriptor => 'Building descriptor...';
 
   @override
@@ -540,22 +407,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nameAlreadyUsed => 'This name is already used by another key';
 
   @override
-  String get tapToName => 'Tap to name';
-
-  @override
   String get copyKeyspecTooltip => 'Copy keyspec';
 
   @override
   String get keyCopied => 'Key copied';
 
   @override
-  String get pathPrefix => 'Path: ';
-
-  @override
   String get rootPath => '(root)';
-
-  @override
-  String get xpubPrefix => 'Xpub: ';
 
   @override
   String get keyNameDialogTitle => 'Key name';
@@ -905,9 +763,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Delete this project after creating the wallet';
 
   @override
-  String get fromProjectAction => 'From project';
-
-  @override
   String get createWalletButton => 'Create wallet';
 
   @override
@@ -948,9 +803,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changeProtectionMenu => 'Change protection';
-
-  @override
-  String get encryptionLabel => 'Encryption';
 
   @override
   String get walletSecurityLabel => 'Security';
@@ -1009,11 +861,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncing => 'Syncing...';
 
   @override
-  String syncFailed(String error) {
-    return 'Sync failed: $error';
-  }
-
-  @override
   String get rescanButton => 'Full rescan';
 
   @override
@@ -1045,25 +892,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txUnconfirmed => 'Unconfirmed';
 
   @override
-  String txFee(int fee) {
-    final intl.NumberFormat feeNumberFormat = intl.NumberFormat.decimalPattern(
-      localeName,
-    );
-    final String feeString = feeNumberFormat.format(fee);
-
-    return 'Fee: $feeString sats';
-  }
-
-  @override
-  String txHeight(int height) {
-    final intl.NumberFormat heightNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String heightString = heightNumberFormat.format(height);
-
-    return 'Block: $heightString';
-  }
-
-  @override
   String get txId => 'TXID';
 
   @override
@@ -1071,9 +899,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get electrumSectionTitle => 'Electrum Servers';
-
-  @override
-  String get electrumUrlLabel => 'Electrum URL';
 
   @override
   String get electrumUrlHint => 'ssl://host:port or tcp://host:port';
@@ -1134,9 +959,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get explorerNetworkRegtest => 'Regtest Explorer';
-
-  @override
-  String get explorerNoUrl => 'No explorer configured for this network';
 
   @override
   String get openInExplorer => 'Open in explorer';
@@ -1217,9 +1039,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get viewInExplorer => 'View in explorer';
-
-  @override
   String get coinsSection => 'Coins';
 
   @override
@@ -1281,22 +1100,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spendPathsAvailable => 'Spend paths';
 
   @override
-  String get spendPathsNotSynced => 'Sync to see available spend paths';
-
-  @override
   String get spendPathUnlocked => 'Unlocked';
 
   @override
   String get spendPathLocked => 'Locked';
-
-  @override
-  String spendPathLockedUntilBlock(int block) {
-    final intl.NumberFormat blockNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String blockString = blockNumberFormat.format(block);
-
-    return 'Locked until block $blockString';
-  }
 
   @override
   String spendPathBlocks(int blocks) {
@@ -1306,9 +1113,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
     return '$blocksString blocks';
   }
-
-  @override
-  String get spendPathNeedsConfirmation => 'Needs confirmation';
 
   @override
   String get spendPathUnconfirmed => 'Unconfirmed';
@@ -1326,12 +1130,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get psbtStatusSigned => 'SIGNED';
 
   @override
-  String get psbtStatusMempool => 'MEMPOOL';
-
-  @override
-  String get psbtStatusConfirmed => 'CONFIRMED';
-
-  @override
   String get psbtStatusSpent => 'SPENT';
 
   @override
@@ -1342,9 +1140,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTxTitle => 'Create Transaction';
 
   @override
-  String get createTxRecipient => 'Recipient address';
-
-  @override
   String get createTxRecipientHint => 'bc1q...';
 
   @override
@@ -1352,14 +1147,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createTxFeeRate => 'Fee rate (sat/vB)';
-
-  @override
-  String get createTxFeeRateHint => 'e.g. 1.5';
-
-  @override
-  String createTxFeeRateMin(String min) {
-    return 'Minimum fee rate is $min sat/vB';
-  }
 
   @override
   String get createTxSpendPath => 'Spend path';
@@ -1378,16 +1165,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get createTxAutoSelect => 'Auto-select coins';
-
-  @override
   String get createTxButton => 'Create PSBT';
-
-  @override
-  String get createTxCreating => 'Creating...';
-
-  @override
-  String get createTxRecipientRequired => 'Recipient address is required';
 
   @override
   String get createTxAmountRequired => 'Amount is required';
@@ -1397,12 +1175,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createTxMaxButton => 'MAX';
-
-  @override
-  String get createTxSendMax => 'Send all (max)';
-
-  @override
-  String get createTxSelfPayButton => 'SELF';
 
   @override
   String get createTxMyWalletsButton => 'MY WALLETS';
@@ -1417,14 +1189,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTxNoUnusedAddress => 'No unused receive address available';
 
   @override
-  String get createTxFeeRateInvalid => 'Invalid fee rate';
-
-  @override
   String get createTxNoSpendPaths =>
       'No spend paths available. Sync the wallet first.';
-
-  @override
-  String get createTxSuccess => 'PSBT created';
 
   @override
   String get psbtDetailTitle => 'Unsigned Transaction';
@@ -1485,30 +1251,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get psbtImportSignedButton => 'Import signature';
 
   @override
-  String get psbtImportFromQr => 'Scan QR';
-
-  @override
-  String get psbtImportFromFile => 'From file (.psbt)';
-
-  @override
   String get psbtBroadcastButton => 'Broadcast';
 
   @override
   String psbtBroadcastSuccess(String txid) {
     return 'Transaction broadcast! TXID: $txid';
-  }
-
-  @override
-  String psbtBroadcastFailed(String error) {
-    return 'Broadcast failed: $error';
-  }
-
-  @override
-  String get psbtMergeSuccess => 'Signatures imported';
-
-  @override
-  String psbtMergeFailed(String error) {
-    return 'Import failed: $error';
   }
 
   @override
@@ -1518,42 +1265,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get psbtDeleteConfirm => 'Delete this unsigned transaction?';
 
   @override
-  String get psbtExportedCopied => 'PSBT copied';
-
-  @override
-  String get coinSelectMode => 'Select coins';
-
-  @override
   String get coinSelectDone => 'Done';
 
   @override
-  String coinSelected(int count) {
-    return '$count selected';
-  }
-
-  @override
-  String get createTxFeeByRate => 'Rate (sat/vB)';
-
-  @override
-  String get createTxFeeByTotal => 'Total (sats)';
-
-  @override
   String get createTxTotalFee => 'Fee (sats)';
-
-  @override
-  String get createTxTotalFeeInvalid => 'Enter a positive fee amount';
-
-  @override
-  String get createTxFeeEstimate => 'Fee estimate';
-
-  @override
-  String get createTxEstInputs => 'Inputs';
-
-  @override
-  String get createTxEstSend => 'Send';
-
-  @override
-  String get createTxEstFee => 'Fee';
 
   @override
   String get createTxEstChange => 'Change';
@@ -1640,9 +1355,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get relatedCoins => 'Related coins';
 
   @override
-  String get relatedAddressLabel => 'Address label';
-
-  @override
   String get relatedAddresses => 'Output addresses';
 
   @override
@@ -1650,9 +1362,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get relatedTransactions => 'Related transactions';
-
-  @override
-  String get creatingTransaction => 'Creating transaction';
 
   @override
   String get exportBip329Button => 'Export';
@@ -1789,9 +1498,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get torStatusConnected => 'Tor active';
 
   @override
-  String get torErrorNotConnected => 'Tor is enabled but not yet connected';
-
-  @override
   String get disclaimerTitle => 'Beta Software — Use at Your Own Risk';
 
   @override
@@ -1894,14 +1600,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verifyOnDeviceButton => 'Verify on device';
-
-  @override
-  String get changeProtectionTitle => 'Change wallet protection';
-
-  @override
-  String changeProtectionCurrent(String protection) {
-    return 'Current: $protection';
-  }
 
   @override
   String protectionChangedToast(String protection) {
@@ -2085,9 +1783,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inheritanceNineMonths => '9 months (~39,420 blocks)';
 
   @override
-  String get inheritanceCustomTimelock => 'Custom...';
-
-  @override
   String get inheritanceDuplicateTimelockTitle => 'Duplicate timelocks';
 
   @override
@@ -2099,9 +1794,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inheritanceDuplicateTimelockContinue => 'Continue anyway';
-
-  @override
-  String get inheritanceHeirsNeedKey => 'Set a key for each heir';
 
   @override
   String get inheritanceNeedHeir => 'Add at least one heir';
@@ -2141,36 +1833,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revaultNow => 'Re-vault';
 
   @override
-  String get revaultTitle => 'Reset inheritance timer';
-
-  @override
-  String get revaultDescription =>
-      'Sends all funds back to this wallet. Once confirmed, the inheritance timer resets — heirs must wait the full delay again.';
-
-  @override
-  String get revaultFeeRateLabel => 'Fee rate (sat/vB)';
-
-  @override
-  String get revaultCreateButton => 'Create re-vault transaction';
-
-  @override
-  String get revaultCreating => 'Creating transaction...';
-
-  @override
   String get blocksUnit => 'blocks';
 
   @override
   String inheritanceHeirN(int n) {
     return 'Heir $n';
-  }
-
-  @override
-  String inheritanceEarliestAccess(String duration, int blocks) {
-    final intl.NumberFormat blocksNumberFormat =
-        intl.NumberFormat.decimalPattern(localeName);
-    final String blocksString = blocksNumberFormat.format(blocks);
-
-    return 'Earliest heir access in ~$duration ($blocksString blocks)';
   }
 
   @override
@@ -2228,9 +1895,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get increaseThresholdTooltip => 'Increase threshold';
-
-  @override
-  String get replaceKeyTooltip => 'Replace key';
 
   @override
   String get keyDetailsTooltip => 'Key details';
@@ -2328,12 +1992,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountIndexLabel => 'Account';
 
   @override
-  String get restoreFromSeedMenuLabel => 'Recover from seed';
-
-  @override
-  String get restoreFromSeedTitle => 'Recover from seed';
-
-  @override
   String get scanAccountsAction => 'Scan accounts';
 
   @override
@@ -2371,23 +2029,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String scanAccountsNewAccount(int index) {
-    return 'Use new account ($index)';
-  }
-
-  @override
   String get scanAccountsNoActivitySubtitle =>
       'Recover accounts from a mnemonic phrase';
-
-  @override
-  String get restoreFromHwMenuLabel => 'Recover from hardware wallet';
-
-  @override
-  String get restoreFromHwMenuSubtitle =>
-      'Scan accounts from a connected BitBox02';
-
-  @override
-  String get restoreFromHwTitle => 'Recover from Hardware Wallet';
 
   @override
   String get hwDiscoveryNoDevice =>
@@ -2399,14 +2042,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String hwDiscoveryDeriving(int n, int total) {
     return 'Exporting keys… ($n/$total)';
-  }
-
-  @override
-  String get hwDiscoveryScanning => 'Scanning blockchain…';
-
-  @override
-  String scanAccountsActivitySummary(int txCount) {
-    return '$txCount tx';
   }
 
   @override
@@ -2439,9 +2074,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onChainScanningHint =>
       'Also searching for on-chain descriptor backups…';
-
-  @override
-  String get nostrBackupFoundOnScan => 'Nostr backup found';
 
   @override
   String get importFromNostrBackup => 'Restore from Nostr';
@@ -2500,12 +2132,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editKeyTitle => 'Edit key';
-
-  @override
-  String get addKeyClipboardSubtitle => 'Clipboard, file or QR code';
-
-  @override
-  String get addKeyHwSubtitle => 'USB or Bluetooth device';
 
   @override
   String get validating => 'Validating...';
@@ -2570,9 +2196,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nostrRelayDuplicate => 'Relay already in list';
 
   @override
-  String get nostrRelayAddButton => 'Add relay';
-
-  @override
   String get nostrRelayTimeoutLabel => 'Timeout (seconds)';
 
   @override
@@ -2602,9 +2225,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get backupSinglesigShortNote =>
       'Not recommended for singlesig: descriptor is recoverable from the seed via discovery. Publishing it only adds privacy risk.';
-
-  @override
-  String get nostrBackupMenu => 'Nostr Backup';
 
   @override
   String get nostrBackupTitle => 'Nostr Backup';
@@ -2638,9 +2258,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get nostrBackupError => 'Relay error';
-
-  @override
   String get nostrBackupNoRelays =>
       'No relays configured. Add relays in Settings → Nostr Relays.';
 
@@ -2654,9 +2271,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nostrBackupDelete => 'Delete Backup';
 
   @override
-  String get nostrBackupDeleting => 'Deleting…';
-
-  @override
   String get nostrBackupDeleted => 'Backup deleted from relay';
 
   @override
@@ -2664,54 +2278,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.';
 
   @override
-  String get walletCreateFromNostr => 'Restore from Nostr';
-
-  @override
-  String get walletCreateFromNostrSub =>
-      'Recover a descriptor backup from Nostr relays';
-
-  @override
-  String get nostrRestoreTitle => 'Restore from Nostr';
-
-  @override
-  String get nostrRestoreEnterXpub => 'Enter any xpub from the wallet';
-
-  @override
   String get nostrRestoreXpubHint => 'xpub6... or [mfp/path]xpub...';
-
-  @override
-  String get nostrRestoreSearch => 'Search Relays';
-
-  @override
-  String get nostrRestoreSearching => 'Searching relays…';
-
-  @override
-  String get nostrRestoreNotFound => 'No backup found on configured relays';
 
   @override
   String get nostrRestoreFound => 'Backup found';
 
   @override
-  String get nostrRestoreWalletName => 'Wallet name';
-
-  @override
-  String get nostrRestoreNetwork => 'Network';
-
-  @override
-  String get nostrRestoreDate => 'Backed up';
-
-  @override
-  String get nostrRestoreEnterCredential => 'Enter your xpub to decrypt';
-
-  @override
   String get nostrRestoreImport => 'Import Wallet';
-
-  @override
-  String get nostrRestoreImporting => 'Importing wallet…';
-
-  @override
-  String get nostrRestoreWatchOnlyNote =>
-      'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.';
 
   @override
   String get recoverWalletTitle => 'Recover Wallet';
@@ -2810,9 +2383,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get descriptorSigsManage => 'Manage signatures';
-
-  @override
   String get descriptorSigsMessage => 'Message to sign';
 
   @override
@@ -2820,17 +2390,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Base64 compact signature (65 bytes)';
 
   @override
-  String get descriptorSigsShowPsbtQr =>
-      'Show PSBT QR (scan with hardware wallet)';
-
-  @override
   String get descriptorSigsQRBip322Hint => 'Signed PSBT (base64 or scan QR)';
 
   @override
   String get descriptorSigsSignSuccess => 'Signature stored';
-
-  @override
-  String get descriptorSigsDeleteSuccess => 'Signature deleted';
 
   @override
   String get descriptorSigsChooseMethod => 'Choose signing method';
@@ -2876,21 +2439,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get derivedKeyspecLabel => 'Derived keyspec';
 
   @override
-  String mustMatchMfp(String mfp) {
-    return 'Must match MFP: $mfp';
-  }
-
-  @override
-  String keyWithMfp(String mfp) {
-    return 'Key: $mfp';
-  }
-
-  @override
-  String loadWarningCorruptKeys(int count) {
-    return 'Lost $count signing key(s) due to database corruption';
-  }
-
-  @override
   String get onChainBackupTitle => 'On-chain';
 
   @override
@@ -2902,33 +2450,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.';
 
   @override
-  String onChainBackupParticipants(int count) {
-    return '$count cosigner(s)';
-  }
-
-  @override
   String onChainBackupAnchors(int count, int amount) {
     return 'Anchors: $count × $amount sats';
   }
 
   @override
-  String onChainBackupEstimatedFee(int fee) {
-    return 'Estimated fee: $fee sats';
-  }
-
-  @override
-  String onChainBackupTotalCost(int cost) {
-    return 'Total cost: ~$cost sats';
-  }
-
-  @override
-  String get onChainBackupScanUtxos => 'Scan UTXOs';
-
-  @override
   String get onChainBackupScanning => 'Preparing backup…';
-
-  @override
-  String get onChainBackupSelectUtxo => 'Select UTXO';
 
   @override
   String get noUtxosAvailable => 'No UTXOs available';
@@ -2939,11 +2466,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String onChainBackupTxFees(int total, int vb) {
     return 'Fee: $total sats · $vb vB';
-  }
-
-  @override
-  String onChainBackupMinUtxo(Object sats) {
-    return 'Min UTXO: $sats sats';
   }
 
   @override
@@ -2972,9 +2494,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onChainBackupSignWithHotKey => 'Sign with hot key';
 
   @override
-  String get onChainBackupPublish => 'Backup on-chain';
-
-  @override
   String get onChainBackupPublishing => 'Signing…';
 
   @override
@@ -2991,13 +2510,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onChainBackupRevealTx => 'TX_REVEAL';
-
-  @override
-  String get onChainBackupNoHotKey =>
-      'No signing key found. Add a hot key to this wallet before backing up on-chain.';
-
-  @override
-  String get onChainBackupSignCommit => 'Sign TX_COMMIT';
 
   @override
   String get onChainBackupSignCommitHint =>
@@ -3064,9 +2576,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onChainBadge => 'On-chain';
 
   @override
-  String get generateMnemonicTitle => 'New mnemonic';
-
-  @override
   String get generateMnemonicStep1Title => 'Generate';
 
   @override
@@ -3115,9 +2624,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generateMnemonicContinue => 'Continue';
-
-  @override
-  String get generateMnemonicBack => 'Back';
 
   @override
   String get generateMnemonicDone => 'Add key';

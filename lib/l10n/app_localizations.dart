@@ -176,24 +176,6 @@ abstract class AppLocalizations {
   /// **'New'**
   String get menuNew;
 
-  /// No description provided for @menuImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import'**
-  String get menuImport;
-
-  /// No description provided for @menuAbout.
-  ///
-  /// In en, this message translates to:
-  /// **'About'**
-  String get menuAbout;
-
-  /// No description provided for @menuSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get menuSettings;
-
   /// No description provided for @noProjects.
   ///
   /// In en, this message translates to:
@@ -212,41 +194,17 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\"?'**
   String deleteProjectConfirm(String name);
 
-  /// No description provided for @deleteProjectTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete project'**
-  String get deleteProjectTooltip;
-
-  /// No description provided for @importFromFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Import from file'**
-  String get importFromFile;
-
   /// No description provided for @couldNotReadFile.
   ///
   /// In en, this message translates to:
   /// **'Could not read file'**
   String get couldNotReadFile;
 
-  /// No description provided for @projectImportedSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Project imported successfully'**
-  String get projectImportedSuccess;
-
   /// No description provided for @importFailed.
   ///
   /// In en, this message translates to:
   /// **'Import failed: {error}'**
   String importFailed(String error);
-
-  /// No description provided for @newProjectTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'New project'**
-  String get newProjectTitle;
 
   /// No description provided for @importDescriptorMode.
   ///
@@ -307,12 +265,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wallet type'**
   String get walletTypeLabel;
-
-  /// No description provided for @selectWalletTypeTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Select wallet type'**
-  String get selectWalletTypeTooltip;
 
   /// No description provided for @analyzeAndSave.
   ///
@@ -422,23 +374,11 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get languageLabel;
 
-  /// No description provided for @preferredNetworkLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Preferred Network'**
-  String get preferredNetworkLabel;
-
   /// No description provided for @activeNetworkLabel.
   ///
   /// In en, this message translates to:
   /// **'Active Network'**
   String get activeNetworkLabel;
-
-  /// No description provided for @activeNetworkDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.'**
-  String get activeNetworkDescription;
 
   /// No description provided for @walletsHiddenOnOtherNetworks.
   ///
@@ -524,24 +464,6 @@ abstract class AppLocalizations {
   /// **'Require biometrics to open the app'**
   String get biometricLockSubtitle;
 
-  /// No description provided for @biometricLockInfoTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric Lock'**
-  String get biometricLockInfoTitle;
-
-  /// No description provided for @biometricLockInfoBody.
-  ///
-  /// In en, this message translates to:
-  /// **'When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.'**
-  String get biometricLockInfoBody;
-
-  /// No description provided for @biometricLockInfoEnable.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable'**
-  String get biometricLockInfoEnable;
-
   /// No description provided for @biometricTimeoutLabel.
   ///
   /// In en, this message translates to:
@@ -590,35 +512,11 @@ abstract class AppLocalizations {
   /// **'Biometric unlock'**
   String get biometricWalletSectionTitle;
 
-  /// No description provided for @biometricWalletSectionBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Use fingerprint or face ID to open this wallet without typing your password.'**
-  String get biometricWalletSectionBody;
-
   /// No description provided for @biometricWalletUnlockReason.
   ///
   /// In en, this message translates to:
   /// **'Authenticate to open wallet'**
   String get biometricWalletUnlockReason;
-
-  /// No description provided for @biometricWalletEnableFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not enable biometric unlock. Try again.'**
-  String get biometricWalletEnableFailed;
-
-  /// No description provided for @biometricWalletDisableFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not disable biometric unlock.'**
-  String get biometricWalletDisableFailed;
-
-  /// No description provided for @biometricWalletRootedWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.'**
-  String get biometricWalletRootedWarning;
 
   /// No description provided for @discardChangesTooltip.
   ///
@@ -680,84 +578,6 @@ abstract class AppLocalizations {
   /// **'Add Key'**
   String get addKeyDialogTitle;
 
-  /// No description provided for @separateFieldsMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Separate fields'**
-  String get separateFieldsMode;
-
-  /// No description provided for @fullKeyspecMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Full keyspec'**
-  String get fullKeyspecMode;
-
-  /// No description provided for @mfpLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Master Fingerprint (MFP)'**
-  String get mfpLabel;
-
-  /// No description provided for @mfpHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g., c449c5c5'**
-  String get mfpHint;
-
-  /// No description provided for @derivationPathLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Derivation Path'**
-  String get derivationPathLabel;
-
-  /// No description provided for @derivationPathHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g., 48h/0h/0h/2h'**
-  String get derivationPathHint;
-
-  /// No description provided for @xpubLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Extended Public Key (xpub)'**
-  String get xpubLabel;
-
-  /// No description provided for @xpubHint.
-  ///
-  /// In en, this message translates to:
-  /// **'xpub6...'**
-  String get xpubHint;
-
-  /// No description provided for @fullKeyspecLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Full Keyspec'**
-  String get fullKeyspecLabel;
-
-  /// No description provided for @fullKeyspecHint.
-  ///
-  /// In en, this message translates to:
-  /// **'[c449c5c5/48h/0h/0h/2h]xpub6...'**
-  String get fullKeyspecHint;
-
-  /// No description provided for @fullKeyspecHelperText.
-  ///
-  /// In en, this message translates to:
-  /// **'Format: [mfp/path]xpub'**
-  String get fullKeyspecHelperText;
-
-  /// No description provided for @allFieldsRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'All fields are required'**
-  String get allFieldsRequired;
-
-  /// No description provided for @keyspecRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Keyspec is required'**
-  String get keyspecRequired;
-
   /// No description provided for @invalidKeyspecFormat.
   ///
   /// In en, this message translates to:
@@ -787,12 +607,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy to clipboard'**
   String get copyToClipboard;
-
-  /// No description provided for @saveToDownloads.
-  ///
-  /// In en, this message translates to:
-  /// **'Save to Downloads'**
-  String get saveToDownloads;
 
   /// No description provided for @saveAs.
   ///
@@ -908,24 +722,6 @@ abstract class AppLocalizations {
   /// **'Animated (BC-UR)'**
   String get qrAnimatedLabel;
 
-  /// No description provided for @qrBytesPerFrame.
-  ///
-  /// In en, this message translates to:
-  /// **'Bytes/frame'**
-  String get qrBytesPerFrame;
-
-  /// No description provided for @qrEcLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Error correction'**
-  String get qrEcLevel;
-
-  /// No description provided for @qrTooLargeForLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Content too large for this error correction level'**
-  String get qrTooLargeForLevel;
-
   /// No description provided for @qrPart.
   ///
   /// In en, this message translates to:
@@ -986,36 +782,6 @@ abstract class AppLocalizations {
   /// **'Change wallet type'**
   String get changeWalletTypeTooltip;
 
-  /// No description provided for @spendPathMustHaveKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Spend path {index}: Must have at least one key'**
-  String spendPathMustHaveKey(int index);
-
-  /// No description provided for @spendPathKeyNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Spend path {index}: Key {mfp} not found'**
-  String spendPathKeyNotFound(int index, String mfp);
-
-  /// No description provided for @spendPathThresholdMin.
-  ///
-  /// In en, this message translates to:
-  /// **'Spend path {index}: Threshold must be at least 1'**
-  String spendPathThresholdMin(int index);
-
-  /// No description provided for @spendPathThresholdExceeds.
-  ///
-  /// In en, this message translates to:
-  /// **'Spend path {index}: Threshold cannot exceed number of keys'**
-  String spendPathThresholdExceeds(int index);
-
-  /// No description provided for @taprootOneKeyPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Only one spend path can be marked as key-path in Taproot descriptors.'**
-  String get taprootOneKeyPath;
-
   /// No description provided for @buildingDescriptor.
   ///
   /// In en, this message translates to:
@@ -1064,12 +830,6 @@ abstract class AppLocalizations {
   /// **'This name is already used by another key'**
   String get nameAlreadyUsed;
 
-  /// No description provided for @tapToName.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to name'**
-  String get tapToName;
-
   /// No description provided for @copyKeyspecTooltip.
   ///
   /// In en, this message translates to:
@@ -1082,23 +842,11 @@ abstract class AppLocalizations {
   /// **'Key copied'**
   String get keyCopied;
 
-  /// No description provided for @pathPrefix.
-  ///
-  /// In en, this message translates to:
-  /// **'Path: '**
-  String get pathPrefix;
-
   /// No description provided for @rootPath.
   ///
   /// In en, this message translates to:
   /// **'(root)'**
   String get rootPath;
-
-  /// No description provided for @xpubPrefix.
-  ///
-  /// In en, this message translates to:
-  /// **'Xpub: '**
-  String get xpubPrefix;
 
   /// No description provided for @keyNameDialogTitle.
   ///
@@ -1754,12 +1502,6 @@ abstract class AppLocalizations {
   /// **'Delete this project after creating the wallet'**
   String get deleteProjectAfterCreate;
 
-  /// No description provided for @fromProjectAction.
-  ///
-  /// In en, this message translates to:
-  /// **'From project'**
-  String get fromProjectAction;
-
   /// No description provided for @createWalletButton.
   ///
   /// In en, this message translates to:
@@ -1825,12 +1567,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Change protection'**
   String get changeProtectionMenu;
-
-  /// No description provided for @encryptionLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Encryption'**
-  String get encryptionLabel;
 
   /// No description provided for @walletSecurityLabel.
   ///
@@ -1940,12 +1676,6 @@ abstract class AppLocalizations {
   /// **'Syncing...'**
   String get syncing;
 
-  /// No description provided for @syncFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync failed: {error}'**
-  String syncFailed(String error);
-
   /// No description provided for @rescanButton.
   ///
   /// In en, this message translates to:
@@ -2006,18 +1736,6 @@ abstract class AppLocalizations {
   /// **'Unconfirmed'**
   String get txUnconfirmed;
 
-  /// No description provided for @txFee.
-  ///
-  /// In en, this message translates to:
-  /// **'Fee: {fee} sats'**
-  String txFee(int fee);
-
-  /// No description provided for @txHeight.
-  ///
-  /// In en, this message translates to:
-  /// **'Block: {height}'**
-  String txHeight(int height);
-
   /// No description provided for @txId.
   ///
   /// In en, this message translates to:
@@ -2035,12 +1753,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Electrum Servers'**
   String get electrumSectionTitle;
-
-  /// No description provided for @electrumUrlLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Electrum URL'**
-  String get electrumUrlLabel;
 
   /// No description provided for @electrumUrlHint.
   ///
@@ -2161,12 +1873,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Regtest Explorer'**
   String get explorerNetworkRegtest;
-
-  /// No description provided for @explorerNoUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'No explorer configured for this network'**
-  String get explorerNoUrl;
 
   /// No description provided for @openInExplorer.
   ///
@@ -2294,12 +2000,6 @@ abstract class AppLocalizations {
   /// **'{count} transactions'**
   String addressTxCount(int count);
 
-  /// No description provided for @viewInExplorer.
-  ///
-  /// In en, this message translates to:
-  /// **'View in explorer'**
-  String get viewInExplorer;
-
   /// No description provided for @coinsSection.
   ///
   /// In en, this message translates to:
@@ -2396,12 +2096,6 @@ abstract class AppLocalizations {
   /// **'Spend paths'**
   String get spendPathsAvailable;
 
-  /// No description provided for @spendPathsNotSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync to see available spend paths'**
-  String get spendPathsNotSynced;
-
   /// No description provided for @spendPathUnlocked.
   ///
   /// In en, this message translates to:
@@ -2414,23 +2108,11 @@ abstract class AppLocalizations {
   /// **'Locked'**
   String get spendPathLocked;
 
-  /// No description provided for @spendPathLockedUntilBlock.
-  ///
-  /// In en, this message translates to:
-  /// **'Locked until block {block}'**
-  String spendPathLockedUntilBlock(int block);
-
   /// No description provided for @spendPathBlocks.
   ///
   /// In en, this message translates to:
   /// **'{blocks} blocks'**
   String spendPathBlocks(int blocks);
-
-  /// No description provided for @spendPathNeedsConfirmation.
-  ///
-  /// In en, this message translates to:
-  /// **'Needs confirmation'**
-  String get spendPathNeedsConfirmation;
 
   /// No description provided for @spendPathUnconfirmed.
   ///
@@ -2462,18 +2144,6 @@ abstract class AppLocalizations {
   /// **'SIGNED'**
   String get psbtStatusSigned;
 
-  /// No description provided for @psbtStatusMempool.
-  ///
-  /// In en, this message translates to:
-  /// **'MEMPOOL'**
-  String get psbtStatusMempool;
-
-  /// No description provided for @psbtStatusConfirmed.
-  ///
-  /// In en, this message translates to:
-  /// **'CONFIRMED'**
-  String get psbtStatusConfirmed;
-
   /// No description provided for @psbtStatusSpent.
   ///
   /// In en, this message translates to:
@@ -2491,12 +2161,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create Transaction'**
   String get createTxTitle;
-
-  /// No description provided for @createTxRecipient.
-  ///
-  /// In en, this message translates to:
-  /// **'Recipient address'**
-  String get createTxRecipient;
 
   /// No description provided for @createTxRecipientHint.
   ///
@@ -2516,18 +2180,6 @@ abstract class AppLocalizations {
   /// **'Fee rate (sat/vB)'**
   String get createTxFeeRate;
 
-  /// No description provided for @createTxFeeRateHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. 1.5'**
-  String get createTxFeeRateHint;
-
-  /// No description provided for @createTxFeeRateMin.
-  ///
-  /// In en, this message translates to:
-  /// **'Minimum fee rate is {min} sat/vB'**
-  String createTxFeeRateMin(String min);
-
   /// No description provided for @createTxSpendPath.
   ///
   /// In en, this message translates to:
@@ -2546,29 +2198,11 @@ abstract class AppLocalizations {
   /// **'{count} coin(s) selected — {sats} sats'**
   String createTxSelectedCoins(int count, int sats);
 
-  /// No description provided for @createTxAutoSelect.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-select coins'**
-  String get createTxAutoSelect;
-
   /// No description provided for @createTxButton.
   ///
   /// In en, this message translates to:
   /// **'Create PSBT'**
   String get createTxButton;
-
-  /// No description provided for @createTxCreating.
-  ///
-  /// In en, this message translates to:
-  /// **'Creating...'**
-  String get createTxCreating;
-
-  /// No description provided for @createTxRecipientRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Recipient address is required'**
-  String get createTxRecipientRequired;
 
   /// No description provided for @createTxAmountRequired.
   ///
@@ -2587,18 +2221,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'MAX'**
   String get createTxMaxButton;
-
-  /// No description provided for @createTxSendMax.
-  ///
-  /// In en, this message translates to:
-  /// **'Send all (max)'**
-  String get createTxSendMax;
-
-  /// No description provided for @createTxSelfPayButton.
-  ///
-  /// In en, this message translates to:
-  /// **'SELF'**
-  String get createTxSelfPayButton;
 
   /// No description provided for @createTxMyWalletsButton.
   ///
@@ -2624,23 +2246,11 @@ abstract class AppLocalizations {
   /// **'No unused receive address available'**
   String get createTxNoUnusedAddress;
 
-  /// No description provided for @createTxFeeRateInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid fee rate'**
-  String get createTxFeeRateInvalid;
-
   /// No description provided for @createTxNoSpendPaths.
   ///
   /// In en, this message translates to:
   /// **'No spend paths available. Sync the wallet first.'**
   String get createTxNoSpendPaths;
-
-  /// No description provided for @createTxSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'PSBT created'**
-  String get createTxSuccess;
 
   /// No description provided for @psbtDetailTitle.
   ///
@@ -2738,18 +2348,6 @@ abstract class AppLocalizations {
   /// **'Import signature'**
   String get psbtImportSignedButton;
 
-  /// No description provided for @psbtImportFromQr.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan QR'**
-  String get psbtImportFromQr;
-
-  /// No description provided for @psbtImportFromFile.
-  ///
-  /// In en, this message translates to:
-  /// **'From file (.psbt)'**
-  String get psbtImportFromFile;
-
   /// No description provided for @psbtBroadcastButton.
   ///
   /// In en, this message translates to:
@@ -2761,24 +2359,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transaction broadcast! TXID: {txid}'**
   String psbtBroadcastSuccess(String txid);
-
-  /// No description provided for @psbtBroadcastFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Broadcast failed: {error}'**
-  String psbtBroadcastFailed(String error);
-
-  /// No description provided for @psbtMergeSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Signatures imported'**
-  String get psbtMergeSuccess;
-
-  /// No description provided for @psbtMergeFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String psbtMergeFailed(String error);
 
   /// No description provided for @psbtDeleteTitle.
   ///
@@ -2792,77 +2372,17 @@ abstract class AppLocalizations {
   /// **'Delete this unsigned transaction?'**
   String get psbtDeleteConfirm;
 
-  /// No description provided for @psbtExportedCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'PSBT copied'**
-  String get psbtExportedCopied;
-
-  /// No description provided for @coinSelectMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Select coins'**
-  String get coinSelectMode;
-
   /// No description provided for @coinSelectDone.
   ///
   /// In en, this message translates to:
   /// **'Done'**
   String get coinSelectDone;
 
-  /// No description provided for @coinSelected.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} selected'**
-  String coinSelected(int count);
-
-  /// No description provided for @createTxFeeByRate.
-  ///
-  /// In en, this message translates to:
-  /// **'Rate (sat/vB)'**
-  String get createTxFeeByRate;
-
-  /// No description provided for @createTxFeeByTotal.
-  ///
-  /// In en, this message translates to:
-  /// **'Total (sats)'**
-  String get createTxFeeByTotal;
-
   /// No description provided for @createTxTotalFee.
   ///
   /// In en, this message translates to:
   /// **'Fee (sats)'**
   String get createTxTotalFee;
-
-  /// No description provided for @createTxTotalFeeInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a positive fee amount'**
-  String get createTxTotalFeeInvalid;
-
-  /// No description provided for @createTxFeeEstimate.
-  ///
-  /// In en, this message translates to:
-  /// **'Fee estimate'**
-  String get createTxFeeEstimate;
-
-  /// No description provided for @createTxEstInputs.
-  ///
-  /// In en, this message translates to:
-  /// **'Inputs'**
-  String get createTxEstInputs;
-
-  /// No description provided for @createTxEstSend.
-  ///
-  /// In en, this message translates to:
-  /// **'Send'**
-  String get createTxEstSend;
-
-  /// No description provided for @createTxEstFee.
-  ///
-  /// In en, this message translates to:
-  /// **'Fee'**
-  String get createTxEstFee;
 
   /// No description provided for @createTxEstChange.
   ///
@@ -3008,12 +2528,6 @@ abstract class AppLocalizations {
   /// **'Related coins'**
   String get relatedCoins;
 
-  /// No description provided for @relatedAddressLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Address label'**
-  String get relatedAddressLabel;
-
   /// No description provided for @relatedAddresses.
   ///
   /// In en, this message translates to:
@@ -3031,12 +2545,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Related transactions'**
   String get relatedTransactions;
-
-  /// No description provided for @creatingTransaction.
-  ///
-  /// In en, this message translates to:
-  /// **'Creating transaction'**
-  String get creatingTransaction;
 
   /// No description provided for @exportBip329Button.
   ///
@@ -3290,12 +2798,6 @@ abstract class AppLocalizations {
   /// **'Tor active'**
   String get torStatusConnected;
 
-  /// No description provided for @torErrorNotConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Tor is enabled but not yet connected'**
-  String get torErrorNotConnected;
-
   /// No description provided for @disclaimerTitle.
   ///
   /// In en, this message translates to:
@@ -3493,18 +2995,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Verify on device'**
   String get verifyOnDeviceButton;
-
-  /// No description provided for @changeProtectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Change wallet protection'**
-  String get changeProtectionTitle;
-
-  /// No description provided for @changeProtectionCurrent.
-  ///
-  /// In en, this message translates to:
-  /// **'Current: {protection}'**
-  String changeProtectionCurrent(String protection);
 
   /// No description provided for @protectionChangedToast.
   ///
@@ -3836,12 +3326,6 @@ abstract class AppLocalizations {
   /// **'9 months (~39,420 blocks)'**
   String get inheritanceNineMonths;
 
-  /// No description provided for @inheritanceCustomTimelock.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom...'**
-  String get inheritanceCustomTimelock;
-
   /// No description provided for @inheritanceDuplicateTimelockTitle.
   ///
   /// In en, this message translates to:
@@ -3865,12 +3349,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue anyway'**
   String get inheritanceDuplicateTimelockContinue;
-
-  /// No description provided for @inheritanceHeirsNeedKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Set a key for each heir'**
-  String get inheritanceHeirsNeedKey;
 
   /// No description provided for @inheritanceNeedHeir.
   ///
@@ -3944,36 +3422,6 @@ abstract class AppLocalizations {
   /// **'Re-vault'**
   String get revaultNow;
 
-  /// No description provided for @revaultTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset inheritance timer'**
-  String get revaultTitle;
-
-  /// No description provided for @revaultDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Sends all funds back to this wallet. Once confirmed, the inheritance timer resets — heirs must wait the full delay again.'**
-  String get revaultDescription;
-
-  /// No description provided for @revaultFeeRateLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Fee rate (sat/vB)'**
-  String get revaultFeeRateLabel;
-
-  /// No description provided for @revaultCreateButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Create re-vault transaction'**
-  String get revaultCreateButton;
-
-  /// No description provided for @revaultCreating.
-  ///
-  /// In en, this message translates to:
-  /// **'Creating transaction...'**
-  String get revaultCreating;
-
   /// No description provided for @blocksUnit.
   ///
   /// In en, this message translates to:
@@ -3985,12 +3433,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Heir {n}'**
   String inheritanceHeirN(int n);
-
-  /// No description provided for @inheritanceEarliestAccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Earliest heir access in ~{duration} ({blocks} blocks)'**
-  String inheritanceEarliestAccess(String duration, int blocks);
 
   /// No description provided for @scriptTypeLabel.
   ///
@@ -4087,12 +3529,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Increase threshold'**
   String get increaseThresholdTooltip;
-
-  /// No description provided for @replaceKeyTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Replace key'**
-  String get replaceKeyTooltip;
 
   /// No description provided for @keyDetailsTooltip.
   ///
@@ -4274,18 +3710,6 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get accountIndexLabel;
 
-  /// No description provided for @restoreFromSeedMenuLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Recover from seed'**
-  String get restoreFromSeedMenuLabel;
-
-  /// No description provided for @restoreFromSeedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Recover from seed'**
-  String get restoreFromSeedTitle;
-
   /// No description provided for @scanAccountsAction.
   ///
   /// In en, this message translates to:
@@ -4346,35 +3770,11 @@ abstract class AppLocalizations {
   /// **'{count} account(s) found'**
   String scanAccountsFoundBackups(int count);
 
-  /// No description provided for @scanAccountsNewAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Use new account ({index})'**
-  String scanAccountsNewAccount(int index);
-
   /// No description provided for @scanAccountsNoActivitySubtitle.
   ///
   /// In en, this message translates to:
   /// **'Recover accounts from a mnemonic phrase'**
   String get scanAccountsNoActivitySubtitle;
-
-  /// No description provided for @restoreFromHwMenuLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Recover from hardware wallet'**
-  String get restoreFromHwMenuLabel;
-
-  /// No description provided for @restoreFromHwMenuSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan accounts from a connected BitBox02'**
-  String get restoreFromHwMenuSubtitle;
-
-  /// No description provided for @restoreFromHwTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Recover from Hardware Wallet'**
-  String get restoreFromHwTitle;
 
   /// No description provided for @hwDiscoveryNoDevice.
   ///
@@ -4393,18 +3793,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exporting keys… ({n}/{total})'**
   String hwDiscoveryDeriving(int n, int total);
-
-  /// No description provided for @hwDiscoveryScanning.
-  ///
-  /// In en, this message translates to:
-  /// **'Scanning blockchain…'**
-  String get hwDiscoveryScanning;
-
-  /// No description provided for @scanAccountsActivitySummary.
-  ///
-  /// In en, this message translates to:
-  /// **'{txCount} tx'**
-  String scanAccountsActivitySummary(int txCount);
 
   /// No description provided for @scanAccountsCreateWallet.
   ///
@@ -4459,12 +3847,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Also searching for on-chain descriptor backups…'**
   String get onChainScanningHint;
-
-  /// No description provided for @nostrBackupFoundOnScan.
-  ///
-  /// In en, this message translates to:
-  /// **'Nostr backup found'**
-  String get nostrBackupFoundOnScan;
 
   /// No description provided for @importFromNostrBackup.
   ///
@@ -4579,18 +3961,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit key'**
   String get editKeyTitle;
-
-  /// No description provided for @addKeyClipboardSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Clipboard, file or QR code'**
-  String get addKeyClipboardSubtitle;
-
-  /// No description provided for @addKeyHwSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'USB or Bluetooth device'**
-  String get addKeyHwSubtitle;
 
   /// No description provided for @validating.
   ///
@@ -4712,12 +4082,6 @@ abstract class AppLocalizations {
   /// **'Relay already in list'**
   String get nostrRelayDuplicate;
 
-  /// No description provided for @nostrRelayAddButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Add relay'**
-  String get nostrRelayAddButton;
-
   /// No description provided for @nostrRelayTimeoutLabel.
   ///
   /// In en, this message translates to:
@@ -4771,12 +4135,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not recommended for singlesig: descriptor is recoverable from the seed via discovery. Publishing it only adds privacy risk.'**
   String get backupSinglesigShortNote;
-
-  /// No description provided for @nostrBackupMenu.
-  ///
-  /// In en, this message translates to:
-  /// **'Nostr Backup'**
-  String get nostrBackupMenu;
 
   /// No description provided for @nostrBackupTitle.
   ///
@@ -4832,12 +4190,6 @@ abstract class AppLocalizations {
   /// **'{backedUp}/{total} cosigners backed up'**
   String nostrBackupPartialCosigners(int backedUp, int total);
 
-  /// No description provided for @nostrBackupError.
-  ///
-  /// In en, this message translates to:
-  /// **'Relay error'**
-  String get nostrBackupError;
-
   /// No description provided for @nostrBackupNoRelays.
   ///
   /// In en, this message translates to:
@@ -4862,12 +4214,6 @@ abstract class AppLocalizations {
   /// **'Delete Backup'**
   String get nostrBackupDelete;
 
-  /// No description provided for @nostrBackupDeleting.
-  ///
-  /// In en, this message translates to:
-  /// **'Deleting…'**
-  String get nostrBackupDeleting;
-
   /// No description provided for @nostrBackupDeleted.
   ///
   /// In en, this message translates to:
@@ -4880,53 +4226,11 @@ abstract class AppLocalizations {
   /// **'Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.'**
   String get nostrBackupDeleteConfirm;
 
-  /// No description provided for @walletCreateFromNostr.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore from Nostr'**
-  String get walletCreateFromNostr;
-
-  /// No description provided for @walletCreateFromNostrSub.
-  ///
-  /// In en, this message translates to:
-  /// **'Recover a descriptor backup from Nostr relays'**
-  String get walletCreateFromNostrSub;
-
-  /// No description provided for @nostrRestoreTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore from Nostr'**
-  String get nostrRestoreTitle;
-
-  /// No description provided for @nostrRestoreEnterXpub.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter any xpub from the wallet'**
-  String get nostrRestoreEnterXpub;
-
   /// No description provided for @nostrRestoreXpubHint.
   ///
   /// In en, this message translates to:
   /// **'xpub6... or [mfp/path]xpub...'**
   String get nostrRestoreXpubHint;
-
-  /// No description provided for @nostrRestoreSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Relays'**
-  String get nostrRestoreSearch;
-
-  /// No description provided for @nostrRestoreSearching.
-  ///
-  /// In en, this message translates to:
-  /// **'Searching relays…'**
-  String get nostrRestoreSearching;
-
-  /// No description provided for @nostrRestoreNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No backup found on configured relays'**
-  String get nostrRestoreNotFound;
 
   /// No description provided for @nostrRestoreFound.
   ///
@@ -4934,47 +4238,11 @@ abstract class AppLocalizations {
   /// **'Backup found'**
   String get nostrRestoreFound;
 
-  /// No description provided for @nostrRestoreWalletName.
-  ///
-  /// In en, this message translates to:
-  /// **'Wallet name'**
-  String get nostrRestoreWalletName;
-
-  /// No description provided for @nostrRestoreNetwork.
-  ///
-  /// In en, this message translates to:
-  /// **'Network'**
-  String get nostrRestoreNetwork;
-
-  /// No description provided for @nostrRestoreDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Backed up'**
-  String get nostrRestoreDate;
-
-  /// No description provided for @nostrRestoreEnterCredential.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter your xpub to decrypt'**
-  String get nostrRestoreEnterCredential;
-
   /// No description provided for @nostrRestoreImport.
   ///
   /// In en, this message translates to:
   /// **'Import Wallet'**
   String get nostrRestoreImport;
-
-  /// No description provided for @nostrRestoreImporting.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing wallet…'**
-  String get nostrRestoreImporting;
-
-  /// No description provided for @nostrRestoreWatchOnlyNote.
-  ///
-  /// In en, this message translates to:
-  /// **'The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.'**
-  String get nostrRestoreWatchOnlyNote;
 
   /// No description provided for @recoverWalletTitle.
   ///
@@ -5156,12 +4424,6 @@ abstract class AppLocalizations {
   /// **'{signed}/{total} keys signed'**
   String descriptorSigsSummary(int signed, int total);
 
-  /// No description provided for @descriptorSigsManage.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage signatures'**
-  String get descriptorSigsManage;
-
   /// No description provided for @descriptorSigsMessage.
   ///
   /// In en, this message translates to:
@@ -5174,12 +4436,6 @@ abstract class AppLocalizations {
   /// **'Base64 compact signature (65 bytes)'**
   String get descriptorSigsQRMessageHint;
 
-  /// No description provided for @descriptorSigsShowPsbtQr.
-  ///
-  /// In en, this message translates to:
-  /// **'Show PSBT QR (scan with hardware wallet)'**
-  String get descriptorSigsShowPsbtQr;
-
   /// No description provided for @descriptorSigsQRBip322Hint.
   ///
   /// In en, this message translates to:
@@ -5191,12 +4447,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Signature stored'**
   String get descriptorSigsSignSuccess;
-
-  /// No description provided for @descriptorSigsDeleteSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Signature deleted'**
-  String get descriptorSigsDeleteSuccess;
 
   /// No description provided for @descriptorSigsChooseMethod.
   ///
@@ -5264,24 +4514,6 @@ abstract class AppLocalizations {
   /// **'Derived keyspec'**
   String get derivedKeyspecLabel;
 
-  /// No description provided for @mustMatchMfp.
-  ///
-  /// In en, this message translates to:
-  /// **'Must match MFP: {mfp}'**
-  String mustMatchMfp(String mfp);
-
-  /// No description provided for @keyWithMfp.
-  ///
-  /// In en, this message translates to:
-  /// **'Key: {mfp}'**
-  String keyWithMfp(String mfp);
-
-  /// No description provided for @loadWarningCorruptKeys.
-  ///
-  /// In en, this message translates to:
-  /// **'Lost {count} signing key(s) due to database corruption'**
-  String loadWarningCorruptKeys(int count);
-
   /// No description provided for @onChainBackupTitle.
   ///
   /// In en, this message translates to:
@@ -5300,47 +4532,17 @@ abstract class AppLocalizations {
   /// **'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.'**
   String get onChainBackupSecurityNote;
 
-  /// No description provided for @onChainBackupParticipants.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} cosigner(s)'**
-  String onChainBackupParticipants(int count);
-
   /// No description provided for @onChainBackupAnchors.
   ///
   /// In en, this message translates to:
   /// **'Anchors: {count} × {amount} sats'**
   String onChainBackupAnchors(int count, int amount);
 
-  /// No description provided for @onChainBackupEstimatedFee.
-  ///
-  /// In en, this message translates to:
-  /// **'Estimated fee: {fee} sats'**
-  String onChainBackupEstimatedFee(int fee);
-
-  /// No description provided for @onChainBackupTotalCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Total cost: ~{cost} sats'**
-  String onChainBackupTotalCost(int cost);
-
-  /// No description provided for @onChainBackupScanUtxos.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan UTXOs'**
-  String get onChainBackupScanUtxos;
-
   /// No description provided for @onChainBackupScanning.
   ///
   /// In en, this message translates to:
   /// **'Preparing backup…'**
   String get onChainBackupScanning;
-
-  /// No description provided for @onChainBackupSelectUtxo.
-  ///
-  /// In en, this message translates to:
-  /// **'Select UTXO'**
-  String get onChainBackupSelectUtxo;
 
   /// No description provided for @noUtxosAvailable.
   ///
@@ -5359,12 +4561,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fee: {total} sats · {vb} vB'**
   String onChainBackupTxFees(int total, int vb);
-
-  /// No description provided for @onChainBackupMinUtxo.
-  ///
-  /// In en, this message translates to:
-  /// **'Min UTXO: {sats} sats'**
-  String onChainBackupMinUtxo(Object sats);
 
   /// No description provided for @onChainBackupChange.
   ///
@@ -5402,12 +4598,6 @@ abstract class AppLocalizations {
   /// **'Sign with hot key'**
   String get onChainBackupSignWithHotKey;
 
-  /// No description provided for @onChainBackupPublish.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup on-chain'**
-  String get onChainBackupPublish;
-
   /// No description provided for @onChainBackupPublishing.
   ///
   /// In en, this message translates to:
@@ -5443,18 +4633,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'TX_REVEAL'**
   String get onChainBackupRevealTx;
-
-  /// No description provided for @onChainBackupNoHotKey.
-  ///
-  /// In en, this message translates to:
-  /// **'No signing key found. Add a hot key to this wallet before backing up on-chain.'**
-  String get onChainBackupNoHotKey;
-
-  /// No description provided for @onChainBackupSignCommit.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign TX_COMMIT'**
-  String get onChainBackupSignCommit;
 
   /// No description provided for @onChainBackupSignCommitHint.
   ///
@@ -5564,12 +4742,6 @@ abstract class AppLocalizations {
   /// **'On-chain'**
   String get onChainBadge;
 
-  /// No description provided for @generateMnemonicTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'New mnemonic'**
-  String get generateMnemonicTitle;
-
   /// No description provided for @generateMnemonicStep1Title.
   ///
   /// In en, this message translates to:
@@ -5659,12 +4831,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue'**
   String get generateMnemonicContinue;
-
-  /// No description provided for @generateMnemonicBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get generateMnemonicBack;
 
   /// No description provided for @generateMnemonicDone.
   ///

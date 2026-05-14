@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-
   "cancel": "Cancel",
   "save": "Save",
   "delete": "Delete",
@@ -11,34 +10,28 @@
   "discard": "Discard",
   "previous": "Previous",
   "next": "Next",
-
   "loadingProjects": "Loading projects...",
-
   "projectsTitle": "Projects",
   "menuNew": "New",
-  "menuImport": "Import",
-  "menuAbout": "About",
-  "menuSettings": "Settings",
   "noProjects": "No projects yet.\nTap + to create one.",
   "deleteProjectTitle": "Delete project",
   "deleteProjectConfirm": "Delete \"{name}\"?",
   "@deleteProjectConfirm": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-  "deleteProjectTooltip": "Delete project",
-  "importFromFile": "Import from file",
   "couldNotReadFile": "Could not read file",
-  "projectImportedSuccess": "Project imported successfully",
   "importFailed": "Import failed: {error}",
   "@importFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
-  "newProjectTitle": "New project",
   "importDescriptorMode": "Import descriptor",
   "fromScratchMode": "Start from scratch",
   "projectNameLabel": "Project name",
@@ -49,14 +42,12 @@
   "networkLabel": "Network",
   "selectNetworkTooltip": "Select network",
   "walletTypeLabel": "Wallet type",
-  "selectWalletTypeTooltip": "Select wallet type",
   "analyzeAndSave": "Analyze & Save",
   "createProject": "Create Project",
   "projectNameRequired": "Project name is required",
   "descriptorEmpty": "Descriptor cannot be empty",
   "analyzingDescriptor": "Analyzing descriptor...",
   "creatingProject": "Creating project...",
-
   "aboutTitle": "About",
   "loadingAppInfo": "Loading app info...",
   "bitcoinDescriptorAnalyzer": "Bitcoin Descriptor Analyzer",
@@ -67,41 +58,37 @@
   "licenseLabel": "License",
   "mitLicense": "MIT License",
   "openSourceDescription": "Open source Bitcoin wallet descriptor analysis",
-
   "settingsTitle": "Settings",
   "languageLabel": "Language",
-  "preferredNetworkLabel": "Preferred Network",
   "activeNetworkLabel": "Active Network",
-  "activeNetworkDescription": "Only wallets on this network are shown. Wallets on other networks are hidden, not deleted.",
   "walletsHiddenOnOtherNetworks": "{count} {count, plural, one{wallet} other{wallets}} on other networks — change in Settings",
   "@walletsHiddenOnOtherNetworks": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "restoringToNetwork": "Restoring to: {network}",
   "@restoringToNetwork": {
     "placeholders": {
-      "network": { "type": "String" }
+      "network": {
+        "type": "String"
+      }
     }
   },
   "preferredWalletTypeLabel": "Default Wallet Type",
   "settingsLanguageEn": "English",
   "settingsLanguageEs": "Español",
-
   "themeLabel": "Theme",
   "themeSystem": "System default",
   "themeLight": "Light",
   "themeDark": "Dark",
   "screenshotProtectionLabel": "Screenshot Protection",
   "screenshotProtectionSubtitle": "Prevent screenshots and screen recording",
-
   "settingsSectionSecurity": "Security",
   "biometricLockLabel": "Biometric Lock",
   "biometricLockSubtitle": "Require biometrics to open the app",
-  "biometricLockInfoTitle": "Biometric Lock",
-  "biometricLockInfoBody": "When enabled, Deadbolt will require fingerprint, face, or your device PIN/pattern to unlock every time you open the app or return from the background.\n\nMake sure your device has biometrics or a screen lock set up before enabling this.",
-  "biometricLockInfoEnable": "Enable",
   "biometricTimeoutLabel": "Lock after",
   "biometricTimeoutImmediate": "Immediately",
   "biometricTimeout1Min": "1 minute",
@@ -109,14 +96,8 @@
   "biometricUnlockReason": "Authenticate to access Deadbolt",
   "biometricUnlockButton": "Unlock",
   "biometricSetupFailed": "Authentication failed. Biometric lock was not enabled.",
-
   "biometricWalletSectionTitle": "Biometric unlock",
-  "biometricWalletSectionBody": "Use fingerprint or face ID to open this wallet without typing your password.",
   "biometricWalletUnlockReason": "Authenticate to open wallet",
-  "biometricWalletEnableFailed": "Could not enable biometric unlock. Try again.",
-  "biometricWalletDisableFailed": "Could not disable biometric unlock.",
-  "biometricWalletRootedWarning": "Warning: on rooted or jailbroken devices the unlock key stored in secure storage may be extractable.",
-
   "discardChangesTooltip": "Discard changes",
   "moreOptionsTooltip": "More options",
   "buildFabLabel": "Build",
@@ -125,42 +106,34 @@
   "keysSection": "Keys ({count})",
   "@keysSection": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "addKeyButton": "Add key",
   "spendPathsSection": "Spend paths ({count})",
   "@spendPathsSection": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "addSpendPath": "Add spend path",
   "addKeyDialogTitle": "Add Key",
-  "separateFieldsMode": "Separate fields",
-  "fullKeyspecMode": "Full keyspec",
-  "mfpLabel": "Master Fingerprint (MFP)",
-  "mfpHint": "e.g., c449c5c5",
-  "derivationPathLabel": "Derivation Path",
-  "derivationPathHint": "e.g., 48h/0h/0h/2h",
-  "xpubLabel": "Extended Public Key (xpub)",
-  "xpubHint": "xpub6...",
-  "fullKeyspecLabel": "Full Keyspec",
-  "fullKeyspecHint": "[c449c5c5/48h/0h/0h/2h]xpub6...",
-  "fullKeyspecHelperText": "Format: [mfp/path]xpub",
-  "allFieldsRequired": "All fields are required",
-  "keyspecRequired": "Keyspec is required",
   "invalidKeyspecFormat": "Invalid keyspec format. Expected: [mfp/path]xpub",
   "duplicateMfp": "A key with MFP {mfp} already exists",
   "@duplicateMfp": {
     "placeholders": {
-      "mfp": { "type": "String" }
+      "mfp": {
+        "type": "String"
+      }
     }
   },
   "copyDescriptorTooltip": "Export descriptor",
   "descriptorCopied": "Descriptor copied",
   "copyToClipboard": "Copy to clipboard",
-  "saveToDownloads": "Save to Downloads",
   "saveAs": "Save as…",
   "shareFile": "Share file",
   "shareText": "Share",
@@ -175,7 +148,9 @@
   "clipboardWillClear": "Clipboard will be cleared in {seconds}s",
   "@clipboardWillClear": {
     "placeholders": {
-      "seconds": { "type": "int" }
+      "seconds": {
+        "type": "int"
+      }
     }
   },
   "clipboardCleared": "Clipboard cleared",
@@ -185,14 +160,15 @@
   "importFromQrImage": "Import QR image",
   "qrDialogTitle": "QR Code",
   "qrAnimatedLabel": "Animated (BC-UR)",
-  "qrBytesPerFrame": "Bytes/frame",
-  "qrEcLevel": "Error correction",
-  "qrTooLargeForLevel": "Content too large for this error correction level",
   "qrPart": "{current} / {total}",
   "@qrPart": {
     "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "enable": "Enable",
@@ -204,48 +180,17 @@
   "discardChangesDialogTitle": "Discard changes?",
   "discardChangesContent": "You have unsaved changes. This action cannot be undone.",
   "changeWalletTypeTooltip": "Change wallet type",
-  "spendPathMustHaveKey": "Spend path {index}: Must have at least one key",
-  "@spendPathMustHaveKey": {
-    "placeholders": {
-      "index": { "type": "int" }
-    }
-  },
-  "spendPathKeyNotFound": "Spend path {index}: Key {mfp} not found",
-  "@spendPathKeyNotFound": {
-    "placeholders": {
-      "index": { "type": "int" },
-      "mfp": { "type": "String" }
-    }
-  },
-  "spendPathThresholdMin": "Spend path {index}: Threshold must be at least 1",
-  "@spendPathThresholdMin": {
-    "placeholders": {
-      "index": { "type": "int" }
-    }
-  },
-  "spendPathThresholdExceeds": "Spend path {index}: Threshold cannot exceed number of keys",
-  "@spendPathThresholdExceeds": {
-    "placeholders": {
-      "index": { "type": "int" }
-    }
-  },
-  "taprootOneKeyPath": "Only one spend path can be marked as key-path in Taproot descriptors.",
   "buildingDescriptor": "Building descriptor...",
   "buildingDescriptorMultiPath": "Building descriptor with multiple paths...",
   "buildingComplexDescriptor": "Building complex descriptor...\nThis may take some time",
   "analyzingDescriptorLoading": "Analyzing descriptor...",
   "analyzingComplexDescriptor": "Analyzing complex descriptor...",
   "analyzingAndSaving": "Analyzing and saving...",
-
   "enterName": "Enter a name",
   "nameAlreadyUsed": "This name is already used by another key",
-
-  "tapToName": "Tap to name",
   "copyKeyspecTooltip": "Copy keyspec",
   "keyCopied": "Key copied",
-  "pathPrefix": "Path: ",
   "rootPath": "(root)",
-  "xpubPrefix": "Xpub: ",
   "keyNameDialogTitle": "Key name",
   "keyFingerprintLabel": "Fingerprint",
   "keyDerivPathLabel": "Derivation path",
@@ -263,7 +208,6 @@
   "deletePrivateKeyConfirm": "Remove",
   "seedPhraseDialogTitle": "Seed phrase",
   "seedPhraseCopied": "Seed phrase copied",
-
   "seedExportTitle": "Seed Export",
   "seedExportTabWords": "Words",
   "seedExportTabQr": "QR Code",
@@ -277,8 +221,12 @@
   "seedGuideSegmentLabel": "Segment {label} of {total}",
   "@seedGuideSegmentLabel": {
     "placeholders": {
-      "label": { "type": "String" },
-      "total": { "type": "int" }
+      "label": {
+        "type": "String"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "seedGuideDoneTitle": "All segments transcribed",
@@ -292,11 +240,14 @@
   "seedQrSize": "{format} · {size}×{size}",
   "@seedQrSize": {
     "placeholders": {
-      "format": { "type": "String" },
-      "size": { "type": "int" }
+      "format": {
+        "type": "String"
+      },
+      "size": {
+        "type": "int"
+      }
     }
   },
-
   "spendPathNameDialogTitle": "Spend path name",
   "keyPathBadge": "KEY PATH",
   "setAsKeyPath": "Set as key path",
@@ -307,14 +258,18 @@
   "priorityBadge": "Priority {priority}",
   "@priorityBadge": {
     "placeholders": {
-      "priority": { "type": "int" }
+      "priority": {
+        "type": "int"
+      }
     }
   },
   "changeThresholdTooltip": "Change threshold",
   "ofCount": "of {count}",
   "@ofCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "thresholdLabel": "Threshold",
@@ -334,27 +289,24 @@
   "timelockValueMax": "Value must be ≤ 65,535",
   "blockHeightMax": "Block height must be < 500,000,000",
   "timestampMin": "Timestamp must be ≥ 500,000,000",
-
   "mustHaveAtLeastOneKey": "Must have at least one key",
   "thresholdMustBeAtLeastOne": "Threshold must be at least 1",
   "thresholdCannotExceed": "Threshold cannot exceed number of keys",
-
   "errorCopiedToClipboard": "Error copied to clipboard",
-
   "projectExportedSuccess": "Project exported successfully",
   "exportFailed": "Export failed: {error}",
   "@exportFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
-
   "networkMainnet": "Mainnet",
   "networkTestnet": "Testnet",
   "networkTestnet4": "Testnet4",
   "networkSignet": "Signet",
   "networkRegtest": "Regtest",
-
   "walletTypeP2pkh": "Legacy (P2PKH)",
   "walletTypeP2wpkh": "Segwit (P2WPKH)",
   "walletTypeP2sh": "Legacy (P2SH)",
@@ -363,17 +315,14 @@
   "walletTypeP2shWpkh": "Nested Segwit (P2SH-WPKH)",
   "walletTypeP2shWsh": "Nested Segwit (P2SH-WSH)",
   "walletTypeUnknown": "Unknown",
-
   "walletPolicySingleSig": "SingleSig",
   "walletPolicyMiniscript": "Miniscript",
   "walletAddressLegacy": "Legacy",
   "walletAddressSegwit": "SegWit",
   "walletAddressNested": "Nested",
   "walletAddressTaproot": "Taproot",
-
   "navDesigner": "Designer",
   "navWallet": "Wallet",
-
   "walletsTitle": "Wallets",
   "noWallets": "No wallets yet.\nTap + to create one.",
   "createWalletFromProject": "Create wallet",
@@ -390,37 +339,41 @@
   "deleteWalletConfirm": "Delete \"{name}\"?",
   "@deleteWalletConfirm": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "createWalletTitle": "New Wallet",
   "walletNameLabel": "Wallet name",
   "walletNameRequired": "Wallet name is required",
   "deleteProjectAfterCreate": "Delete this project after creating the wallet",
-  "fromProjectAction": "From project",
-  "createWalletButton": "Create Wallet",
+  "createWalletButton": "Create wallet",
   "creatingWallet": "Creating wallet...",
-
   "balanceConfirmed": "Confirmed",
   "balancePending": "Pending",
   "balanceImmature": "Immature",
   "balanceSats": "{sats} sats",
   "@balanceSats": {
     "placeholders": {
-      "sats": { "type": "int", "format": "decimalPattern" }
+      "sats": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
   "balanceBtc": "{btc} BTC",
   "@balanceBtc": {
     "placeholders": {
-      "btc": { "type": "String" }
+      "btc": {
+        "type": "String"
+      }
     }
   },
   "walletPasswordProtected": "Password protected",
   "lockWallet": "Lock wallet",
   "backupSaved": "Backup saved",
   "changeProtectionMenu": "Change protection",
-  "encryptionLabel": "Encryption",
   "walletSecurityLabel": "Security",
   "walletSecurityTitle": "Wallet Security",
   "encryptionSection": "Encryption",
@@ -438,22 +391,17 @@
   "lastSynced": "Last synced: {time}",
   "@lastSynced": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "syncButton": "Sync",
   "syncTooltip": "Sync wallet",
   "syncing": "Syncing...",
-  "syncFailed": "Sync failed: {error}",
   "rescanButton": "Full rescan",
   "rescanConfirmTitle": "Full rescan",
   "rescanConfirmBody": "This will re-scan all addresses from scratch. It may take longer than a normal sync.",
-  "@syncFailed": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
-  },
-
   "transactionsSection": "Transactions",
   "noTransactions": "No transactions yet",
   "txReceived": "Received",
@@ -461,39 +409,22 @@
   "txSelfTransfer": "Self-transfer",
   "txConfirmed": "Confirmed",
   "txUnconfirmed": "Unconfirmed",
-  "txFee": "Fee: {fee} sats",
-  "@txFee": {
-    "placeholders": {
-      "fee": { "type": "int", "format": "decimalPattern" }
-    }
-  },
-  "txHeight": "Block: {height}",
-  "@txHeight": {
-    "placeholders": {
-      "height": { "type": "int", "format": "decimalPattern" }
-    }
-  },
   "txId": "TXID",
   "loadMore": "Load more",
-
   "electrumSectionTitle": "Electrum Servers",
-  "electrumUrlLabel": "Electrum URL",
   "electrumUrlHint": "ssl://host:port or tcp://host:port",
   "electrumNetworkMainnet": "Mainnet Electrum",
   "electrumNetworkTestnet": "Testnet Electrum",
   "electrumNetworkTestnet4": "Testnet4 Electrum",
   "electrumNetworkSignet": "Signet Electrum",
   "electrumNetworkRegtest": "Regtest Electrum",
-
   "settingsMinFeeRate": "Minimum fee rate (sat/vB)",
-
   "fiatSectionTitle": "Fiat Values",
   "fiatEnabledLabel": "Show fiat values",
   "fiatCurrencyLabel": "Currency",
   "fiatProviderLabel": "Price provider",
   "fiatProviderCoinGecko": "CoinGecko",
   "fiatProviderMempoolSpace": "Mempool.space",
-
   "explorerSectionTitle": "Block Explorer",
   "explorerUrlHint": "https://mempool.space",
   "explorerNetworkMainnet": "Mainnet Explorer",
@@ -501,9 +432,7 @@
   "explorerNetworkTestnet4": "Testnet4 Explorer",
   "explorerNetworkSignet": "Signet Explorer",
   "explorerNetworkRegtest": "Regtest Explorer",
-  "explorerNoUrl": "No explorer configured for this network",
   "openInExplorer": "Open in explorer",
-
   "txLabelTitle": "Label",
   "txDetailsTitle": "Transaction details",
   "txDetailsNet": "Net amount",
@@ -512,7 +441,6 @@
   "txDetailsBlockHeight": "Block height",
   "txDetailsConfirmedAt": "Confirmed at",
   "txDetailsFee": "Fee",
-
   "addressesSection": "Addresses",
   "receiveAddresses": "Receive",
   "changeAddresses": "Change",
@@ -520,7 +448,9 @@
   "addressIndex": "#{index}",
   "@addressIndex": {
     "placeholders": {
-      "index": { "type": "int" }
+      "index": {
+        "type": "int"
+      }
     }
   },
   "addressLabelTitle": "Address label",
@@ -530,18 +460,22 @@
   "addressBalanceSats": "{sats} sats",
   "@addressBalanceSats": {
     "placeholders": {
-      "sats": { "type": "int", "format": "decimalPattern" }
+      "sats": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
   "revealMoreAddresses": "Reveal 20 more addresses",
   "addressTxCount": "{count} transactions",
   "@addressTxCount": {
     "placeholders": {
-      "count": { "type": "int", "format": "decimalPattern" }
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
-  "viewInExplorer": "View in explorer",
-
   "coinsSection": "Coins",
   "noCoins": "No coins. Sync to discover UTXOs.",
   "coinDetailsTitle": "Coin details",
@@ -558,83 +492,67 @@
   "coinTotalCount": "{count} coins",
   "@coinTotalCount": {
     "placeholders": {
-      "count": { "type": "int", "format": "decimalPattern" }
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
   "coinTotalValue": "Total: {sats} sats",
   "@coinTotalValue": {
     "placeholders": {
-      "sats": { "type": "int", "format": "decimalPattern" }
+      "sats": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
-
-
   "spendPathsAvailable": "Spend paths",
-  "spendPathsNotSynced": "Sync to see available spend paths",
   "spendPathUnlocked": "Unlocked",
   "spendPathLocked": "Locked",
-  "spendPathLockedUntilBlock": "Locked until block {block}",
-  "@spendPathLockedUntilBlock": {
-    "placeholders": {
-      "block": { "type": "int", "format": "decimalPattern" }
-    }
-  },
   "spendPathBlocks": "{blocks} blocks",
   "@spendPathBlocks": {
     "placeholders": {
-      "blocks": { "type": "int", "format": "decimalPattern" }
+      "blocks": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
-  "spendPathNeedsConfirmation": "Needs confirmation",
   "spendPathUnconfirmed": "Unconfirmed",
   "spendPathNeedsSync": "Sync required",
-
   "psbtStatusUnsigned": "UNSIGNED",
   "psbtStatusPartial": "PARTIAL",
   "psbtStatusSigned": "SIGNED",
-  "psbtStatusMempool": "MEMPOOL",
-  "psbtStatusConfirmed": "CONFIRMED",
   "psbtStatusSpent": "SPENT",
   "psbtSpentInputsWarning": "One or more inputs have been confirmed spent by another transaction. This PSBT can no longer be broadcast.",
-
   "createTxTitle": "Create Transaction",
-  "createTxRecipient": "Recipient address",
   "createTxRecipientHint": "bc1q...",
   "createTxAmount": "Amount (sats)",
   "createTxFeeRate": "Fee rate (sat/vB)",
-  "createTxFeeRateHint": "e.g. 1.5",
-  "createTxFeeRateMin": "Minimum fee rate is {min} sat/vB",
-  "@createTxFeeRateMin": {
-    "placeholders": {
-      "min": { "type": "String" }
-    }
-  },
   "createTxSpendPath": "Spend path",
   "createTxSpendPathHint": "Select a spend path",
   "createTxSelectedCoins": "{count} coin(s) selected — {sats} sats",
   "@createTxSelectedCoins": {
     "placeholders": {
-      "count": { "type": "int" },
-      "sats": { "type": "int", "format": "decimalPattern" }
+      "count": {
+        "type": "int"
+      },
+      "sats": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
     }
   },
-  "createTxAutoSelect": "Auto-select coins",
   "createTxButton": "Create PSBT",
-  "createTxCreating": "Creating...",
-  "createTxRecipientRequired": "Recipient address is required",
   "createTxAmountRequired": "Amount is required",
   "createTxAmountInvalid": "Invalid amount",
   "createTxMaxButton": "MAX",
-  "createTxSendMax": "Send all (max)",
-  "createTxSelfPayButton": "SELF",
   "createTxMyWalletsButton": "MY WALLETS",
   "createTxSelectDestWallet": "Select destination wallet",
   "createTxThisWallet": "This wallet (Self)",
   "createTxNoUnusedAddress": "No unused receive address available",
-  "createTxFeeRateInvalid": "Invalid fee rate",
   "createTxNoSpendPaths": "No spend paths available. Sync the wallet first.",
-  "createTxSuccess": "PSBT created",
-
   "psbtDetailTitle": "Unsigned Transaction",
   "psbtRecipient": "Recipient",
   "psbtAmount": "Amount",
@@ -645,22 +563,35 @@
   "psbtTimelockBlocksRemaining": "{blocks} blocks remaining (~{duration})",
   "@psbtTimelockBlocksRemaining": {
     "placeholders": {
-      "blocks": { "type": "int", "format": "decimalPattern" },
-      "duration": { "type": "String" }
+      "blocks": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "duration": {
+        "type": "String"
+      }
     }
   },
   "psbtTimelockTimeRemaining": "~{duration} remaining",
   "@psbtTimelockTimeRemaining": {
     "placeholders": {
-      "duration": { "type": "String" }
+      "duration": {
+        "type": "String"
+      }
     }
   },
   "psbtSignaturesTitle": "Signatures ({done}/{threshold} of {total})",
   "@psbtSignaturesTitle": {
     "placeholders": {
-      "done": { "type": "int" },
-      "threshold": { "type": "int" },
-      "total": { "type": "int" }
+      "done": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "psbtSignerSigned": "Signed",
@@ -669,47 +600,19 @@
   "psbtSignerUnknown": "Unknown",
   "psbtExportButton": "Export PSBT",
   "psbtImportSignedButton": "Import signature",
-  "psbtImportFromQr": "Scan QR",
-  "psbtImportFromFile": "From file (.psbt)",
   "psbtBroadcastButton": "Broadcast",
   "psbtBroadcastSuccess": "Transaction broadcast! TXID: {txid}",
   "@psbtBroadcastSuccess": {
     "placeholders": {
-      "txid": { "type": "String" }
-    }
-  },
-  "psbtBroadcastFailed": "Broadcast failed: {error}",
-  "@psbtBroadcastFailed": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
-  },
-  "psbtMergeSuccess": "Signatures imported",
-  "psbtMergeFailed": "Import failed: {error}",
-  "@psbtMergeFailed": {
-    "placeholders": {
-      "error": { "type": "String" }
+      "txid": {
+        "type": "String"
+      }
     }
   },
   "psbtDeleteTitle": "Delete PSBT",
   "psbtDeleteConfirm": "Delete this unsigned transaction?",
-  "psbtExportedCopied": "PSBT copied",
-  "coinSelectMode": "Select coins",
   "coinSelectDone": "Done",
-  "coinSelected": "{count} selected",
-  "@coinSelected": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-  "createTxFeeByRate": "Rate (sat/vB)",
-  "createTxFeeByTotal": "Total (sats)",
   "createTxTotalFee": "Fee (sats)",
-  "createTxTotalFeeInvalid": "Enter a positive fee amount",
-  "createTxFeeEstimate": "Fee estimate",
-  "createTxEstInputs": "Inputs",
-  "createTxEstSend": "Send",
-  "createTxEstFee": "Fee",
   "createTxEstChange": "Change",
   "createTxEstInsufficientFunds": "Insufficient funds",
   "createTxAddRecipient": "Add recipient",
@@ -727,7 +630,9 @@
   "opReturnByteCount": "{count, plural, =1{1 byte} other{{count} bytes}}",
   "@opReturnByteCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "opReturnCopyAsText": "Copy as text",
@@ -740,16 +645,15 @@
   "coinSelectorDoneCount": "Done ({count})",
   "@coinSelectorDoneCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "relatedCoins": "Related coins",
-  "relatedAddressLabel": "Address label",
   "relatedAddresses": "Output addresses",
   "inputAddresses": "Input addresses",
   "relatedTransactions": "Related transactions",
-  "creatingTransaction": "Creating transaction",
-
   "exportBip329Button": "Export",
   "importBip329Button": "Import",
   "exportBip329Empty": "No explicit labels to export",
@@ -760,21 +664,17 @@
   "exportDescriptorStandardDesc": "Compatible with Nunchuk and most wallets",
   "exportDescriptorLiana": "Liana",
   "exportDescriptorLianaDesc": "Adds [00000000] to the unspendable key",
-
   "exportLabelsOption": "Labels (BIP-329)",
   "importPsbtOption": "PSBT",
   "importPsbtMerged": "Signatures merged",
   "importPsbtSaved": "PSBT imported",
-
   "coinPendingSpend": "PSBT",
   "coinMempoolSpend": "Spending",
   "coinPendingPsbtsSection": "Pending transactions",
-
   "overviewTab": "Overview",
   "walletReceiveButton": "Receive",
   "noUnusedReceiveAddress": "No unused receive address found. Try syncing first.",
   "receiveNextAddress": "Next address",
-
   "rbfWarningTitle": "Full-RBF replacement",
   "rbfOriginalFee": "Original fee",
   "rbfDescendants": "Descendants",
@@ -784,47 +684,43 @@
   "rbfFeeTooLow": "Fee rate too low for RBF — minimum is {rate} sat/vB",
   "@rbfFeeTooLow": {
     "placeholders": {
-      "rate": { "type": "double" }
+      "rate": {
+        "type": "double"
+      }
     }
   },
   "rbfAbsFeeTooLow": "Total fee too low for RBF — minimum is {fee} sats",
   "@rbfAbsFeeTooLow": {
     "placeholders": {
-      "fee": { "type": "int" }
+      "fee": {
+        "type": "int"
+      }
     }
   },
-
   "cpfpBannerTitle": "CPFP acceleration",
   "cpfpParentFee": "Ancestor fees",
   "cpfpAncestorCount": "Ancestor txs",
   "cpfpEffectiveRate": "Package fee rate",
   "cpfpAccelerate": "Accelerate",
-
   "settingsSectionAppearance": "Appearance",
   "settingsSectionDefaults": "Wallet",
   "settingsSectionTransactions": "Transactions",
   "settingsSectionConnectivity": "Connectivity",
-
   "torLabel": "Use Tor",
   "torSubtitle": "Route all traffic through Tor",
   "torStatusConnecting": "Tor connecting...",
   "torStatusConnected": "Tor active",
-  "torErrorNotConnected": "Tor is enabled but not yet connected",
-
   "disclaimerTitle": "Beta Software — Use at Your Own Risk",
   "disclaimerBody": "Deadbolt is under active development and may contain bugs or errors.\n\nIt is not yet suitable for use with real funds. Use at your own risk.",
   "disclaimerDontShow7Days": "Don't show for 7 days",
-
   "electrumPrivacyWarning": "Using a public Electrum server. Your IP and transaction history may be visible to third parties. Configure a personal server in Settings.",
   "goToSettings": "Settings",
-
   "wifExportTitle": "Export private key (WIF)",
   "wifExportWarning": "This exports the private key of a single address, but if your wallet''s XPUB is known to anyone — a coordinator, exchange, or any service you''ve shared it with — they can use this WIF to derive the private keys of every address in your wallet.\n\nOnly proceed if your XPUB is private, or if you fully accept this risk.",
   "wifExportTypeToConfirm": "Type to confirm:",
   "wifExportConfirmPhrase": "my full wallet is at risk",
   "wifExportShowButton": "Show WIF",
   "wifDisplayWarning": "Never share this key. If your XPUB is known to others, this WIF exposes your entire wallet.",
-
   "protectionLabel": "Protection",
   "protectionNone": "None",
   "protectionPassword": "Password",
@@ -847,19 +743,15 @@
   "backButton": "Back",
   "feeRateLabel": "Fee rate",
   "verifyOnDeviceButton": "Verify on device",
-
-  "changeProtectionTitle": "Change wallet protection",
-  "changeProtectionCurrent": "Current: {protection}",
-  "@changeProtectionCurrent": {
-    "placeholders": { "protection": { "type": "String" } }
-  },
   "protectionChangedToast": "Protection changed to {protection}",
   "@protectionChangedToast": {
-    "placeholders": { "protection": { "type": "String" } }
+    "placeholders": {
+      "protection": {
+        "type": "String"
+      }
+    }
   },
-
   "exportBackupTitle": "Export backup",
-
   "sweepWifTitle": "Sweep WIF key",
   "sweepWifPrivateKeySection": "Private key (WIF)",
   "sweepWifHint": "Paste or scan WIF key...",
@@ -868,7 +760,11 @@
   "sweepWifControlledAddresses": "Controlled addresses",
   "sweepWifTotal": "Total: {amount} sat",
   "@sweepWifTotal": {
-    "placeholders": { "amount": { "type": "int" } }
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
   },
   "sweepWifNoFunds": "No funds found for this key on the current network.",
   "sweepWifDestination": "Destination",
@@ -876,16 +772,23 @@
   "sweepWifSweeping": "Sweeping...",
   "sweepWifButton": "Sweep {amount} sat",
   "@sweepWifButton": {
-    "placeholders": { "amount": { "type": "int" } }
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
   },
   "sweepWifEnterKeyFirst": "Enter a WIF key first",
   "sweepWifFillFields": "Fill all fields with valid values",
   "sweepWifSweptToast": "Swept: {txid}",
   "@sweepWifSweptToast": {
-    "placeholders": { "txid": { "type": "String" } }
+    "placeholders": {
+      "txid": {
+        "type": "String"
+      }
+    }
   },
   "sweepWifEmpty": "empty",
-
   "walletCreateGuided": "Guided creation",
   "walletCreateGuidedSub": "Standard wallet from your keys",
   "walletCreateFromDescriptor": "From descriptor",
@@ -894,17 +797,13 @@
   "walletCreateFromProjectSub": "Use a descriptor from the designer",
   "walletCreateFromBackup": "From backup",
   "walletCreateFromBackupSub": "Restore a wallet from a .deadbolt file",
-
   "projectCreateFromScratch": "From scratch",
   "projectCreateFromScratchSub": "Pick network and wallet type, then add keys",
   "projectCreateFromDescriptorSub": "Paste, scan or import a Bitcoin descriptor",
   "projectCreateImport": "Import project",
   "projectCreateImportSub": "Restore a project from a .json export",
-
   "newWalletTitle": "New Wallet",
-  "walletNameLabel": "Wallet name",
   "walletExportLabel": "Wallet",
-  "walletTypeLabel": "Wallet type",
   "walletTypeSinglesig": "Singlesig",
   "walletTypeMultisig": "Multisig",
   "walletTypeSinglesigDesc": "One key controls the wallet. Simpler and faster to set up.",
@@ -927,12 +826,10 @@
   "inheritanceOneYearShort": "1 yr",
   "inheritanceThreeMonths": "3 months (~13,140 blocks)",
   "inheritanceNineMonths": "9 months (~39,420 blocks)",
-  "inheritanceCustomTimelock": "Custom...",
   "inheritanceDuplicateTimelockTitle": "Duplicate timelocks",
   "inheritanceDuplicateTimelockBody": "Two or more heirs share the same timelock. For better compatibility with other coordination software, each spending path should have a unique timelock.",
   "inheritanceDuplicateTimelockFix": "Fix automatically",
   "inheritanceDuplicateTimelockContinue": "Continue anyway",
-  "inheritanceHeirsNeedKey": "Set a key for each heir",
   "inheritanceNeedHeir": "Add at least one heir",
   "inheritanceOwnerPathLabel": "Main",
   "inheritanceMinTimelockLabel": "Inheritance timelock threshold",
@@ -945,23 +842,13 @@
   "inheritanceNeedsSync": "Sync to check heir access",
   "inheritanceNoFunds": "No confirmed funds",
   "revaultNow": "Re-vault",
-  "revaultTitle": "Reset inheritance timer",
-  "revaultDescription": "Sends all funds back to this wallet. Once confirmed, the inheritance timer resets — heirs must wait the full delay again.",
-  "revaultFeeRateLabel": "Fee rate (sat/vB)",
-  "revaultCreateButton": "Create re-vault transaction",
-  "revaultCreating": "Creating transaction...",
   "blocksUnit": "blocks",
   "inheritanceHeirN": "Heir {n}",
   "@inheritanceHeirN": {
     "placeholders": {
-      "n": { "type": "int" }
-    }
-  },
-  "inheritanceEarliestAccess": "Earliest heir access in ~{duration} ({blocks} blocks)",
-  "@inheritanceEarliestAccess": {
-    "placeholders": {
-      "duration": { "type": "String" },
-      "blocks": { "type": "int", "format": "decimalPattern" }
+      "n": {
+        "type": "int"
+      }
     }
   },
   "scriptTypeLabel": "Script type",
@@ -980,24 +867,24 @@
   "requiredSignatures": "Required signatures: {m} of {n}",
   "@requiredSignatures": {
     "placeholders": {
-      "m": { "type": "int" },
-      "n": { "type": "int" }
+      "m": {
+        "type": "int"
+      },
+      "n": {
+        "type": "int"
+      }
     }
   },
   "decreaseThresholdTooltip": "Decrease threshold",
   "increaseThresholdTooltip": "Increase threshold",
-  "replaceKeyTooltip": "Replace key",
-  "removeKeyTooltip": "Remove key",
   "keyDetailsTooltip": "Key details",
-  "creatingWalletLabel": "Creating wallet\u2026",
-  "createWalletButton": "Create wallet",
+  "creatingWalletLabel": "Creating wallet…",
   "addAtLeastOneKey": "Add at least one key",
   "multisigNeedsMinKeys": "Multi key wallets need at least 2 keys",
-
   "hwWalletTitle": "Hardware wallet",
-  "hwWalletScanning": "Scanning for devices\u2026",
-  "hwWalletConnecting": "Connecting\u2026",
-  "hwWalletUnlockDevice": "Unlock your device\u2026",
+  "hwWalletScanning": "Scanning for devices…",
+  "hwWalletConnecting": "Connecting…",
+  "hwWalletUnlockDevice": "Unlock your device…",
   "hwWalletNoDevices": "No hardware wallet detected.\nMake sure it is plugged in.",
   "hwWalletSelectDevice": "Select a device",
   "hwWalletScanDevices": "Scan for devices",
@@ -1016,26 +903,28 @@
   "hwDisconnectButton": "Disconnect",
   "hwSelectDevice": "Select a device:",
   "hwPairingCompare": "Compare with device screen and confirm:",
-
   "directSendConfirmTitle": "Confirm send",
   "directSendConfirmAction": "Sign and broadcast",
   "directSendSuccess": "Sent: {txid}",
   "@directSendSuccess": {
     "placeholders": {
-      "txid": { "type": "String" }
+      "txid": {
+        "type": "String"
+      }
     }
   },
-
   "accountIndexLabel": "Account",
-  "restoreFromSeedMenuLabel": "Recover from seed",
-  "restoreFromSeedTitle": "Recover from seed",
   "scanAccountsAction": "Scan accounts",
   "scanAccountsScanning": "Scanning accounts…",
   "scanAccountsScanningHint": "Checking addresses on Electrum…\n(accounts gap: {accountGap}, addresses gap: {addrGap})",
   "@scanAccountsScanningHint": {
     "placeholders": {
-      "accountGap": { "type": "int" },
-      "addrGap": { "type": "int" }
+      "accountGap": {
+        "type": "int"
+      },
+      "addrGap": {
+        "type": "int"
+      }
     }
   },
   "accountGapLimitLabel": "Account gap limit",
@@ -1046,39 +935,31 @@
   "scanAccountsScannedCount": "Scanned {count} accounts",
   "@scanAccountsScannedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "scanAccountsFoundBackups": "{count} account(s) found",
   "@scanAccountsFoundBackups": {
     "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-  "scanAccountsNewAccount": "Use new account ({index})",
-  "@scanAccountsNewAccount": {
-    "placeholders": {
-      "index": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "scanAccountsNoActivitySubtitle": "Recover accounts from a mnemonic phrase",
-  "restoreFromHwMenuLabel": "Recover from hardware wallet",
-  "restoreFromHwMenuSubtitle": "Scan accounts from a connected BitBox02",
-  "restoreFromHwTitle": "Recover from Hardware Wallet",
   "hwDiscoveryNoDevice": "No hardware wallet connected. Connect and pair your device first.",
   "hwDiscoveryStart": "Scan accounts",
   "hwDiscoveryDeriving": "Exporting keys… ({n}/{total})",
   "@hwDiscoveryDeriving": {
     "placeholders": {
-      "n": { "type": "int" },
-      "total": { "type": "int" }
-    }
-  },
-  "hwDiscoveryScanning": "Scanning blockchain…",
-  "scanAccountsActivitySummary": "{txCount} tx",
-  "@scanAccountsActivitySummary": {
-    "placeholders": {
-      "txCount": { "type": "int" }
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "scanAccountsCreateWallet": "Create wallet",
@@ -1087,10 +968,9 @@
   "searchNostrLabel": "Search Nostr backups",
   "searchNostrHint": "Look for descriptor backups on configured relays",
   "hwSkipLegacyLabel": "Skip legacy (P2PKH) derivations",
-  "hwSkipLegacyHint": "Avoids device confirmation prompts for m/44\u2019 paths",
+  "hwSkipLegacyHint": "Avoids device confirmation prompts for m/44’ paths",
   "searchNostrScanningHint": "Also searching Nostr relays for descriptor backups…",
   "onChainScanningHint": "Also searching for on-chain descriptor backups…",
-  "nostrBackupFoundOnScan": "Nostr backup found",
   "importFromNostrBackup": "Restore from Nostr",
   "nostrImportTamperTitle": "Verify after import",
   "nostrImportTamperBody": "Anyone who knows the xpub can modify this backup. After importing, confirm the descriptor and receiving addresses match your expected wallet before sending any funds.",
@@ -1099,7 +979,6 @@
   "pressBackAgainToExit": "Press back again to exit",
   "feeHistogramTitle": "Next block fees",
   "feeHistogramNext": "Next",
-
   "confirm": "Confirm",
   "ok": "OK",
   "copy": "Copy",
@@ -1111,8 +990,6 @@
   "addPrivateKeyLabel": "Add private key",
   "addSigningKeyLabel": "Add signing key",
   "editKeyTitle": "Edit key",
-  "addKeyClipboardSubtitle": "Clipboard, file or QR code",
-  "addKeyHwSubtitle": "USB or Bluetooth device",
   "validating": "Validating...",
   "registeredKeys": "Registered keys",
   "showRegisteredKeys": "Show registered keys",
@@ -1128,17 +1005,14 @@
   "wifPrivateKeyLabel": "WIF private key",
   "verifyButton": "Verify",
   "derivPathWithoutLeading": "Without leading m/",
-
   "nostrRelaysLabel": "Nostr Relays",
   "nostrRelaysSubtitle": "Relays for encrypted descriptor backups",
   "nostrRelayAddHint": "wss://relay.example.com",
   "nostrRelayInvalidUrl": "URL must start with wss:// or ws://",
   "nostrRelayDuplicate": "Relay already in list",
-  "nostrRelayAddButton": "Add relay",
   "nostrRelayTimeoutLabel": "Timeout (seconds)",
   "nostrRelayMaxAttemptsLabel": "Attempts per relay",
   "nostrSearchNetworkWarning": "Connection issues with some Nostr relays. Some backups may not have been found.",
-
   "publishBackupMenu": "Publish Backup",
   "@publishBackupMenu": {},
   "publishBackupTitle": "Publish Backup",
@@ -1151,7 +1025,6 @@
   "@publishBackupSinglesigContinue": {},
   "backupSinglesigShortNote": "Not recommended for singlesig: descriptor is recoverable from the seed via discovery. Publishing it only adds privacy risk.",
   "@backupSinglesigShortNote": {},
-  "nostrBackupMenu": "Nostr Backup",
   "nostrBackupTitle": "Nostr Backup",
   "nostrBackupSubtitle": "Encrypted descriptor backup on Nostr relays",
   "nostrBackupPublish": "Publish Backup",
@@ -1163,37 +1036,23 @@
   "nostrBackupPartialCosigners": "{backedUp}/{total} cosigners backed up",
   "@nostrBackupPartialCosigners": {
     "placeholders": {
-      "backedUp": { "type": "int" },
-      "total": { "type": "int" }
+      "backedUp": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
-  "nostrBackupError": "Relay error",
   "nostrBackupNoRelays": "No relays configured. Add relays in Settings → Nostr Relays.",
   "nostrBackupChecking": "Checking…",
   "nostrBackupPublishing": "Publishing…",
   "nostrBackupDelete": "Delete Backup",
-  "nostrBackupDeleting": "Deleting…",
   "nostrBackupDeleted": "Backup deleted from relay",
   "nostrBackupDeleteConfirm": "Replace the backup on this relay with an empty event? The descriptor will no longer be recoverable from this relay.",
-
-  "walletCreateFromNostr": "Restore from Nostr",
-  "walletCreateFromNostrSub": "Recover a descriptor backup from Nostr relays",
-
-  "nostrRestoreTitle": "Restore from Nostr",
-  "nostrRestoreEnterXpub": "Enter any xpub from the wallet",
   "nostrRestoreXpubHint": "xpub6... or [mfp/path]xpub...",
-  "nostrRestoreSearch": "Search Relays",
-  "nostrRestoreSearching": "Searching relays…",
-  "nostrRestoreNotFound": "No backup found on configured relays",
   "nostrRestoreFound": "Backup found",
-  "nostrRestoreWalletName": "Wallet name",
-  "nostrRestoreNetwork": "Network",
-  "nostrRestoreDate": "Backed up",
-  "nostrRestoreEnterCredential": "Enter your xpub to decrypt",
   "nostrRestoreImport": "Import Wallet",
-  "nostrRestoreImporting": "Importing wallet…",
-  "nostrRestoreWatchOnlyNote": "The wallet will be imported as watch-only. Reconnect your hardware wallet or add your mnemonic to sign transactions.",
-
   "recoverWalletTitle": "Recover Wallet",
   "restoreTabXpub": "xpub",
   "restoreTabSeed": "Seed",
@@ -1201,24 +1060,23 @@
   "restoreXpubEnterXpub": "Enter an extended public key to scan on-chain accounts and search Nostr backups.",
   "restoreXpubScanButton": "Scan",
   "restoreDefaults": "Restore defaults",
-
   "coinSortLabelSize": "Size",
   "coinSortLabelAge": "Age",
   "coinSortSizeDesc": "Size: largest first",
   "coinSortSizeAsc": "Size: smallest first",
   "coinSortAgeDesc": "Age: oldest first",
   "coinSortAgeAsc": "Age: newest first",
-
   "reorderWallets": "Reorder wallets",
   "reorderProjects": "Reorder projects",
   "done": "Done",
-
   "descriptorSigsTitle": "Descriptor Signatures",
   "descriptorSigsSubtitle": "Prove ownership of each key by signing the descriptor hash. Protects backups from tampering.",
   "descriptorSigsSigned": "Signed · {date}",
   "@descriptorSigsSigned": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "descriptorSigsNotSigned": "Not signed",
@@ -1234,32 +1092,38 @@
   "descriptorSigsSummary": "{signed}/{total} keys signed",
   "@descriptorSigsSummary": {
     "placeholders": {
-      "signed": { "type": "int" },
-      "total": { "type": "int" }
+      "signed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
-  "descriptorSigsManage": "Manage signatures",
   "descriptorSigsMessage": "Message to sign",
   "descriptorSigsQRMessageHint": "Base64 compact signature (65 bytes)",
-  "descriptorSigsShowPsbtQr": "Show PSBT QR (scan with hardware wallet)",
   "descriptorSigsQRBip322Hint": "Signed PSBT (base64 or scan QR)",
   "descriptorSigsSignSuccess": "Signature stored",
-  "descriptorSigsDeleteSuccess": "Signature deleted",
   "descriptorSigsChooseMethod": "Choose signing method",
   "descriptorSigsVerified": "Verified · {date}",
   "@descriptorSigsVerified": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "descriptorSigsVerifyResult": "{valid} of {total} signatures valid",
   "@descriptorSigsVerifyResult": {
     "placeholders": {
-      "valid": { "type": "int" },
-      "total": { "type": "int" }
+      "valid": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
-
   "deriveKeyFirst": "Derive the key first",
   "invalidDerivedKeyspec": "Invalid derived keyspec",
   "enterValidSeedPhrase": "Enter a valid seed phrase first",
@@ -1267,99 +1131,87 @@
   "signingKeyAdded": "Signing key added ({mfp})",
   "@signingKeyAdded": {
     "placeholders": {
-      "mfp": { "type": "String" }
+      "mfp": {
+        "type": "String"
+      }
     }
   },
   "mfpMismatch": "MFP mismatch: got {mfp}, expected {expected}",
   "@mfpMismatch": {
     "placeholders": {
-      "mfp": { "type": "String" },
-      "expected": { "type": "String" }
+      "mfp": {
+        "type": "String"
+      },
+      "expected": {
+        "type": "String"
+      }
     }
   },
   "wrongKeyMfp": "Wrong key. Got {mfp}, expected {expected}",
   "@wrongKeyMfp": {
     "placeholders": {
-      "mfp": { "type": "String" },
-      "expected": { "type": "String" }
+      "mfp": {
+        "type": "String"
+      },
+      "expected": {
+        "type": "String"
+      }
     }
   },
   "derivedKeyspecLabel": "Derived keyspec",
-
-  "mustMatchMfp": "Must match MFP: {mfp}",
-  "@mustMatchMfp": {
-    "placeholders": {
-      "mfp": { "type": "String" }
-    }
-  },
-  "keyWithMfp": "Key: {mfp}",
-  "@keyWithMfp": {
-    "placeholders": {
-      "mfp": { "type": "String" }
-    }
-  },
-
-  "loadWarningCorruptKeys": "Lost {count} signing key(s) due to database corruption",
-  "@loadWarningCorruptKeys": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-
   "onChainBackupTitle": "On-chain",
   "@onChainBackupTitle": {},
   "onChainBackupSubtitle": "Descriptor backup embedded in a Bitcoin transaction",
   "@onChainBackupSubtitle": {},
   "onChainBackupSecurityNote": "Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner's xpub.",
   "@onChainBackupSecurityNote": {},
-  "onChainBackupParticipants": "{count} cosigner(s)",
-  "@onChainBackupParticipants": {
-    "placeholders": { "count": { "type": "int" } }
-  },
   "onChainBackupAnchors": "Anchors: {count} × {amount} sats",
   "@onChainBackupAnchors": {
     "placeholders": {
-      "count": { "type": "int" },
-      "amount": { "type": "int" }
+      "count": {
+        "type": "int"
+      },
+      "amount": {
+        "type": "int"
+      }
     }
   },
-  "onChainBackupEstimatedFee": "Estimated fee: {fee} sats",
-  "@onChainBackupEstimatedFee": {
-    "placeholders": { "fee": { "type": "int" } }
-  },
-  "onChainBackupTotalCost": "Total cost: ~{cost} sats",
-  "@onChainBackupTotalCost": {
-    "placeholders": { "cost": { "type": "int" } }
-  },
-  "onChainBackupScanUtxos": "Scan UTXOs",
-  "@onChainBackupScanUtxos": {},
   "onChainBackupScanning": "Preparing backup…",
   "@onChainBackupScanning": {},
-  "onChainBackupSelectUtxo": "Select UTXO",
-  "@onChainBackupSelectUtxo": {},
   "noUtxosAvailable": "No UTXOs available",
   "@noUtxosAvailable": {},
   "onChainBackupFeeRate": "Fee rate (sats/vB)",
   "@onChainBackupFeeRate": {},
   "onChainBackupTxFees": "Fee: {total} sats · {vb} vB",
   "@onChainBackupTxFees": {
-    "placeholders": { "total": { "type": "int" }, "vb": { "type": "int" } }
-  },
-  "onChainBackupMinUtxo": "Min UTXO: {sats} sats",
-  "@onChainBackupMinUtxo": {
-    "placeholders": { "sats": {} }
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "vb": {
+        "type": "int"
+      }
+    }
   },
   "onChainBackupChange": "Change: {sats} sats",
   "@onChainBackupChange": {
-    "placeholders": { "sats": {} }
+    "placeholders": {
+      "sats": {}
+    }
   },
   "onChainBackupVault": "Vault: {sats} sats",
   "@onChainBackupVault": {
-    "placeholders": { "sats": {} }
+    "placeholders": {
+      "sats": {}
+    }
   },
   "onChainBackupUtxoInsufficient": "Select a coin with at least {sats} sats",
   "@onChainBackupUtxoInsufficient": {
-    "placeholders": { "sats": { "type": "int" } }
+    "placeholders": {
+      "sats": {
+        "type": "int"
+      }
+    }
   },
   "onChainBackupConfirmBuild": "Build TX_COMMIT",
   "@onChainBackupConfirmBuild": {},
@@ -1367,8 +1219,6 @@
   "@onChainBackupTimelockedUtxo": {},
   "onChainBackupSignWithHotKey": "Sign with hot key",
   "@onChainBackupSignWithHotKey": {},
-  "onChainBackupPublish": "Backup on-chain",
-  "@onChainBackupPublish": {},
   "onChainBackupPublishing": "Signing…",
   "@onChainBackupPublishing": {},
   "onChainBackupChecking": "Checking…",
@@ -1381,10 +1231,6 @@
   "@onChainBackupCommitTx": {},
   "onChainBackupRevealTx": "TX_REVEAL",
   "@onChainBackupRevealTx": {},
-  "onChainBackupNoHotKey": "No signing key found. Add a hot key to this wallet before backing up on-chain.",
-  "@onChainBackupNoHotKey": {},
-  "onChainBackupSignCommit": "Sign TX_COMMIT",
-  "@onChainBackupSignCommit": {},
   "onChainBackupSignCommitHint": "Sign the commit transaction with your hardware wallet or QR device, then import the signed PSBT.",
   "@onChainBackupSignCommitHint": {},
   "onChainBackupBuildingPsbt": "Building PSBT…",
@@ -1401,23 +1247,37 @@
   "@onChainBackupConfirmBroadcastTitle": {},
   "onChainBackupCommitFee": "Fee: {sats} sats",
   "@onChainBackupCommitFee": {
-    "placeholders": { "sats": { "type": "String" } }
+    "placeholders": {
+      "sats": {
+        "type": "String"
+      }
+    }
   },
   "onChainBackupRevealFee": "Fee: {sats} sats",
   "@onChainBackupRevealFee": {
-    "placeholders": { "sats": { "type": "String" } }
+    "placeholders": {
+      "sats": {
+        "type": "String"
+      }
+    }
   },
   "onChainBackupRevealChange": "Change: {sats} sats",
   "@onChainBackupRevealChange": {
-    "placeholders": { "sats": {} }
+    "placeholders": {
+      "sats": {}
+    }
   },
   "onChainBackupBroadcast": "Broadcast",
   "@onChainBackupBroadcast": {},
   "onChainBackupAnchorsHealth": "{reachable} of {total} anchors accessible",
   "@onChainBackupAnchorsHealth": {
     "placeholders": {
-      "reachable": { "type": "int" },
-      "total": { "type": "int" }
+      "reachable": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "onChainBackupDescriptorVerified": "Descriptor verified",
@@ -1432,8 +1292,6 @@
   "@onChainSearchHint": {},
   "onChainBadge": "On-chain",
   "@onChainBadge": {},
-  "generateMnemonicTitle": "New mnemonic",
-  "@generateMnemonicTitle": {},
   "generateMnemonicStep1Title": "Generate",
   "@generateMnemonicStep1Title": {},
   "generateMnemonicStep2Title": "Verify backup",
@@ -1458,7 +1316,11 @@
   "@generateMnemonicVerifyIntro": {},
   "generateMnemonicVerifyWordLabel": "Word #{pos}",
   "@generateMnemonicVerifyWordLabel": {
-    "placeholders": { "pos": { "type": "int" } }
+    "placeholders": {
+      "pos": {
+        "type": "int"
+      }
+    }
   },
   "generateMnemonicVerifyError": "Some words do not match. Check your notes and try again.",
   "@generateMnemonicVerifyError": {},
@@ -1466,8 +1328,6 @@
   "@generateMnemonicShuffleAgain": {},
   "generateMnemonicContinue": "Continue",
   "@generateMnemonicContinue": {},
-  "generateMnemonicBack": "Back",
-  "@generateMnemonicBack": {},
   "generateMnemonicDone": "Add key",
   "@generateMnemonicDone": {},
   "addKeyCapacityWatchOnlyTitle": "Watch-only key",
