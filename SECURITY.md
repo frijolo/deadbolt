@@ -33,9 +33,9 @@ The full public key is available in this repository: [GPG_PUBLIC_KEY.asc](GPG_PU
 curl -sL https://raw.githubusercontent.com/frijolo/deadbolt/master/GPG_PUBLIC_KEY.asc | gpg --import
 
 # 2. Download release files from GitHub Releases
-wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/SHA256SUMS
-wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/SHA256SUMS.asc
-wget https://github.com/frijolo/deadbolt/releases/download/v1.9.3/deadbolt-<platform>.<ext>
+wget https://github.com/frijolo/deadbolt/releases/download/<VERSION>/SHA256SUMS
+wget https://github.com/frijolo/deadbolt/releases/download/<VERSION>/SHA256SUMS.asc
+wget https://github.com/frijolo/deadbolt/releases/download/<VERSION>/deadbolt-<platform>.<ext>
 
 # 3. Verify GPG signature
 gpg --verify SHA256SUMS.asc SHA256SUMS
@@ -174,10 +174,10 @@ git clone https://github.com/frijolo/deadbolt.git
 cd deadbolt
 
 # Verify latest signed tag
-git tag -v v1.9.3
+git tag -v <VERSION>
 
 # Checkout verified tag
-git checkout v1.9.3
+git checkout <VERSION>
 
 # Build
 flutter pub get
@@ -208,7 +208,7 @@ flutter build <platform> --release
 
 - 🔄 **Reproducible builds** - Bit-for-bit identical builds (planned)
 - 🔄 **SBOM (Software Bill of Materials)** - Detailed dependency manifest (planned)
-- 🔄 **Automated security scanning** - CodeQL, Dependabot, etc. (in progress)
+
 - 🔄 **Third-party security audit** - Independent code review (future)
 
 ## Secure Development Practices

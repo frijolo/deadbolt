@@ -65,7 +65,7 @@ output is omitted entirely and the surplus is absorbed into the commit fee.
 | Inputs | The vault outpoint (script-path spend) plus every anchor outpoint (key-path spend) |
 | Outputs | A single P2TR output paying the wallet's next **internal** (change) keychain address, value `vault_sats + Σ anchor_sats − reveal_fee` |
 | Vault witness | `[tapscript_bytes, control_block]` — no signature required |
-| Anchor witnesses | One Taproot key-path Schnorr signature with `SIGHASH_DEFAULT` per anchor input |
+| Anchor witnesses | One Taproot key-path Schnorr signature with `TapSighashType::Default` (BDK) per anchor input |
 
 TX_REVEAL reveals the vault tapscript in its witness, permanently making the
 encrypted payload recoverable from the chain.

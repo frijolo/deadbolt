@@ -26,7 +26,7 @@ Create `/etc/udev/rules.d/51-bitbox02.rules`:
 
 ```bash
 sudo tee /etc/udev/rules.d/51-bitbox02.rules << 'EOF'
-# BitBox02 hardware wallet (Atmel / ShiftCrypto, VID 0x03eb)
+# BitBox02 hardware wallet (ShiftCrypto, VID 0x03eb — ejemplo para BitBox02)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", TAG+="uaccess"
 EOF
 ```
