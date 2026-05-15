@@ -1,8 +1,7 @@
 use super::*;
 use crate::core::wallet_persistence::open_encrypted_connection;
+use crate::test_support::KEY_HEX;
 use tempfile::tempdir;
-
-const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
 
 fn open_test_db() -> (Connection, tempfile::TempDir) {
     let dir = tempdir().unwrap();

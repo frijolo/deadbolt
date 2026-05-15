@@ -224,11 +224,7 @@ pub async fn connect(
         while rx.try_recv().is_ok() {}
     }
 
-    let safe_key = hex::encode(device_name.as_bytes());
-    let device_noise_dir = format!("{noise_dir}/{safe_key}");
-    std::fs::create_dir_all(&device_noise_dir)?;
-
-    let noise_config = Box::new(bitbox_api::PersistedNoiseConfig::new(&device_noise_dir));
+    let noise_config = crate::core::hw::create_noise_config(&device_name, &noise_dir)?;
 
     let raw: Box<dyn ReadWrite> = Box::new(ChannelTransport);
     let u2f: Box<dyn ReadWrite> = Box::new(U2fHidCommunication::from(raw, FIRMWARE_CMD));

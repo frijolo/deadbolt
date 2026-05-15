@@ -309,11 +309,7 @@ class _KeyTile extends StatelessWidget {
       body: 'MFP: $mfp',
     );
     if (confirmed && context.mounted) {
-      try {
-        await context.read<DescriptorSigsCubit>().deleteSig(mfp);
-      } catch (e) {
-        if (context.mounted) showErrorToastException(e);
-      }
+      await guard<void>(context, () => context.read<DescriptorSigsCubit>().deleteSig(mfp));
     }
   }
 }
@@ -443,7 +439,10 @@ class _SignMethodSheet extends StatelessWidget {
         xpubEntry: xpubEntry,
         signedPsbtB64: signedPsbt,
       );
-      if (context.mounted) showSuccessToast(context.l10n.descriptorSigsSignSuccess);
+
+      if (context.mounted) {
+        showSuccessToast(context.l10n.descriptorSigsSignSuccess);
+      }
     } catch (e) {
       if (context.mounted) showErrorToastException(e);
     }
@@ -454,13 +453,15 @@ class _SignMethodSheet extends StatelessWidget {
     try {
       final prep = cubit.preparePsbt(mfp);
       if (!context.mounted) return;
-
       await showSheet<void>(context, (ctx) => _QRMessageSheet(
         mfp: mfp,
         xpubEntry: xpubEntry,
         message: prep.message,
         cubit: cubit,
       ));
+      if (context.mounted) {
+        showSuccessToast(context.l10n.descriptorSigsSignSuccess);
+      }
     } catch (e) {
       if (context.mounted) showErrorToastException(e);
     }
@@ -471,13 +472,15 @@ class _SignMethodSheet extends StatelessWidget {
     try {
       final prep = cubit.preparePsbt(mfp);
       if (!context.mounted) return;
-
       await showSheet<void>(context, (ctx) => _QRBip322Sheet(
         mfp: mfp,
         xpubEntry: xpubEntry,
         prep: prep,
         cubit: cubit,
       ));
+      if (context.mounted) {
+        showSuccessToast(context.l10n.descriptorSigsSignSuccess);
+      }
     } catch (e) {
       if (context.mounted) showErrorToastException(e);
     }

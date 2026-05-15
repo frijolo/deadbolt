@@ -388,7 +388,7 @@ class _CoinTile extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    '${BitcoinFormatter.formatNum(sats)} sats',
+                    BitcoinFormatter.satsLabel(sats),
                     style: amountStyle,
                   ),
                   if (currentBtcPrice != null && fiatCurrency != null) ...[

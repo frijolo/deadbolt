@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -134,6 +135,7 @@ class _GenerateMnemonicSheetState extends State<_GenerateMnemonicSheet> {
             ),
             Expanded(
               child: SingleChildScrollView(
+                dragStartBehavior: DragStartBehavior.down,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: switch (_step) {
                   _Step.generate => _GenerateStep(

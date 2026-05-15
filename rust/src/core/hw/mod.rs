@@ -67,6 +67,25 @@ pub fn new_session_id() -> String {
     hex::encode(bytes)
 }
 
+/// Creates a device-scoped NoiseConfig directory and returns the config.
+///
+/// Derives `safe_key` from `device_identifier` via hex encoding, creates
+/// `{noise_dir}/{safe_key}`, and constructs a [`bitbox_api::PersistedNoiseConfig`]
+/// backed by that directory.
+///
+/// Shared by desktop [`start_pairing`] and Android [`android::connect`].
+pub fn create_noise_config(
+    device_identifier: &str,
+    noise_dir: &str,
+) -> Result<Box<bitbox_api::PersistedNoiseConfig>> {
+    let safe_key = hex::encode(device_identifier.as_bytes());
+    let device_noise_dir = format!("{noise_dir}/{safe_key}");
+    std::fs::create_dir_all(&device_noise_dir)?;
+    Ok(Box::new(bitbox_api::PersistedNoiseConfig::new(
+        &device_noise_dir,
+    )))
+}
+
 // ── Device enumeration ────────────────────────────────────────────────────────
 
 /// Returns info for every BitBox02 currently reachable via USB HID.
@@ -112,10 +131,7 @@ pub async fn start_pairing(
         .open_path(std::ffi::CString::new(device_path)?.as_c_str())
         .map_err(|e| anyhow!("Cannot open device at {device_path}: {e}"))?;
 
-    let safe_key = hex::encode(device_path.as_bytes());
-    let device_noise_dir = format!("{noise_dir}/{safe_key}");
-    std::fs::create_dir_all(&device_noise_dir)?;
-    let noise_config = Box::new(bitbox_api::PersistedNoiseConfig::new(&device_noise_dir));
+    let noise_config = create_noise_config(device_path, noise_dir)?;
 
     let bitbox = bitbox_api::BitBox::<BB02Runtime>::from_hid_device(hid_device, noise_config)
         .await

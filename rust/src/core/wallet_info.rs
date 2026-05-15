@@ -1,9 +1,10 @@
 use anyhow::Result;
+use bdk_wallet::bitcoin::Network;
 use rand::rngs::OsRng;
 use rand::TryRngCore;
 use zeroize::Zeroizing;
 
-use crate::api::model::{APINetwork, APISecurityLevel};
+use crate::api::model::{APINetwork, APIProtectionType, APISecurityLevel};
 use crate::core::key_protection::{
     biometric_slots, biometric_slots_mut, generate_data_key, generate_salt, resolve_data_key,
     resolve_xpub_data_key, unwrap_biometric_slots, wrap_key, wrap_with_xpub, BiometricSlot,
@@ -594,6 +595,75 @@ pub fn wallet_has_biometric_slots(wallet_path: &str) -> bool {
         .as_ref()
         .and_then(biometric_slots)
         .is_some_and(|s| !s.is_empty())
+}
+
+/// Convert a stored network string from [WalletInfoRow] into a BDK [Network].
+///
+/// This replaces the repeated pattern `APINetwork::try_from(info.network)?.into()`
+/// found in 17+ call sites across `psbt.rs`, `wallet/mod.rs`, `descriptor_*.rs`.
+pub fn bdk_network(network_str: &str) -> Result<Network> {
+    let api = APINetwork::try_from(network_str)?;
+    Ok(match api {
+        APINetwork::Bitcoin => Network::Bitcoin,
+        APINetwork::Testnet => Network::Testnet,
+        APINetwork::Testnet4 => Network::Testnet4,
+        APINetwork::Signet => Network::Signet,
+        APINetwork::Regtest => Network::Regtest,
+    })
+}
+
+/// Build a [`WalletProtectionRequest`] from an API protection type and the
+/// parameters needed by the target protection scheme.
+///
+/// Replaces the duplicated `match protection_type { DeviceKey → … | UserPassword → … | XpubKey → … }`
+/// pattern found in [`create_wallet`](crate::api::wallet::create_wallet) and
+/// [`change_protection`](crate::api::wallet::change_protection).
+pub fn build_protection_request(
+    ptype: APIProtectionType,
+    password: Option<String>,
+    m_cost: u32,
+    t_cost: u32,
+    xpub_descriptor: Option<&str>,
+) -> Result<WalletProtectionRequest> {
+    Ok(match ptype {
+        APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
+        APIProtectionType::UserPassword => {
+            let pwd = password
+                .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
+            WalletProtectionRequest::UserPassword {
+                password: pwd,
+                m_cost,
+                t_cost,
+            }
+        }
+        APIProtectionType::XpubKey => {
+            let descriptor = xpub_descriptor
+                .ok_or_else(|| anyhow::anyhow!("Descriptor required for XpubKey protection"))?;
+            WalletProtectionRequest::XpubKey {
+                xpub_slots: crate::core::descriptor_parser::xpub_slots_from_descriptor(descriptor)?,
+                m_cost,
+                t_cost,
+            }
+        }
+    })
+}
+
+/// Open a wallet for reading by resolving its data key and returning the connection + wallet info.
+///
+/// Replaces the repeated pattern `resolve_wallet_key → open_encrypted_connection → read_wallet_info`
+/// found in [`backup::export_wallet`](crate::api::wallet::backup::export_wallet) and
+/// [`nostr_backup::publish_nostr_backup`](crate::api::wallet::nostr_backup::publish_nostr_backup).
+///
+/// Returns `(data_key_hex, Connection, WalletInfoRow)`. The caller is responsible for dropping the connection.
+pub fn open_snapshot(
+    wallet_path: &str,
+    device_key_hex: &str,
+    password: Option<&str>,
+) -> Result<(String, rusqlite::Connection, WalletInfoRow)> {
+    let wallet_data_key = resolve_wallet_key(wallet_path, device_key_hex, password, None)?;
+    let conn = open_encrypted_connection(wallet_path, &wallet_data_key)?;
+    let row = read_wallet_info(&conn)?;
+    Ok((wallet_data_key, conn, row))
 }
 
 #[cfg(test)]

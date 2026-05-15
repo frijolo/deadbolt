@@ -3,6 +3,7 @@ use super::*;
 // #[allow(deprecated)] in this file is for BDK 2.2.0+ deprecations:
 // - `sign()` / `SignOptions` — PSBT signing moved to bitcoin::psbt (no replacement for miniscript-aware signing)
 // This will be removed once BDK exposes a stable replacement API.
+use crate::test_support::KEY_HEX;
 use bdk_wallet::bitcoin::secp256k1::Secp256k1;
 use bdk_wallet::bitcoin::{
     absolute::LockTime, transaction::Version, Amount, OutPoint, Sequence, Transaction, TxIn, TxOut,
@@ -11,7 +12,6 @@ use bdk_wallet::{KeychainKind, Update};
 use std::sync::Arc;
 use tempfile::tempdir;
 
-const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
 const TESTNET_DESC: &str = "wpkh([ff81be5d/84'/1'/0']tpubDDjVt7cey7cxQ1nXzxpXuNT5vJecpvtMhmZywA9U9ChWDk8z6HSGPJ7YS6pyd8ZXQyfCeUCXrkyEqNeTFUmpdXT9r3TD1DAYoY52UEyy1Yf/<0;1>/*)";
 const TEST_MNEMONIC: &str =
     "piece blue stadium control fiction kick group mimic hollow dog mask interest";

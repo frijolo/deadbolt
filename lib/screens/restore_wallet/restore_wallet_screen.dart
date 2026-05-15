@@ -1190,7 +1190,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     final hasChainData = w.txCount != null || w.balanceSat != null;
 
     final satsText = w.balanceSat != null && w.balanceSat != BigInt.zero
-        ? '${BitcoinFormatter.formatNum(w.balanceSat!.toInt())} sats'
+        ? BitcoinFormatter.satsLabel(w.balanceSat!.toInt())
         : hasChainData
             ? '0 sats'
             : null;

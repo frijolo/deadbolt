@@ -245,7 +245,7 @@ class _CoinSelectorTile extends StatelessWidget {
         ),
         onTap: onTap,
         title: Text(
-          '${BitcoinFormatter.formatNum(sats)} sats',
+          BitcoinFormatter.satsLabel(sats),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(

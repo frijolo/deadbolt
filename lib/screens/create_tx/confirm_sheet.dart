@@ -83,7 +83,7 @@ class DirectSendConfirmSheet extends StatelessWidget {
                     ColoredGroupText(text: recipients[i].address),
                     const SizedBox(height: 2),
                     Text(
-                      '${BitcoinFormatter.formatNum(recipients[i].amountSat)} sats',
+                      BitcoinFormatter.satsLabel(recipients[i].amountSat),
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
@@ -96,7 +96,7 @@ class DirectSendConfirmSheet extends StatelessWidget {
             ConfirmRow(
               label: l10n.createTxTotalOut,
               child: Text(
-                '${BitcoinFormatter.formatNum(totalAmount)} sats',
+                BitcoinFormatter.satsLabel(totalAmount),
                 style: theme.textTheme.bodySmall,
               ),
             ),
@@ -111,7 +111,7 @@ class DirectSendConfirmSheet extends StatelessWidget {
             ConfirmRow(
               label: l10n.createTxEstChange,
               child: Text(
-                '${BitcoinFormatter.formatNum(changeSat!)} sats',
+                BitcoinFormatter.satsLabel(changeSat!),
                 style: theme.textTheme.bodySmall,
               ),
             ),

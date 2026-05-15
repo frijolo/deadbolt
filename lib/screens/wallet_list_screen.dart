@@ -558,13 +558,12 @@ class _WalletListScreenState extends State<WalletListScreen> {
     if (!context.mounted) return;
 
     // 2. Inspect backup to determine protection type
-    APIProtectionType backupType;
-    try {
-      backupType = await rust_backup.inspectWalletBackup(backupBytes: bytes);
-    } catch (e) {
-      if (context.mounted) showErrorToastException(e);
-      return;
-    }
+    final backupTypeResult = await guard<APIProtectionType>(
+      context,
+      () => rust_backup.inspectWalletBackup(backupBytes: bytes),
+    );
+    if (backupTypeResult == null) return;
+    final backupType = backupTypeResult;
 
     if (!context.mounted) return;
 

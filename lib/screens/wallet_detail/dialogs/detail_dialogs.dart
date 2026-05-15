@@ -84,51 +84,26 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DetailRow(
-                label: l10n.addressLabelTitle,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: LiveEffectiveLabelText(
-                        resolve: (s) {
-                          final match = [
-                            ...s.receiveAddresses,
-                            ...s.changeAddresses,
-                          ]
-                              .where((a) =>
-                                  a.address == widget.address.address)
-                              .firstOrNull;
-                          final item = match ?? widget.address;
-                          return (item.effectiveLabel, item.isAuto);
-                        },
-                        fallbackLabel: widget.address.effectiveLabel,
-                        fallbackIsAuto: widget.address.isAuto,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 16),
-                      tooltip: l10n.edit,
-                      onPressed: () {
-                        final cubit = context.read<WalletDetailCubit>();
-                        final l10n = context.l10n;
-                        showWalletDialog(
-                          context,
-                          LabelDialog(
-                            title: l10n.addressLabelTitle,
-                            hintText: l10n.addressLabelHint,
-                            currentLabel: address.label ?? '',
-                            removeLabel: l10n.addressLabelRemove,
-                            onSave: (label) => cubit.setAddressLabel(
-                                address.address, label, keychain),
-                            onRemove: () => cubit.setAddressLabel(
-                                address.address, '', keychain),
-                          ),
-                          barrierDismissible: false,
-                        );
-                      },
-                    ),
-                  ],
-                ),
+              LabelEditRow(
+                title: l10n.addressLabelTitle,
+                resolve: (s) {
+                  final match = [
+                    ...s.receiveAddresses,
+                    ...s.changeAddresses,
+                  ]
+                      .where((a) =>
+                          a.address == widget.address.address)
+                      .firstOrNull;
+                  final item = match ?? widget.address;
+                  return (item.effectiveLabel, item.isAuto);
+                },
+                fallbackLabel: widget.address.effectiveLabel,
+                fallbackIsAuto: widget.address.isAuto,
+                dialogCurrentLabel: address.label ?? '',
+                onSave: (cubit, label) => cubit.setAddressLabel(
+                    address.address, label, keychain),
+                onRemove: (cubit) => cubit.setAddressLabel(
+                    address.address, '', keychain),
               ),
               DetailRow(
                 label: l10n.coinAddress,
@@ -213,7 +188,16 @@ class _AddressDetailDialogState extends State<AddressDetailDialog> {
                         ),
                         const SizedBox(height: 6),
                         for (final u in relatedUtxos)
-                          _RelatedCoinRow(utxo: u),
+                          RelatedEntityRow(
+                            icon: Icons.toll,
+                            label: u.effectiveLabel,
+                            isAutoLabel: u.isAuto,
+                            amount: BitcoinFormatter.satsLabel(u.valueSat.toInt()),
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              showWalletDialog(context, _CoinDetailByOutpointDialog(txid: u.txid, vout: u.vout));
+                            },
+                          ),
                       ],
                       if (relatedTxs.isNotEmpty) ...[
                         const Divider(height: 20),
@@ -333,49 +317,24 @@ class _CoinDetailDialogState extends State<CoinDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DetailRow(
-                label: l10n.coinLabelTitle,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: LiveEffectiveLabelText(
-                        resolve: (s) {
-                          final match = s.utxos
-                              .where((u) =>
-                                  u.txid == widget.utxo.txid &&
-                                  u.vout == widget.utxo.vout)
-                              .firstOrNull;
-                          final item = match ?? widget.utxo;
-                          return (item.effectiveLabel, item.isAuto);
-                        },
-                        fallbackLabel: widget.utxo.effectiveLabel,
-                        fallbackIsAuto: widget.utxo.isAuto,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 16),
-                      tooltip: l10n.edit,
-                      onPressed: () {
-                        final cubit = context.read<WalletDetailCubit>();
-                        final l10n = context.l10n;
-                        showWalletDialog(
-                          context,
-                          LabelDialog(
-                            title: l10n.coinLabelTitle,
-                            hintText: l10n.addressLabelHint,
-                            currentLabel: utxo.label ?? '',
-                            removeLabel: l10n.addressLabelRemove,
-                            onSave: (label) =>
-                                cubit.setCoinLabel(utxo.txid, utxo.vout, label),
-                            onRemove: () =>
-                                cubit.setCoinLabel(utxo.txid, utxo.vout, ''),
-                          ),
-                          barrierDismissible: false,
-                        );
-                      },
-                    ),
-                  ],
-                ),
+              LabelEditRow(
+                title: l10n.coinLabelTitle,
+                resolve: (s) {
+                  final match = s.utxos
+                      .where((u) =>
+                          u.txid == widget.utxo.txid &&
+                          u.vout == widget.utxo.vout)
+                      .firstOrNull;
+                  final item = match ?? widget.utxo;
+                  return (item.effectiveLabel, item.isAuto);
+                },
+                fallbackLabel: widget.utxo.effectiveLabel,
+                fallbackIsAuto: widget.utxo.isAuto,
+                dialogCurrentLabel: utxo.label ?? '',
+                onSave: (cubit, label) =>
+                    cubit.setCoinLabel(utxo.txid, utxo.vout, label),
+                onRemove: (cubit) =>
+                    cubit.setCoinLabel(utxo.txid, utxo.vout, ''),
               ),
               DetailRowPair(
                 label1: l10n.coinValue,
@@ -698,46 +657,21 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DetailRow(
-                label: l10n.txLabelTitle,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: LiveEffectiveLabelText(
-                        resolve: (s) {
-                          final match = s.transactions
-                              .where((t) => t.txid == widget.tx.txid)
-                              .firstOrNull;
-                          final item = match ?? widget.tx;
-                          return (item.effectiveLabel, item.isAuto);
-                        },
-                        fallbackLabel: widget.tx.effectiveLabel,
-                        fallbackIsAuto: widget.tx.isAuto,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 16),
-                      tooltip: l10n.edit,
-                      onPressed: () {
-                        final cubit = context.read<WalletDetailCubit>();
-                        final l10n = context.l10n;
-                        showWalletDialog(
-                          context,
-                          LabelDialog(
-                            title: l10n.txLabelTitle,
-                            hintText: l10n.addressLabelHint,
-                            currentLabel: tx.label ?? '',
-                            removeLabel: l10n.addressLabelRemove,
-                            onSave: (label) =>
-                                cubit.setTxLabel(tx.txid, label),
-                            onRemove: () => cubit.setTxLabel(tx.txid, ''),
-                          ),
-                          barrierDismissible: false,
-                        );
-                      },
-                    ),
-                  ],
-                ),
+              LabelEditRow(
+                title: l10n.txLabelTitle,
+                resolve: (s) {
+                  final match = s.transactions
+                      .where((t) => t.txid == widget.tx.txid)
+                      .firstOrNull;
+                  final item = match ?? widget.tx;
+                  return (item.effectiveLabel, item.isAuto);
+                },
+                fallbackLabel: widget.tx.effectiveLabel,
+                fallbackIsAuto: widget.tx.isAuto,
+                dialogCurrentLabel: tx.label ?? '',
+                onSave: (cubit, label) =>
+                    cubit.setTxLabel(tx.txid, label),
+                onRemove: (cubit) => cubit.setTxLabel(tx.txid, ''),
               ),
               DetailRow(
                 label: l10n.txId,
@@ -843,7 +777,16 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
                         ),
                         const SizedBox(height: 6),
                         for (final u in relatedUtxos)
-                          _RelatedCoinRow(utxo: u),
+                          RelatedEntityRow(
+                            icon: Icons.toll,
+                            label: u.effectiveLabel,
+                            isAutoLabel: u.isAuto,
+                            amount: BitcoinFormatter.satsLabel(u.valueSat.toInt()),
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              showWalletDialog(context, _CoinDetailByOutpointDialog(txid: u.txid, vout: u.vout));
+                            },
+                          ),
                       ],
                       if (inputAddresses.isNotEmpty) ...[
                         const Divider(height: 20),
@@ -1083,61 +1026,6 @@ class _OpReturnRow extends StatelessWidget {
             const SizedBox(height: 8),
           ],
         ));
-  }
-}
-
-class _RelatedCoinRow extends StatelessWidget {
-  final APIRelatedUtxo utxo;
-  const _RelatedCoinRow({required this.utxo});
-
-  void _showDetail(BuildContext context) {
-    Navigator.of(context).pop();
-    showWalletDialog(context,
-        _CoinDetailByOutpointDialog(txid: utxo.txid, vout: utxo.vout));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final u = utxo;
-    final scheme = Theme.of(context).colorScheme;
-    final hasLabel = u.effectiveLabel?.isNotEmpty == true;
-
-    return InkWell(
-      onTap: () => _showDetail(context),
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            const Icon(Icons.toll, size: 14),
-            const SizedBox(width: 6),
-            Expanded(
-              child: hasLabel
-                  ? Text(
-                      u.effectiveLabel!,
-                      style: u.isAuto
-                          ? TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: scheme.outline,
-                            )
-                          : const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : OutpointText(txid: u.txid, vout: u.vout),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '${BitcoinFormatter.formatNum(u.valueSat.toInt())} sats',
-              style: const TextStyle(fontSize: 11),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 14),
-          ],
-        ),
-      ),
-    );
   }
 }
 

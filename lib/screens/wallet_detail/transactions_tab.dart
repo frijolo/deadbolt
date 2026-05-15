@@ -215,9 +215,7 @@ class _TransactionTile extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          isSelfTransfer
-              ? '-${BitcoinFormatter.formatNum(netSats)} sats'
-              : '${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(netSats)} sats',
+          BitcoinFormatter.satsLabel(netSats, showSign: true),
           style: TextStyle(color: txColor, fontWeight: FontWeight.w600),
         ),
         trailing: Row(
@@ -393,7 +391,7 @@ class _PsbtTile extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          '-${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
+          BitcoinFormatter.satsLabel(-psbt.amountSat.toInt(), showSign: true),
           style: const TextStyle(
             color: AppAccent.color,
             fontWeight: FontWeight.w600,

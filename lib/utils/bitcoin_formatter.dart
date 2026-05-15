@@ -123,4 +123,16 @@ class BitcoinFormatter {
 
     return "${totalMins}min";
   }
+
+  /// Format sats with thousands separator and optional sign prefix.
+  ///
+  /// Replaces the repeated pattern `'${BitcoinFormatter.formatNum(x)} sats'`
+  /// and `'${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(x)} sats'`.
+  static String satsLabel(int sats, {bool showSign = false}) {
+    final formatted = formatNum(sats);
+    if (showSign) {
+      return sats >= 0 ? '+$formatted sats' : '-$formatted sats';
+    }
+    return '$formatted sats';
+  }
 }

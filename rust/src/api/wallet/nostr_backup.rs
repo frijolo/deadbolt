@@ -1,5 +1,3 @@
-use super::*;
-
 // ---------------------------------------------------------------------------
 // Nostr distributed descriptor backups
 // ---------------------------------------------------------------------------
@@ -47,7 +45,7 @@ use crate::core::key_protection::{
     decrypt_bytes, encrypt_bytes, generate_data_key, parse_xpub_credential, resolve_xpub_data_key,
     wrap_with_xpub, XpubSlot,
 };
-use crate::core::wallet_info::{create_wallet_db, resolve_wallet_key, WalletProtectionRequest};
+use crate::core::wallet_info::{create_wallet_db, WalletProtectionRequest};
 use crate::core::wallet_persistence::descriptor_sig_storage::get_descriptor_sigs_as_json;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -603,18 +601,12 @@ pub async fn publish_nostr_backup(
     open_password: Option<String>,
     relay_urls: Vec<String>,
 ) -> Result<Vec<NostrRelayStatus>> {
-    let wallet_data_key = resolve_wallet_key(
+    let (_wallet_data_key, conn, row) = crate::core::wallet_info::open_snapshot(
         &wallet_path,
         &device_key_hex,
         open_password.as_deref(),
-        None,
     )?;
-    let (row, descriptor_sigs) = {
-        let conn = open_encrypted_connection(&wallet_path, &wallet_data_key)?;
-        let row = read_wallet_info(&conn)?;
-        let sigs = get_descriptor_sigs_as_json(&conn).unwrap_or(None);
-        (row, sigs)
-    };
+    let descriptor_sigs = get_descriptor_sigs_as_json(&conn).unwrap_or(None);
 
     let xpub_map = super::extract_xpub_mfp_map(&row.descriptor);
     if xpub_map.is_empty() {

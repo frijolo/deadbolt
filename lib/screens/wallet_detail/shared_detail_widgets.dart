@@ -455,3 +455,170 @@ class _LabelDialogState extends State<LabelDialog> {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// LabelEditRow — shared label display + edit button
+// ─────────────────────────────────────────────────────────────
+
+/// A [DetailRow] that displays an effective label with an edit button.
+///
+/// Replaces the duplicated pattern in [detail_dialogs.dart] for address,
+/// coin, and transaction labels.
+///
+/// The [resolve] callback receives the current [WalletDetailLoaded] state and
+/// returns `(effectiveLabel, isAuto)` — each caller provides its own lookup
+/// logic since the entity type differs (address vs coin vs tx).
+///
+/// The [onSave] and [onRemove] callbacks receive the cubit and label, so
+/// callers can capture any local variables they need.
+class LabelEditRow extends StatelessWidget {
+  final String title;
+  final (String?, bool) Function(WalletDetailLoaded) resolve;
+  final String? fallbackLabel;
+  final bool fallbackIsAuto;
+  final String dialogCurrentLabel;
+  final Future<void> Function(WalletDetailCubit, String label) onSave;
+  final Future<void> Function(WalletDetailCubit) onRemove;
+
+  const LabelEditRow({
+    super.key,
+    required this.title,
+    required this.resolve,
+    required this.onSave,
+    required this.onRemove,
+    this.fallbackLabel,
+    this.fallbackIsAuto = false,
+    required this.dialogCurrentLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cubit = context.read<WalletDetailCubit>();
+    return DetailRow(
+      label: title,
+      child: Row(
+        children: [
+          Expanded(
+            child: LiveEffectiveLabelText(
+              resolve: resolve,
+              fallbackLabel: fallbackLabel,
+              fallbackIsAuto: fallbackIsAuto,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit, size: 16),
+            tooltip: l10n.edit,
+            onPressed: () {
+              showWalletDialog(
+                context,
+                LabelDialog(
+                  title: title,
+                  hintText: l10n.addressLabelHint,
+                  currentLabel: dialogCurrentLabel,
+                  removeLabel: l10n.addressLabelRemove,
+                  onSave: (label) => onSave(cubit, label),
+                  onRemove: () => onRemove(cubit),
+                ),
+                barrierDismissible: false,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// RelatedEntityRow — shared row for address/coin/tx entities
+// ─────────────────────────────────────────────────────────────
+
+/// A clickable row used to display related addresses, coins, or transactions.
+///
+/// Combines the common pattern across [_RelatedAddressRow], [_RelatedCoinRow]
+/// and [_RelatedTxRow]: InkWell → Padding → Row(Icon + label + amount + chevron).
+class RelatedEntityRow extends StatelessWidget {
+  final IconData icon;
+  final String? label;
+  final bool isAutoLabel;
+  final String? amount;
+  final Color? amountColor;
+  final String? confirmationHeight;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  const RelatedEntityRow({
+    super.key,
+    required this.icon,
+    this.label,
+    this.isAutoLabel = false,
+    this.amount,
+    this.amountColor,
+    this.confirmationHeight,
+    this.trailing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasLabel = label?.isNotEmpty == true;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Icon(icon, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: hasLabel
+                  ? Text(
+                      label!,
+                      style: isAutoLabel
+                          ? TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: scheme.outline,
+                            )
+                          : const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 6),
+              trailing!,
+            ] else if (amount != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                amount!,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: amountColor ?? scheme.onSurface,
+                ),
+              ),
+            ],
+            if (confirmationHeight != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                confirmationHeight!,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: scheme.onSurface.withAlpha(AppAlpha.secondary),
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+}

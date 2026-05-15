@@ -328,3 +328,28 @@ class _ToastOverlayState extends State<_ToastOverlay>
     );
   }
 }
+
+/// Execute an async [future] and show an error toast if it fails,
+/// but only if [context] is still mounted.
+///
+/// Replaces the repeated pattern:
+/// ```dart
+/// try {
+///   await someAsyncCall();
+/// } catch (e) {
+///   if (context.mounted) showErrorToastException(e);
+/// }
+/// ```
+///
+/// Returns the result of the future on success, or `null` on failure.
+Future<T?> guard<T>(BuildContext context, Future<T> Function() future) async {
+  try {
+    final result = await future();
+    return result;
+  } catch (e) {
+    if (context.mounted) {
+      showErrorToastException(e);
+    }
+    return null;
+  }
+}

@@ -1,20 +1,16 @@
 import 'dart:async';
 import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:bc_ur/bc_ur.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 
-import 'package:deadbolt/errors.dart' show formatRustError;
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show stripPsbtForHw;
 import 'package:deadbolt/theme/app_theme.dart';
+import 'package:deadbolt/utils/export_sheet.dart' show saveBytes, shareBytes;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
 
@@ -115,20 +111,16 @@ void showTextExportSheet(
             title: Text(l10n.saveAs),
             onTap: () async {
               Navigator.pop(ctx);
-              await _saveWithFilePicker(context, utf8.encode(text), fileName, fileExtension);
+              await saveBytes(context, utf8.encode(text), fileName: fileName, allowedExtensions: [fileExtension]);
             },
           ),
           if (_isMobileExport || bigText)
             ListTile(
               leading: const Icon(Icons.share_outlined),
               title: Text(l10n.shareText),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(ctx);
-                _shareAsFile(
-                  context,
-                  bytes: utf8.encode(text),
-                  fileName: '$fileName.$fileExtension',
-                );
+                await shareBytes(context, utf8.encode(text), fileName: '$fileName.$fileExtension');
               },
             ),
           if (!bigText) ListTile(
@@ -194,44 +186,22 @@ void showPsbtExportSheet(
             title: Text(l10n.saveAs),
             onTap: () async {
               Navigator.pop(ctx);
-              await _saveWithFilePicker(context, base64Decode(psbtBase64), fileName, 'psbt');
+              await saveBytes(context, base64Decode(psbtBase64), fileName: '$fileName.psbt', allowedExtensions: ['psbt']);
             },
           ),
           if (_isMobileExport)
             ListTile(
               leading: const Icon(Icons.share_outlined),
               title: Text(l10n.shareText),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(ctx);
-                _shareAsFile(
-                  context,
-                  bytes: base64Decode(psbtBase64),
-                  fileName: '$fileName.psbt',
-                );
+                await shareBytes(context, base64Decode(psbtBase64), fileName: '$fileName.psbt');
               },
             ),
           const SizedBox(height: 8),
         ],
       ),
   );
-}
-
-Future<void> _shareAsFile(
-  BuildContext context, {
-  required Uint8List bytes,
-  required String fileName,
-}) async {
-  try {
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/$fileName');
-    await file.writeAsBytes(bytes);
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
-  } catch (e) {
-    if (context.mounted) {
-      final l10n = context.l10n;
-      showErrorToast(l10n.exportFailed(formatRustError(e)));
-    }
-  }
 }
 
 typedef ShowAsTextBuilder = Widget Function(BuildContext context, String text);
@@ -303,29 +273,6 @@ void showQrDialog(
       child: _QrDialog(data: data, urBytes: urBytes, urType: urType),
     ),
   );
-}
-
-Future<void> _saveWithFilePicker(
-  BuildContext context,
-  Uint8List bytes,
-  String fileName,
-  String ext,
-) async {
-  final l10n = context.l10n;
-  try {
-    final savedPath = await FilePicker.platform.saveFile(
-      fileName: '$fileName.$ext',
-      type: FileType.custom,
-      allowedExtensions: [ext],
-      bytes: bytes,
-    );
-    if (savedPath == null) return;
-    // FilePicker writes bytes on some platforms but not all; always write to be safe.
-    await File(savedPath).writeAsBytes(bytes);
-    if (context.mounted) showSuccessToast(l10n.savedToDownloads);
-  } catch (e) {
-    if (context.mounted) showErrorToast(l10n.exportFailed(formatRustError(e)));
-  }
 }
 
 // ---------------------------------------------------------------------------

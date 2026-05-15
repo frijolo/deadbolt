@@ -962,6 +962,26 @@ pub struct APIDiscoveredAccounts {
     pub scanned_count: u32,
 }
 
+// ─── KeychainKind ↔ APIKeychain ──────────────────────────────────────────────
+
+impl From<bdk_wallet::KeychainKind> for APIKeychain {
+    fn from(k: bdk_wallet::KeychainKind) -> Self {
+        match k {
+            bdk_wallet::KeychainKind::External => APIKeychain::External,
+            bdk_wallet::KeychainKind::Internal => APIKeychain::Internal,
+        }
+    }
+}
+
+impl From<APIKeychain> for bdk_wallet::KeychainKind {
+    fn from(k: APIKeychain) -> Self {
+        match k {
+            APIKeychain::External => bdk_wallet::KeychainKind::External,
+            APIKeychain::Internal => bdk_wallet::KeychainKind::Internal,
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod tests;

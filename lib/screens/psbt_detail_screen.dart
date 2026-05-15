@@ -500,8 +500,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                             const SizedBox(height: 4),
                             _DetailRow(
                               label: l10n.psbtAmount,
-                              value:
-                                  '${BitcoinFormatter.formatNum(_psbt.recipients[i].amountSat.toInt())} sats',
+                               value:
+                                   BitcoinFormatter.satsLabel(_psbt.recipients[i].amountSat.toInt()),
                             ),
                             const SizedBox(height: 8),
                           ],
@@ -510,13 +510,13 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                           _DetailRow(
                             label: l10n.createTxTotalOut,
                             value:
-                                '${BitcoinFormatter.formatNum(_psbt.amountSat.toInt())} sats',
+                                BitcoinFormatter.satsLabel(_psbt.amountSat.toInt()),
                           ),
                         ],
                         const SizedBox(height: 8),
                         _DetailRow(
                           label: l10n.psbtFee,
-                          value: '${BitcoinFormatter.formatNum(_psbt.feeSat.toInt())} sats',
+                          value: BitcoinFormatter.satsLabel(_psbt.feeSat.toInt()),
                         ),
                         const SizedBox(height: 8),
                         _DetailRow(

@@ -1,8 +1,8 @@
 use super::*;
 use crate::core::wallet_persistence::open_encrypted_connection;
+use crate::test_support::KEY_HEX;
 use tempfile::tempdir;
 
-const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
 const MFP: &str = "c449c5c5";
 const XPUB_ENTRY: &str = "[c449c5c5/48'/0'/0'/2']xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn";
 

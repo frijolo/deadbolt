@@ -11,9 +11,7 @@ use crate::api::model::{
     APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat, APITxPreview, APIUtxo,
     APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
-use crate::core::descriptor_parser::{
-    extract_xpub_derivation_map, extract_xpub_mfp_map, xpub_slots_from_descriptor,
-};
+use crate::core::descriptor_parser::{extract_xpub_derivation_map, extract_xpub_mfp_map};
 use crate::core::key_protection::{
     decrypt_bytes, encrypt_bytes, generate_data_key, ProtectionMeta,
 };
@@ -29,7 +27,7 @@ use crate::core::wallet_info::{
     generate_uuid_v4, get_wallet_info_from_file, list_biometric_slot_ids, list_wallets_in_dir,
     refresh_user_password_meta_cache, remove_biometric_slot_from_wallet,
     remove_xpub_slot_from_wallet, rename_wallet_in_file, resolve_wallet_key, wallet_needs_password,
-    wallet_needs_xpub, wallet_network_hint, WalletProtectionRequest,
+    wallet_needs_xpub, wallet_network_hint,
 };
 use crate::core::wallet_meta::{delete_meta, read_meta, write_meta};
 use crate::core::wallet_persistence::fiat_storage::{
@@ -334,23 +332,13 @@ pub fn create_wallet(
 ) -> Result<APIWalletInfo> {
     let m_cost = security_level.m_cost();
     let t_cost = security_level.t_cost();
-    let protection = match protection_type {
-        APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
-        APIProtectionType::UserPassword => {
-            let pwd = password
-                .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword protection"))?;
-            WalletProtectionRequest::UserPassword {
-                password: pwd,
-                m_cost,
-                t_cost,
-            }
-        }
-        APIProtectionType::XpubKey => WalletProtectionRequest::XpubKey {
-            xpub_slots: xpub_slots_from_descriptor(&descriptor)?,
-            m_cost,
-            t_cost,
-        },
-    };
+    let protection = crate::core::wallet_info::build_protection_request(
+        protection_type,
+        password,
+        m_cost,
+        t_cost,
+        Some(&descriptor),
+    )?;
     let (path, row) = create_wallet_db(
         &wallets_dir,
         &name,
@@ -552,7 +540,7 @@ pub struct APIWallet {
 }
 
 impl APIWallet {
-    pub(super) fn lock_wallet(&self) -> Result<std::sync::MutexGuard<'_, CoreWallet>> {
+    pub(crate) fn lock_wallet(&self) -> Result<std::sync::MutexGuard<'_, CoreWallet>> {
         self.inner
             .lock()
             .map_err(|_| anyhow::anyhow!("wallet lock poisoned"))
@@ -592,23 +580,13 @@ impl APIWallet {
         let row = read_wallet_info(&core.conn)?;
         let m_cost = security_level.m_cost();
         let t_cost = security_level.t_cost();
-        let protection = match new_protection_type {
-            APIProtectionType::DeviceKey => WalletProtectionRequest::DeviceKey,
-            APIProtectionType::UserPassword => {
-                let pwd = new_password
-                    .ok_or_else(|| anyhow::anyhow!("Password required for UserPassword"))?;
-                WalletProtectionRequest::UserPassword {
-                    password: pwd,
-                    m_cost,
-                    t_cost,
-                }
-            }
-            APIProtectionType::XpubKey => WalletProtectionRequest::XpubKey {
-                xpub_slots: xpub_slots_from_descriptor(&row.descriptor)?,
-                m_cost,
-                t_cost,
-            },
-        };
+        let protection = crate::core::wallet_info::build_protection_request(
+            new_protection_type,
+            new_password,
+            m_cost,
+            t_cost,
+            Some(&row.descriptor),
+        )?;
 
         // 4. Build and write the new .meta sidecar.
         let meta = build_protection_meta(
@@ -812,6 +790,28 @@ impl APIWallet {
         let core = self.lock_wallet()?;
         let info = read_wallet_info(&core.conn)?;
         APINetwork::try_from(info.network.as_str())
+    }
+
+    // ─── Test helpers ──────────────────────────────────────────────────────
+
+    /// Inject an unconfirmed transaction into the wallet's tx graph.
+    ///
+    /// Only available in test builds. Used by `test_support::inject_utxo`.
+    #[cfg(test)]
+    pub fn inject_unconfirmed_tx(&self, tx: bdk_wallet::bitcoin::Transaction) -> Result<()> {
+        use bdk_wallet::chain::TxUpdate;
+        use bdk_wallet::Update;
+        use std::sync::Arc;
+        let txid = tx.compute_txid();
+        let mut core = self.lock_wallet()?;
+        let mut tx_update = TxUpdate::default();
+        tx_update.txs = vec![Arc::new(tx)];
+        tx_update.seen_ats = [(txid, 1_000_000_u64)].into();
+        core.wallet.apply_update(Update {
+            tx_update,
+            ..Default::default()
+        })?;
+        Ok(())
     }
 }
 

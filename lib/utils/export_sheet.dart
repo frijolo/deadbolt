@@ -120,22 +120,7 @@ void showProjectExportSheet(
               title: Text(l10n.saveAs),
               onTap: () async {
                 Navigator.pop(ctx);
-                try {
-                  final savedPath = await FilePicker.platform.saveFile(
-                    fileName: fileName,
-                    type: FileType.custom,
-                    allowedExtensions: ['json'],
-                  );
-                  if (savedPath == null) return;
-                  await File(savedPath).writeAsBytes(utf8.encode(jsonString));
-                  if (context.mounted) {
-                    showSuccessToast(l10n.savedToDownloads);
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    showErrorToast(l10n.exportFailed(formatRustError(e)));
-                  }
-                }
+                await saveBytes(context, utf8.encode(jsonString), fileName: fileName, allowedExtensions: ['json']);
               },
             ),
           if (kIsWeb ||
@@ -146,30 +131,72 @@ void showProjectExportSheet(
               title: Text(l10n.shareFile),
               onTap: () async {
                 Navigator.pop(ctx);
-                try {
-                  final tempDir = await getTemporaryDirectory();
-                  final file = File('${tempDir.path}/$fileName');
-                  await file.writeAsString(jsonString);
-                  final result = await SharePlus.instance.share(
-                    ShareParams(
-                      files: [XFile(file.path)],
-                      subject: 'Export: $projectName',
-                    ),
-                  );
-                  if (result.status == ShareResultStatus.success) {
-                    if (context.mounted) {
-                      showSuccessToast(l10n.projectExportedSuccess);
-                    }
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    showErrorToast(l10n.exportFailed(formatRustError(e)));
-                  }
-                }
+                await shareBytes(context, utf8.encode(jsonString), fileName: fileName, subject: 'Export: $projectName');
               },
             ),
           const SizedBox(height: 8),
       ],
     ),
   );
+}
+
+/// Share [bytes] as a file via the system share sheet.
+///
+/// Writes [bytes] to a temporary file and calls [SharePlus.share].
+/// On failure, shows an error toast if [context] is still mounted.
+Future<void> shareBytes(
+  BuildContext context,
+  Uint8List bytes, {
+  required String fileName,
+  String? mimeType,
+  String? subject,
+}) async {
+  try {
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: mimeType)],
+        subject: subject,
+      ),
+    );
+  } catch (e) {
+    if (context.mounted) {
+      final l10n = context.l10n;
+      showErrorToast(l10n.exportFailed(formatRustError(e)));
+    }
+  }
+}
+
+/// Save [bytes] to disk via [FilePicker].
+///
+/// Returns `true` if the user confirmed a save path, `false` if cancelled.
+/// On failure, shows an error toast if [context] is still mounted.
+Future<bool> saveBytes(
+  BuildContext context,
+  Uint8List bytes, {
+  required String fileName,
+  String? fileType,
+  List<String>? allowedExtensions,
+}) async {
+  try {
+    final savedPath = await FilePicker.platform.saveFile(
+      fileName: fileName,
+      type: fileType != null ? FileType.custom : FileType.any,
+      allowedExtensions: allowedExtensions,
+      bytes: bytes,
+    );
+    if (savedPath == null) return false;
+    await File(savedPath).writeAsBytes(bytes);
+    if (context.mounted) {
+      showSuccessToast(context.l10n.backupSaved);
+    }
+    return true;
+  } catch (e) {
+    if (context.mounted) {
+      showErrorToastException(e);
+    }
+    return false;
+  }
 }

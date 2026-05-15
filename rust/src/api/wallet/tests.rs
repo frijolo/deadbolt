@@ -1,8 +1,6 @@
 use super::*;
+use crate::test_support::{KEY_HEX, MAINNET_DESC};
 use tempfile::tempdir;
-
-const MAINNET_DESC: &str = "wsh(sortedmulti(2,[c449c5c5/48h/0h/0h/2h]xpub6Dtni7dearhzvCuQ3aZYC5VkDEnpjJjoCSJRxs2m6D63r1KzvgvAvQKypzqFpSZ2uaYfNx8HSgi63jcK4ZFgFCTVph1MTMZxP55L1am1Csn/<0;1>/*,[c61af686/48h/0h/0h/2h]xpub6EDTxSWtzPTBiQtxScLWm1sJ6By9QPrG6J5RvA3ZuKYHP1mfvyeyTG2Gy3CgnQ2ps5p6cgGTvuULfxuqQtSAvkVp9VyASus6pMFoe8mztCj/<0;1>/*))#0wct5td0";
-const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
 
 fn make_wallet(dir: &tempfile::TempDir) -> Result<APIWalletInfo> {
     let wallets_dir = dir.path().to_string_lossy().to_string();
@@ -163,27 +161,10 @@ fn test_delete_wallet_removes_file() -> Result<()> {
 }
 
 impl APIWallet {
-    /// Inject a transaction into the wallet graph as **unconfirmed** (seen_at=1).
-    /// Used by unit tests to set up wallet state without a real Electrum sync.
-    pub(crate) fn inject_unconfirmed_tx(&self, tx: bdk_wallet::bitcoin::Transaction) -> Result<()> {
-        use bdk_wallet::chain::TxUpdate;
-        use bdk_wallet::Update;
-        use std::sync::Arc;
-        let txid = tx.compute_txid();
-        let mut core = self.lock_wallet()?;
-        let mut tx_update = TxUpdate::default();
-        tx_update.txs = vec![Arc::new(tx)];
-        tx_update.seen_ats = [(txid, 1_000_000_u64)].into();
-        core.wallet.apply_update(Update {
-            tx_update,
-            ..Default::default()
-        })?;
-        Ok(())
-    }
-
     /// Inject a transaction into the wallet graph with **no chain position**
     /// (not confirmed, not seen as unconfirmed). The tx is only present in the
     /// graph for txout lookups — it does NOT appear in `wallet.transactions()`.
+    #[cfg(test)]
     pub(crate) fn inject_graph_tx(&self, tx: bdk_wallet::bitcoin::Transaction) -> Result<()> {
         use bdk_wallet::chain::TxUpdate;
         use bdk_wallet::Update;
