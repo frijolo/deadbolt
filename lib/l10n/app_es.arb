@@ -401,6 +401,34 @@
   "txUnconfirmed": "No confirmado",
   "txId": "TXID",
   "loadMore": "Cargar más",
+  "txDelayBroadcastSection": "Retrasar broadcast (nLockTime)",
+  "txDelayDays": "Días",
+  "txDelayHours": "Horas",
+  "txDelayMinutes": "Minutos",
+  "txDelayNoneHint": "Configura días / horas / minutos para retrasar el broadcast.",
+  "txDelayApproxBlocks": "≈ {blocks} bloques",
+  "@txDelayApproxBlocks": {
+    "placeholders": { "blocks": { "type": "int" } }
+  },
+  "txDelayUnlockEta": "desbloqueo en el bloque {height} (~{eta})",
+  "@txDelayUnlockEta": {
+    "placeholders": {
+      "height": { "type": "int" },
+      "eta": { "type": "String" }
+    }
+  },
+  "psbtLockedMaturity": "Bloqueada · {blocks} bloques",
+  "@psbtLockedMaturity": {
+    "placeholders": { "blocks": { "type": "int" } }
+  },
+  "psbtLockedTooltip": "No se puede emitir hasta el bloque {height} (~{eta})",
+  "@psbtLockedTooltip": {
+    "placeholders": {
+      "height": { "type": "int" },
+      "eta": { "type": "String" }
+    }
+  },
+  "psbtBroadcastReady": "Lista para emitir",
   "electrumSectionTitle": "Servidores Electrum",
   "electrumUrlHint": "ssl://host:puerto o tcp://host:puerto",
   "electrumNetworkMainnet": "Electrum Mainnet",
@@ -595,6 +623,28 @@
   "@psbtBroadcastSuccess": {
     "placeholders": {
       "txid": {
+        "type": "String"
+      }
+    }
+  },
+  "psbtAutoBroadcastSwitch": "Retransmitir automáticamente al desbloquearse",
+  "psbtAutoBroadcastHint": "La cartera debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.",
+  "psbtAutoBroadcastQueuedTooltip": "En cola para retransmisión automática",
+  "psbtAutoBroadcastedToast": "Retransmitida automáticamente: {txid}",
+  "@psbtAutoBroadcastedToast": {
+    "placeholders": {
+      "txid": {
+        "type": "String"
+      }
+    }
+  },
+  "psbtAutoBroadcastFailedToast": "Falló la retransmisión automática de la PSBT {id}: {error}",
+  "@psbtAutoBroadcastFailedToast": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      },
+      "error": {
         "type": "String"
       }
     }

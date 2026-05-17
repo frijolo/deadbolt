@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -57028012;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1784149967;
 
 // Section: executor
 
@@ -938,6 +938,7 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
             let api_spend_path_id = <u32>::sse_decode(&mut deserializer);
             let api_threshold = <u32>::sse_decode(&mut deserializer);
             let api_mfps = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_nlocktime_delta_blocks = <Option<u32>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
@@ -965,6 +966,7 @@ fn wire__crate__api__wallet__ApiWallet_create_psbt_impl(
                         api_spend_path_id,
                         api_threshold,
                         api_mfps,
+                        api_nlocktime_delta_blocks,
                     )?;
                     Ok(output_ok)
                 })(),
@@ -3086,6 +3088,60 @@ fn wire__crate__api__wallet__ApiWallet_set_path_label_impl(
         },
     )
 }
+fn wire__crate__api__wallet__ApiWallet_set_psbt_auto_broadcast_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ApiWallet_set_psbt_auto_broadcast",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <i64>::sse_decode(&mut deserializer);
+            let api_enabled = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                (move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::wallet::APIWallet::set_psbt_auto_broadcast(
+                        &*api_that_guard,
+                        api_id,
+                        api_enabled,
+                    )?;
+                    Ok(output_ok)
+                })(),
+            )
+        },
+    )
+}
 fn wire__crate__api__wallet__ApiWallet_set_psbt_label_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -3528,6 +3584,66 @@ fn wire__crate__api__wallet__ApiWallet_sync_impl(
                         let output_ok =
                             crate::api::wallet::APIWallet::sync(&*api_that_guard, api_electrum_url)
                                 .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__wallet__ApiWallet_try_auto_broadcast_due_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ApiWallet_try_auto_broadcast_due",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<APIWallet>,
+            >>::sse_decode(&mut deserializer);
+            let api_electrum_url = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_that_guard =
+                                        Some(api_that.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::wallet::APIWallet::try_auto_broadcast_due(
+                            &*api_that_guard,
+                            api_electrum_url,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -7640,6 +7756,20 @@ impl SseDecode for crate::api::analyzer::APIAnalysisResult {
     }
 }
 
+impl SseDecode for crate::api::model::APIAutoBroadcastResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <i64>::sse_decode(deserializer);
+        let mut var_txid = <Option<String>>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        return crate::api::model::APIAutoBroadcastResult {
+            id: var_id,
+            txid: var_txid,
+            error: var_error,
+        };
+    }
+}
+
 impl SseDecode for crate::api::model::APIBalance {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7965,6 +8095,8 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
         let mut var_mfps = <Vec<String>>::sse_decode(deserializer);
         let mut var_utxoMaxConfHeight = <Option<i64>>::sse_decode(deserializer);
         let mut var_hasSpentInputs = <bool>::sse_decode(deserializer);
+        let mut var_lockTime = <u32>::sse_decode(deserializer);
+        let mut var_autoBroadcast = <bool>::sse_decode(deserializer);
         return crate::api::model::APIPsbtInfo {
             id: var_id,
             psbt_base64: var_psbtBase64,
@@ -7983,6 +8115,8 @@ impl SseDecode for crate::api::model::APIPsbtInfo {
             mfps: var_mfps,
             utxo_max_conf_height: var_utxoMaxConfHeight,
             has_spent_inputs: var_hasSpentInputs,
+            lock_time: var_lockTime,
+            auto_broadcast: var_autoBroadcast,
         };
     }
 }
@@ -8596,6 +8730,20 @@ impl SseDecode for Vec<crate::api::model::APIAddress> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::model::APIAddress>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::model::APIAutoBroadcastResult> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::model::APIAutoBroadcastResult>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9514,313 +9662,319 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         49 => wire__crate__api__wallet__ApiWallet_rescan_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__api__wallet__ApiWallet_start_subscription_impl(
+        63 => wire__crate__api__wallet__ApiWallet_start_subscription_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__wallet__ApiWallet_store_fiat_price_impl(
+        64 => wire__crate__api__wallet__ApiWallet_store_fiat_price_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__wallet__ApiWallet_sync_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__wallet__add_biometric_slot_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__wallet__add_xpub_slot_impl(port, ptr, rust_vec_len, data_len),
-        71 => {
+        65 => wire__crate__api__wallet__ApiWallet_sync_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__wallet__ApiWallet_try_auto_broadcast_due_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        69 => wire__crate__api__wallet__add_biometric_slot_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__wallet__add_xpub_slot_impl(port, ptr, rust_vec_len, data_len),
+        73 => {
             wire__crate__api__analyzer__analyze_descriptor_impl(port, ptr, rust_vec_len, data_len)
         }
-        72 => wire__crate__api__hw_wallet__android_hw_deliver_read_packet_impl(
+        74 => wire__crate__api__hw_wallet__android_hw_deliver_read_packet_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__hw_wallet__android_hw_poll_write_packet_impl(
+        75 => wire__crate__api__hw_wallet__android_hw_poll_write_packet_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__model__api_absolute_timelock_from_consensus_impl(
+        76 => wire__crate__api__model__api_absolute_timelock_from_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        75 => wire__crate__api__model__api_absolute_timelock_to_consensus_impl(
+        77 => wire__crate__api__model__api_absolute_timelock_to_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        76 => wire__crate__api__model__api_network_as_str_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__model__api_network_display_name_impl(
+        78 => wire__crate__api__model__api_network_as_str_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__model__api_network_display_name_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => {
+        80 => {
             wire__crate__api__model__api_policy_path_default_impl(port, ptr, rust_vec_len, data_len)
         }
-        79 => wire__crate__api__model__api_policy_path_from_spendpath_impl(
+        81 => wire__crate__api__model__api_policy_path_from_spendpath_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__model__api_related_address_default_impl(
+        82 => wire__crate__api__model__api_related_address_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__model__api_relative_timelock_from_consensus_impl(
+        83 => wire__crate__api__model__api_relative_timelock_from_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__model__api_relative_timelock_to_consensus_impl(
+        84 => wire__crate__api__model__api_relative_timelock_to_consensus_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__model__api_security_level_from_m_cost_impl(
+        85 => wire__crate__api__model__api_security_level_from_m_cost_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__model__api_security_level_m_cost_impl(
+        86 => wire__crate__api__model__api_security_level_m_cost_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__model__api_security_level_t_cost_impl(
+        87 => wire__crate__api__model__api_security_level_t_cost_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__model__api_spend_path_from_sorted_impl(
+        88 => wire__crate__api__model__api_spend_path_from_sorted_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__analyzer__build_descriptor_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__analyzer__calculate_rustid_from_timelocks_impl(
+        92 => wire__crate__api__analyzer__build_descriptor_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__analyzer__calculate_rustid_from_timelocks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__wallet__descriptor_backup__check_existing_backup_impl(
+        94 => wire__crate__api__wallet__descriptor_backup__check_existing_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__wallet__nostr_backup__check_nostr_backup_status_impl(
+        95 => wire__crate__api__wallet__nostr_backup__check_nostr_backup_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => {
+        97 => {
             wire__crate__api__hw_wallet__connect_hw_device_impl(port, ptr, rust_vec_len, data_len)
         }
-        96 => wire__crate__api__hw_wallet__connect_hw_device_android_impl(
+        98 => wire__crate__api__hw_wallet__connect_hw_device_android_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__wallet__create_wallet_impl(port, ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__wallet__nostr_backup__delete_nostr_backup_impl(
+        100 => wire__crate__api__wallet__create_wallet_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__wallet__nostr_backup__delete_nostr_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__wallet__delete_wallet_impl(port, ptr, rust_vec_len, data_len),
-        102 => wire__crate__api__wallet__derive_keyspec_impl(port, ptr, rust_vec_len, data_len),
-        103 => wire__crate__api__wallet__derive_keyspec_from_xprv_impl(
+        103 => wire__crate__api__wallet__delete_wallet_impl(port, ptr, rust_vec_len, data_len),
+        104 => wire__crate__api__wallet__derive_keyspec_impl(port, ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__wallet__derive_keyspec_from_xprv_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__wallet__discovery__derive_xpubs_for_nostr_impl(
+        106 => wire__crate__api__wallet__discovery__derive_xpubs_for_nostr_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__wallet__discovery__discover_accounts_impl(
+        107 => wire__crate__api__wallet__discovery__discover_accounts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__wallet__discovery__discover_accounts_from_keyspecs_impl(
+        108 => wire__crate__api__wallet__discovery__discover_accounts_from_keyspecs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__wallet__backup__export_wallet_backup_impl(
+        109 => wire__crate__api__wallet__backup__export_wallet_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => wire__crate__api__wallet__nostr_backup__fetch_nostr_backup_impl(
+        110 => wire__crate__api__wallet__nostr_backup__fetch_nostr_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        109 => wire__crate__api__wallet__descriptor_recovery__fetch_onchain_backup_impl(
+        111 => wire__crate__api__wallet__descriptor_recovery__fetch_onchain_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        110 => wire__crate__api__wallet__discovery__first_address_from_descriptor_impl(
+        112 => wire__crate__api__wallet__discovery__first_address_from_descriptor_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__analyzer__format_descriptor_for_liana_impl(
+        113 => wire__crate__api__analyzer__format_descriptor_for_liana_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__wallet__get_wallet_info_impl(port, ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__wallet__get_wallet_network_hint_impl(
+        116 => wire__crate__api__wallet__get_wallet_info_impl(port, ptr, rust_vec_len, data_len),
+        117 => wire__crate__api__wallet__get_wallet_network_hint_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__hw_wallet__hw_check_registration_impl(
+        119 => wire__crate__api__hw_wallet__hw_check_registration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        118 => wire__crate__api__wallet__discovery__hw_derivation_paths_for_discovery_impl(
+        120 => wire__crate__api__wallet__discovery__hw_derivation_paths_for_discovery_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => {
+        122 => {
             wire__crate__api__hw_wallet__hw_display_address_impl(port, ptr, rust_vec_len, data_len)
         }
-        121 => wire__crate__api__hw_wallet__hw_get_xpub_impl(port, ptr, rust_vec_len, data_len),
-        123 => wire__crate__api__hw_wallet__hw_register_descriptor_impl(
+        123 => wire__crate__api__hw_wallet__hw_get_xpub_impl(port, ptr, rust_vec_len, data_len),
+        125 => wire__crate__api__hw_wallet__hw_register_descriptor_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__hw_wallet__hw_sign_psbt_impl(port, ptr, rust_vec_len, data_len),
-        125 => wire__crate__api__wallet__nostr_backup__import_nostr_backup_impl(
+        126 => wire__crate__api__hw_wallet__hw_sign_psbt_impl(port, ptr, rust_vec_len, data_len),
+        127 => wire__crate__api__wallet__nostr_backup__import_nostr_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__wallet__descriptor_recovery__import_onchain_backup_impl(
+        128 => wire__crate__api__wallet__descriptor_recovery__import_onchain_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__wallet__backup__import_wallet_backup_impl(
+        129 => wire__crate__api__wallet__backup__import_wallet_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => wire__crate__api__analyzer__init_app_impl(port, ptr, rust_vec_len, data_len),
-        129 => wire__crate__api__wallet__backup__inspect_wallet_backup_impl(
+        130 => wire__crate__api__analyzer__init_app_impl(port, ptr, rust_vec_len, data_len),
+        131 => wire__crate__api__wallet__backup__inspect_wallet_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        132 => {
+        134 => {
             wire__crate__api__wallet__list_biometric_slots_impl(port, ptr, rust_vec_len, data_len)
         }
-        135 => wire__crate__api__wallet__list_wallets_impl(port, ptr, rust_vec_len, data_len),
-        136 => wire__crate__api__wallet__list_xpub_slots_impl(port, ptr, rust_vec_len, data_len),
-        137 => wire__crate__api__wallet__open_wallet_impl(port, ptr, rust_vec_len, data_len),
-        138 => wire__crate__api__wallet__nostr_backup__publish_nostr_backup_impl(
+        137 => wire__crate__api__wallet__list_wallets_impl(port, ptr, rust_vec_len, data_len),
+        138 => wire__crate__api__wallet__list_xpub_slots_impl(port, ptr, rust_vec_len, data_len),
+        139 => wire__crate__api__wallet__open_wallet_impl(port, ptr, rust_vec_len, data_len),
+        140 => wire__crate__api__wallet__nostr_backup__publish_nostr_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        139 => wire__crate__api__wif_sweep__query_wif_utxos_impl(port, ptr, rust_vec_len, data_len),
-        140 => {
+        141 => wire__crate__api__wif_sweep__query_wif_utxos_impl(port, ptr, rust_vec_len, data_len),
+        142 => {
             wire__crate__api__wallet__remove_biometric_slot_impl(port, ptr, rust_vec_len, data_len)
         }
-        141 => wire__crate__api__wallet__remove_xpub_slot_impl(port, ptr, rust_vec_len, data_len),
-        142 => wire__crate__api__wallet__rename_wallet_impl(port, ptr, rust_vec_len, data_len),
-        143 => wire__crate__api__wif_sweep__resolve_wif_impl(port, ptr, rust_vec_len, data_len),
-        145 => wire__crate__api__wallet__discovery__scan_descriptor_impl(
+        143 => wire__crate__api__wallet__remove_xpub_slot_impl(port, ptr, rust_vec_len, data_len),
+        144 => wire__crate__api__wallet__rename_wallet_impl(port, ptr, rust_vec_len, data_len),
+        145 => wire__crate__api__wif_sweep__resolve_wif_impl(port, ptr, rust_vec_len, data_len),
+        147 => wire__crate__api__wallet__discovery__scan_descriptor_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => wire__crate__api__wallet__nostr_backup__set_nostr_relay_config_impl(
+        148 => wire__crate__api__wallet__nostr_backup__set_nostr_relay_config_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        152 => wire__crate__api__wallet__strip_psbt_for_hw_impl(port, ptr, rust_vec_len, data_len),
-        153 => wire__crate__api__wif_sweep__sweep_wif_impl(port, ptr, rust_vec_len, data_len),
-        156 => wire__crate__api__analyzer__validate_descriptor_network_impl(
+        154 => wire__crate__api__wallet__strip_psbt_for_hw_impl(port, ptr, rust_vec_len, data_len),
+        155 => wire__crate__api__wif_sweep__sweep_wif_impl(port, ptr, rust_vec_len, data_len),
+        158 => wire__crate__api__analyzer__validate_descriptor_network_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        157 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
-        158 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        159 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
-        160 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
+        159 => wire__crate__api__analyzer__validate_key_impl(port, ptr, rust_vec_len, data_len),
+        160 => wire__crate__api__wallet__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        161 => wire__crate__api__hw_wallet__wait_hw_pairing_impl(port, ptr, rust_vec_len, data_len),
+        162 => wire__crate__api__hw_wallet__wait_hw_pairing_android_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        161 => wire__crate__api__wallet__wallet_has_biometric_slots_impl(
+        163 => wire__crate__api__wallet__wallet_has_biometric_slots_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        162 => wire__crate__api__wallet__wallet_requires_password_impl(
+        164 => wire__crate__api__wallet__wallet_requires_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        163 => {
+        165 => {
             wire__crate__api__wallet__wallet_requires_xpub_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -9923,60 +10077,65 @@ fn pde_ffi_dispatcher_sync_impl(
         }
         55 => wire__crate__api__wallet__ApiWallet_set_key_label_impl(ptr, rust_vec_len, data_len),
         56 => wire__crate__api__wallet__ApiWallet_set_path_label_impl(ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__wallet__ApiWallet_set_psbt_label_impl(ptr, rust_vec_len, data_len),
-        58 => wire__crate__api__wallet__ApiWallet_set_tx_label_impl(ptr, rust_vec_len, data_len),
-        59 => {
+        57 => wire__crate__api__wallet__ApiWallet_set_psbt_auto_broadcast_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        58 => wire__crate__api__wallet__ApiWallet_set_psbt_label_impl(ptr, rust_vec_len, data_len),
+        59 => wire__crate__api__wallet__ApiWallet_set_tx_label_impl(ptr, rust_vec_len, data_len),
+        60 => {
             wire__crate__api__wallet__ApiWallet_sign_backup_psbt_impl(ptr, rust_vec_len, data_len)
         }
-        60 => wire__crate__api__wallet__ApiWallet_sign_descriptor_with_hotkey_impl(
+        61 => wire__crate__api__wallet__ApiWallet_sign_descriptor_with_hotkey_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => {
+        62 => {
             wire__crate__api__wallet__ApiWallet_sign_psbt_with_key_impl(ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__wallet__ApiWallet_verify_descriptor_sigs_impl(
+        67 => wire__crate__api__wallet__ApiWallet_verify_descriptor_sigs_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        66 => wire__crate__api__wallet__ApiWallet_wallet_network_impl(ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__wallet__add_project_mnemonic_key_impl(ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__wallet__add_project_xprv_key_impl(ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__wallet__bip39_entropy_to_mnemonic_impl(ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__wallet__bip39_valid_last_words_impl(ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__wallet__bip39_wordlist_impl(ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__wallet__descriptor_backup__compute_min_utxo_sats_impl(
+        68 => wire__crate__api__wallet__ApiWallet_wallet_network_impl(ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__wallet__add_project_mnemonic_key_impl(ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__wallet__add_project_xprv_key_impl(ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__wallet__bip39_entropy_to_mnemonic_impl(ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__wallet__bip39_valid_last_words_impl(ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__wallet__bip39_wordlist_impl(ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__wallet__descriptor_backup__compute_min_utxo_sats_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => {
+        99 => {
             wire__crate__api__wallet__copy_project_keys_to_wallet_impl(ptr, rust_vec_len, data_len)
         }
-        100 => wire__crate__api__wallet__delete_project_hot_key_impl(ptr, rust_vec_len, data_len),
-        112 => wire__crate__api__wallet__generate_mnemonic_impl(ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__hw_wallet__get_hw_session_info_impl(ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__hw_wallet__hw_active_session_impl(ptr, rust_vec_len, data_len),
-        119 => wire__crate__api__hw_wallet__hw_disconnect_impl(ptr, rust_vec_len, data_len),
-        122 => wire__crate__api__hw_wallet__hw_invalidate_active_session_impl(
+        102 => wire__crate__api__wallet__delete_project_hot_key_impl(ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__wallet__generate_mnemonic_impl(ptr, rust_vec_len, data_len),
+        115 => wire__crate__api__hw_wallet__get_hw_session_info_impl(ptr, rust_vec_len, data_len),
+        118 => wire__crate__api__hw_wallet__hw_active_session_impl(ptr, rust_vec_len, data_len),
+        121 => wire__crate__api__hw_wallet__hw_disconnect_impl(ptr, rust_vec_len, data_len),
+        124 => wire__crate__api__hw_wallet__hw_invalidate_active_session_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        130 => wire__crate__api__tor__is_tor_enabled_impl(ptr, rust_vec_len, data_len),
-        131 => wire__crate__api__tor__is_tor_running_impl(ptr, rust_vec_len, data_len),
-        133 => wire__crate__api__hw_wallet__list_hw_devices_impl(ptr, rust_vec_len, data_len),
-        134 => wire__crate__api__wallet__list_project_hot_keys_impl(ptr, rust_vec_len, data_len),
-        144 => wire__crate__api__wallet__reveal_project_seed_impl(ptr, rust_vec_len, data_len),
-        147 => wire__crate__api__tor__set_tor_data_dir_impl(ptr, rust_vec_len, data_len),
-        148 => wire__crate__api__tor__set_tor_enabled_impl(ptr, rust_vec_len, data_len),
-        149 => wire__crate__api__wallet__discovery__sha256_hex_impl(ptr, rust_vec_len, data_len),
-        150 => wire__crate__api__tor__start_tor_impl(ptr, rust_vec_len, data_len),
-        151 => wire__crate__api__tor__stop_tor_impl(ptr, rust_vec_len, data_len),
-        154 => wire__crate__api__tor__tor_bootstrap_progress_impl(ptr, rust_vec_len, data_len),
-        155 => wire__crate__api__tor__tor_socks_addr_impl(ptr, rust_vec_len, data_len),
+        132 => wire__crate__api__tor__is_tor_enabled_impl(ptr, rust_vec_len, data_len),
+        133 => wire__crate__api__tor__is_tor_running_impl(ptr, rust_vec_len, data_len),
+        135 => wire__crate__api__hw_wallet__list_hw_devices_impl(ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__wallet__list_project_hot_keys_impl(ptr, rust_vec_len, data_len),
+        146 => wire__crate__api__wallet__reveal_project_seed_impl(ptr, rust_vec_len, data_len),
+        149 => wire__crate__api__tor__set_tor_data_dir_impl(ptr, rust_vec_len, data_len),
+        150 => wire__crate__api__tor__set_tor_enabled_impl(ptr, rust_vec_len, data_len),
+        151 => wire__crate__api__wallet__discovery__sha256_hex_impl(ptr, rust_vec_len, data_len),
+        152 => wire__crate__api__tor__start_tor_impl(ptr, rust_vec_len, data_len),
+        153 => wire__crate__api__tor__stop_tor_impl(ptr, rust_vec_len, data_len),
+        156 => wire__crate__api__tor__tor_bootstrap_progress_impl(ptr, rust_vec_len, data_len),
+        157 => wire__crate__api__tor__tor_socks_addr_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -10194,6 +10353,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::analyzer::APIAnalysisResult>
     for crate::api::analyzer::APIAnalysisResult
 {
     fn into_into_dart(self) -> crate::api::analyzer::APIAnalysisResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::model::APIAutoBroadcastResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.txid.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::model::APIAutoBroadcastResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::model::APIAutoBroadcastResult>
+    for crate::api::model::APIAutoBroadcastResult
+{
+    fn into_into_dart(self) -> crate::api::model::APIAutoBroadcastResult {
         self
     }
 }
@@ -10719,6 +10900,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::model::APIPsbtInfo {
             self.mfps.into_into_dart().into_dart(),
             self.utxo_max_conf_height.into_into_dart().into_dart(),
             self.has_spent_inputs.into_into_dart().into_dart(),
+            self.lock_time.into_into_dart().into_dart(),
+            self.auto_broadcast.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11832,6 +12015,15 @@ impl SseEncode for crate::api::analyzer::APIAnalysisResult {
     }
 }
 
+impl SseEncode for crate::api::model::APIAutoBroadcastResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.id, serializer);
+        <Option<String>>::sse_encode(self.txid, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+    }
+}
+
 impl SseEncode for crate::api::model::APIBalance {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12077,6 +12269,8 @@ impl SseEncode for crate::api::model::APIPsbtInfo {
         <Vec<String>>::sse_encode(self.mfps, serializer);
         <Option<i64>>::sse_encode(self.utxo_max_conf_height, serializer);
         <bool>::sse_encode(self.has_spent_inputs, serializer);
+        <u32>::sse_encode(self.lock_time, serializer);
+        <bool>::sse_encode(self.auto_broadcast, serializer);
     }
 }
 
@@ -12496,6 +12690,16 @@ impl SseEncode for Vec<crate::api::model::APIAddress> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::model::APIAddress>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::model::APIAutoBroadcastResult> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::model::APIAutoBroadcastResult>::sse_encode(item, serializer);
         }
     }
 }

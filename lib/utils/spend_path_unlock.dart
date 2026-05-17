@@ -1,4 +1,6 @@
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/utils/constants.dart';
+import 'package:deadbolt/utils/date_format.dart';
 
 /// Result of checking whether a spend path is available for a given UTXO.
 sealed class SpendPathStatus {}
@@ -105,11 +107,10 @@ SpendPathStatus spendPathStatus({
         return SpendPathRelLocked(remainingBlocks: required - elapsed - 1);
       }
     } else {
-      // Time-based: value stored in seconds (units × 512)
-      // Approximate remaining blocks: remainingSeconds / 600
+      // Time-based: relTimelock.value is seconds (BIP68 units × 512). Approximate
+      // elapsed wall-clock by treating each new block as kSecondsPerBlock.
       final requiredSeconds = path.relTimelock.value;
-      // Approximate elapsed seconds via block count × 600s/block
-      final elapsedSeconds = (tipHeight - confirmedAt) * 600;
+      final elapsedSeconds = (tipHeight - confirmedAt) * kSecondsPerBlock;
       if (elapsedSeconds < requiredSeconds) {
         return SpendPathRelLocked(
           remainingSeconds: requiredSeconds - elapsedSeconds,
@@ -141,9 +142,9 @@ int? nearestUnlockBlocks(List<(APISpendPath, SpendPathStatus)> statuses) {
 DateTime? estimatedUnlockDate(SpendPathStatus status) {
   return switch (status) {
     SpendPathRelLocked(:final remainingBlocks) when remainingBlocks != null =>
-      DateTime.now().add(Duration(minutes: remainingBlocks * 10)),
+      etaFromBlocks(remainingBlocks),
     SpendPathAbsLocked(:final remainingBlocks) when remainingBlocks != null =>
-      DateTime.now().add(Duration(minutes: remainingBlocks * 10)),
+      etaFromBlocks(remainingBlocks),
     SpendPathAbsLocked(:final unlockAtSeconds) when unlockAtSeconds > 0 =>
       DateTime.fromMillisecondsSinceEpoch(unlockAtSeconds * 1000),
     _ => null,

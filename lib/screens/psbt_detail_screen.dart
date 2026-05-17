@@ -13,6 +13,7 @@ import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/utils/date_format.dart';
+import 'package:deadbolt/utils/psbt_timelock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -70,9 +71,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   int get _signedCount =>
       _analysis?.signers.where((s) => s.hasSigned).length ?? 0;
 
-  bool get _isReadyToBroadcast =>
-      _signedCount >= _psbt.threshold.toInt() ||
-      (_analysis?.isFinalized ?? false);
+  bool get _isReadyToBroadcast => _psbt.isReadyToBroadcast(_analysis);
 
   // ─── Label ────────────────────────────────────────────────────────────────
 
@@ -153,7 +152,9 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         statusIcon = Icons.sync_disabled_outlined;
       } else {
         final unlockBlock = confHeight + relBlocks;
-        final remaining = unlockBlock - tipHeight;
+        // BIP68 validates the spending tx against the candidate block (tip+1),
+        // so the path is unlocked as soon as tip+1 >= unlockBlock.
+        final remaining = unlockBlock - tipHeight - 1;
         if (remaining > 0) {
           statusText = l10n.psbtTimelockBlocksRemaining(
             remaining,
@@ -320,6 +321,56 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     }
   }
 
+  Widget _buildAutoBroadcastSwitch(
+      BuildContext context, AppLocalizations l10n, DateTime? eta) {
+    if (!_isReadyToBroadcast || eta == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        value: _psbt.autoBroadcast,
+        onChanged: (value) {
+          final updated = context
+              .read<WalletDetailCubit>()
+              .setPsbtAutoBroadcast(_psbt.id.toInt(), value);
+          if (updated != null) setState(() => _psbt = updated);
+        },
+        title: Text(l10n.psbtAutoBroadcastSwitch),
+        subtitle: Text(
+          l10n.psbtAutoBroadcastHint,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBroadcastButton(
+      BuildContext context, AppLocalizations l10n, DateTime? eta) {
+    final locked = eta != null;
+    return FilledButton.icon(
+      onPressed: (_isReadyToBroadcast && !_broadcasting && !locked)
+          ? () => _broadcast(context)
+          : null,
+      icon: _broadcasting
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(locked ? Icons.hourglass_bottom : Icons.send_outlined),
+      label: Text(
+        locked
+            ? l10n.psbtLockedTooltip(_psbt.lockTime, shortDateWithTime(eta))
+            : l10n.psbtBroadcastButton,
+      ),
+    );
+  }
+
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   // ─── Hardware wallet signing ───────────────────────────────────────────────
@@ -386,6 +437,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         final signed = _signedCount;
         final threshold = _psbt.threshold.toInt();
         final total = _psbt.mfps.length;
+        final tipHeight = state is WalletDetailLoaded ? state.tipHeight : 0;
+        final unlockEta = _psbt.unlockEta(tipHeight);
 
         // Resolve spendPath: use constructor value, or look it up reactively
         // from the descriptor analysis (which may finish after navigation).
@@ -524,11 +577,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                           value: formatDateTimeFromUnix(_psbt.createdAt.toInt()),
                         ),
                         if (spendPath != null)
-                          ..._buildTimelockRows(
-                            context,
-                            spendPath,
-                            state is WalletDetailLoaded ? state.tipHeight : 0,
-                          ),
+                          ..._buildTimelockRows(context, spendPath, tipHeight),
                       ],
                     ),
                   ),
@@ -624,19 +673,8 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                   label: Text(l10n.signWithHwWallet),
                 ),
                 const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: (_isReadyToBroadcast && !_broadcasting)
-                      ? () => _broadcast(context)
-                      : null,
-                  icon: _broadcasting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_outlined),
-                  label: Text(l10n.psbtBroadcastButton),
-                ),
+                _buildAutoBroadcastSwitch(context, l10n, unlockEta),
+                _buildBroadcastButton(context, l10n, unlockEta),
               ],
             ),
           ),

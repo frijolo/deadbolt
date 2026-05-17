@@ -4,12 +4,12 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIBalance, APIBiometricSlot, APICoinControl, APICpfpInfo,
-    APIFiatPrice, APIHotKeyInfo, APIHotKeyList, APIImportPsbtResult, APIKeychain, APINetwork,
-    APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus,
-    APIRbfInfo, APIRecipient, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo, APISecurityLevel,
-    APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat, APITxPreview, APIUtxo,
-    APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
+    APIAddress, APIAddressDetails, APIAutoBroadcastResult, APIBalance, APIBiometricSlot,
+    APICoinControl, APICpfpInfo, APIFiatPrice, APIHotKeyInfo, APIHotKeyList, APIImportPsbtResult,
+    APIKeychain, APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
+    APIPsbtSignerStatus, APIRbfInfo, APIRecipient, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
+    APISecurityLevel, APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat,
+    APITxPreview, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
 };
 use crate::core::descriptor_parser::{extract_xpub_derivation_map, extract_xpub_mfp_map};
 use crate::core::key_protection::{
@@ -46,7 +46,9 @@ use crate::core::wallet_persistence::propagation::{
 };
 use crate::core::wallet_persistence::psbt_storage::{
     delete_psbt_row, ensure_unsigned_txs_table, get_psbt_row, get_psbt_row_by_txid, insert_psbt,
-    list_psbt_rows, update_psbt_data, update_psbt_label, PsbtRow,
+    list_auto_broadcast_pending_ids, list_psbt_rows,
+    set_psbt_auto_broadcast as db_set_psbt_auto_broadcast, update_psbt_data, update_psbt_label,
+    PsbtRow,
 };
 use crate::core::wallet_persistence::seed_storage::{
     delete_seed_entry, insert_seed_entry, list_seed_entries,
@@ -64,6 +66,7 @@ mod labels;
 pub mod nostr_backup;
 mod ops;
 mod psbt;
+pub(super) mod psbt_maturity;
 mod queries;
 
 // Detail query submodules (extracted from queries.rs)
@@ -214,6 +217,10 @@ fn row_to_api_psbt(
     let utxo_max_conf_height = parsed_psbt
         .as_ref()
         .and_then(|psbt| psbt_max_utxo_conf_height(wallet, psbt));
+    let lock_time = parsed_psbt
+        .as_ref()
+        .map(|psbt| psbt.unsigned_tx.lock_time.to_consensus_u32())
+        .unwrap_or(0);
     let has_spent_inputs = parsed_psbt
         .map(|psbt| {
             psbt.unsigned_tx.input.iter().any(|txin| {
@@ -254,6 +261,8 @@ fn row_to_api_psbt(
         mfps: row.mfps,
         utxo_max_conf_height,
         has_spent_inputs,
+        lock_time,
+        auto_broadcast: row.auto_broadcast,
     }
 }
 

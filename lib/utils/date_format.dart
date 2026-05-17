@@ -1,3 +1,5 @@
+import 'package:deadbolt/utils/constants.dart';
+
 /// Formats [unixSecs] as `YYYY-MM-DD HH:MM` (local time).
 String formatTimestamp(int unixSecs) {
   final dt = DateTime.fromMillisecondsSinceEpoch(unixSecs * 1000, isUtc: true)
@@ -42,3 +44,8 @@ String formatDateTimeFromUnix(int unixSeconds) =>
 
 String formatDate(DateTime dt) =>
     '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+/// Returns `now + blocks * kSecondsPerBlock` — projected wall-clock time when
+/// the chain tip is expected to reach `currentTip + blocks`.
+DateTime etaFromBlocks(int blocks) =>
+    DateTime.now().add(Duration(seconds: blocks * kSecondsPerBlock));

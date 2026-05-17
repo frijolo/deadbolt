@@ -17,6 +17,8 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
+import 'package:deadbolt/utils/constants.dart' show kSecondsPerBlock;
+import 'package:deadbolt/utils/date_format.dart' show etaFromBlocks, shortDateWithTime;
 import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
@@ -140,6 +142,28 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   APITxPreview? _preview;
   Timer? _previewTimer;
 
+  bool _delayEnabled = false;
+  final _delayDaysCtrl = TextEditingController(text: '0');
+  final _delayHoursCtrl = TextEditingController(text: '0');
+  final _delayMinutesCtrl = TextEditingController(text: '0');
+
+  /// Resulting delta on top of `max(tip, abs_timelock)`; `null` disables the
+  /// delay (and the direct-send fast path stays available).
+  int? get _nlocktimeDeltaBlocks {
+    if (!_delayEnabled) return null;
+    final d = int.tryParse(_delayDaysCtrl.text.trim()) ?? 0;
+    final h = int.tryParse(_delayHoursCtrl.text.trim()) ?? 0;
+    final m = int.tryParse(_delayMinutesCtrl.text.trim()) ?? 0;
+    if (d < 0 || h < 0 || m < 0) return null;
+    final totalSecs = d * 86400 + h * 3600 + m * 60;
+    if (totalSecs <= 0) return null;
+    final blocks = (totalSecs + kSecondsPerBlock - 1) ~/ kSecondsPerBlock;
+    return blocks > _maxDelayBlocks ? _maxDelayBlocks : blocks;
+  }
+
+  // Must match Rust MAX_NLOCKTIME_DELTA_BLOCKS in rust/src/api/wallet/psbt.rs.
+  static const int _maxDelayBlocks = 144 * 365;
+
   @override
   void initState() {
     super.initState();
@@ -199,6 +223,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _feeRateCtrl.dispose();
     _totalFeeCtrl.dispose();
     _labelCtrl.dispose();
+    _delayDaysCtrl.dispose();
+    _delayHoursCtrl.dispose();
+    _delayMinutesCtrl.dispose();
     _rateFocusNode.dispose();
     _totalFocusNode.dispose();
     super.dispose();
@@ -1055,6 +1082,83 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     if (summary != null) _totalFeeCtrl.text = summary.feeSats.toString();
   }
 
+  Widget _buildDelayCard(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
+    final delta = _nlocktimeDeltaBlocks ?? 0;
+    final absTl = _selectedPath?.absTimelock;
+    final spendPathAbsTl =
+        (absTl != null && absTl.timelockType == APIAbsoluteTimelockType.blocks)
+            ? absTl.value
+            : 0;
+    final floor =
+        widget.tipHeight > spendPathAbsTl ? widget.tipHeight : spendPathAbsTl;
+    final unlockBlock = floor + delta;
+    final eta = etaFromBlocks(delta);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.hourglass_bottom, size: 18, color: AppAccent.color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.txDelayBroadcastSection,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                Switch(
+                  value: _delayEnabled,
+                  onChanged: (v) => setState(() => _delayEnabled = v),
+                ),
+              ],
+            ),
+            if (_delayEnabled) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(child: _buildDelayField(_delayDaysCtrl, l10n.txDelayDays)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildDelayField(_delayHoursCtrl, l10n.txDelayHours)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildDelayField(_delayMinutesCtrl, l10n.txDelayMinutes)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                delta > 0
+                    ? '${l10n.txDelayApproxBlocks(delta)} · ${l10n.txDelayUnlockEta(unlockBlock, shortDateWithTime(eta))}'
+                    : l10n.txDelayNoneHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface
+                      .withAlpha(AppAlpha.secondary),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDelayField(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: TextInputType.number,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
   // ─── Fee inline-edit field ────────────────────────────────────────────────
 
   Widget _buildFeeField({
@@ -1215,6 +1319,7 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
         threshold: _selectedPath!.threshold,
         mfps: _selectedPath!.mfps,
         label: _labelCtrl.text.trim(),
+        nlocktimeDeltaBlocks: _nlocktimeDeltaBlocks,
       );
 
       if (!mounted) return;
@@ -1240,6 +1345,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   /// True when the selected path is single-sig, the hot key is available locally,
   /// and there is only one recipient (multi-recipient requires PSBT flow).
   bool _isDirectSendAvailable() {
+    // A custom broadcast delay defers broadcast — incompatible with direct-send.
+    if (_delayEnabled && (_nlocktimeDeltaBlocks ?? 0) > 0) return false;
     final path = _selectedPath;
     if (path == null || path.threshold != 1 || path.mfps.length != 1) return false;
     final s = context.read<WalletDetailCubit>().state;
@@ -1597,6 +1704,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   keyLabels: widget.keyLabels,
                 ),
               ],
+
+              const SizedBox(height: 12),
+              _buildDelayCard(context, theme),
 
               const SizedBox(height: 24),
 

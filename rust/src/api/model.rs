@@ -600,6 +600,31 @@ pub struct APIPsbtInfo {
     /// True when at least one input of this PSBT has been confirmed-spent by
     /// another transaction. The PSBT can no longer be broadcast.
     pub has_spent_inputs: bool,
+    /// Absolute nLockTime from the unsigned transaction (Height-based, < 500_000_000).
+    /// 0 when no timelock is set. When > 0, the transaction cannot be broadcast
+    /// until the chain tip reaches this block height.
+    pub lock_time: u32,
+    /// When true, this PSBT is queued to be broadcast automatically as soon as
+    /// its timelock matures. Persisted per-wallet in `unsigned_txs`.
+    pub auto_broadcast: bool,
+}
+
+/////////////////////////////
+// APIAutoBroadcastResult  //
+/////////////////////////////
+
+/// Outcome of a single auto-broadcast attempt during
+/// [`APIWallet::try_auto_broadcast_due`]. One entry is emitted per attempt
+/// that produced an observable result (success or error). PSBTs whose
+/// timelock has not yet matured are skipped silently.
+#[derive(Clone)]
+pub struct APIAutoBroadcastResult {
+    /// PSBT row id at the time of the attempt.
+    pub id: i64,
+    /// Broadcast txid on success.
+    pub txid: Option<String>,
+    /// Error message on failure. `None` when [`txid`] is `Some`.
+    pub error: Option<String>,
 }
 
 //////////////////////

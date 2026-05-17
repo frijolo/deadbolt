@@ -898,6 +898,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loadMore => 'Load more';
 
   @override
+  String get txDelayBroadcastSection => 'Delay broadcast (nLockTime)';
+
+  @override
+  String get txDelayDays => 'Days';
+
+  @override
+  String get txDelayHours => 'Hours';
+
+  @override
+  String get txDelayMinutes => 'Minutes';
+
+  @override
+  String get txDelayNoneHint =>
+      'Set days / hours / minutes to delay broadcast.';
+
+  @override
+  String txDelayApproxBlocks(int blocks) {
+    return '≈ $blocks blocks';
+  }
+
+  @override
+  String txDelayUnlockEta(int height, String eta) {
+    return 'unlock at block $height (~$eta)';
+  }
+
+  @override
+  String psbtLockedMaturity(int blocks) {
+    return 'Locked · $blocks blocks';
+  }
+
+  @override
+  String psbtLockedTooltip(int height, String eta) {
+    return 'Cannot broadcast until block $height (~$eta)';
+  }
+
+  @override
+  String get psbtBroadcastReady => 'Ready to broadcast';
+
+  @override
   String get electrumSectionTitle => 'Electrum Servers';
 
   @override
@@ -1256,6 +1295,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String psbtBroadcastSuccess(String txid) {
     return 'Transaction broadcast! TXID: $txid';
+  }
+
+  @override
+  String get psbtAutoBroadcastSwitch => 'Broadcast automatically when unlocked';
+
+  @override
+  String get psbtAutoBroadcastHint =>
+      'The wallet must stay unlocked. Broadcast will be attempted after every sync once the timelock matures.';
+
+  @override
+  String get psbtAutoBroadcastQueuedTooltip => 'Queued for automatic broadcast';
+
+  @override
+  String psbtAutoBroadcastedToast(String txid) {
+    return 'Auto-broadcasted: $txid';
+  }
+
+  @override
+  String psbtAutoBroadcastFailedToast(int id, String error) {
+    return 'Auto-broadcast failed for PSBT $id: $error';
   }
 
   @override

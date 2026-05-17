@@ -899,6 +899,45 @@ class AppLocalizationsEs extends AppLocalizations {
   String get loadMore => 'Cargar más';
 
   @override
+  String get txDelayBroadcastSection => 'Retrasar broadcast (nLockTime)';
+
+  @override
+  String get txDelayDays => 'Días';
+
+  @override
+  String get txDelayHours => 'Horas';
+
+  @override
+  String get txDelayMinutes => 'Minutos';
+
+  @override
+  String get txDelayNoneHint =>
+      'Configura días / horas / minutos para retrasar el broadcast.';
+
+  @override
+  String txDelayApproxBlocks(int blocks) {
+    return '≈ $blocks bloques';
+  }
+
+  @override
+  String txDelayUnlockEta(int height, String eta) {
+    return 'desbloqueo en el bloque $height (~$eta)';
+  }
+
+  @override
+  String psbtLockedMaturity(int blocks) {
+    return 'Bloqueada · $blocks bloques';
+  }
+
+  @override
+  String psbtLockedTooltip(int height, String eta) {
+    return 'No se puede emitir hasta el bloque $height (~$eta)';
+  }
+
+  @override
+  String get psbtBroadcastReady => 'Lista para emitir';
+
+  @override
   String get electrumSectionTitle => 'Servidores Electrum';
 
   @override
@@ -1259,6 +1298,28 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String psbtBroadcastSuccess(String txid) {
     return '¡Transacción enviada! TXID: $txid';
+  }
+
+  @override
+  String get psbtAutoBroadcastSwitch =>
+      'Retransmitir automáticamente al desbloquearse';
+
+  @override
+  String get psbtAutoBroadcastHint =>
+      'La cartera debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.';
+
+  @override
+  String get psbtAutoBroadcastQueuedTooltip =>
+      'En cola para retransmisión automática';
+
+  @override
+  String psbtAutoBroadcastedToast(String txid) {
+    return 'Retransmitida automáticamente: $txid';
+  }
+
+  @override
+  String psbtAutoBroadcastFailedToast(int id, String error) {
+    return 'Falló la retransmisión automática de la PSBT $id: $error';
   }
 
   @override

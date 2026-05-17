@@ -70,6 +70,7 @@ abstract class LoadedWallet {
     required int threshold,
     required List<String> mfps,
     String? label,
+    int? nlocktimeDeltaBlocks,
   });
   WalletOpResult<void> deletePsbt(int id);
   Future<WalletOpResult<PsbtImported>> importPsbt(String psbtBase64);
@@ -306,6 +307,7 @@ class LoadedWalletImpl implements LoadedWallet {
     required int threshold,
     required List<String> mfps,
     String? label,
+    int? nlocktimeDeltaBlocks,
   }) =>
       guardSync<APIPsbtInfo>(
         () {
@@ -318,6 +320,7 @@ class LoadedWalletImpl implements LoadedWallet {
             spendPathId: spendPathId,
             threshold: threshold,
             mfps: mfps,
+            nlocktimeDeltaBlocks: nlocktimeDeltaBlocks,
           );
 
           if (label != null && label.isNotEmpty) {

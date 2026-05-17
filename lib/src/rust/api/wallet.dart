@@ -457,6 +457,10 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// * `spend_path_id`  — rust_id of the selected spend path (stored for reference).
   /// * `threshold`      — required signatures (from the spend path).
   /// * `mfps`           — master fingerprints of keys in the spend path.
+  /// * `nlocktime_delta_blocks` — optional delay added on top of
+  ///   `max(tip_height, abs_timelock)`. The resulting absolute height becomes
+  ///   the transaction's nLockTime, so the tx cannot be broadcast until that
+  ///   height is reached. Capped at `MAX_NLOCKTIME_DELTA_BLOCKS` (~1 year).
   APIPsbtInfo createPsbt({
     required List<APIRecipient> recipients,
     int? maxRecipientIndex,
@@ -466,6 +470,7 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required int spendPathId,
     required int threshold,
     required List<String> mfps,
+    int? nlocktimeDeltaBlocks,
   });
 
   /// Delete a stored descriptor signature.
@@ -685,6 +690,16 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Persist a label for a spend path by rust_id. Pass an empty string to remove it.
   void setPathLabel({required int rustId, required String label});
 
+  /// Enable or disable auto-broadcast for a saved PSBT.
+  ///
+  /// When enabled, the wallet will broadcast this PSBT automatically as
+  /// soon as its timelock matures (checked after each successful sync).
+  /// Persists in the wallet database, so the flag survives app restarts.
+  APIPsbtInfo setPsbtAutoBroadcast({
+    required PlatformInt64 id,
+    required bool enabled,
+  });
+
   /// Set or clear the label for a saved PSBT. Pass an empty string to clear.
   APIPsbtInfo setPsbtLabel({required PlatformInt64 id, required String label});
 
@@ -745,6 +760,21 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// up to the stop gap. Uses incremental sync on subsequent calls to only check
   /// already-revealed script pubkeys, which is much faster.
   Future<void> sync_({required String electrumUrl});
+
+  /// Attempt to broadcast every PSBT flagged for auto-broadcast whose
+  /// timelock has matured against the wallet's current chain tip.
+  ///
+  /// Skips silently (no entry in the returned `Vec`) for PSBTs still locked
+  /// or awaiting a sync. Emits one entry per attempt that produced an
+  /// outcome — either a successful broadcast (with txid) or a broadcast
+  /// failure (with error message). On a successful broadcast the PSBT row
+  /// is deleted and any label is propagated to the transaction.
+  ///
+  /// Designed to be invoked after each successful Electrum sync (one block
+  /// = one natural retry tick). Safe to call when no PSBTs are pending.
+  Future<List<APIAutoBroadcastResult>> tryAutoBroadcastDue({
+    required String electrumUrl,
+  });
 
   /// Re-verify all stored descriptor signatures and return updated statuses.
   ///

@@ -178,32 +178,59 @@ fn sign_psbt_in_place(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Patch nSequence and nLockTime on foreign (mempool) UTXO inputs when the spend path has a
-/// timelock. BDK applies policy_path to internal UTXOs but leaves foreign UTXOs with the default
+/// Maximum user-supplied broadcast delay (~1 year @ 10 min/block).
+pub(crate) const MAX_NLOCKTIME_DELTA_BLOCKS: u32 = 144 * 365;
+
+/// Patch nSequence on foreign (mempool) UTXO inputs and resolve the final nLockTime.
+///
+/// BDK applies policy_path to internal UTXOs but leaves foreign UTXOs with the default
 /// ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1). OP_CSV requires bit 31 = 0, so
 /// Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied" without this fixup.
+///
+/// The absolute nLockTime is the maximum of:
+///   - the spend path's `abs_timelock` (inheritance policy, when applicable),
+///   - `max(tip_height, abs_timelock) + delta` (user-requested broadcast delay, when `delta > 0`).
 fn apply_timelock_fixup(
     psbt: &mut bdk_wallet::bitcoin::psbt::Psbt,
     core: &CoreWallet,
     spend_path_id: u32,
     has_foreign: bool,
+    tip_height: u32,
+    nlocktime_delta_blocks: Option<u32>,
 ) {
-    if !has_foreign || spend_path_id == 0 {
+    let user_delta = nlocktime_delta_blocks.unwrap_or(0);
+    if !has_foreign && user_delta == 0 {
         return;
     }
-    if let Ok(paths) = core.cached_spend_paths() {
-        if let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) {
-            if sp.rel_timelock > 0 {
-                let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
-                for txin in &mut psbt.unsigned_tx.input {
-                    txin.sequence = seq;
-                }
-            }
-            if sp.abs_timelock > 0 {
-                psbt.unsigned_tx.lock_time =
-                    bdk_wallet::bitcoin::absolute::LockTime::from_consensus(sp.abs_timelock);
+
+    let abs_timelock = 'lookup: {
+        if spend_path_id == 0 {
+            break 'lookup 0;
+        }
+        let Ok(paths) = core.cached_spend_paths() else {
+            break 'lookup 0;
+        };
+        let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) else {
+            break 'lookup 0;
+        };
+        if has_foreign && sp.rel_timelock > 0 {
+            let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
+            for txin in &mut psbt.unsigned_tx.input {
+                txin.sequence = seq;
             }
         }
+        sp.abs_timelock
+    };
+
+    let final_lock = if user_delta > 0 {
+        tip_height.max(abs_timelock).saturating_add(user_delta)
+    } else {
+        abs_timelock
+    };
+
+    if final_lock > 0 {
+        psbt.unsigned_tx.lock_time =
+            bdk_wallet::bitcoin::absolute::LockTime::from_consensus(final_lock);
     }
 }
 
@@ -306,6 +333,10 @@ impl APIWallet {
     /// * `spend_path_id`  — rust_id of the selected spend path (stored for reference).
     /// * `threshold`      — required signatures (from the spend path).
     /// * `mfps`           — master fingerprints of keys in the spend path.
+    /// * `nlocktime_delta_blocks` — optional delay added on top of
+    ///   `max(tip_height, abs_timelock)`. The resulting absolute height becomes
+    ///   the transaction's nLockTime, so the tx cannot be broadcast until that
+    ///   height is reached. Capped at `MAX_NLOCKTIME_DELTA_BLOCKS` (~1 year).
     #[frb(sync)]
     #[allow(clippy::too_many_arguments)]
     pub fn create_psbt(
@@ -318,6 +349,7 @@ impl APIWallet {
         spend_path_id: u32,
         threshold: u32,
         mfps: Vec<String>,
+        nlocktime_delta_blocks: Option<u32>,
     ) -> Result<APIPsbtInfo> {
         use bdk_wallet::bitcoin::Amount;
         use bdk_wallet::KeychainKind;
@@ -327,8 +359,19 @@ impl APIWallet {
             return Err(anyhow::anyhow!("At least one recipient is required"));
         }
 
+        if let Some(d) = nlocktime_delta_blocks {
+            if d > MAX_NLOCKTIME_DELTA_BLOCKS {
+                return Err(anyhow::anyhow!(
+                    "nlocktime_delta_blocks {} exceeds maximum {}",
+                    d,
+                    MAX_NLOCKTIME_DELTA_BLOCKS
+                ));
+            }
+        }
+
         let mut core = self.lock_wallet()?;
         let network = core.wallet.network();
+        let tip_height = core.wallet.latest_checkpoint().block_id().height;
 
         let policy_map: BTreeMap<String, Vec<usize>> = policy_path
             .into_iter()
@@ -380,7 +423,14 @@ impl APIWallet {
         let mut psbt = builder.finish()?;
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
+        apply_timelock_fixup(
+            &mut psbt,
+            &core,
+            spend_path_id,
+            has_foreign,
+            tip_height,
+            nlocktime_delta_blocks,
+        );
 
         let fee_sat = psbt.fee()?.to_sat();
         let txid = psbt.unsigned_tx.compute_txid().to_string();
@@ -462,6 +512,8 @@ impl APIWallet {
             mfps,
             utxo_max_conf_height,
             has_spent_inputs: false, // inputs were just selected and are confirmed unspent
+            lock_time: psbt.unsigned_tx.lock_time.to_consensus_u32(),
+            auto_broadcast: false,
         })
     }
 
@@ -508,6 +560,7 @@ impl APIWallet {
 
         let mut core = self.lock_wallet()?;
         let network = core.wallet.network();
+        let tip_height = core.wallet.latest_checkpoint().block_id().height;
 
         let parsed_recipients = parse_recipients(&recipients, network, max_recipient_index)?;
 
@@ -651,7 +704,14 @@ impl APIWallet {
         };
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
+        apply_timelock_fixup(
+            &mut psbt,
+            &core,
+            spend_path_id,
+            has_foreign,
+            tip_height,
+            None,
+        );
 
         // Identify recipient outputs vs change.
         let recipient_scripts: std::collections::HashSet<ScriptBuf> =
@@ -790,6 +850,19 @@ impl APIWallet {
             Some(label.as_str())
         };
         update_psbt_label(&core.conn, id, new_label)?;
+        let row = get_psbt_row(&core.conn, id)?;
+        Ok(row_to_api_psbt_loaded(row, &core.conn, &core.wallet))
+    }
+
+    /// Enable or disable auto-broadcast for a saved PSBT.
+    ///
+    /// When enabled, the wallet will broadcast this PSBT automatically as
+    /// soon as its timelock matures (checked after each successful sync).
+    /// Persists in the wallet database, so the flag survives app restarts.
+    #[frb(sync)]
+    pub fn set_psbt_auto_broadcast(&self, id: i64, enabled: bool) -> Result<APIPsbtInfo> {
+        let core = self.lock_wallet()?;
+        db_set_psbt_auto_broadcast(&core.conn, id, enabled)?;
         let row = get_psbt_row(&core.conn, id)?;
         Ok(row_to_api_psbt_loaded(row, &core.conn, &core.wallet))
     }
@@ -985,6 +1058,8 @@ impl APIWallet {
                 mfps: matched_mfps,
                 utxo_max_conf_height,
                 has_spent_inputs,
+                lock_time: imported.unsigned_tx.lock_time.to_consensus_u32(),
+                auto_broadcast: false,
             },
             was_merged: false,
         })
@@ -1108,6 +1183,130 @@ impl APIWallet {
         }
 
         Ok(txid.to_string())
+    }
+
+    /// Attempt to broadcast every PSBT flagged for auto-broadcast whose
+    /// timelock has matured against the wallet's current chain tip.
+    ///
+    /// Skips silently (no entry in the returned `Vec`) for PSBTs still locked
+    /// or awaiting a sync. Emits one entry per attempt that produced an
+    /// outcome — either a successful broadcast (with txid) or a broadcast
+    /// failure (with error message). On a successful broadcast the PSBT row
+    /// is deleted and any label is propagated to the transaction.
+    ///
+    /// Designed to be invoked after each successful Electrum sync (one block
+    /// = one natural retry tick). Safe to call when no PSBTs are pending.
+    pub async fn try_auto_broadcast_due(
+        &self,
+        electrum_url: String,
+    ) -> Result<Vec<APIAutoBroadcastResult>> {
+        // Snapshot candidate ids and drop the mutex before any I/O.
+        let candidate_ids: Vec<i64> = {
+            let core = self.lock_wallet()?;
+            list_auto_broadcast_pending_ids(&core.conn)?
+        };
+        if candidate_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let now_secs = current_unix_secs()?.max(0) as u64;
+        let mut results = Vec::new();
+        for id in candidate_ids {
+            match self
+                .try_auto_broadcast_one(id, &electrum_url, now_secs)
+                .await
+            {
+                Ok(Some(txid)) => results.push(APIAutoBroadcastResult {
+                    id,
+                    txid: Some(txid),
+                    error: None,
+                }),
+                Ok(None) => {}
+                Err(e) => results.push(APIAutoBroadcastResult {
+                    id,
+                    txid: None,
+                    error: Some(format!("{e:#}")),
+                }),
+            }
+        }
+        Ok(results)
+    }
+
+    /// Try to broadcast a single auto-broadcast candidate.
+    ///
+    /// Returns:
+    /// - `Ok(Some(txid))` on successful broadcast (PSBT row deleted).
+    /// - `Ok(None)` if the PSBT is still locked or the row vanished.
+    /// - `Err(_)` if broadcast was attempted and failed (network / finalize).
+    async fn try_auto_broadcast_one(
+        &self,
+        id: i64,
+        electrum_url: &str,
+        now_secs: u64,
+    ) -> Result<Option<String>> {
+        use crate::api::model::APISpendPath;
+        use crate::api::wallet::psbt_maturity::psbt_is_broadcastable_now;
+
+        // Hold the lock for the whole prep step to keep tip height + UTXO
+        // state + finalize coherent; release before the broadcast I/O.
+        let (tx, psbt_label) = {
+            let core = self.lock_wallet()?;
+            let row = match get_psbt_row(&core.conn, id) {
+                Ok(r) => r,
+                Err(_) => return Ok(None), // row deleted between snapshot and now
+            };
+            if !row.auto_broadcast {
+                return Ok(None);
+            }
+            let psbt_label = row.label.clone();
+            let info = row_to_api_psbt_loaded(row, &core.conn, &core.wallet);
+            let spend_path: Option<APISpendPath> = if info.spend_path_id != 0 {
+                core.cached_spend_paths()
+                    .ok()
+                    .and_then(|paths| paths.iter().find(|sp| sp.id == info.spend_path_id))
+                    .and_then(|sp| APISpendPath::try_from(sp).ok())
+            } else {
+                None
+            };
+            let tip_height = core.wallet.latest_checkpoint().block_id().height;
+            if !psbt_is_broadcastable_now(&info, spend_path.as_ref(), tip_height, now_secs) {
+                return Ok(None);
+            }
+
+            let mut psbt = psbt_from_base64(&info.psbt_base64)?;
+            if !is_psbt_finalized(&psbt) {
+                #[allow(deprecated)]
+                let ok = core
+                    .wallet
+                    .finalize_psbt(&mut psbt, bdk_wallet::SignOptions::default())?;
+                if !ok {
+                    return Err(anyhow::anyhow!(
+                        "Not enough signatures — PSBT cannot be finalized"
+                    ));
+                }
+            }
+            let tx = psbt.extract_tx()?;
+            (tx, psbt_label)
+        };
+
+        let client = create_electrum_client(electrum_url)?;
+        client.transaction_broadcast(&tx)?;
+        let txid = tx.compute_txid().to_string();
+
+        {
+            let core = self.lock_wallet()?;
+            if let Some(label) = &psbt_label {
+                if !label.is_empty() && !tx_has_explicit_label(&core.conn, &txid).unwrap_or(false) {
+                    let _ = db_set_tx_label(&core.conn, &txid, label, false, None);
+                }
+            }
+            let _ = delete_psbt_row(&core.conn, id);
+        }
+        if let Ok(mut u) = self.electrum_url.lock() {
+            *u = electrum_url.to_string();
+        }
+
+        Ok(Some(txid))
     }
 
     /// Sign a stored PSBT using the hot key identified by `mfp`.
@@ -1286,6 +1485,8 @@ impl APIWallet {
             })
             .collect();
 
+        let tip_height = core.wallet.latest_checkpoint().block_id().height;
+
         // Build TX_COMMIT PSBT.
         let mut builder = core.wallet.build_tx();
         builder.fee_absolute(Amount::from_sat(commit_fee));
@@ -1314,7 +1515,14 @@ impl APIWallet {
         let mut psbt = builder.finish()?;
 
         let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(&mut psbt, &core, spend_path_id, has_foreign);
+        apply_timelock_fixup(
+            &mut psbt,
+            &core,
+            spend_path_id,
+            has_foreign,
+            tip_height,
+            None,
+        );
 
         core.persist()?;
 

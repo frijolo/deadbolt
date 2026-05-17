@@ -19,6 +19,9 @@ class WalletSyncEvent {
   final APIWalletInfo? walletInfo; // null when sync is in progress
   final bool isSyncing;
   final String? error;             // non-null on sync failure
+  /// Results of auto-broadcast attempts that ran right after this sync.
+  /// Empty when no PSBTs were flagged or no timelock matured during this tick.
+  final List<APIAutoBroadcastResult> autoBroadcasted;
 
   const WalletSyncEvent({
     required this.walletPath,
@@ -26,6 +29,7 @@ class WalletSyncEvent {
     this.walletInfo,
     this.isSyncing = false,
     this.error,
+    this.autoBroadcasted = const [],
   });
 }
 
@@ -206,6 +210,21 @@ class WalletSyncService {
 
     try {
       await entry.handle.sync_(electrumUrl: entry.electrumUrl);
+
+      // Run any pending auto-broadcasts now that the chain tip is up to date.
+      // Failures here must not propagate — the wallet sync itself already
+      // succeeded and the next tick will retry naturally.
+      List<APIAutoBroadcastResult> autoBroadcasted = const [];
+      try {
+        autoBroadcasted = await entry.handle
+            .tryAutoBroadcastDue(electrumUrl: entry.electrumUrl);
+      } catch (e) {
+        debugPrint(
+          '[WalletSyncService] tryAutoBroadcastDue($walletPath): '
+          '${sanitizeForLog(e.toString())}',
+        );
+      }
+
       final (balance, info) = await (
         entry.handle.getBalance(),
         entry.handle.getInfo(),
@@ -217,6 +236,7 @@ class WalletSyncService {
           balance: balance,
           walletInfo: info,
           isSyncing: false,
+          autoBroadcasted: autoBroadcasted,
         ));
       }
     } catch (e) {

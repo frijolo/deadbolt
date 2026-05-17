@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -71,6 +73,13 @@ class _WalletDetailView extends StatefulWidget {
 
 class _WalletDetailViewState extends State<_WalletDetailView> {
   bool _autoSyncStarted = false;
+  StreamSubscription<List<APIAutoBroadcastResult>>? _autoBroadcastSub;
+
+  @override
+  void dispose() {
+    _autoBroadcastSub?.cancel();
+    super.dispose();
+  }
 
   void _maybeStartAutoSync(BuildContext context, WalletDetailState state) {
     if (_autoSyncStarted || state is! WalletDetailLoaded) return;
@@ -86,6 +95,21 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       settings.fiatProvider,
     );
     cubit.registerWithSyncService(electrumUrl);
+
+    _autoBroadcastSub?.cancel();
+    final l10n = context.l10n;
+    _autoBroadcastSub = cubit.autoBroadcastEvents.listen((results) {
+      for (final r in results) {
+        final txid = r.txid;
+        if (txid != null) {
+          showSuccessToast(l10n.psbtAutoBroadcastedToast(txid));
+        } else if (r.error != null) {
+          showErrorToast(
+            l10n.psbtAutoBroadcastFailedToast(r.id.toInt(), r.error!),
+          );
+        }
+      }
+    });
   }
 
   @override

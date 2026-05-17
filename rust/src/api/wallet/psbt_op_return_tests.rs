@@ -112,6 +112,7 @@ fn test_create_psbt_with_op_return_payload() -> anyhow::Result<()> {
         sp.id,
         sp.threshold as u32,
         sp.mfps.clone(),
+        None,
     )?;
 
     // Decode the PSBT and verify there is exactly one OP_RETURN output with our payload.
@@ -186,6 +187,7 @@ fn test_create_psbt_rejects_two_op_returns() -> anyhow::Result<()> {
         sp.id,
         sp.threshold as u32,
         sp.mfps.clone(),
+        None,
     );
 
     let err = match result {
@@ -223,6 +225,7 @@ fn test_create_psbt_rejects_op_return_as_max_recipient() -> anyhow::Result<()> {
         sp.id,
         sp.threshold as u32,
         sp.mfps.clone(),
+        None,
     );
 
     let err = match result {

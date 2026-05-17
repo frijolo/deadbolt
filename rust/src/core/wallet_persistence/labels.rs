@@ -11,6 +11,10 @@ const TABLES: &[&str] = &[
     "key_labels",
     "path_labels",
     "coin_labels",
+    // Dev zone (feature/future-tx-planning): apply_dev_schema uses ensure_column
+    // on unsigned_txs to add the auto_broadcast flag. Remove from this list once
+    // the dev migration is collapsed into a numbered migrate_v1_to_v2.
+    "unsigned_txs",
 ];
 
 /// Validate that `name` is an allowed label-table name.

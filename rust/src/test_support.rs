@@ -27,6 +27,16 @@ pub const MAINNET_DESC: &str =
 /// 32-byte test encryption key (not secret — test only).
 pub const KEY_HEX: &str = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
 
+/// Signet taproot descriptor with a single heir branch gated by an
+/// **absolute** timelock (`after(800000)` → block height 800 000, well below
+/// the BIP-65 timestamp threshold). Used to cover `apply_timelock_fixup` for
+/// CLTV-style spend paths. No checksum: BDK appends one when loading.
+pub const SIGNET_ABSOLUTE_TIMELOCK_DESC: &str = "tr([bc0dbbce/48'/1'/0'/2']tpubDEpnZReLc2mqbLNeGbNckbVTw6GTgfnz2s8r8wWoWrJY3ZP7dJ2hPKTbFk7RTqdSVYKJiDXQgT3jiACt3EGP5QuYjXqWvf6q1c7gN68Ywp8/<0;1>/*,and_v(v:pk([f3d33d4f/48'/1'/0'/2']tpubDFLYS7v5vvjyhLMotrmn6KzdN46jJ8ife9yD8DUMygtNCR4U389Wr46vJj7kG9bJPqFmLSet7hAP5fVJvyc97x9fhKZ7Zm9cTdvMxHqT55h/<0;1>/*),after(800000)))";
+
+/// Absolute height referenced by the `after()` clause in
+/// [SIGNET_ABSOLUTE_TIMELOCK_DESC].
+pub const SIGNET_ABSOLUTE_TIMELOCK_HEIGHT: u32 = 800_000;
+
 /// Reg25 signet taproot inheritance descriptor with 5 heir paths.
 ///
 /// Heir timelocks: older(6)=heir5, older(13140)=heir1, older(26280)=heir2,

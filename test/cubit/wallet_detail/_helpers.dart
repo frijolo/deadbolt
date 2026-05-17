@@ -76,6 +76,8 @@ APIPsbtInfo psbtFixture({int id = 1, String b64 = 'cHNidA==', String txid = 'tx'
       threshold: 1,
       mfps: const [],
       hasSpentInputs: false,
+      lockTime: 0,
+      autoBroadcast: false,
     );
 
 APIPsbtAnalysis analysisFixture({bool finalized = false}) =>

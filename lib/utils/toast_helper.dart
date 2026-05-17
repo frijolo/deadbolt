@@ -81,6 +81,7 @@ Future<void> copyToClipboard(
 
 /// Show a success toast (green with check icon)
 void showSuccessToast(String message) {
+  debugPrint('[toast:success] $message');
   _showOverlayToast(
     message: message,
     backgroundColor: Colors.green.shade700,
@@ -91,6 +92,7 @@ void showSuccessToast(String message) {
 
 /// Show an info toast (amber, neutral status)
 void showInfoToast(String message) {
+  debugPrint('[toast:info] $message');
   _showOverlayToast(
     message: message,
     backgroundColor: Colors.amber.shade800,
@@ -130,6 +132,7 @@ void showErrorToastException(Object e) {
 
 /// Show an error toast (red with copy button)
 void showErrorToast(String message) {
+  debugPrint('[toast:error] $message');
   final copiedLabel =
       rootNavigatorKey.currentContext?.l10n.errorCopiedToClipboard ?? '';
   _showOverlayToast(

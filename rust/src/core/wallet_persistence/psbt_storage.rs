@@ -15,6 +15,9 @@ pub struct PsbtRow {
     pub mfps: Vec<String>,
     /// JSON-serialized `Vec<APIRecipient>`. None for rows created before multi-recipient support.
     pub recipients_json: Option<String>,
+    /// When true, the PSBT is queued to be broadcast automatically as soon as
+    /// its timelock matures. Column added by the dev schema layer.
+    pub auto_broadcast: bool,
 }
 
 impl PsbtRow {
@@ -115,6 +118,27 @@ pub fn update_psbt_data(conn: &Connection, id: i64, psbt_base64: &str) -> Result
     Ok(())
 }
 
+pub fn set_psbt_auto_broadcast(conn: &Connection, id: i64, enabled: bool) -> Result<()> {
+    let n = conn.execute(
+        "UPDATE unsigned_txs SET auto_broadcast = ?1 WHERE id = ?2",
+        rusqlite::params![enabled as i64, id],
+    )?;
+    if n == 0 {
+        return Err(anyhow::anyhow!("PSBT {} not found", id));
+    }
+    Ok(())
+}
+
+pub fn list_auto_broadcast_pending_ids(conn: &Connection) -> Result<Vec<i64>> {
+    let mut stmt = conn
+        .prepare("SELECT id FROM unsigned_txs WHERE auto_broadcast = 1 ORDER BY created_at ASC")?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, i64>(0))?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
 pub fn delete_psbt_row(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "DELETE FROM unsigned_txs WHERE id = ?1",
@@ -131,6 +155,7 @@ fn parse_psbt_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PsbtRow> {
         mfps_str.split(',').map(|s| s.to_string()).collect()
     };
     let recipients_json: Option<String> = row.get(11).ok().flatten();
+    let auto_broadcast: i64 = row.get(12).unwrap_or(0);
     Ok(PsbtRow {
         id: row.get(0)?,
         psbt: row.get(1)?,
@@ -144,13 +169,14 @@ fn parse_psbt_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PsbtRow> {
         threshold: row.get::<_, u32>(9)?,
         mfps,
         recipients_json,
+        auto_broadcast: auto_broadcast != 0,
     })
 }
 
 pub fn get_psbt_row(conn: &Connection, id: i64) -> Result<PsbtRow> {
     conn.query_row(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps, recipients_json
+                spend_path_id, threshold, mfps, recipients_json, auto_broadcast
          FROM unsigned_txs WHERE id = ?1",
         rusqlite::params![id],
         parse_psbt_row,
@@ -161,7 +187,7 @@ pub fn get_psbt_row(conn: &Connection, id: i64) -> Result<PsbtRow> {
 pub fn get_psbt_row_by_txid(conn: &Connection, txid: &str) -> Result<Option<PsbtRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps, recipients_json
+                spend_path_id, threshold, mfps, recipients_json, auto_broadcast
          FROM unsigned_txs WHERE txid = ?1 LIMIT 1",
     )?;
     let mut rows = stmt.query_map(rusqlite::params![txid], parse_psbt_row)?;
@@ -173,7 +199,7 @@ pub fn get_psbt_row_by_txid(conn: &Connection, txid: &str) -> Result<Option<Psbt
 pub fn list_psbt_rows(conn: &Connection) -> Result<Vec<PsbtRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, psbt, txid, label, created_at, recipient, amount_sat, fee_sat,
-                spend_path_id, threshold, mfps, recipients_json
+                spend_path_id, threshold, mfps, recipients_json, auto_broadcast
          FROM unsigned_txs ORDER BY created_at DESC",
     )?;
     let rows = stmt

@@ -14,7 +14,7 @@ import 'package:deadbolt/cubit/wallet_opener.dart' show WalletOpener;
 import 'package:deadbolt/config/constants.dart' show kRetryDelay;
 import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
-import 'package:deadbolt/src/rust/api/model.dart' show APIKeychain;
+import 'package:deadbolt/src/rust/api/model.dart' show APIAutoBroadcastResult, APIKeychain;
 
 /// Lifecycle handler: load/lock, sync subscription + retries, tab selection,
 /// error helpers shared across all wallet-detail handlers.
@@ -33,6 +33,15 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
 
   Timer? _retryTimer;
   StreamSubscription<WalletSyncEvent>? _syncEventSub;
+  final StreamController<List<APIAutoBroadcastResult>> _autoBroadcastCtrl =
+      StreamController<List<APIAutoBroadcastResult>>.broadcast();
+
+  /// Broadcast-only stream of auto-broadcast attempt results emitted right
+  /// after each sync that produced at least one outcome. Screens subscribe to
+  /// surface user-visible toasts; the PSBT list refresh is handled inline by
+  /// the existing sync reload path.
+  Stream<List<APIAutoBroadcastResult>> get autoBroadcastEvents =>
+      _autoBroadcastCtrl.stream;
 
   // ─── Data-loading hooks owned by other (future) mixins ──────────────────
 
@@ -130,6 +139,10 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
     final s = loadedState;
     if (s == null) return;
 
+    if (event.autoBroadcasted.isNotEmpty && !_autoBroadcastCtrl.isClosed) {
+      _autoBroadcastCtrl.add(event.autoBroadcasted);
+    }
+
     if (event.isSyncing) {
       emit(s.copyWith(isSyncing: true));
       return;
@@ -179,6 +192,7 @@ mixin WalletDetailLifecycle on Cubit<WalletDetailState>, CubitErrorLogger {
   Future<void> close() {
     _retryTimer?.cancel();
     _syncEventSub?.cancel();
+    _autoBroadcastCtrl.close();
     return super.close();
   }
 

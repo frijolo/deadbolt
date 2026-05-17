@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:deadbolt/config/app_settings_extensions.dart';
+import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_detail_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/psbt_detail_screen.dart';
@@ -8,6 +10,8 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/date_format.dart';
+import 'package:deadbolt/utils/psbt_timelock.dart';
+import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -44,6 +48,8 @@ class TransactionsView extends StatelessWidget {
             spendPaths: state.descriptorAnalysis?.spendPaths ?? [],
             keyLabels: state.keyLabels,
             pathLabels: state.pathLabels,
+            tipHeight: state.tipHeight,
+            network: network,
           );
         }),
 
@@ -302,6 +308,8 @@ class _PsbtTile extends StatelessWidget {
   final List<APISpendPath> spendPaths;
   final Map<String, String> keyLabels;
   final Map<int, String> pathLabels;
+  final int tipHeight;
+  final APINetwork network;
 
   const _PsbtTile({
     required this.psbt,
@@ -309,16 +317,63 @@ class _PsbtTile extends StatelessWidget {
     required this.spendPaths,
     required this.keyLabels,
     required this.pathLabels,
+    required this.tipHeight,
+    required this.network,
   });
+
+  bool get _isFinalized => psbt.isReadyToBroadcast(analysis);
+
+  Future<void> _broadcast(BuildContext context) async {
+    final l10n = context.l10n;
+    final cubit = context.read<WalletDetailCubit>();
+    final settings = context.read<SettingsCubit>().state;
+    final electrumUrl = settings.electrumUrlForNetwork(network);
+    try {
+      final txid = await cubit.broadcastPsbt(psbt.id.toInt(), electrumUrl);
+      if (!context.mounted) return;
+      if (txid != null) showSuccessToast(l10n.psbtBroadcastSuccess(txid));
+    } catch (e) {
+      if (context.mounted) showErrorToastException(e);
+    }
+  }
+
+  Widget _buildActionIcon(BuildContext context) {
+    final l10n = context.l10n;
+    final eta = psbt.unlockEta(tipHeight);
+    if (eta != null) {
+      final queued = psbt.autoBroadcast;
+      final tooltip = queued
+          ? '${l10n.psbtAutoBroadcastQueuedTooltip} · '
+              '${l10n.psbtLockedTooltip(psbt.lockTime, shortDateWithTime(eta))}'
+          : l10n.psbtLockedTooltip(psbt.lockTime, shortDateWithTime(eta));
+      return Tooltip(
+        message: tooltip,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(
+            queued ? Icons.schedule_send_outlined : Icons.hourglass_bottom,
+            size: 18,
+            color: queued ? Colors.blue : Colors.orange,
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      tooltip: l10n.psbtBroadcastReady,
+      icon: const Icon(Icons.send, size: 18, color: Colors.green),
+      onPressed: () => _broadcast(context),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      visualDensity: VisualDensity.compact,
+    );
+  }
 
   String _statusLabel(BuildContext context) {
     final l10n = context.l10n;
     if (psbt.hasSpentInputs) return l10n.psbtStatusSpent;
     if (analysis == null) return l10n.psbtStatusUnsigned;
+    if (_isFinalized) return l10n.psbtStatusSigned;
     final signed = analysis!.signers.where((s) => s.hasSigned).length;
-    if (analysis!.isFinalized || signed >= psbt.threshold.toInt()) {
-      return l10n.psbtStatusSigned;
-    }
     if (signed > 0) return l10n.psbtStatusPartial;
     return l10n.psbtStatusUnsigned;
   }
@@ -326,10 +381,8 @@ class _PsbtTile extends StatelessWidget {
   Color _statusColor(BuildContext context) {
     if (psbt.hasSpentInputs) return Colors.red;
     if (analysis == null) return AppAccent.color;
+    if (_isFinalized) return Colors.green;
     final signed = analysis!.signers.where((s) => s.hasSigned).length;
-    if (analysis!.isFinalized || signed >= psbt.threshold.toInt()) {
-      return Colors.green;
-    }
     if (signed > 0) return Colors.amber;
     return AppAccent.color;
   }
@@ -413,6 +466,7 @@ class _PsbtTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
+            if (_isFinalized && !psbt.hasSpentInputs) _buildActionIcon(context),
             const Icon(Icons.chevron_right, size: 18),
           ],
         ),

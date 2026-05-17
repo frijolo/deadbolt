@@ -7,6 +7,7 @@ pub mod descriptor_sig_storage;
 pub mod fiat_storage;
 pub mod labels;
 pub mod migrations;
+pub mod migrations_dev;
 pub mod propagation;
 pub mod psbt_storage;
 pub mod seed_storage;

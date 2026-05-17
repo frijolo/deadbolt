@@ -24,16 +24,19 @@ pub const WALLET_SCHEMA_VERSION: u32 = 1;
 /// subsequent opens are a single PRAGMA read and immediate return.
 pub fn run_wallet_migrations(conn: &Connection) -> Result<()> {
     let from = get_schema_version(conn)?;
-    if from >= WALLET_SCHEMA_VERSION {
-        return Ok(());
+    #[allow(clippy::collapsible_if)] // structure kept as a template for future migrations
+    if from < WALLET_SCHEMA_VERSION {
+        if from < 1 {
+            migrate_v0_to_v1(conn)?;
+        }
+
+        // Template for future migrations:
+        // if from < 2 { migrate_v1_to_v2(conn)?; }
     }
 
-    if from < 1 {
-        migrate_v0_to_v1(conn)?;
-    }
-
-    // Template for future migrations:
-    // if from < 2 { migrate_v1_to_v2(conn)?; }
+    // DEV ZONE — feature/future-tx-planning. Runs on every open. Must be
+    // idempotent. Collapse into the next numbered migration before merge.
+    super::migrations_dev::apply_dev_schema(conn)?;
 
     Ok(())
 }

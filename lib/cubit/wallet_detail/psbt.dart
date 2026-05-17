@@ -89,6 +89,7 @@ mixin WalletDetailPsbt
     required int threshold,
     required List<String> mfps,
     String? label,
+    int? nlocktimeDeltaBlocks,
   }) async {
     final current = loadedState;
     if (current == null) return null;
@@ -102,6 +103,7 @@ mixin WalletDetailPsbt
       threshold: threshold,
       mfps: mfps,
       label: label,
+      nlocktimeDeltaBlocks: nlocktimeDeltaBlocks,
     );
     switch (result) {
       case Err(:final message):
@@ -192,6 +194,28 @@ mixin WalletDetailPsbt
       return updated;
     } catch (e, st) {
       logError('WalletDetailCubit.setPsbtLabel()', e, st);
+      return null;
+    }
+  }
+
+  APIPsbtInfo? setPsbtAutoBroadcast(int id, bool enabled) {
+    final current = loadedState;
+    if (current == null) return null;
+    final existing = current.psbts.where((p) => p.id.toInt() == id).firstOrNull;
+    if (existing != null && existing.autoBroadcast == enabled) return existing;
+    try {
+      final updated =
+          current.walletHandle.setPsbtAutoBroadcast(id: id, enabled: enabled);
+      emit(current.copyWith(
+        psbts: PsbtList(
+          psbts: current.psbts.map((p) => p.id.toInt() == id ? updated : p).toList(),
+          analyses: current.psbtAnalyses,
+          loaded: true,
+        ),
+      ));
+      return updated;
+    } catch (e, st) {
+      logError('WalletDetailCubit.setPsbtAutoBroadcast()', e, st);
       return null;
     }
   }

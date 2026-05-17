@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -176,6 +176,35 @@ class APIAddressDetails {
           address == other.address &&
           relatedUtxos == other.relatedUtxos &&
           relatedTxs == other.relatedTxs;
+}
+
+/// Outcome of a single auto-broadcast attempt during
+/// [`APIWallet::try_auto_broadcast_due`]. One entry is emitted per attempt
+/// that produced an observable result (success or error). PSBTs whose
+/// timelock has not yet matured are skipped silently.
+class APIAutoBroadcastResult {
+  /// PSBT row id at the time of the attempt.
+  final PlatformInt64 id;
+
+  /// Broadcast txid on success.
+  final String? txid;
+
+  /// Error message on failure. `None` when [`txid`] is `Some`.
+  final String? error;
+
+  const APIAutoBroadcastResult({required this.id, this.txid, this.error});
+
+  @override
+  int get hashCode => id.hashCode ^ txid.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAutoBroadcastResult &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          txid == other.txid &&
+          error == other.error;
 }
 
 class APIBalance {
@@ -649,6 +678,15 @@ class APIPsbtInfo {
   /// another transaction. The PSBT can no longer be broadcast.
   final bool hasSpentInputs;
 
+  /// Absolute nLockTime from the unsigned transaction (Height-based, < 500_000_000).
+  /// 0 when no timelock is set. When > 0, the transaction cannot be broadcast
+  /// until the chain tip reaches this block height.
+  final int lockTime;
+
+  /// When true, this PSBT is queued to be broadcast automatically as soon as
+  /// its timelock matures. Persisted per-wallet in `unsigned_txs`.
+  final bool autoBroadcast;
+
   const APIPsbtInfo({
     required this.id,
     required this.psbtBase64,
@@ -667,6 +705,8 @@ class APIPsbtInfo {
     required this.mfps,
     this.utxoMaxConfHeight,
     required this.hasSpentInputs,
+    required this.lockTime,
+    required this.autoBroadcast,
   });
 
   @override
@@ -687,7 +727,9 @@ class APIPsbtInfo {
       threshold.hashCode ^
       mfps.hashCode ^
       utxoMaxConfHeight.hashCode ^
-      hasSpentInputs.hashCode;
+      hasSpentInputs.hashCode ^
+      lockTime.hashCode ^
+      autoBroadcast.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -710,7 +752,9 @@ class APIPsbtInfo {
           threshold == other.threshold &&
           mfps == other.mfps &&
           utxoMaxConfHeight == other.utxoMaxConfHeight &&
-          hasSpentInputs == other.hasSpentInputs;
+          hasSpentInputs == other.hasSpentInputs &&
+          lockTime == other.lockTime &&
+          autoBroadcast == other.autoBroadcast;
 }
 
 class APIPsbtSignerStatus {

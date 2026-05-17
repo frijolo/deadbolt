@@ -1,7 +1,10 @@
 use super::*;
 use crate::api::model::{APICoinControl, APIPolicyPath, APIRecipient};
 use crate::core::descriptor::DescriptorAnalyzer;
-use crate::test_support::{KEY_HEX, MAINNET_DESC, SIGNET_INHERITANCE_DESC};
+use crate::test_support::{
+    KEY_HEX, MAINNET_DESC, SIGNET_ABSOLUTE_TIMELOCK_DESC, SIGNET_ABSOLUTE_TIMELOCK_HEIGHT,
+    SIGNET_INHERITANCE_DESC,
+};
 use bdk_wallet::bitcoin::{absolute, transaction, Amount, OutPoint, Sequence, Transaction, TxIn};
 use bdk_wallet::KeychainKind;
 use tempfile::tempdir;
@@ -86,6 +89,7 @@ fn create_and_export_psbt(
         sp.id,
         sp.threshold as u32,
         sp.mfps.clone(),
+        None,
     )?;
     let base64 = psbt_info.psbt_base64.clone();
     wallet.delete_psbt(psbt_info.id)?;
@@ -599,6 +603,221 @@ fn test_preview_drain_with_other_recipient() -> anyhow::Result<()> {
         100_000 + drain_amount + preview.fee_sats,
         1_000_000,
         "explicit + drain + fee == input"
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Custom nLockTime broadcast delay tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_create_psbt_no_delta_no_inheritance_lock() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let info = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        sp.threshold as u32,
+        sp.mfps.clone(),
+        None,
+    )?;
+
+    assert_eq!(info.lock_time, 0);
+    Ok(())
+}
+
+#[test]
+fn test_create_psbt_with_user_delta() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let tip = wallet.get_tip_height()?;
+    let delta: u32 = 144; // ~1 day
+    let info = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        sp.threshold as u32,
+        sp.mfps.clone(),
+        Some(delta),
+    )?;
+
+    assert_eq!(info.lock_time, tip + delta);
+    Ok(())
+}
+
+#[test]
+fn test_create_psbt_inheritance_with_delta() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_ABSOLUTE_TIMELOCK_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let recv = recv_addr_for(&wallet);
+
+    let analyzer = DescriptorAnalyzer::analyze(SIGNET_ABSOLUTE_TIMELOCK_DESC)?;
+    let paths = analyzer.spend_paths()?;
+    let heir = paths
+        .iter()
+        .find(|sp| sp.abs_timelock > 0)
+        .expect("descriptor must expose an absolute-timelock heir path");
+    assert_eq!(heir.abs_timelock, SIGNET_ABSOLUTE_TIMELOCK_HEIGHT);
+    let heir_id = heir.id;
+    let heir_abs_timelock = heir.abs_timelock;
+    let heir_threshold = heir.threshold as u32;
+    let heir_mfps = heir.mfps.clone();
+    let heir_policy = APIPolicyPath::from_spendpath(heir)?;
+
+    let tip = wallet.get_tip_height()?;
+    let delta: u32 = 6; // ~1 hour
+    let info = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        heir_policy,
+        heir_id,
+        heir_threshold,
+        heir_mfps,
+        Some(delta),
+    )?;
+
+    let expected = tip.max(heir_abs_timelock) + delta;
+    assert_eq!(info.lock_time, expected);
+    Ok(())
+}
+
+#[test]
+fn test_create_psbt_rejects_excessive_delta() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let sp = owner_spend_path();
+    let recv = recv_addr_for(&wallet);
+
+    let result = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(&sp)?,
+        sp.id,
+        sp.threshold as u32,
+        sp.mfps.clone(),
+        Some(crate::api::wallet::psbt::MAX_NLOCKTIME_DELTA_BLOCKS + 1),
+    );
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+/// User-requested nLockTime delay on top of a spend path that carries a
+/// **relative** timelock (`older()` / OP_CSV). The two mechanisms are
+/// independent — nLockTime gates broadcast on absolute height, nSequence/CSV
+/// gates on UTXO age — so combining them must not produce a contradictory
+/// PSBT: BDK keeps the CSV sequence on the input (bit 31 clear, value =
+/// spend path's `rel_timelock`) and our fixup pushes the absolute nLockTime
+/// to `tip + delta`.
+#[test]
+fn test_create_psbt_relative_timelock_with_delta() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let recv = recv_addr_for(&wallet);
+
+    // Inheritance descriptor heirs all use `older(N)` → relative timelock.
+    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
+    let paths = analyzer.spend_paths()?;
+    let heir = paths
+        .iter()
+        .filter(|sp| sp.rel_timelock > 0 && sp.abs_timelock == 0)
+        .min_by_key(|sp| sp.rel_timelock)
+        .expect("descriptor must expose at least one relative-timelock heir path");
+    let heir_id = heir.id;
+    let heir_rel = heir.rel_timelock;
+    let heir_threshold = heir.threshold as u32;
+    let heir_mfps = heir.mfps.clone();
+    let heir_policy = APIPolicyPath::from_spendpath(heir)?;
+
+    let tip = wallet.get_tip_height()?;
+    let delta: u32 = 144; // ~1 day
+    let info = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        heir_policy,
+        heir_id,
+        heir_threshold,
+        heir_mfps,
+        Some(delta),
+    )?;
+
+    // Absolute nLockTime: spend path has no abs_timelock, so it's purely tip + delta.
+    assert_eq!(info.lock_time, tip + delta);
+
+    // The CSV sequence imposed by the spend path must survive on the input:
+    // bit 31 clear (so OP_CSV is enforced), encoded value == rel_timelock, and
+    // strictly less than MAX (otherwise consensus would ignore nLockTime).
+    let psbt = crate::api::wallet::psbt::psbt_from_base64(&info.psbt_base64)?;
+    let seq = psbt.unsigned_tx.input[0].sequence.to_consensus_u32();
+    assert_eq!(seq >> 31, 0, "CSV bit 31 must be clear");
+    assert_eq!(
+        seq & 0x0000_FFFF,
+        heir_rel & 0x0000_FFFF,
+        "nSequence must encode the spend path's relative timelock"
+    );
+    assert!(
+        seq < u32::MAX,
+        "nSequence must be < MAX so the forced nLockTime is enforced"
     );
     Ok(())
 }

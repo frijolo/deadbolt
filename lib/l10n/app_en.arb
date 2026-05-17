@@ -411,6 +411,34 @@
   "txUnconfirmed": "Unconfirmed",
   "txId": "TXID",
   "loadMore": "Load more",
+  "txDelayBroadcastSection": "Delay broadcast (nLockTime)",
+  "txDelayDays": "Days",
+  "txDelayHours": "Hours",
+  "txDelayMinutes": "Minutes",
+  "txDelayNoneHint": "Set days / hours / minutes to delay broadcast.",
+  "txDelayApproxBlocks": "≈ {blocks} blocks",
+  "@txDelayApproxBlocks": {
+    "placeholders": { "blocks": { "type": "int" } }
+  },
+  "txDelayUnlockEta": "unlock at block {height} (~{eta})",
+  "@txDelayUnlockEta": {
+    "placeholders": {
+      "height": { "type": "int" },
+      "eta": { "type": "String" }
+    }
+  },
+  "psbtLockedMaturity": "Locked · {blocks} blocks",
+  "@psbtLockedMaturity": {
+    "placeholders": { "blocks": { "type": "int" } }
+  },
+  "psbtLockedTooltip": "Cannot broadcast until block {height} (~{eta})",
+  "@psbtLockedTooltip": {
+    "placeholders": {
+      "height": { "type": "int" },
+      "eta": { "type": "String" }
+    }
+  },
+  "psbtBroadcastReady": "Ready to broadcast",
   "electrumSectionTitle": "Electrum Servers",
   "electrumUrlHint": "ssl://host:port or tcp://host:port",
   "electrumNetworkMainnet": "Mainnet Electrum",
@@ -605,6 +633,28 @@
   "@psbtBroadcastSuccess": {
     "placeholders": {
       "txid": {
+        "type": "String"
+      }
+    }
+  },
+  "psbtAutoBroadcastSwitch": "Broadcast automatically when unlocked",
+  "psbtAutoBroadcastHint": "The wallet must stay unlocked. Broadcast will be attempted after every sync once the timelock matures.",
+  "psbtAutoBroadcastQueuedTooltip": "Queued for automatic broadcast",
+  "psbtAutoBroadcastedToast": "Auto-broadcasted: {txid}",
+  "@psbtAutoBroadcastedToast": {
+    "placeholders": {
+      "txid": {
+        "type": "String"
+      }
+    }
+  },
+  "psbtAutoBroadcastFailedToast": "Auto-broadcast failed for PSBT {id}: {error}",
+  "@psbtAutoBroadcastFailedToast": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      },
+      "error": {
         "type": "String"
       }
     }

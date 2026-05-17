@@ -173,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIAnalysisResult dco_decode_api_analysis_result(dynamic raw);
 
   @protected
+  APIAutoBroadcastResult dco_decode_api_auto_broadcast_result(dynamic raw);
+
+  @protected
   APIBalance dco_decode_api_balance(dynamic raw);
 
   @protected
@@ -392,6 +395,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIAddress> dco_decode_list_api_address(dynamic raw);
+
+  @protected
+  List<APIAutoBroadcastResult> dco_decode_list_api_auto_broadcast_result(
+    dynamic raw,
+  );
 
   @protected
   List<APIBiometricSlot> dco_decode_list_api_biometric_slot(dynamic raw);
@@ -717,6 +725,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIAutoBroadcastResult sse_decode_api_auto_broadcast_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIBalance sse_decode_api_balance(SseDeserializer deserializer);
 
   @protected
@@ -976,6 +989,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIAddress> sse_decode_list_api_address(SseDeserializer deserializer);
+
+  @protected
+  List<APIAutoBroadcastResult> sse_decode_list_api_auto_broadcast_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<APIBiometricSlot> sse_decode_list_api_biometric_slot(
@@ -1394,6 +1412,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_auto_broadcast_result(
+    APIAutoBroadcastResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_balance(APIBalance self, SseSerializer serializer);
 
   @protected
@@ -1718,6 +1742,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_address(
     List<APIAddress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_auto_broadcast_result(
+    List<APIAutoBroadcastResult> self,
     SseSerializer serializer,
   );
 

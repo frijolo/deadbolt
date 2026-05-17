@@ -68,6 +68,8 @@ APIPsbtInfo _psbt({required int id, required String b64, String txid = 'tx'}) =>
       threshold: 1,
       mfps: const [],
       hasSpentInputs: false,
+      lockTime: 0,
+      autoBroadcast: false,
     );
 
 APIPsbtAnalysis _analysis({bool finalized = false}) =>

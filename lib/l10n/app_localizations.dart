@@ -1748,6 +1748,66 @@ abstract class AppLocalizations {
   /// **'Load more'**
   String get loadMore;
 
+  /// No description provided for @txDelayBroadcastSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Delay broadcast (nLockTime)'**
+  String get txDelayBroadcastSection;
+
+  /// No description provided for @txDelayDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get txDelayDays;
+
+  /// No description provided for @txDelayHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get txDelayHours;
+
+  /// No description provided for @txDelayMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes'**
+  String get txDelayMinutes;
+
+  /// No description provided for @txDelayNoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set days / hours / minutes to delay broadcast.'**
+  String get txDelayNoneHint;
+
+  /// No description provided for @txDelayApproxBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {blocks} blocks'**
+  String txDelayApproxBlocks(int blocks);
+
+  /// No description provided for @txDelayUnlockEta.
+  ///
+  /// In en, this message translates to:
+  /// **'unlock at block {height} (~{eta})'**
+  String txDelayUnlockEta(int height, String eta);
+
+  /// No description provided for @psbtLockedMaturity.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked · {blocks} blocks'**
+  String psbtLockedMaturity(int blocks);
+
+  /// No description provided for @psbtLockedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot broadcast until block {height} (~{eta})'**
+  String psbtLockedTooltip(int height, String eta);
+
+  /// No description provided for @psbtBroadcastReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to broadcast'**
+  String get psbtBroadcastReady;
+
   /// No description provided for @electrumSectionTitle.
   ///
   /// In en, this message translates to:
@@ -2359,6 +2419,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transaction broadcast! TXID: {txid}'**
   String psbtBroadcastSuccess(String txid);
+
+  /// No description provided for @psbtAutoBroadcastSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast automatically when unlocked'**
+  String get psbtAutoBroadcastSwitch;
+
+  /// No description provided for @psbtAutoBroadcastHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The wallet must stay unlocked. Broadcast will be attempted after every sync once the timelock matures.'**
+  String get psbtAutoBroadcastHint;
+
+  /// No description provided for @psbtAutoBroadcastQueuedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued for automatic broadcast'**
+  String get psbtAutoBroadcastQueuedTooltip;
+
+  /// No description provided for @psbtAutoBroadcastedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-broadcasted: {txid}'**
+  String psbtAutoBroadcastedToast(String txid);
+
+  /// No description provided for @psbtAutoBroadcastFailedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-broadcast failed for PSBT {id}: {error}'**
+  String psbtAutoBroadcastFailedToast(int id, String error);
 
   /// No description provided for @psbtDeleteTitle.
   ///
