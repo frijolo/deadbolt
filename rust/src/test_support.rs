@@ -123,3 +123,90 @@ pub fn inject_utxo(wallet: &APIWallet) -> Result<bdk_wallet::bitcoin::Txid> {
     wallet.inject_unconfirmed_tx(funding_tx)?;
     Ok(txid)
 }
+
+/// Inject a confirmed UTXO at `value_sat` to external address index 0,
+/// anchored at block `height`. Returns the funding outpoint.
+///
+/// `prev_seed` lets callers create multiple independent funding txs by
+/// varying a single byte; otherwise their txids would collide because
+/// the wallet receive address is deterministic.
+pub fn inject_confirmed_utxo(
+    wallet: &APIWallet,
+    prev_seed: u8,
+    height: u32,
+    value_sat: u64,
+) -> Result<bdk_wallet::bitcoin::OutPoint> {
+    use bdk_wallet::bitcoin::hashes::Hash;
+    use bdk_wallet::bitcoin::{
+        absolute, transaction, Amount, BlockHash, OutPoint, Sequence, Transaction, TxIn, TxOut,
+    };
+    use bdk_wallet::chain::{BlockId, CheckPoint, ConfirmationBlockTime};
+    use bdk_wallet::Update;
+    use std::sync::Arc;
+
+    let spk = {
+        let core = wallet.lock_wallet()?;
+        core.wallet
+            .peek_address(bdk_wallet::KeychainKind::External, 0)
+            .address
+            .script_pubkey()
+    };
+    let fake_prev = OutPoint {
+        txid: bdk_wallet::bitcoin::Txid::from_raw_hash(
+            *bdk_wallet::bitcoin::hashes::sha256d::Hash::from_bytes_ref(&[prev_seed; 32]),
+        ),
+        vout: 0,
+    };
+    let funding_tx = Transaction {
+        version: transaction::Version::TWO,
+        lock_time: absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: fake_prev,
+            script_sig: Default::default(),
+            sequence: Sequence::MAX,
+            ..Default::default()
+        }],
+        output: vec![TxOut {
+            value: Amount::from_sat(value_sat),
+            script_pubkey: spk,
+        }],
+    };
+    let txid = funding_tx.compute_txid();
+
+    let mut core = wallet.lock_wallet()?;
+    let network = core.wallet.network();
+
+    let genesis_hash = bdk_wallet::bitcoin::constants::genesis_block(network).block_hash();
+    let mut cp = CheckPoint::new(BlockId {
+        height: 0,
+        hash: genesis_hash,
+    });
+    for h in 1..=height {
+        let mut bytes = [0u8; 32];
+        bytes[..4].copy_from_slice(&h.to_le_bytes());
+        cp = cp.insert(BlockId {
+            height: h,
+            hash: BlockHash::from_byte_array(bytes),
+        });
+    }
+    let anchor_block = BlockId {
+        height,
+        hash: cp.block_id().hash,
+    };
+
+    let mut update = Update {
+        chain: Some(cp),
+        ..Default::default()
+    };
+    update.tx_update.txs.push(Arc::new(funding_tx));
+    update.tx_update.anchors.insert((
+        ConfirmationBlockTime {
+            block_id: anchor_block,
+            confirmation_time: 1_700_000_000 + height as u64 * 600,
+        },
+        txid,
+    ));
+    core.wallet.apply_update(update)?;
+
+    Ok(OutPoint { txid, vout: 0 })
+}

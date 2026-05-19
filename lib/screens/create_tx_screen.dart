@@ -15,11 +15,12 @@ import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
-import 'package:deadbolt/models/timelock_types.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart' show BitcoinFormatter;
 import 'package:deadbolt/utils/constants.dart' show kSecondsPerBlock;
 import 'package:deadbolt/utils/date_format.dart' show etaFromBlocks, shortDateWithTime;
 import 'package:deadbolt/utils/op_return_encoding.dart';
+import 'package:deadbolt/utils/spend_path_dropdown.dart'
+    show pathLabel, pathTimelockStatus;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/screens/qr_scanner_screen.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
@@ -587,105 +588,9 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     }
   }
 
-  String _pathLabel(APISpendPath path) {
-    final label = widget.pathLabels[path.id];
-    if (label != null && label.isNotEmpty) return label;
-    final keys = path.mfps
-        .map((m) => widget.keyLabels[m] ?? m.substring(0, 4).toUpperCase())
-        .join(' + ');
-    final threshold = '${path.threshold}-of-${path.mfps.length}';
-    return '$threshold ($keys)';
-  }
-
-  ({IconData icon, String text, Color color})? _timelockStatus(
-    BuildContext context,
-    APISpendPath path,
-    int tipHeight,
-    int? utxoMaxConfHeight,
-  ) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final hasRel = path.relTimelock.value > 0;
-    final hasAbs = path.absTimelock.value > 0;
-    if (!hasRel && !hasAbs) return null;
-
-    if (hasRel && path.relTimelock.timelockType == APIRelativeTimelockType.blocks) {
-      final relBlocks = path.relTimelock.value;
-      if (_selectedUtxos.isEmpty) return null;
-      if (utxoMaxConfHeight == null || tipHeight == 0) {
-        return (
-          icon: Icons.sync_disabled_outlined,
-          text: l10n.psbtTimelockSyncRequired,
-          color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
-        );
-      }
-      final remaining = (utxoMaxConfHeight + relBlocks) - tipHeight - 1;
-      if (remaining > 0) {
-        return (
-          icon: Icons.lock_outline,
-          text: l10n.psbtTimelockBlocksRemaining(
-            remaining,
-            BitcoinFormatter.formatDuration(remaining * 10),
-          ),
-          color: Colors.orange,
-        );
-      }
-      return (
-        icon: Icons.lock_open_outlined,
-        text: l10n.spendPathUnlocked,
-        color: Colors.green,
-      );
-    }
-
-    if (hasAbs) {
-      final absType = AbsoluteTimelockType.fromString(path.absTimelock.timelockType.name);
-      final absValue = path.absTimelock.value;
-      if (absType == AbsoluteTimelockType.blocks) {
-        if (tipHeight == 0) {
-          return (
-            icon: Icons.sync_disabled_outlined,
-            text: l10n.psbtTimelockSyncRequired,
-            color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
-          );
-        }
-        final remaining = absValue - tipHeight;
-        if (remaining > 0) {
-          return (
-            icon: Icons.lock_outline,
-            text: l10n.psbtTimelockBlocksRemaining(
-              remaining,
-              BitcoinFormatter.formatDuration(remaining * 10),
-            ),
-            color: Colors.orange,
-          );
-        }
-        return (
-          icon: Icons.lock_open_outlined,
-          text: l10n.spendPathUnlocked,
-          color: Colors.green,
-        );
-      } else {
-        final nowSecs = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        final remaining = absValue - nowSecs;
-        if (remaining > 0) {
-          return (
-            icon: Icons.lock_outline,
-            text: l10n.psbtTimelockTimeRemaining(
-              BitcoinFormatter.formatDuration(remaining ~/ 60),
-            ),
-            color: Colors.orange,
-          );
-        }
-        return (
-          icon: Icons.lock_open_outlined,
-          text: l10n.spendPathUnlocked,
-          color: Colors.green,
-        );
-      }
-    }
-
-    return null;
-  }
+  // Spend-path display helpers (`pathLabel`, `pathTimelockStatus`) were
+  // extracted to `utils/spend_path_dropdown.dart` so the planning flow
+  // (`tx_planning_idle_view.dart`) renders the picker identically.
 
   // ─── Recipients ──────────────────────────────────────────────────────────
 
@@ -1659,8 +1564,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                   decoration: InputDecoration(labelText: l10n.createTxSpendPath),
                   items: widget.spendPaths!
                       .map((p) {
-                        final lockStatus = _timelockStatus(
-                          context, p, widget.tipHeight, utxoMaxConfHeight,
+                        final lockStatus = pathTimelockStatus(
+                          context, p,
+                          tipHeight: widget.tipHeight,
+                          utxoMaxConfHeight: utxoMaxConfHeight,
+                          hasSelectedUtxos: _selectedUtxos.isNotEmpty,
                         );
                         return DropdownMenuItem(
                           value: p,
@@ -1669,7 +1577,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  _pathLabel(p),
+                                  pathLabel(
+                                    p,
+                                    keyLabels: widget.keyLabels,
+                                    pathLabels: widget.pathLabels,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),

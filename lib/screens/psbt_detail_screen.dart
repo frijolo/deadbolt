@@ -349,9 +349,10 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     );
   }
 
-  Widget _buildBroadcastButton(
-      BuildContext context, AppLocalizations l10n, DateTime? eta) {
+  Widget _buildBroadcastButton(BuildContext context, AppLocalizations l10n,
+      DateTime? eta, int tipHeight) {
     final locked = eta != null;
+    final blocksLeft = locked ? (_psbt.lockTime - tipHeight) : 0;
     return FilledButton.icon(
       onPressed: (_isReadyToBroadcast && !_broadcasting && !locked)
           ? () => _broadcast(context)
@@ -365,7 +366,10 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
           : Icon(locked ? Icons.hourglass_bottom : Icons.send_outlined),
       label: Text(
         locked
-            ? l10n.psbtLockedTooltip(_psbt.lockTime, shortDateWithTime(eta))
+            ? l10n.psbtLockedTooltip(
+                formatShortSlashed(eta),
+                blocksLeft > 0 ? blocksLeft : 0,
+              )
             : l10n.psbtBroadcastButton,
       ),
     );
@@ -674,7 +678,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildAutoBroadcastSwitch(context, l10n, unlockEta),
-                _buildBroadcastButton(context, l10n, unlockEta),
+                _buildBroadcastButton(context, l10n, unlockEta, tipHeight),
               ],
             ),
           ),

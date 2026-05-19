@@ -558,7 +558,7 @@ pub struct APIUtxo {
 ////////////////////
 // APIRecipient   //
 ////////////////////
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct APIRecipient {
     pub address: String,
     pub amount_sat: u64,
@@ -727,7 +727,7 @@ pub struct APITxPreview {
 //////////////////////////
 // APIPsbtSignerStatus  //
 //////////////////////////
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct APIPsbtSignerStatus {
     pub mfp: String,
     pub has_signed: bool,
@@ -985,6 +985,222 @@ pub struct APIDiscoveredAccounts {
     pub accounts: Vec<APIAccountInfo>,
     /// Total number of accounts scanned (including empty ones).
     pub scanned_count: u32,
+}
+
+/////////////////////
+// APISpacedPlan…  //
+/////////////////////
+
+/// Input parameters for `plan_spaced_txs`.
+///
+/// The plan's `kind` is derived inside Rust from `dst_wallet_path`: empty
+/// or equal to the source wallet's own path → `REFRESH`, anything else →
+/// `MIGRATE`. The label is only used for history rendering; the planning
+/// logic itself is identical for both modes.
+#[derive(Clone)]
+pub struct APISpacedPlanParams {
+    pub dst_wallet_path: String,
+    /// Human-readable destination wallet name. Optional snapshot taken
+    /// at plan time so `Migrate` child PSBTs/transactions carry a label
+    /// that names the destination (e.g. `"→ Cold: <coin label>"`).
+    /// Ignored for `Refresh` plans; `None` keeps the legacy label
+    /// format. Renames after plan creation do NOT propagate.
+    pub dst_wallet_name: Option<String>,
+    pub feerate_min_msatvb: u64,
+    pub feerate_max_msatvb: u64,
+    pub delay_blocks_min: u32,
+    pub delay_blocks_max: u32,
+    pub split_probability: f64,
+    pub min_split_output: u64,
+    pub spend_path_id: u32,
+    pub threshold: u32,
+    pub mfps: Vec<String>,
+    pub policy_path: Vec<APIPolicyPath>,
+    /// Pre-peeked destination addresses. Caller must supply at least
+    /// `eligible_utxo_count` entries — one per UTXO. Excess addresses are
+    /// ignored. v1 builds 1-output txs; split (2-output) support lands in
+    /// a follow-up step and will consume 2 addresses per split tx.
+    pub dst_addresses: Vec<String>,
+    /// Optional allow-list of UTXOs (txid:vout). Empty = every confirmed UTXO.
+    pub selected_utxos: Vec<APICoinControl>,
+    /// Optional seed for deterministic planning (UI re-roll, tests). `None`
+    /// = OS RNG.
+    pub rng_seed: Option<u64>,
+}
+
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanRow {
+    pub psbt_id: i64,
+    pub utxo_txid: String,
+    pub utxo_vout: u32,
+    pub amount_sat: u64,
+    pub conf_height: Option<u32>,
+    pub nlocktime_delta_blocks: u32,
+    /// Absolute block height (tip_height + delta) at which auto-broadcast
+    /// will fire. Useful for UI ETAs.
+    pub abs_nlocktime: u32,
+    pub feerate_sat_per_vb: f64,
+    pub fee_sat: u64,
+    pub net_out_sat: u64,
+    /// 1 entry for a single-output tx; 2 entries when `split == true`.
+    pub recipient_addresses: Vec<String>,
+    /// Parallel to `recipient_addresses` — the per-output amount BDK
+    /// actually assigned. Reading these is preferable to reverse-engineering
+    /// the split from `net_out_sat` × `split_ratio`.
+    pub recipient_amounts_sat: Vec<u64>,
+    /// True when this row was emitted as 2 outputs to break the
+    /// change-output heuristic (§3 split rule).
+    pub split: bool,
+    /// Target ratio used to sample the split (≈ first-output share). The
+    /// realised ratio may differ slightly because BDK pays the fee from
+    /// the drain output. `None` when `split == false`.
+    pub split_ratio: Option<f64>,
+    /// "Inheritable" label derived from the source UTXO — its effective
+    /// coin label, or a generated fallback (see `default_plan_label`).
+    /// In `Refresh` plans this is also what gets written onto the
+    /// PSBT/tx row; in `Migrate` plans the PSBT/tx itself carries the
+    /// fixed `"Migration → <wallet_name>"` string instead, and this
+    /// field is only used by the cubit to seed the destination
+    /// wallet's `address_labels` (the source DB can't reach the dst).
+    pub label: String,
+}
+
+/// Full read of a spaced TX plan and its (still-pending) child PSBTs.
+///
+/// Once a child PSBT auto-broadcasts, its `unsigned_txs` row is deleted
+/// by `try_auto_broadcast_one`. The running view should correlate the
+/// missing rows with the wallet's tx history (or with the
+/// `autoBroadcasted` events emitted by `WalletSyncService`).
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanDetailRow {
+    pub psbt_id: i64,
+    pub utxo_txid: String,
+    pub utxo_vout: u32,
+    pub amount_sat: u64,
+    pub fee_sat: u64,
+    pub abs_nlocktime: u32,
+    pub auto_broadcast: bool,
+    pub has_spent_inputs: bool,
+    pub recipients: Vec<APIRecipient>,
+}
+
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanDetail {
+    pub plan_id: i64,
+    pub kind: String,
+    pub dst_wallet_path: String,
+    pub status: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub feerate_min_msatvb: u64,
+    pub feerate_max_msatvb: u64,
+    pub delay_blocks_min: u32,
+    pub delay_blocks_max: u32,
+    pub split_probability: f64,
+    pub min_split_output: u64,
+    pub spend_path_id: u32,
+    /// Children still in `unsigned_txs` (i.e. not yet broadcast).
+    pub rows: Vec<APISpacedPlanDetailRow>,
+}
+
+#[derive(Clone, Debug)]
+pub struct APICommitSpacedPlanReport {
+    pub plan_id: i64,
+    /// `true` when every child PSBT was fully signed and the plan moved to
+    /// `SIGNED`. `false` when at least one PSBT lacks signatures — caller
+    /// shows `unsigned_psbt_ids` so the user can finish signing.
+    pub committed: bool,
+    pub total_count: u32,
+    pub signed_count: u32,
+    pub unsigned_psbt_ids: Vec<i64>,
+}
+
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanSummary {
+    pub plan_id: i64,
+    pub tip_height: u32,
+    pub rows: Vec<APISpacedPlanRow>,
+    pub total_amount_sat: u64,
+    pub total_fee_sat: u64,
+    pub dropped_utxo_count: u32,
+}
+
+/// One auto-label entry handed to
+/// [`APIWallet::set_spaced_plan_address_labels`] so the cubit can seed
+/// the destination wallet's `address_labels` for a `Migrate` plan.
+///
+/// `source_entity` is reconstructed inside Rust from `(plan_id,
+/// src_txid, src_vout)` to keep the encoding canonical and to let
+/// `clear_spaced_plan_labels(plan_id)` sweep these rows on cancel.
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanAddressLabel {
+    pub plan_id: i64,
+    pub src_txid: String,
+    pub src_vout: u32,
+    pub address: String,
+    pub label: String,
+}
+
+/// One child PSBT of a spaced plan, packed for batch signing.
+///
+/// Returned by `prepare_spaced_plan_psbts` so the cubit/UI can drive a
+/// single signing ceremony over every row without re-reading the wallet
+/// once per PSBT.
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanChildPsbt {
+    pub psbt_id: i64,
+    pub psbt_b64: String,
+    pub signers: Vec<APIPsbtSignerStatus>,
+    pub is_finalized: bool,
+}
+
+/// One signed PSBT in a batch handed back to
+/// `apply_spaced_plan_signed_psbts`. `psbt_id` must reference a child of
+/// the target plan or the call rejects with an error before any merge
+/// runs.
+#[derive(Clone, Debug)]
+pub struct APISignedChildPsbt {
+    pub psbt_id: i64,
+    pub signed_b64: String,
+}
+
+/// Result of a batch sign / merge operation. The cubit feeds this into
+/// the draft view's per-row badges (✓ / ✗ / ⌛) without re-reading the
+/// plan.
+///
+/// `signed_ids` lists ids whose updated PSBT row now carries the new
+/// signatures; `failed` lists ids that errored out, with the underlying
+/// message. The two lists never overlap. Ids that the caller did not
+/// touch in this batch are absent from both.
+#[derive(Clone, Debug)]
+pub struct APIBatchSignReport {
+    pub plan_id: i64,
+    pub total: u32,
+    pub signed_ids: Vec<i64>,
+    pub failed: Vec<APIBatchSignFailure>,
+}
+
+#[derive(Clone, Debug)]
+pub struct APIBatchSignFailure {
+    pub psbt_id: i64,
+    pub error: String,
+}
+
+/// Plan-level signing context (descriptor + policy info) plus every
+/// pending child PSBT. Plan-level fields are hoisted out of the per-row
+/// struct because they are constant for the whole plan.
+#[derive(Clone, Debug)]
+pub struct APISpacedPlanSigningBundle {
+    pub plan_id: i64,
+    pub descriptor: String,
+    pub network: APINetwork,
+    pub threshold: u32,
+    pub mfps: Vec<String>,
+    /// Per-MFP change index for the plan's spend path. Mirrors
+    /// `APISpendPath.key_changes` and feeds straight into the HW
+    /// signing sheet (`keyChanges` parameter) for multi-leaf taproot.
+    pub key_changes: std::collections::HashMap<String, u32>,
+    pub children: Vec<APISpacedPlanChildPsbt>,
 }
 
 // ─── KeychainKind ↔ APIKeychain ──────────────────────────────────────────────

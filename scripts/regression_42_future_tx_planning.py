@@ -18,7 +18,7 @@ Coverage (mirrors the user-confirmed scope):
      "≈ 144 blocks · unlock at block <height>".
   2. Sign with the owner hot key. On the PSBT detail screen, verify the
      primary broadcast button is replaced by the locked variant
-     ("Cannot broadcast until block <h> (~<eta>)") and that it is disabled.
+     ("Locked · <eta> (<n> blocks left)") and that it is disabled.
   3. Toggle the "Broadcast automatically when unlocked" switch on. Reopen
      the PSBT and verify the switch state persists (auto_broadcast = true).
   4. Back on the Transactions tab, verify the action icon for the PSBT row
@@ -240,11 +240,12 @@ async def phase_sign_and_verify_locked(d: UIDriver):
                    retries=15, delay=0.8)
     print("    [ok] signed")
 
-    # The Broadcast button label flips to the locked variant.
+    # The Broadcast button label flips to the locked variant
+    # (psbtLockedTooltip: "Locked · {eta} ({blocks} blocks left)").
     sem = await d.cs_flat_text()
-    if "Cannot broadcast until block" not in sem:
+    if "Locked" not in sem or "blocks left" not in sem:
         raise AssertionError(
-            "Expected locked broadcast button text 'Cannot broadcast until block <h>' "
+            "Expected locked broadcast button text 'Locked · <eta> (<n> blocks left)' "
             "but it was not present after signing."
         )
     print("    [ok] broadcast button shows locked state")

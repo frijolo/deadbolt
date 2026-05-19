@@ -1,5 +1,5 @@
 use super::*;
-use crate::core::wallet_persistence::labels::ensure_column;
+use crate::core::wallet_persistence::labels::{ensure_coin_labels_table, ensure_column};
 use crate::core::wallet_persistence::migrations::run_wallet_migrations;
 use crate::core::wallet_persistence::open_encrypted_connection;
 use crate::test_support::KEY_HEX;
@@ -24,21 +24,44 @@ fn column_set(conn: &Connection, table: &str) -> HashSet<String> {
 
 #[test]
 fn ensure_column_adds_when_absent() -> Result<()> {
+    // `ensure_column`'s `validate_table_name` allowlist (commit 3e3a8b7)
+    // only accepts real production tables. Use the raw `coin_labels`
+    // base schema *without* `ensure_coin_labels_table` (which would have
+    // already added `is_auto` and `source_entity`), so the "add when
+    // absent" branch is exercised.
     let (conn, _dir) = open_test_db();
-    conn.execute_batch("CREATE TABLE t (id INTEGER);")?;
-    ensure_column(&conn, "t", "extra", "TEXT")?;
-    assert!(column_set(&conn, "t").contains("extra"));
+    conn.execute_batch(
+        "CREATE TABLE coin_labels (
+            outpoint TEXT PRIMARY KEY,
+            label    TEXT NOT NULL
+        );",
+    )?;
+    assert!(!column_set(&conn, "coin_labels").contains("is_auto"));
+    ensure_column(
+        &conn,
+        "coin_labels",
+        "is_auto",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    assert!(column_set(&conn, "coin_labels").contains("is_auto"));
     Ok(())
 }
 
 #[test]
 fn ensure_column_is_idempotent() -> Result<()> {
     let (conn, _dir) = open_test_db();
-    conn.execute_batch("CREATE TABLE t (id INTEGER, extra TEXT);")?;
-    conn.execute("INSERT INTO t (id, extra) VALUES (1, 'keep')", [])?;
-    ensure_column(&conn, "t", "extra", "TEXT")?;
-    ensure_column(&conn, "t", "extra", "TEXT")?;
-    let kept: String = conn.query_row("SELECT extra FROM t WHERE id = 1", [], |r| r.get(0))?;
+    ensure_coin_labels_table(&conn)?;
+    conn.execute(
+        "INSERT INTO coin_labels (outpoint, label) VALUES ('abc:0', 'keep')",
+        [],
+    )?;
+    ensure_column(&conn, "coin_labels", "source_entity", "TEXT")?;
+    ensure_column(&conn, "coin_labels", "source_entity", "TEXT")?;
+    let kept: String = conn.query_row(
+        "SELECT label FROM coin_labels WHERE outpoint = 'abc:0'",
+        [],
+        |r| r.get(0),
+    )?;
     assert_eq!(kept, "keep");
     Ok(())
 }

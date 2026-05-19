@@ -284,14 +284,35 @@ void showQrDialog(
 /// Starts animating immediately with default density and speed settings.
 /// Suitable for embedding inside bottom sheets or screens where the user
 /// should not need to tap to see the animated frames.
+///
+/// When [showControls] is true, density and speed sliders are rendered
+/// below the QR so the user can tune the dynamic QR like in the
+/// full-screen [_QrDialog].
 class BcurQrView extends StatefulWidget {
   final Uint8List urBytes;
   final String urType;
+  final bool showControls;
+
+  /// Initial density/speed slider positions. Persisted across instances by
+  /// the parent (which holds the source of truth) so the user's choice
+  /// survives widget rebuilds caused by a changed [key] — e.g. when a
+  /// batch-signing screen advances to the next PSBT.
+  final int? initialDensityIdx;
+  final int? initialSpeedIdx;
+
+  /// Fires whenever the user releases either slider. The parent should
+  /// store these so the next instance can be seeded via [initialDensityIdx]
+  /// / [initialSpeedIdx].
+  final void Function(int densityIdx, int speedIdx)? onSettingsChanged;
 
   const BcurQrView({
     super.key,
     required this.urBytes,
     required this.urType,
+    this.showControls = false,
+    this.initialDensityIdx,
+    this.initialSpeedIdx,
+    this.onSettingsChanged,
   });
 
   @override
@@ -305,9 +326,14 @@ class _BcurQrViewState extends State<BcurQrView> {
   int _seqTotal = 1;
   Timer? _timer;
 
+  late int _densityIdx;
+  late int _speedIdx;
+
   @override
   void initState() {
     super.initState();
+    _densityIdx = widget.initialDensityIdx ?? _kDensityDefault;
+    _speedIdx = widget.initialSpeedIdx ?? _kSpeedDefault;
     _startEncoder();
   }
 
@@ -321,14 +347,14 @@ class _BcurQrViewState extends State<BcurQrView> {
     _timer?.cancel();
     final bcur = BCUR.fromData(widget.urType, widget.urBytes);
     final fragSize =
-        _densityLevel(_kDensityDefault).fragBytes.clamp(1, widget.urBytes.length);
+        _densityLevel(_densityIdx).fragBytes.clamp(1, widget.urBytes.length);
     _encoder = BCURFountainEncoder(bcur, maxFragmentLength: fragSize);
     _currentFrame = _encoder!.nextPart();
     final (_, total) = _parseBcurSeqInfo(_currentFrame);
     _seqTotal = total;
     _seqIndex = 0;
     _timer = Timer.periodic(
-      Duration(milliseconds: _speedLevel(_kSpeedDefault).intervalMs),
+      Duration(milliseconds: _speedLevel(_speedIdx).intervalMs),
       (_) {
         if (!mounted) return;
         final frame = _encoder!.nextPart();
@@ -344,6 +370,14 @@ class _BcurQrViewState extends State<BcurQrView> {
 
   @override
   Widget build(BuildContext context) {
+    final dimStyle = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: Colors.white54);
+    final labelStyle = Theme.of(context)
+        .textTheme
+        .labelSmall
+        ?.copyWith(color: Colors.white38, fontSize: 10);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -374,9 +408,86 @@ class _BcurQrViewState extends State<BcurQrView> {
               .labelSmall
               ?.copyWith(color: AppAccent.color),
         ),
+        if (widget.showControls) ...[
+          const SizedBox(height: 8),
+          buildBcurLabeledSlider(
+            title: 'Density',
+            labels: List.generate(_kDensityCount, (i) => _densityLevel(i).label),
+            value: _densityIdx,
+            onChanged: (v) => setState(() => _densityIdx = v),
+            onChangeEnd: () {
+              _startEncoder();
+              widget.onSettingsChanged?.call(_densityIdx, _speedIdx);
+            },
+            dimStyle: dimStyle,
+            labelStyle: labelStyle,
+          ),
+          buildBcurLabeledSlider(
+            title: 'Speed',
+            labels: List.generate(_kSpeedCount, (i) => _speedLevel(i).label),
+            value: _speedIdx,
+            onChanged: (v) => setState(() => _speedIdx = v),
+            onChangeEnd: () {
+              _startEncoder();
+              widget.onSettingsChanged?.call(_densityIdx, _speedIdx);
+            },
+            dimStyle: dimStyle,
+            labelStyle: labelStyle,
+          ),
+        ],
       ],
     );
   }
+}
+
+/// Slider with a title on the left and always-visible level labels below
+/// the track. Shared between [_QrDialog] and [BcurQrView] so the BC-UR
+/// density/speed controls look identical in both surfaces.
+Widget buildBcurLabeledSlider({
+  required String title,
+  required List<String> labels,
+  required int value,
+  required void Function(int) onChanged,
+  required VoidCallback onChangeEnd,
+  required TextStyle? dimStyle,
+  required TextStyle? labelStyle,
+}) {
+  const double titleWidth = 64;
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: titleWidth,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Text(title, style: dimStyle),
+        ),
+      ),
+      Expanded(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Slider(
+              value: value.toDouble(),
+              min: 0,
+              max: (labels.length - 1).toDouble(),
+              divisions: labels.length - 1,
+              onChanged: (v) => onChanged(v.round()),
+              onChangeEnd: (_) => onChangeEnd(),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children:
+                    labels.map((l) => Text(l, style: labelStyle)).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -463,58 +574,6 @@ class _QrDialogState extends State<_QrDialog> {
       _encoder = null;
       setState(() => _isAnimated = false);
     }
-  }
-
-  /// Slider with a title on the left and always-visible level labels below the track.
-  Widget _buildLabeledSlider({
-    required String title,
-    required List<String> labels,
-    required int value,
-    required void Function(int) onChanged,
-    required VoidCallback onChangeEnd,
-    required TextStyle? dimStyle,
-    required TextStyle? labelStyle,
-  }) {
-    // Fixed width keeps both slider tracks aligned regardless of title length.
-    const double titleWidth = 64;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: titleWidth,
-          child: Padding(
-            // Align vertically with the slider thumb (~20dp top padding inside Slider).
-            padding: const EdgeInsets.only(top: 14),
-            child: Text(title, style: dimStyle),
-          ),
-        ),
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Slider(
-                value: value.toDouble(),
-                min: 0,
-                max: (labels.length - 1).toDouble(),
-                divisions: labels.length - 1,
-                onChanged: (v) => onChanged(v.round()),
-                onChangeEnd: (_) => onChangeEnd(),
-              ),
-              // Padding matches the slider's internal horizontal inset.
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: labels
-                      .map((l) => Text(l, style: labelStyle))
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -607,7 +666,7 @@ class _QrDialogState extends State<_QrDialog> {
 
                 // Density + Speed sliders — only in animated mode.
                 if (_isAnimated) ...[
-                  _buildLabeledSlider(
+                  buildBcurLabeledSlider(
                     title: 'Density',
                     labels: List.generate(_kDensityCount, (i) => _densityLevel(i).label),
                     value: _densityIdx,
@@ -616,7 +675,7 @@ class _QrDialogState extends State<_QrDialog> {
                     dimStyle: dimStyle,
                     labelStyle: labelStyle,
                   ),
-                  _buildLabeledSlider(
+                  buildBcurLabeledSlider(
                     title: 'Speed',
                     labels: List.generate(_kSpeedCount, (i) => _speedLevel(i).label),
                     value: _speedIdx,

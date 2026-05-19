@@ -11,6 +11,7 @@ pub mod migrations_dev;
 pub mod propagation;
 pub mod psbt_storage;
 pub mod seed_storage;
+pub mod tx_plan_storage;
 
 ////////////////////
 // WalletInfoRow  //

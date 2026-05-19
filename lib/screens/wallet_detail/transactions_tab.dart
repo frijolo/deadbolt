@@ -151,9 +151,13 @@ class _TransactionTile extends StatelessWidget {
         fee != null &&
         tx.sent - tx.received == fee;
     final isReceived = !isSelfTransfer && tx.received > tx.sent;
-    final netSats = isSelfTransfer
-        ? fee.toInt()
-        : (isReceived ? tx.received - tx.sent : tx.sent - tx.received).toInt();
+    final netSats = BitcoinFormatter.signedNetSats(
+      isSelfTransfer: isSelfTransfer,
+      isReceived: isReceived,
+      feeSat: fee?.toInt() ?? 0,
+      sentSat: tx.sent.toInt(),
+      receivedSat: tx.received.toInt(),
+    );
     final txType = isSelfTransfer
         ? l10n.txSelfTransfer
         : isReceived
@@ -253,7 +257,7 @@ class _TransactionTile extends StatelessWidget {
                 if (fiatPrice != null && fiatCurrency != null)
                   Text(
                     BitcoinFormatter.formatSatsFiat(
-                      isReceived && !isSelfTransfer ? netSats : -netSats,
+                      netSats,
                       fiatPrice!,
                       fiatCurrency!,
                     ),
@@ -342,10 +346,14 @@ class _PsbtTile extends StatelessWidget {
     final eta = psbt.unlockEta(tipHeight);
     if (eta != null) {
       final queued = psbt.autoBroadcast;
+      final blocksLeft = psbt.lockTime - tipHeight;
+      final locked = l10n.psbtLockedTooltip(
+        formatShortSlashed(eta),
+        blocksLeft > 0 ? blocksLeft : 0,
+      );
       final tooltip = queued
-          ? '${l10n.psbtAutoBroadcastQueuedTooltip} · '
-              '${l10n.psbtLockedTooltip(psbt.lockTime, shortDateWithTime(eta))}'
-          : l10n.psbtLockedTooltip(psbt.lockTime, shortDateWithTime(eta));
+          ? '${l10n.psbtAutoBroadcastQueuedTooltip} · $locked'
+          : locked;
       return Tooltip(
         message: tooltip,
         child: Padding(
@@ -444,7 +452,16 @@ class _PsbtTile extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          BitcoinFormatter.satsLabel(-psbt.amountSat.toInt(), showSign: true),
+          BitcoinFormatter.satsLabel(
+            BitcoinFormatter.signedNetSats(
+              isSelfTransfer: isSelfTransfer,
+              isReceived: false,
+              feeSat: psbt.feeSat.toInt(),
+              sentSat: psbt.amountSat.toInt(),
+              receivedSat: 0,
+            ),
+            showSign: true,
+          ),
           style: const TextStyle(
             color: AppAccent.color,
             fontWeight: FontWeight.w600,

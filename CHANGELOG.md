@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Spaced transaction planning** — A new wallet menu entry plans N future-dated, single-input transactions per confirmed UTXO with randomised feerates, staggered nLockTimes, optional 2-output anti-fingerprint split, and label propagation from source coins to destination addresses. Covers both refresh (same wallet) and migrate (different destination) in one unified flow, batch-signed via hot key, hardware wallet, or QR with two confirmation gates. Auto-broadcast emits each child as its timelock matures; a Reserved balance chip and per-coin earmark badge surface active plans.
 - **Future-dated transactions** — Create TX now exposes an optional broadcast delay (days / hours / minutes) that sets the PSBT's nLockTime to `max(tip, abs_timelock) + delta`, capped at ~1 year. Saved PSBTs gain an auto-broadcast switch; once the timelock matures, the next successful Electrum sync broadcasts them automatically and emits a toast. The transactions list shows a queued/locked badge with the unlock ETA.
 - **Generate mnemonic wizard** — A new 3-step in-app flow (generate → verify by typed positions → configure) lets you create a fresh BIP39 seed without leaving Deadbolt or relying on external tools. Entropy comes from the operating system's secure random source with additional hashing applied as defense-in-depth, and intermediate buffers are wiped from memory once the seed is handed off.
 

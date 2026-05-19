@@ -12,6 +12,7 @@ import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
+import 'package:deadbolt/screens/tx_planning/tx_planning_reserved_chip.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -443,6 +444,15 @@ class _CoinTile extends StatelessWidget {
                       tooltip: !isMempool ? l10n.cpfpAccelerate : null,
                     ),
                   ],
+                  // Spaced-TX-plan reservation badge. Renders nothing
+                  // until a TxPlanningCubit is provided (step 11) and
+                  // this outpoint is one of the plan's children.
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: TxPlanningReservedBadge(
+                      outpointKey: '${utxo.txid}:${utxo.vout}',
+                    ),
+                  ),
                   const Spacer(),
                   if (utxo.confirmationTime != null)
                     Text(

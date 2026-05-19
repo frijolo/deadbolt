@@ -431,11 +431,11 @@
   "@psbtLockedMaturity": {
     "placeholders": { "blocks": { "type": "int" } }
   },
-  "psbtLockedTooltip": "Cannot broadcast until block {height} (~{eta})",
+  "psbtLockedTooltip": "Locked · {eta} ({blocks} blocks left)",
   "@psbtLockedTooltip": {
     "placeholders": {
-      "height": { "type": "int" },
-      "eta": { "type": "String" }
+      "eta": { "type": "String" },
+      "blocks": { "type": "int" }
     }
   },
   "psbtBroadcastReady": "Ready to broadcast",
@@ -1421,5 +1421,349 @@
   "addKeyHotSourceXprvTitle": "Enter xprv",
   "@addKeyHotSourceXprvTitle": {},
   "addKeyHotSourceXprvSubtitle": "Paste a master xprv (depth 0).",
-  "@addKeyHotSourceXprvSubtitle": {}
+  "@addKeyHotSourceXprvSubtitle": {},
+  "txPlanningTitle": "Migrate UTXOs",
+  "@txPlanningTitle": {},
+  "txPlanningMenuEntry": "Migrate UTXOs…",
+  "@txPlanningMenuEntry": {},
+  "txPlanningIdleDescription": "Move every confirmed UTXO to fresh addresses spaced over time. Each transaction gets its own random feerate and nLockTime so auto-broadcast emits them as their timelock matures.",
+  "@txPlanningIdleDescription": {},
+  "txPlanningComputeButton": "Compute plan",
+  "@txPlanningComputeButton": {},
+  "txPlanningLastPlanTitle": "Last plan: {status}",
+  "@txPlanningLastPlanTitle": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "txPlanningLastPlanSubtitle": "Plan #{id}, {kind}",
+  "@txPlanningLastPlanSubtitle": {
+    "placeholders": {
+      "id": {"type": "int"},
+      "kind": {"type": "String"}
+    }
+  },
+  "txPlanningWalletNotLoaded": "Wallet not loaded",
+  "@txPlanningWalletNotLoaded": {},
+  "txPlanningNoConfirmedUtxos": "No confirmed UTXOs to plan",
+  "@txPlanningNoConfirmedUtxos": {},
+  "txPlanningTooFewAddresses": "Wallet has too few revealed addresses ({needed} needed). Generate more on the Receive screen first.",
+  "@txPlanningTooFewAddresses": {
+    "placeholders": {"needed": {"type": "int"}}
+  },
+  "txPlanningInvalidFeeRate": "Invalid fee rate",
+  "@txPlanningInvalidFeeRate": {},
+  "txPlanningFeeRateOrder": "Min fee must be ≤ max fee",
+  "@txPlanningFeeRateOrder": {},
+  "txPlanningInvalidDelay": "Invalid delay",
+  "@txPlanningInvalidDelay": {},
+  "txPlanningDelayOrder": "Min delay must be ≤ max delay",
+  "@txPlanningDelayOrder": {},
+  "txPlanningInvalidSplitProbability": "Invalid split probability",
+  "@txPlanningInvalidSplitProbability": {},
+  "txPlanningInvalidMinOutput": "Invalid min output",
+  "@txPlanningInvalidMinOutput": {},
+  "txPlanningPlanHeader": "Plan #{id} · {kind}",
+  "@txPlanningPlanHeader": {
+    "placeholders": {
+      "id": {"type": "int"},
+      "kind": {"type": "String"}
+    }
+  },
+  "txPlanningTxCountFee": "{count} transactions · total fee {fee} sats",
+  "@txPlanningTxCountFee": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "fee": {"type": "String"}
+    }
+  },
+  "txPlanningSummaryCoins": "Coins to transfer",
+  "txPlanningSummaryTotalAmount": "Total amount",
+  "txPlanningSummaryTotalFee": "Total fees",
+  "txPlanningSummarySigned": "Signed",
+  "txPlanningSignersTitle": "Signatures: {signed} of {threshold}",
+  "@txPlanningSignersTitle": {
+    "placeholders": {
+      "signed": {"type": "int"},
+      "threshold": {"type": "int"}
+    }
+  },
+  "txPlanningSignedRatio": "{signed} / {total} signed",
+  "@txPlanningSignedRatio": {
+    "placeholders": {
+      "signed": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "txPlanningUnsignedRemaining": "{count} transactions still need signatures.",
+  "@txPlanningUnsignedRemaining": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningCancelButton": "Cancel",
+  "@txPlanningCancelButton": {},
+  "txPlanningCommitButton": "Commit",
+  "@txPlanningCommitButton": {},
+  "txPlanningCancelDialogTitle": "Cancel plan?",
+  "@txPlanningCancelDialogTitle": {},
+  "txPlanningCancelDialogBody": "Every child PSBT will be deleted. Any signatures collected so far will be lost.",
+  "@txPlanningCancelDialogBody": {},
+  "txPlanningKeepButton": "Keep plan",
+  "@txPlanningKeepButton": {},
+  "txPlanningTxRowTitle": "Tx for {outpoint}",
+  "@txPlanningTxRowTitle": {
+    "placeholders": {"outpoint": {"type": "String"}}
+  },
+  "txPlanningTxRowSubtitle": "{amount} sats in · {fee} fee · matures at block {block}",
+  "@txPlanningTxRowSubtitle": {
+    "placeholders": {
+      "amount": {"type": "String"},
+      "fee": {"type": "String"},
+      "block": {"type": "int"}
+    }
+  },
+  "txPlanningRunningHeader": "Plan #{id} · running",
+  "@txPlanningRunningHeader": {
+    "placeholders": {"id": {"type": "int"}}
+  },
+  "txPlanningRunningSubtitle": "{count} transactions pending. Auto-broadcast fires as each timelock matures.",
+  "@txPlanningRunningSubtitle": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningJustBroadcast": "Just broadcast",
+  "@txPlanningJustBroadcast": {},
+  "txPlanningStopButton": "Stop",
+  "@txPlanningStopButton": {},
+  "txPlanningStopDialogTitle": "Stop plan?",
+  "@txPlanningStopDialogTitle": {},
+  "txPlanningStopDialogBody": "Pending transactions will be discarded. Anything already broadcast stays on chain.",
+  "@txPlanningStopDialogBody": {},
+  "txPlanningKeepRunningButton": "Keep running",
+  "@txPlanningKeepRunningButton": {},
+  "txPlanningStopShortButton": "Stop",
+  "@txPlanningStopShortButton": {},
+  "txPlanningRowInputsSpent": "Inputs spent",
+  "@txPlanningRowInputsSpent": {},
+  "txPlanningRowArmed": "Broadcasts at block {block}",
+  "@txPlanningRowArmed": {
+    "placeholders": {"block": {"type": "int"}}
+  },
+  "txPlanningRowArmedEta": "{datetime} ({blocks} blocks left)",
+  "@txPlanningRowArmedEta": {
+    "placeholders": {
+      "datetime": {"type": "String"},
+      "blocks": {"type": "int"}
+    }
+  },
+  "txPlanningRowIdle": "Idle",
+  "@txPlanningRowIdle": {},
+  "txPlanningRowAmountTitle": "{amount} sats · #{id}",
+  "@txPlanningRowAmountTitle": {
+    "placeholders": {
+      "amount": {"type": "int", "format": "decimalPattern"},
+      "id": {"type": "int"}
+    }
+  },
+  "txPlanningTerminalDone": "Plan complete",
+  "@txPlanningTerminalDone": {},
+  "txPlanningTerminalCancelled": "Plan cancelled",
+  "@txPlanningTerminalCancelled": {},
+  "txPlanningTerminalFailed": "Plan failed",
+  "@txPlanningTerminalFailed": {},
+  "txPlanningTerminalGeneric": "Plan {status}",
+  "@txPlanningTerminalGeneric": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "txPlanningNewPlanButton": "New plan",
+  "@txPlanningNewPlanButton": {},
+  "txPlanningBannerDraftTitle": "Plan ready to sign",
+  "@txPlanningBannerDraftTitle": {},
+  "txPlanningBannerDraftSubtitle": "{count} transactions queued · plan #{id}",
+  "@txPlanningBannerDraftSubtitle": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "id": {"type": "int"}
+    }
+  },
+  "txPlanningBannerRunningTitle": "Plan running",
+  "@txPlanningBannerRunningTitle": {},
+  "txPlanningBannerRunningSubtitle": "{count} pending · auto-broadcast on maturity",
+  "@txPlanningBannerRunningSubtitle": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningReservedBadge": "Plan",
+  "@txPlanningReservedBadge": {},
+  "txPlanningReservedBalance": "Planned {value}",
+  "@txPlanningReservedBalance": {
+    "placeholders": {"value": {"type": "String"}}
+  },
+  "txPlanningConfigTitle": "Configuration",
+  "@txPlanningConfigTitle": {},
+  "txPlanningDestinationLabel": "Destination",
+  "@txPlanningDestinationLabel": {},
+  "txPlanningDestinationSelf": "Same wallet (refresh)",
+  "@txPlanningDestinationSelf": {},
+  "txPlanningDestinationWallet": "{name} ({kind})",
+  "@txPlanningDestinationWallet": {
+    "placeholders": {"name": {"type": "String"}, "kind": {"type": "String"}}
+  },
+  "txPlanningSelectCoins": "Select coins",
+  "@txPlanningSelectCoins": {},
+  "txPlanningCoinsSelected": "{count} coins selected",
+  "@txPlanningCoinsSelected": {
+    "placeholders": {"count": {"type": "String"}}
+  },
+  "txPlanningAllCoins": "All coins",
+  "@txPlanningAllCoins": {},
+  "txPlanningSpendPathLabel": "Spend path",
+  "@txPlanningSpendPathLabel": {},
+  "txPlanningFeeRateMinLabel": "Min fee (sat/vB)",
+  "@txPlanningFeeRateMinLabel": {},
+  "txPlanningFeeRateMaxLabel": "Max fee (sat/vB)",
+  "@txPlanningFeeRateMaxLabel": {},
+  "txPlanningDelayMinLabel": "Min delay (blocks)",
+  "@txPlanningDelayMinLabel": {},
+  "txPlanningDelayMaxLabel": "Max delay (blocks)",
+  "@txPlanningDelayMaxLabel": {},
+  "txPlanningSplitProbabilityLabel": "Split probability",
+  "@txPlanningSplitProbabilityLabel": {},
+  "txPlanningMinOutputLabel": "Min output (sats)",
+  "@txPlanningMinOutputLabel": {},
+  "txPlanningFeeRange": "{min} – {max} sat/vB",
+  "@txPlanningFeeRange": {
+    "placeholders": {"min": {"type": "String"}, "max": {"type": "String"}}
+  },
+  "txPlanningDelayRange": "{min} – {max} blocks",
+  "@txPlanningDelayRange": {
+    "placeholders": {"min": {"type": "String"}, "max": {"type": "String"}}
+  },
+  "txPlanningComputePlanButton": "Compute plan",
+  "@txPlanningComputePlanButton": {},
+  "txPlanningMigrate": "migrate",
+  "@txPlanningMigrate": {},
+  "txPlanningRefresh": "refresh",
+  "@txPlanningRefresh": {},
+  "txPlanningSignAllButton": "Sign all…",
+  "@txPlanningSignAllButton": {},
+  "txPlanningCommitArmButton": "Broadcast",
+  "@txPlanningCommitArmButton": {},
+  "txPlanningSignerPickerTitle": "Choose signer",
+  "@txPlanningSignerPickerTitle": {},
+  "txPlanningSignerHotKey": "Hot key ({mfp})",
+  "@txPlanningSignerHotKey": {
+    "placeholders": {"mfp": {"type": "String"}}
+  },
+  "txPlanningSignerHotKeySubtitle": "Sign every PSBT in-app with this stored key",
+  "@txPlanningSignerHotKeySubtitle": {},
+  "txPlanningSignerHw": "Hardware wallet",
+  "@txPlanningSignerHw": {},
+  "txPlanningSignerHwSubtitle": "Sign every PSBT on the device, one tap per tx",
+  "@txPlanningSignerHwSubtitle": {},
+  "txPlanningSignerQr": "Offline signer (QR)",
+  "@txPlanningSignerQr": {},
+  "txPlanningSignerQrSubtitle": "Export every PSBT as animated QR, scan signed back",
+  "@txPlanningSignerQrSubtitle": {},
+  "txPlanningSignerComingSoon": "Coming soon",
+  "@txPlanningSignerComingSoon": {},
+  "txPlanningSignerNoHotKeys": "No hot keys available on this wallet.",
+  "@txPlanningSignerNoHotKeys": {},
+  "txPlanningConfirmBatchTitle": "Sign {count} transactions?",
+  "@txPlanningConfirmBatchTitle": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningConfirmBatchBody": "Total fee {fee} sats · signer: {signer}. The batch never asks twice — the next prompt will be the broadcast confirmation.",
+  "@txPlanningConfirmBatchBody": {
+    "placeholders": {"fee": {"type": "String"}, "signer": {"type": "String"}}
+  },
+  "txPlanningBatchProgress": "{signed} / {total} signed",
+  "@txPlanningBatchProgress": {
+    "placeholders": {"signed": {"type": "int"}, "total": {"type": "int"}}
+  },
+  "txPlanningBatchFailures": "{count} signing errors — review the failed rows.",
+  "@txPlanningBatchFailures": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningBadgeSigned": "Signed",
+  "@txPlanningBadgeSigned": {},
+  "txPlanningBadgePartial": "Partial ({signed}/{threshold})",
+  "@txPlanningBadgePartial": {
+    "placeholders": {"signed": {"type": "int"}, "threshold": {"type": "int"}}
+  },
+  "txPlanningBadgeUnsigned": "Unsigned",
+  "@txPlanningBadgeUnsigned": {},
+  "txPlanningBadgeFailed": "Error",
+  "@txPlanningBadgeFailed": {},
+  "txPlanningHwBatchTitle": "Sign batch with hardware wallet",
+  "@txPlanningHwBatchTitle": {},
+  "txPlanningHwBatchReady": "Ready to sign {count} transactions",
+  "@txPlanningHwBatchReady": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningHwBatchStartButton": "Start signing",
+  "@txPlanningHwBatchStartButton": {},
+  "txPlanningHwBatchProgress": "Signing {current} of {total}…",
+  "@txPlanningHwBatchProgress": {
+    "placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}
+  },
+  "txPlanningHwBatchAbortButton": "Stop",
+  "@txPlanningHwBatchAbortButton": {},
+  "txPlanningHwBatchApplying": "Merging signatures…",
+  "@txPlanningHwBatchApplying": {},
+  "txPlanningHwBatchRetryButton": "Retry transaction {current}",
+  "@txPlanningHwBatchRetryButton": {
+    "placeholders": {"current": {"type": "int"}}
+  },
+  "txPlanningHwBatchFinishEarlyButton": "Finish with {signed} signed",
+  "@txPlanningHwBatchFinishEarlyButton": {
+    "placeholders": {"signed": {"type": "int"}}
+  },
+  "txPlanningMfpPickerTitle": "Choose signing key",
+  "@txPlanningMfpPickerTitle": {},
+  "txPlanningMfpPickerSubtitle": "Pick which key you will sign with. Transactions already signed by this key will be skipped.",
+  "@txPlanningMfpPickerSubtitle": {},
+  "txPlanningMfpPickerPending": "{pending} / {total} pending",
+  "@txPlanningMfpPickerPending": {
+    "placeholders": {"pending": {"type": "int"}, "total": {"type": "int"}}
+  },
+  "txPlanningHwBatchWrongDevice": "This hardware wallet ({mfp}) is not part of the plan's signing keys.",
+  "@txPlanningHwBatchWrongDevice": {
+    "placeholders": {"mfp": {"type": "String"}}
+  },
+  "txPlanningHwBatchAllSigned": "This key has already signed every transaction in the plan.",
+  "@txPlanningHwBatchAllSigned": {},
+  "txPlanningQrSignTitle": "Sign batch via QR",
+  "@txPlanningQrSignTitle": {},
+  "txPlanningQrSignProgress": "{signed} of {total} signed",
+  "@txPlanningQrSignProgress": {
+    "placeholders": {"signed": {"type": "int"}, "total": {"type": "int"}}
+  },
+  "txPlanningQrSignCurrent": "Transaction {current} of {total}",
+  "@txPlanningQrSignCurrent": {
+    "placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}
+  },
+  "txPlanningQrSignHint": "Scan this QR on your offline signer, then tap “Scan signature” to capture the signed PSBT.",
+  "@txPlanningQrSignHint": {},
+  "txPlanningQrSignScanButton": "Scan signature",
+  "@txPlanningQrSignScanButton": {},
+  "txPlanningQrSignMismatchToast": "The scanned signature does not match this transaction.",
+  "@txPlanningQrSignMismatchToast": {},
+  "txPlanningQrSignNoNewSigToast": "The scanned PSBT did not add any new signature.",
+  "@txPlanningQrSignNoNewSigToast": {},
+  "txPlanningQrSignAllDone": "Batch fully signed.",
+  "@txPlanningQrSignAllDone": {},
+  "txPlanningConfirmCommitTitle": "Broadcast {count} transactions?",
+  "@txPlanningConfirmCommitTitle": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "txPlanningConfirmCommitBody": "Total fee {fee} sats. First broadcast around {earliest}, last around {latest}. Each transaction emits automatically when its timelock matures.",
+  "@txPlanningConfirmCommitBody": {
+    "placeholders": {
+      "fee": {"type": "String"},
+      "earliest": {"type": "String"},
+      "latest": {"type": "String"}
+    }
+  },
+  "txPlanningConfirmCommitBodyTipUnknown": "Total fee {fee} sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.",
+  "@txPlanningConfirmCommitBodyTipUnknown": {
+    "placeholders": {"fee": {"type": "String"}}
+  },
+  "txPlanningCommitConfirmButton": "Broadcast",
+  "@txPlanningCommitConfirmButton": {}
 }

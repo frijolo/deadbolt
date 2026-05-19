@@ -1799,8 +1799,8 @@ abstract class AppLocalizations {
   /// No description provided for @psbtLockedTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Cannot broadcast until block {height} (~{eta})'**
-  String psbtLockedTooltip(int height, String eta);
+  /// **'Locked · {eta} ({blocks} blocks left)'**
+  String psbtLockedTooltip(String eta, int blocks);
 
   /// No description provided for @psbtBroadcastReady.
   ///
@@ -5053,6 +5053,718 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste a master xprv (depth 0).'**
   String get addKeyHotSourceXprvSubtitle;
+
+  /// No description provided for @txPlanningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate UTXOs'**
+  String get txPlanningTitle;
+
+  /// No description provided for @txPlanningMenuEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate UTXOs…'**
+  String get txPlanningMenuEntry;
+
+  /// No description provided for @txPlanningIdleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Move every confirmed UTXO to fresh addresses spaced over time. Each transaction gets its own random feerate and nLockTime so auto-broadcast emits them as their timelock matures.'**
+  String get txPlanningIdleDescription;
+
+  /// No description provided for @txPlanningComputeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Compute plan'**
+  String get txPlanningComputeButton;
+
+  /// No description provided for @txPlanningLastPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Last plan: {status}'**
+  String txPlanningLastPlanTitle(String status);
+
+  /// No description provided for @txPlanningLastPlanSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan #{id}, {kind}'**
+  String txPlanningLastPlanSubtitle(int id, String kind);
+
+  /// No description provided for @txPlanningWalletNotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet not loaded'**
+  String get txPlanningWalletNotLoaded;
+
+  /// No description provided for @txPlanningNoConfirmedUtxos.
+  ///
+  /// In en, this message translates to:
+  /// **'No confirmed UTXOs to plan'**
+  String get txPlanningNoConfirmedUtxos;
+
+  /// No description provided for @txPlanningTooFewAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet has too few revealed addresses ({needed} needed). Generate more on the Receive screen first.'**
+  String txPlanningTooFewAddresses(int needed);
+
+  /// No description provided for @txPlanningInvalidFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid fee rate'**
+  String get txPlanningInvalidFeeRate;
+
+  /// No description provided for @txPlanningFeeRateOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Min fee must be ≤ max fee'**
+  String get txPlanningFeeRateOrder;
+
+  /// No description provided for @txPlanningInvalidDelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid delay'**
+  String get txPlanningInvalidDelay;
+
+  /// No description provided for @txPlanningDelayOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Min delay must be ≤ max delay'**
+  String get txPlanningDelayOrder;
+
+  /// No description provided for @txPlanningInvalidSplitProbability.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid split probability'**
+  String get txPlanningInvalidSplitProbability;
+
+  /// No description provided for @txPlanningInvalidMinOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid min output'**
+  String get txPlanningInvalidMinOutput;
+
+  /// No description provided for @txPlanningPlanHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan #{id} · {kind}'**
+  String txPlanningPlanHeader(int id, String kind);
+
+  /// No description provided for @txPlanningTxCountFee.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} transactions · total fee {fee} sats'**
+  String txPlanningTxCountFee(int count, String fee);
+
+  /// No description provided for @txPlanningSummaryCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Coins to transfer'**
+  String get txPlanningSummaryCoins;
+
+  /// No description provided for @txPlanningSummaryTotalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total amount'**
+  String get txPlanningSummaryTotalAmount;
+
+  /// No description provided for @txPlanningSummaryTotalFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Total fees'**
+  String get txPlanningSummaryTotalFee;
+
+  /// No description provided for @txPlanningSummarySigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed'**
+  String get txPlanningSummarySigned;
+
+  /// No description provided for @txPlanningSignersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signatures: {signed} of {threshold}'**
+  String txPlanningSignersTitle(int signed, int threshold);
+
+  /// No description provided for @txPlanningSignedRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'{signed} / {total} signed'**
+  String txPlanningSignedRatio(int signed, int total);
+
+  /// No description provided for @txPlanningUnsignedRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} transactions still need signatures.'**
+  String txPlanningUnsignedRemaining(int count);
+
+  /// No description provided for @txPlanningCancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get txPlanningCancelButton;
+
+  /// No description provided for @txPlanningCommitButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit'**
+  String get txPlanningCommitButton;
+
+  /// No description provided for @txPlanningCancelDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel plan?'**
+  String get txPlanningCancelDialogTitle;
+
+  /// No description provided for @txPlanningCancelDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every child PSBT will be deleted. Any signatures collected so far will be lost.'**
+  String get txPlanningCancelDialogBody;
+
+  /// No description provided for @txPlanningKeepButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep plan'**
+  String get txPlanningKeepButton;
+
+  /// No description provided for @txPlanningTxRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tx for {outpoint}'**
+  String txPlanningTxRowTitle(String outpoint);
+
+  /// No description provided for @txPlanningTxRowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} sats in · {fee} fee · matures at block {block}'**
+  String txPlanningTxRowSubtitle(String amount, String fee, int block);
+
+  /// No description provided for @txPlanningRunningHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan #{id} · running'**
+  String txPlanningRunningHeader(int id);
+
+  /// No description provided for @txPlanningRunningSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} transactions pending. Auto-broadcast fires as each timelock matures.'**
+  String txPlanningRunningSubtitle(int count);
+
+  /// No description provided for @txPlanningJustBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Just broadcast'**
+  String get txPlanningJustBroadcast;
+
+  /// No description provided for @txPlanningStopButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get txPlanningStopButton;
+
+  /// No description provided for @txPlanningStopDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop plan?'**
+  String get txPlanningStopDialogTitle;
+
+  /// No description provided for @txPlanningStopDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending transactions will be discarded. Anything already broadcast stays on chain.'**
+  String get txPlanningStopDialogBody;
+
+  /// No description provided for @txPlanningKeepRunningButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep running'**
+  String get txPlanningKeepRunningButton;
+
+  /// No description provided for @txPlanningStopShortButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get txPlanningStopShortButton;
+
+  /// No description provided for @txPlanningRowInputsSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs spent'**
+  String get txPlanningRowInputsSpent;
+
+  /// No description provided for @txPlanningRowArmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcasts at block {block}'**
+  String txPlanningRowArmed(int block);
+
+  /// No description provided for @txPlanningRowArmedEta.
+  ///
+  /// In en, this message translates to:
+  /// **'{datetime} ({blocks} blocks left)'**
+  String txPlanningRowArmedEta(String datetime, int blocks);
+
+  /// No description provided for @txPlanningRowIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get txPlanningRowIdle;
+
+  /// No description provided for @txPlanningRowAmountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} sats · #{id}'**
+  String txPlanningRowAmountTitle(int amount, int id);
+
+  /// No description provided for @txPlanningTerminalDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan complete'**
+  String get txPlanningTerminalDone;
+
+  /// No description provided for @txPlanningTerminalCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan cancelled'**
+  String get txPlanningTerminalCancelled;
+
+  /// No description provided for @txPlanningTerminalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan failed'**
+  String get txPlanningTerminalFailed;
+
+  /// No description provided for @txPlanningTerminalGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan {status}'**
+  String txPlanningTerminalGeneric(String status);
+
+  /// No description provided for @txPlanningNewPlanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get txPlanningNewPlanButton;
+
+  /// No description provided for @txPlanningBannerDraftTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan ready to sign'**
+  String get txPlanningBannerDraftTitle;
+
+  /// No description provided for @txPlanningBannerDraftSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} transactions queued · plan #{id}'**
+  String txPlanningBannerDraftSubtitle(int count, int id);
+
+  /// No description provided for @txPlanningBannerRunningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan running'**
+  String get txPlanningBannerRunningTitle;
+
+  /// No description provided for @txPlanningBannerRunningSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending · auto-broadcast on maturity'**
+  String txPlanningBannerRunningSubtitle(int count);
+
+  /// No description provided for @txPlanningReservedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get txPlanningReservedBadge;
+
+  /// No description provided for @txPlanningReservedBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned {value}'**
+  String txPlanningReservedBalance(String value);
+
+  /// No description provided for @txPlanningConfigTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration'**
+  String get txPlanningConfigTitle;
+
+  /// No description provided for @txPlanningDestinationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination'**
+  String get txPlanningDestinationLabel;
+
+  /// No description provided for @txPlanningDestinationSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Same wallet (refresh)'**
+  String get txPlanningDestinationSelf;
+
+  /// No description provided for @txPlanningDestinationWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} ({kind})'**
+  String txPlanningDestinationWallet(String name, String kind);
+
+  /// No description provided for @txPlanningSelectCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'Select coins'**
+  String get txPlanningSelectCoins;
+
+  /// No description provided for @txPlanningCoinsSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} coins selected'**
+  String txPlanningCoinsSelected(String count);
+
+  /// No description provided for @txPlanningAllCoins.
+  ///
+  /// In en, this message translates to:
+  /// **'All coins'**
+  String get txPlanningAllCoins;
+
+  /// No description provided for @txPlanningSpendPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend path'**
+  String get txPlanningSpendPathLabel;
+
+  /// No description provided for @txPlanningFeeRateMinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min fee (sat/vB)'**
+  String get txPlanningFeeRateMinLabel;
+
+  /// No description provided for @txPlanningFeeRateMaxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max fee (sat/vB)'**
+  String get txPlanningFeeRateMaxLabel;
+
+  /// No description provided for @txPlanningDelayMinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min delay (blocks)'**
+  String get txPlanningDelayMinLabel;
+
+  /// No description provided for @txPlanningDelayMaxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max delay (blocks)'**
+  String get txPlanningDelayMaxLabel;
+
+  /// No description provided for @txPlanningSplitProbabilityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Split probability'**
+  String get txPlanningSplitProbabilityLabel;
+
+  /// No description provided for @txPlanningMinOutputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min output (sats)'**
+  String get txPlanningMinOutputLabel;
+
+  /// No description provided for @txPlanningFeeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{min} – {max} sat/vB'**
+  String txPlanningFeeRange(String min, String max);
+
+  /// No description provided for @txPlanningDelayRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{min} – {max} blocks'**
+  String txPlanningDelayRange(String min, String max);
+
+  /// No description provided for @txPlanningComputePlanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Compute plan'**
+  String get txPlanningComputePlanButton;
+
+  /// No description provided for @txPlanningMigrate.
+  ///
+  /// In en, this message translates to:
+  /// **'migrate'**
+  String get txPlanningMigrate;
+
+  /// No description provided for @txPlanningRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'refresh'**
+  String get txPlanningRefresh;
+
+  /// No description provided for @txPlanningSignAllButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign all…'**
+  String get txPlanningSignAllButton;
+
+  /// No description provided for @txPlanningCommitArmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get txPlanningCommitArmButton;
+
+  /// No description provided for @txPlanningSignerPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose signer'**
+  String get txPlanningSignerPickerTitle;
+
+  /// No description provided for @txPlanningSignerHotKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hot key ({mfp})'**
+  String txPlanningSignerHotKey(String mfp);
+
+  /// No description provided for @txPlanningSignerHotKeySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign every PSBT in-app with this stored key'**
+  String get txPlanningSignerHotKeySubtitle;
+
+  /// No description provided for @txPlanningSignerHw.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware wallet'**
+  String get txPlanningSignerHw;
+
+  /// No description provided for @txPlanningSignerHwSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign every PSBT on the device, one tap per tx'**
+  String get txPlanningSignerHwSubtitle;
+
+  /// No description provided for @txPlanningSignerQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline signer (QR)'**
+  String get txPlanningSignerQr;
+
+  /// No description provided for @txPlanningSignerQrSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export every PSBT as animated QR, scan signed back'**
+  String get txPlanningSignerQrSubtitle;
+
+  /// No description provided for @txPlanningSignerComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get txPlanningSignerComingSoon;
+
+  /// No description provided for @txPlanningSignerNoHotKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'No hot keys available on this wallet.'**
+  String get txPlanningSignerNoHotKeys;
+
+  /// No description provided for @txPlanningConfirmBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign {count} transactions?'**
+  String txPlanningConfirmBatchTitle(int count);
+
+  /// No description provided for @txPlanningConfirmBatchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Total fee {fee} sats · signer: {signer}. The batch never asks twice — the next prompt will be the broadcast confirmation.'**
+  String txPlanningConfirmBatchBody(String fee, String signer);
+
+  /// No description provided for @txPlanningBatchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{signed} / {total} signed'**
+  String txPlanningBatchProgress(int signed, int total);
+
+  /// No description provided for @txPlanningBatchFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} signing errors — review the failed rows.'**
+  String txPlanningBatchFailures(int count);
+
+  /// No description provided for @txPlanningBadgeSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed'**
+  String get txPlanningBadgeSigned;
+
+  /// No description provided for @txPlanningBadgePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial ({signed}/{threshold})'**
+  String txPlanningBadgePartial(int signed, int threshold);
+
+  /// No description provided for @txPlanningBadgeUnsigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsigned'**
+  String get txPlanningBadgeUnsigned;
+
+  /// No description provided for @txPlanningBadgeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get txPlanningBadgeFailed;
+
+  /// No description provided for @txPlanningHwBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign batch with hardware wallet'**
+  String get txPlanningHwBatchTitle;
+
+  /// No description provided for @txPlanningHwBatchReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to sign {count} transactions'**
+  String txPlanningHwBatchReady(int count);
+
+  /// No description provided for @txPlanningHwBatchStartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start signing'**
+  String get txPlanningHwBatchStartButton;
+
+  /// No description provided for @txPlanningHwBatchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing {current} of {total}…'**
+  String txPlanningHwBatchProgress(int current, int total);
+
+  /// No description provided for @txPlanningHwBatchAbortButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get txPlanningHwBatchAbortButton;
+
+  /// No description provided for @txPlanningHwBatchApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging signatures…'**
+  String get txPlanningHwBatchApplying;
+
+  /// No description provided for @txPlanningHwBatchRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry transaction {current}'**
+  String txPlanningHwBatchRetryButton(int current);
+
+  /// No description provided for @txPlanningHwBatchFinishEarlyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish with {signed} signed'**
+  String txPlanningHwBatchFinishEarlyButton(int signed);
+
+  /// No description provided for @txPlanningMfpPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose signing key'**
+  String get txPlanningMfpPickerTitle;
+
+  /// No description provided for @txPlanningMfpPickerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick which key you will sign with. Transactions already signed by this key will be skipped.'**
+  String get txPlanningMfpPickerSubtitle;
+
+  /// No description provided for @txPlanningMfpPickerPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{pending} / {total} pending'**
+  String txPlanningMfpPickerPending(int pending, int total);
+
+  /// No description provided for @txPlanningHwBatchWrongDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This hardware wallet ({mfp}) is not part of the plan\'s signing keys.'**
+  String txPlanningHwBatchWrongDevice(String mfp);
+
+  /// No description provided for @txPlanningHwBatchAllSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'This key has already signed every transaction in the plan.'**
+  String get txPlanningHwBatchAllSigned;
+
+  /// No description provided for @txPlanningQrSignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign batch via QR'**
+  String get txPlanningQrSignTitle;
+
+  /// No description provided for @txPlanningQrSignProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{signed} of {total} signed'**
+  String txPlanningQrSignProgress(int signed, int total);
+
+  /// No description provided for @txPlanningQrSignCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction {current} of {total}'**
+  String txPlanningQrSignCurrent(int current, int total);
+
+  /// No description provided for @txPlanningQrSignHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this QR on your offline signer, then tap “Scan signature” to capture the signed PSBT.'**
+  String get txPlanningQrSignHint;
+
+  /// No description provided for @txPlanningQrSignScanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan signature'**
+  String get txPlanningQrSignScanButton;
+
+  /// No description provided for @txPlanningQrSignMismatchToast.
+  ///
+  /// In en, this message translates to:
+  /// **'The scanned signature does not match this transaction.'**
+  String get txPlanningQrSignMismatchToast;
+
+  /// No description provided for @txPlanningQrSignNoNewSigToast.
+  ///
+  /// In en, this message translates to:
+  /// **'The scanned PSBT did not add any new signature.'**
+  String get txPlanningQrSignNoNewSigToast;
+
+  /// No description provided for @txPlanningQrSignAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch fully signed.'**
+  String get txPlanningQrSignAllDone;
+
+  /// No description provided for @txPlanningConfirmCommitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast {count} transactions?'**
+  String txPlanningConfirmCommitTitle(int count);
+
+  /// No description provided for @txPlanningConfirmCommitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Total fee {fee} sats. First broadcast around {earliest}, last around {latest}. Each transaction emits automatically when its timelock matures.'**
+  String txPlanningConfirmCommitBody(
+    String fee,
+    String earliest,
+    String latest,
+  );
+
+  /// No description provided for @txPlanningConfirmCommitBodyTipUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Total fee {fee} sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.'**
+  String txPlanningConfirmCommitBodyTipUnknown(String fee);
+
+  /// No description provided for @txPlanningCommitConfirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get txPlanningCommitConfirmButton;
 }
 
 class _AppLocalizationsDelegate

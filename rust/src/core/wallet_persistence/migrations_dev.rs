@@ -27,6 +27,9 @@ pub fn apply_dev_schema(conn: &Connection) -> Result<()> {
         "auto_broadcast",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    // future-tx-planning: spaced TX plans. Adds `tx_plans` table plus the
+    // `plan_id` column on `unsigned_txs` linking each child PSBT to its plan.
+    super::tx_plan_storage::ensure_tx_plans_table(conn)?;
     Ok(())
 }
 

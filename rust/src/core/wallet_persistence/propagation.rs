@@ -30,7 +30,12 @@ fn set_coin_if_none(conn: &Connection, outpoint: &str, label: &str, source: &str
     Ok(())
 }
 
-fn set_address_if_none(conn: &Connection, address: &str, label: &str, source: &str) -> Result<()> {
+pub fn set_address_if_none(
+    conn: &Connection,
+    address: &str,
+    label: &str,
+    source: &str,
+) -> Result<()> {
     if !address_has_explicit_label(conn, address)? {
         set_address_label(conn, address, label, true, Some(source))?;
     }

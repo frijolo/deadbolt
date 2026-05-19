@@ -929,8 +929,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String psbtLockedTooltip(int height, String eta) {
-    return 'Cannot broadcast until block $height (~$eta)';
+  String psbtLockedTooltip(String eta, int blocks) {
+    return 'Locked · $eta ($blocks blocks left)';
   }
 
   @override
@@ -2758,4 +2758,458 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addKeyHotSourceXprvSubtitle => 'Paste a master xprv (depth 0).';
+
+  @override
+  String get txPlanningTitle => 'Migrate UTXOs';
+
+  @override
+  String get txPlanningMenuEntry => 'Migrate UTXOs…';
+
+  @override
+  String get txPlanningIdleDescription =>
+      'Move every confirmed UTXO to fresh addresses spaced over time. Each transaction gets its own random feerate and nLockTime so auto-broadcast emits them as their timelock matures.';
+
+  @override
+  String get txPlanningComputeButton => 'Compute plan';
+
+  @override
+  String txPlanningLastPlanTitle(String status) {
+    return 'Last plan: $status';
+  }
+
+  @override
+  String txPlanningLastPlanSubtitle(int id, String kind) {
+    return 'Plan #$id, $kind';
+  }
+
+  @override
+  String get txPlanningWalletNotLoaded => 'Wallet not loaded';
+
+  @override
+  String get txPlanningNoConfirmedUtxos => 'No confirmed UTXOs to plan';
+
+  @override
+  String txPlanningTooFewAddresses(int needed) {
+    return 'Wallet has too few revealed addresses ($needed needed). Generate more on the Receive screen first.';
+  }
+
+  @override
+  String get txPlanningInvalidFeeRate => 'Invalid fee rate';
+
+  @override
+  String get txPlanningFeeRateOrder => 'Min fee must be ≤ max fee';
+
+  @override
+  String get txPlanningInvalidDelay => 'Invalid delay';
+
+  @override
+  String get txPlanningDelayOrder => 'Min delay must be ≤ max delay';
+
+  @override
+  String get txPlanningInvalidSplitProbability => 'Invalid split probability';
+
+  @override
+  String get txPlanningInvalidMinOutput => 'Invalid min output';
+
+  @override
+  String txPlanningPlanHeader(int id, String kind) {
+    return 'Plan #$id · $kind';
+  }
+
+  @override
+  String txPlanningTxCountFee(int count, String fee) {
+    return '$count transactions · total fee $fee sats';
+  }
+
+  @override
+  String get txPlanningSummaryCoins => 'Coins to transfer';
+
+  @override
+  String get txPlanningSummaryTotalAmount => 'Total amount';
+
+  @override
+  String get txPlanningSummaryTotalFee => 'Total fees';
+
+  @override
+  String get txPlanningSummarySigned => 'Signed';
+
+  @override
+  String txPlanningSignersTitle(int signed, int threshold) {
+    return 'Signatures: $signed of $threshold';
+  }
+
+  @override
+  String txPlanningSignedRatio(int signed, int total) {
+    return '$signed / $total signed';
+  }
+
+  @override
+  String txPlanningUnsignedRemaining(int count) {
+    return '$count transactions still need signatures.';
+  }
+
+  @override
+  String get txPlanningCancelButton => 'Cancel';
+
+  @override
+  String get txPlanningCommitButton => 'Commit';
+
+  @override
+  String get txPlanningCancelDialogTitle => 'Cancel plan?';
+
+  @override
+  String get txPlanningCancelDialogBody =>
+      'Every child PSBT will be deleted. Any signatures collected so far will be lost.';
+
+  @override
+  String get txPlanningKeepButton => 'Keep plan';
+
+  @override
+  String txPlanningTxRowTitle(String outpoint) {
+    return 'Tx for $outpoint';
+  }
+
+  @override
+  String txPlanningTxRowSubtitle(String amount, String fee, int block) {
+    return '$amount sats in · $fee fee · matures at block $block';
+  }
+
+  @override
+  String txPlanningRunningHeader(int id) {
+    return 'Plan #$id · running';
+  }
+
+  @override
+  String txPlanningRunningSubtitle(int count) {
+    return '$count transactions pending. Auto-broadcast fires as each timelock matures.';
+  }
+
+  @override
+  String get txPlanningJustBroadcast => 'Just broadcast';
+
+  @override
+  String get txPlanningStopButton => 'Stop';
+
+  @override
+  String get txPlanningStopDialogTitle => 'Stop plan?';
+
+  @override
+  String get txPlanningStopDialogBody =>
+      'Pending transactions will be discarded. Anything already broadcast stays on chain.';
+
+  @override
+  String get txPlanningKeepRunningButton => 'Keep running';
+
+  @override
+  String get txPlanningStopShortButton => 'Stop';
+
+  @override
+  String get txPlanningRowInputsSpent => 'Inputs spent';
+
+  @override
+  String txPlanningRowArmed(int block) {
+    return 'Broadcasts at block $block';
+  }
+
+  @override
+  String txPlanningRowArmedEta(String datetime, int blocks) {
+    return '$datetime ($blocks blocks left)';
+  }
+
+  @override
+  String get txPlanningRowIdle => 'Idle';
+
+  @override
+  String txPlanningRowAmountTitle(int amount, int id) {
+    final intl.NumberFormat amountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    return '$amountString sats · #$id';
+  }
+
+  @override
+  String get txPlanningTerminalDone => 'Plan complete';
+
+  @override
+  String get txPlanningTerminalCancelled => 'Plan cancelled';
+
+  @override
+  String get txPlanningTerminalFailed => 'Plan failed';
+
+  @override
+  String txPlanningTerminalGeneric(String status) {
+    return 'Plan $status';
+  }
+
+  @override
+  String get txPlanningNewPlanButton => 'New plan';
+
+  @override
+  String get txPlanningBannerDraftTitle => 'Plan ready to sign';
+
+  @override
+  String txPlanningBannerDraftSubtitle(int count, int id) {
+    return '$count transactions queued · plan #$id';
+  }
+
+  @override
+  String get txPlanningBannerRunningTitle => 'Plan running';
+
+  @override
+  String txPlanningBannerRunningSubtitle(int count) {
+    return '$count pending · auto-broadcast on maturity';
+  }
+
+  @override
+  String get txPlanningReservedBadge => 'Plan';
+
+  @override
+  String txPlanningReservedBalance(String value) {
+    return 'Planned $value';
+  }
+
+  @override
+  String get txPlanningConfigTitle => 'Configuration';
+
+  @override
+  String get txPlanningDestinationLabel => 'Destination';
+
+  @override
+  String get txPlanningDestinationSelf => 'Same wallet (refresh)';
+
+  @override
+  String txPlanningDestinationWallet(String name, String kind) {
+    return '$name ($kind)';
+  }
+
+  @override
+  String get txPlanningSelectCoins => 'Select coins';
+
+  @override
+  String txPlanningCoinsSelected(String count) {
+    return '$count coins selected';
+  }
+
+  @override
+  String get txPlanningAllCoins => 'All coins';
+
+  @override
+  String get txPlanningSpendPathLabel => 'Spend path';
+
+  @override
+  String get txPlanningFeeRateMinLabel => 'Min fee (sat/vB)';
+
+  @override
+  String get txPlanningFeeRateMaxLabel => 'Max fee (sat/vB)';
+
+  @override
+  String get txPlanningDelayMinLabel => 'Min delay (blocks)';
+
+  @override
+  String get txPlanningDelayMaxLabel => 'Max delay (blocks)';
+
+  @override
+  String get txPlanningSplitProbabilityLabel => 'Split probability';
+
+  @override
+  String get txPlanningMinOutputLabel => 'Min output (sats)';
+
+  @override
+  String txPlanningFeeRange(String min, String max) {
+    return '$min – $max sat/vB';
+  }
+
+  @override
+  String txPlanningDelayRange(String min, String max) {
+    return '$min – $max blocks';
+  }
+
+  @override
+  String get txPlanningComputePlanButton => 'Compute plan';
+
+  @override
+  String get txPlanningMigrate => 'migrate';
+
+  @override
+  String get txPlanningRefresh => 'refresh';
+
+  @override
+  String get txPlanningSignAllButton => 'Sign all…';
+
+  @override
+  String get txPlanningCommitArmButton => 'Broadcast';
+
+  @override
+  String get txPlanningSignerPickerTitle => 'Choose signer';
+
+  @override
+  String txPlanningSignerHotKey(String mfp) {
+    return 'Hot key ($mfp)';
+  }
+
+  @override
+  String get txPlanningSignerHotKeySubtitle =>
+      'Sign every PSBT in-app with this stored key';
+
+  @override
+  String get txPlanningSignerHw => 'Hardware wallet';
+
+  @override
+  String get txPlanningSignerHwSubtitle =>
+      'Sign every PSBT on the device, one tap per tx';
+
+  @override
+  String get txPlanningSignerQr => 'Offline signer (QR)';
+
+  @override
+  String get txPlanningSignerQrSubtitle =>
+      'Export every PSBT as animated QR, scan signed back';
+
+  @override
+  String get txPlanningSignerComingSoon => 'Coming soon';
+
+  @override
+  String get txPlanningSignerNoHotKeys =>
+      'No hot keys available on this wallet.';
+
+  @override
+  String txPlanningConfirmBatchTitle(int count) {
+    return 'Sign $count transactions?';
+  }
+
+  @override
+  String txPlanningConfirmBatchBody(String fee, String signer) {
+    return 'Total fee $fee sats · signer: $signer. The batch never asks twice — the next prompt will be the broadcast confirmation.';
+  }
+
+  @override
+  String txPlanningBatchProgress(int signed, int total) {
+    return '$signed / $total signed';
+  }
+
+  @override
+  String txPlanningBatchFailures(int count) {
+    return '$count signing errors — review the failed rows.';
+  }
+
+  @override
+  String get txPlanningBadgeSigned => 'Signed';
+
+  @override
+  String txPlanningBadgePartial(int signed, int threshold) {
+    return 'Partial ($signed/$threshold)';
+  }
+
+  @override
+  String get txPlanningBadgeUnsigned => 'Unsigned';
+
+  @override
+  String get txPlanningBadgeFailed => 'Error';
+
+  @override
+  String get txPlanningHwBatchTitle => 'Sign batch with hardware wallet';
+
+  @override
+  String txPlanningHwBatchReady(int count) {
+    return 'Ready to sign $count transactions';
+  }
+
+  @override
+  String get txPlanningHwBatchStartButton => 'Start signing';
+
+  @override
+  String txPlanningHwBatchProgress(int current, int total) {
+    return 'Signing $current of $total…';
+  }
+
+  @override
+  String get txPlanningHwBatchAbortButton => 'Stop';
+
+  @override
+  String get txPlanningHwBatchApplying => 'Merging signatures…';
+
+  @override
+  String txPlanningHwBatchRetryButton(int current) {
+    return 'Retry transaction $current';
+  }
+
+  @override
+  String txPlanningHwBatchFinishEarlyButton(int signed) {
+    return 'Finish with $signed signed';
+  }
+
+  @override
+  String get txPlanningMfpPickerTitle => 'Choose signing key';
+
+  @override
+  String get txPlanningMfpPickerSubtitle =>
+      'Pick which key you will sign with. Transactions already signed by this key will be skipped.';
+
+  @override
+  String txPlanningMfpPickerPending(int pending, int total) {
+    return '$pending / $total pending';
+  }
+
+  @override
+  String txPlanningHwBatchWrongDevice(String mfp) {
+    return 'This hardware wallet ($mfp) is not part of the plan\'s signing keys.';
+  }
+
+  @override
+  String get txPlanningHwBatchAllSigned =>
+      'This key has already signed every transaction in the plan.';
+
+  @override
+  String get txPlanningQrSignTitle => 'Sign batch via QR';
+
+  @override
+  String txPlanningQrSignProgress(int signed, int total) {
+    return '$signed of $total signed';
+  }
+
+  @override
+  String txPlanningQrSignCurrent(int current, int total) {
+    return 'Transaction $current of $total';
+  }
+
+  @override
+  String get txPlanningQrSignHint =>
+      'Scan this QR on your offline signer, then tap “Scan signature” to capture the signed PSBT.';
+
+  @override
+  String get txPlanningQrSignScanButton => 'Scan signature';
+
+  @override
+  String get txPlanningQrSignMismatchToast =>
+      'The scanned signature does not match this transaction.';
+
+  @override
+  String get txPlanningQrSignNoNewSigToast =>
+      'The scanned PSBT did not add any new signature.';
+
+  @override
+  String get txPlanningQrSignAllDone => 'Batch fully signed.';
+
+  @override
+  String txPlanningConfirmCommitTitle(int count) {
+    return 'Broadcast $count transactions?';
+  }
+
+  @override
+  String txPlanningConfirmCommitBody(
+    String fee,
+    String earliest,
+    String latest,
+  ) {
+    return 'Total fee $fee sats. First broadcast around $earliest, last around $latest. Each transaction emits automatically when its timelock matures.';
+  }
+
+  @override
+  String txPlanningConfirmCommitBodyTipUnknown(String fee) {
+    return 'Total fee $fee sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.';
+  }
+
+  @override
+  String get txPlanningCommitConfirmButton => 'Broadcast';
 }

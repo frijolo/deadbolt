@@ -638,9 +638,7 @@ class _TxDetailDialogState extends State<TxDetailDialog> {
           )
         : null;
 
-    final netLabel = isSelfTransfer
-        ? '-${BitcoinFormatter.formatNum(netSats)} sats'
-        : '${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(netSats)} sats';
+    final netLabel = BitcoinFormatter.satsLabel(netSats, showSign: true);
     final netColor = isSelfTransfer
         ? Colors.blue
         : isReceived
@@ -1054,18 +1052,19 @@ class _RelatedTxRow extends StatelessWidget {
           fee != null &&
           fullTx.sent - fullTx.received == fee;
       isReceived = !isSelfTransfer && fullTx.received > fullTx.sent;
-      netSats = isSelfTransfer
-          ? fee.toInt()
-          : (isReceived
-                  ? fullTx.received - fullTx.sent
-                  : fullTx.sent - fullTx.received)
-              .toInt();
+      netSats = BitcoinFormatter.signedNetSats(
+        isSelfTransfer: isSelfTransfer,
+        isReceived: isReceived,
+        feeSat: fee?.toInt() ?? 0,
+        sentSat: fullTx.sent.toInt(),
+        receivedSat: fullTx.received.toInt(),
+      );
       apiTx = fullTx;
     } else {
       final net = tx.addrReceived.toInt() - tx.addrSpent.toInt();
       isSelfTransfer = false;
       isReceived = net >= 0;
-      netSats = net.abs();
+      netSats = net;
       apiTx = APITransaction(
         txid: tx.txid,
         received: tx.addrReceived,
@@ -1336,7 +1335,12 @@ class _PendingPsbtRow extends StatelessWidget {
                         )
                       : ColoredGroupText(text: title, truncate: true),
                   Text(
-                    '${BitcoinFormatter.formatNum(psbt.amountSat.toInt())} sats',
+                    BitcoinFormatter.satsLabel(
+                      psbt.isSelfTransfer
+                          ? -psbt.feeSat.toInt()
+                          : -psbt.amountSat.toInt(),
+                      showSign: true,
+                    ),
                     style: TextStyle(
                       fontSize: 11,
                       color: theme.colorScheme.onSurface

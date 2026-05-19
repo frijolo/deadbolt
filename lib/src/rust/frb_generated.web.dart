@@ -179,10 +179,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIBalance dco_decode_api_balance(dynamic raw);
 
   @protected
+  APIBatchSignFailure dco_decode_api_batch_sign_failure(dynamic raw);
+
+  @protected
+  APIBatchSignReport dco_decode_api_batch_sign_report(dynamic raw);
+
+  @protected
   APIBiometricSlot dco_decode_api_biometric_slot(dynamic raw);
 
   @protected
   APICoinControl dco_decode_api_coin_control(dynamic raw);
+
+  @protected
+  APICommitSpacedPlanReport dco_decode_api_commit_spaced_plan_report(
+    dynamic raw,
+  );
 
   @protected
   APICpfpInfo dco_decode_api_cpfp_info(dynamic raw);
@@ -282,6 +293,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APISecurityLevel dco_decode_api_security_level(dynamic raw);
 
   @protected
+  APISignedChildPsbt dco_decode_api_signed_child_psbt(dynamic raw);
+
+  @protected
+  APISpacedPlanAddressLabel dco_decode_api_spaced_plan_address_label(
+    dynamic raw,
+  );
+
+  @protected
+  APISpacedPlanChildPsbt dco_decode_api_spaced_plan_child_psbt(dynamic raw);
+
+  @protected
+  APISpacedPlanDetail dco_decode_api_spaced_plan_detail(dynamic raw);
+
+  @protected
+  APISpacedPlanDetailRow dco_decode_api_spaced_plan_detail_row(dynamic raw);
+
+  @protected
+  APISpacedPlanParams dco_decode_api_spaced_plan_params(dynamic raw);
+
+  @protected
+  APISpacedPlanRow dco_decode_api_spaced_plan_row(dynamic raw);
+
+  @protected
+  APISpacedPlanSigningBundle dco_decode_api_spaced_plan_signing_bundle(
+    dynamic raw,
+  );
+
+  @protected
+  APISpacedPlanSummary dco_decode_api_spaced_plan_summary(dynamic raw);
+
+  @protected
   APISpendPath dco_decode_api_spend_path(dynamic raw);
 
   @protected
@@ -352,6 +394,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIRelativeTimelock dco_decode_box_autoadd_api_relative_timelock(dynamic raw);
 
   @protected
+  APISpacedPlanParams dco_decode_box_autoadd_api_spaced_plan_params(
+    dynamic raw,
+  );
+
+  @protected
   APIWalletType dco_decode_box_autoadd_api_wallet_type(dynamic raw);
 
   @protected
@@ -400,6 +447,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<APIAutoBroadcastResult> dco_decode_list_api_auto_broadcast_result(
     dynamic raw,
   );
+
+  @protected
+  List<APIBatchSignFailure> dco_decode_list_api_batch_sign_failure(dynamic raw);
 
   @protected
   List<APIBiometricSlot> dco_decode_list_api_biometric_slot(dynamic raw);
@@ -451,6 +501,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIRelatedUtxo> dco_decode_list_api_related_utxo(dynamic raw);
+
+  @protected
+  List<APISignedChildPsbt> dco_decode_list_api_signed_child_psbt(dynamic raw);
+
+  @protected
+  List<APISpacedPlanAddressLabel> dco_decode_list_api_spaced_plan_address_label(
+    dynamic raw,
+  );
+
+  @protected
+  List<APISpacedPlanChildPsbt> dco_decode_list_api_spaced_plan_child_psbt(
+    dynamic raw,
+  );
+
+  @protected
+  List<APISpacedPlanDetail> dco_decode_list_api_spaced_plan_detail(dynamic raw);
+
+  @protected
+  List<APISpacedPlanDetailRow> dco_decode_list_api_spaced_plan_detail_row(
+    dynamic raw,
+  );
+
+  @protected
+  List<APISpacedPlanRow> dco_decode_list_api_spaced_plan_row(dynamic raw);
 
   @protected
   List<APISpendPath> dco_decode_list_api_spend_path(dynamic raw);
@@ -506,6 +580,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
+
+  @protected
+  Uint64List dco_decode_list_prim_u_64_strict(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -733,10 +810,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APIBalance sse_decode_api_balance(SseDeserializer deserializer);
 
   @protected
+  APIBatchSignFailure sse_decode_api_batch_sign_failure(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APIBatchSignReport sse_decode_api_batch_sign_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIBiometricSlot sse_decode_api_biometric_slot(SseDeserializer deserializer);
 
   @protected
   APICoinControl sse_decode_api_coin_control(SseDeserializer deserializer);
+
+  @protected
+  APICommitSpacedPlanReport sse_decode_api_commit_spaced_plan_report(
+    SseDeserializer deserializer,
+  );
 
   @protected
   APICpfpInfo sse_decode_api_cpfp_info(SseDeserializer deserializer);
@@ -854,6 +946,49 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   APISecurityLevel sse_decode_api_security_level(SseDeserializer deserializer);
 
   @protected
+  APISignedChildPsbt sse_decode_api_signed_child_psbt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanAddressLabel sse_decode_api_spaced_plan_address_label(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanChildPsbt sse_decode_api_spaced_plan_child_psbt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanDetail sse_decode_api_spaced_plan_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanDetailRow sse_decode_api_spaced_plan_detail_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanParams sse_decode_api_spaced_plan_params(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanRow sse_decode_api_spaced_plan_row(SseDeserializer deserializer);
+
+  @protected
+  APISpacedPlanSigningBundle sse_decode_api_spaced_plan_signing_bundle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  APISpacedPlanSummary sse_decode_api_spaced_plan_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APISpendPath sse_decode_api_spend_path(SseDeserializer deserializer);
 
   @protected
@@ -940,6 +1075,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APISpacedPlanParams sse_decode_box_autoadd_api_spaced_plan_params(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIWalletType sse_decode_box_autoadd_api_wallet_type(
     SseDeserializer deserializer,
   );
@@ -992,6 +1132,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIAutoBroadcastResult> sse_decode_list_api_auto_broadcast_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APIBatchSignFailure> sse_decode_list_api_batch_sign_failure(
     SseDeserializer deserializer,
   );
 
@@ -1071,6 +1216,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<APISignedChildPsbt> sse_decode_list_api_signed_child_psbt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APISpacedPlanAddressLabel> sse_decode_list_api_spaced_plan_address_label(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APISpacedPlanChildPsbt> sse_decode_list_api_spaced_plan_child_psbt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APISpacedPlanDetail> sse_decode_list_api_spaced_plan_detail(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APISpacedPlanDetailRow> sse_decode_list_api_spaced_plan_detail_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<APISpacedPlanRow> sse_decode_list_api_spaced_plan_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<APISpendPath> sse_decode_list_api_spend_path(
     SseDeserializer deserializer,
   );
@@ -1142,6 +1317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
+
+  @protected
+  Uint64List sse_decode_list_prim_u_64_strict(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -1421,6 +1599,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_api_balance(APIBalance self, SseSerializer serializer);
 
   @protected
+  void sse_encode_api_batch_sign_failure(
+    APIBatchSignFailure self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_batch_sign_report(
+    APIBatchSignReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_biometric_slot(
     APIBiometricSlot self,
     SseSerializer serializer,
@@ -1429,6 +1619,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_coin_control(
     APICoinControl self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_commit_spaced_plan_report(
+    APICommitSpacedPlanReport self,
     SseSerializer serializer,
   );
 
@@ -1580,6 +1776,60 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_signed_child_psbt(
+    APISignedChildPsbt self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_address_label(
+    APISpacedPlanAddressLabel self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_child_psbt(
+    APISpacedPlanChildPsbt self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_detail(
+    APISpacedPlanDetail self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_detail_row(
+    APISpacedPlanDetailRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_params(
+    APISpacedPlanParams self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_row(
+    APISpacedPlanRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_signing_bundle(
+    APISpacedPlanSigningBundle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_spaced_plan_summary(
+    APISpacedPlanSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_spend_path(APISpendPath self, SseSerializer serializer);
 
   @protected
@@ -1685,6 +1935,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_api_spaced_plan_params(
+    APISpacedPlanParams self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_api_wallet_type(
     APIWalletType self,
     SseSerializer serializer,
@@ -1748,6 +2004,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_auto_broadcast_result(
     List<APIAutoBroadcastResult> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_batch_sign_failure(
+    List<APIBatchSignFailure> self,
     SseSerializer serializer,
   );
 
@@ -1854,6 +2116,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_api_signed_child_psbt(
+    List<APISignedChildPsbt> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_spaced_plan_address_label(
+    List<APISpacedPlanAddressLabel> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_spaced_plan_child_psbt(
+    List<APISpacedPlanChildPsbt> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_spaced_plan_detail(
+    List<APISpacedPlanDetail> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_spaced_plan_detail_row(
+    List<APISpacedPlanDetailRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_spaced_plan_row(
+    List<APISpacedPlanRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_api_spend_path(
     List<APISpendPath> self,
     SseSerializer serializer,
@@ -1949,6 +2247,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_32_strict(
     Uint32List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_64_strict(
+    Uint64List self,
     SseSerializer serializer,
   );
 

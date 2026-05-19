@@ -930,8 +930,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String psbtLockedTooltip(int height, String eta) {
-    return 'No se puede emitir hasta el bloque $height (~$eta)';
+  String psbtLockedTooltip(String eta, int blocks) {
+    return 'Bloqueada · $eta ($blocks bloques restantes)';
   }
 
   @override
@@ -2780,4 +2780,461 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get addKeyHotSourceXprvSubtitle =>
       'Pega un xprv maestro (profundidad 0).';
+
+  @override
+  String get txPlanningTitle => 'Migrar UTXOs';
+
+  @override
+  String get txPlanningMenuEntry => 'Migrar UTXOs…';
+
+  @override
+  String get txPlanningIdleDescription =>
+      'Mueve cada UTXO confirmada a direcciones nuevas espaciadas en el tiempo. Cada transacción lleva su propio feerate aleatorio y nLockTime, y el auto-broadcast las emite a medida que vence su timelock.';
+
+  @override
+  String get txPlanningComputeButton => 'Calcular plan';
+
+  @override
+  String txPlanningLastPlanTitle(String status) {
+    return 'Último plan: $status';
+  }
+
+  @override
+  String txPlanningLastPlanSubtitle(int id, String kind) {
+    return 'Plan n.º $id, $kind';
+  }
+
+  @override
+  String get txPlanningWalletNotLoaded => 'Cartera no cargada';
+
+  @override
+  String get txPlanningNoConfirmedUtxos =>
+      'No hay UTXOs confirmadas para planificar';
+
+  @override
+  String txPlanningTooFewAddresses(int needed) {
+    return 'La cartera tiene pocas direcciones reveladas ($needed necesarias). Genera más en la pantalla de Recibir primero.';
+  }
+
+  @override
+  String get txPlanningInvalidFeeRate => 'Comisión inválida';
+
+  @override
+  String get txPlanningFeeRateOrder =>
+      'La comisión mínima debe ser ≤ a la máxima';
+
+  @override
+  String get txPlanningInvalidDelay => 'Retardo inválido';
+
+  @override
+  String get txPlanningDelayOrder => 'El retardo mínimo debe ser ≤ al máximo';
+
+  @override
+  String get txPlanningInvalidSplitProbability =>
+      'Probabilidad de división inválida';
+
+  @override
+  String get txPlanningInvalidMinOutput => 'Salida mínima inválida';
+
+  @override
+  String txPlanningPlanHeader(int id, String kind) {
+    return 'Plan n.º $id · $kind';
+  }
+
+  @override
+  String txPlanningTxCountFee(int count, String fee) {
+    return '$count transacciones · comisión total $fee sats';
+  }
+
+  @override
+  String get txPlanningSummaryCoins => 'Monedas a transferir';
+
+  @override
+  String get txPlanningSummaryTotalAmount => 'Importe total';
+
+  @override
+  String get txPlanningSummaryTotalFee => 'Comisiones totales';
+
+  @override
+  String get txPlanningSummarySigned => 'Firmadas';
+
+  @override
+  String txPlanningSignersTitle(int signed, int threshold) {
+    return 'Firmas: $signed de $threshold';
+  }
+
+  @override
+  String txPlanningSignedRatio(int signed, int total) {
+    return '$signed / $total firmadas';
+  }
+
+  @override
+  String txPlanningUnsignedRemaining(int count) {
+    return '$count transacciones aún sin firmar.';
+  }
+
+  @override
+  String get txPlanningCancelButton => 'Cancelar';
+
+  @override
+  String get txPlanningCommitButton => 'Confirmar';
+
+  @override
+  String get txPlanningCancelDialogTitle => '¿Cancelar el plan?';
+
+  @override
+  String get txPlanningCancelDialogBody =>
+      'Se eliminarán todos los PSBT hijos. Cualquier firma recopilada hasta ahora se perderá.';
+
+  @override
+  String get txPlanningKeepButton => 'Mantener plan';
+
+  @override
+  String txPlanningTxRowTitle(String outpoint) {
+    return 'Tx para $outpoint';
+  }
+
+  @override
+  String txPlanningTxRowSubtitle(String amount, String fee, int block) {
+    return '$amount sats entran · $fee comisión · vence en el bloque $block';
+  }
+
+  @override
+  String txPlanningRunningHeader(int id) {
+    return 'Plan n.º $id · en marcha';
+  }
+
+  @override
+  String txPlanningRunningSubtitle(int count) {
+    return '$count transacciones pendientes. El auto-broadcast emite cada una al vencer su timelock.';
+  }
+
+  @override
+  String get txPlanningJustBroadcast => 'Acabadas de emitir';
+
+  @override
+  String get txPlanningStopButton => 'Detener';
+
+  @override
+  String get txPlanningStopDialogTitle => '¿Detener el plan?';
+
+  @override
+  String get txPlanningStopDialogBody =>
+      'Las transacciones pendientes se descartarán. Lo ya emitido permanece en la cadena.';
+
+  @override
+  String get txPlanningKeepRunningButton => 'Seguir';
+
+  @override
+  String get txPlanningStopShortButton => 'Detener';
+
+  @override
+  String get txPlanningRowInputsSpent => 'Entradas gastadas';
+
+  @override
+  String txPlanningRowArmed(int block) {
+    return 'Se emite en el bloque $block';
+  }
+
+  @override
+  String txPlanningRowArmedEta(String datetime, int blocks) {
+    return '$datetime ($blocks bloques restantes)';
+  }
+
+  @override
+  String get txPlanningRowIdle => 'Inactiva';
+
+  @override
+  String txPlanningRowAmountTitle(int amount, int id) {
+    final intl.NumberFormat amountNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    return '$amountString sats · n.º $id';
+  }
+
+  @override
+  String get txPlanningTerminalDone => 'Plan completado';
+
+  @override
+  String get txPlanningTerminalCancelled => 'Plan cancelado';
+
+  @override
+  String get txPlanningTerminalFailed => 'Plan fallido';
+
+  @override
+  String txPlanningTerminalGeneric(String status) {
+    return 'Plan $status';
+  }
+
+  @override
+  String get txPlanningNewPlanButton => 'Nuevo plan';
+
+  @override
+  String get txPlanningBannerDraftTitle => 'Plan listo para firmar';
+
+  @override
+  String txPlanningBannerDraftSubtitle(int count, int id) {
+    return '$count transacciones en cola · plan n.º $id';
+  }
+
+  @override
+  String get txPlanningBannerRunningTitle => 'Plan en marcha';
+
+  @override
+  String txPlanningBannerRunningSubtitle(int count) {
+    return '$count pendientes · auto-broadcast al vencer';
+  }
+
+  @override
+  String get txPlanningReservedBadge => 'Plan';
+
+  @override
+  String txPlanningReservedBalance(String value) {
+    return 'Planificado $value';
+  }
+
+  @override
+  String get txPlanningConfigTitle => 'Configuración';
+
+  @override
+  String get txPlanningDestinationLabel => 'Destino';
+
+  @override
+  String get txPlanningDestinationSelf => 'Misma cartera (refrescar)';
+
+  @override
+  String txPlanningDestinationWallet(String name, String kind) {
+    return '$name ($kind)';
+  }
+
+  @override
+  String get txPlanningSelectCoins => 'Seleccionar monedas';
+
+  @override
+  String txPlanningCoinsSelected(String count) {
+    return '$count monedas seleccionadas';
+  }
+
+  @override
+  String get txPlanningAllCoins => 'Todas las monedas';
+
+  @override
+  String get txPlanningSpendPathLabel => 'Ruta de gasto';
+
+  @override
+  String get txPlanningFeeRateMinLabel => 'Comisión mín (sat/vB)';
+
+  @override
+  String get txPlanningFeeRateMaxLabel => 'Comisión máx (sat/vB)';
+
+  @override
+  String get txPlanningDelayMinLabel => 'Retraso mín (bloques)';
+
+  @override
+  String get txPlanningDelayMaxLabel => 'Retraso máx (bloques)';
+
+  @override
+  String get txPlanningSplitProbabilityLabel => 'Probabilidad de split';
+
+  @override
+  String get txPlanningMinOutputLabel => 'Salida mínima (sats)';
+
+  @override
+  String txPlanningFeeRange(String min, String max) {
+    return '$min – $max sat/vB';
+  }
+
+  @override
+  String txPlanningDelayRange(String min, String max) {
+    return '$min – $max bloques';
+  }
+
+  @override
+  String get txPlanningComputePlanButton => 'Calcular plan';
+
+  @override
+  String get txPlanningMigrate => 'migrar';
+
+  @override
+  String get txPlanningRefresh => 'refrescar';
+
+  @override
+  String get txPlanningSignAllButton => 'Firmar todo…';
+
+  @override
+  String get txPlanningCommitArmButton => 'Emitir';
+
+  @override
+  String get txPlanningSignerPickerTitle => 'Elegir firmante';
+
+  @override
+  String txPlanningSignerHotKey(String mfp) {
+    return 'Hot key ($mfp)';
+  }
+
+  @override
+  String get txPlanningSignerHotKeySubtitle =>
+      'Firma todas las PSBT en la app con esta clave guardada';
+
+  @override
+  String get txPlanningSignerHw => 'Hardware wallet';
+
+  @override
+  String get txPlanningSignerHwSubtitle =>
+      'Firma cada PSBT en el dispositivo, un toque por tx';
+
+  @override
+  String get txPlanningSignerQr => 'Firmante offline (QR)';
+
+  @override
+  String get txPlanningSignerQrSubtitle =>
+      'Exporta las PSBT como QR animado y escanea las firmadas';
+
+  @override
+  String get txPlanningSignerComingSoon => 'Próximamente';
+
+  @override
+  String get txPlanningSignerNoHotKeys =>
+      'Esta wallet no tiene hot keys disponibles.';
+
+  @override
+  String txPlanningConfirmBatchTitle(int count) {
+    return '¿Firmar $count transacciones?';
+  }
+
+  @override
+  String txPlanningConfirmBatchBody(String fee, String signer) {
+    return 'Comisión total $fee sats · firmante: $signer. El lote no vuelve a preguntar — la siguiente confirmación será para emitir.';
+  }
+
+  @override
+  String txPlanningBatchProgress(int signed, int total) {
+    return '$signed / $total firmadas';
+  }
+
+  @override
+  String txPlanningBatchFailures(int count) {
+    return '$count errores de firma — revisa las filas fallidas.';
+  }
+
+  @override
+  String get txPlanningBadgeSigned => 'Firmada';
+
+  @override
+  String txPlanningBadgePartial(int signed, int threshold) {
+    return 'Parcial ($signed/$threshold)';
+  }
+
+  @override
+  String get txPlanningBadgeUnsigned => 'Sin firmar';
+
+  @override
+  String get txPlanningBadgeFailed => 'Error';
+
+  @override
+  String get txPlanningHwBatchTitle => 'Firmar lote con hardware wallet';
+
+  @override
+  String txPlanningHwBatchReady(int count) {
+    return 'Listo para firmar $count transacciones';
+  }
+
+  @override
+  String get txPlanningHwBatchStartButton => 'Empezar a firmar';
+
+  @override
+  String txPlanningHwBatchProgress(int current, int total) {
+    return 'Firmando $current de $total…';
+  }
+
+  @override
+  String get txPlanningHwBatchAbortButton => 'Detener';
+
+  @override
+  String get txPlanningHwBatchApplying => 'Fusionando firmas…';
+
+  @override
+  String txPlanningHwBatchRetryButton(int current) {
+    return 'Reintentar transacción $current';
+  }
+
+  @override
+  String txPlanningHwBatchFinishEarlyButton(int signed) {
+    return 'Terminar con $signed firmadas';
+  }
+
+  @override
+  String get txPlanningMfpPickerTitle => 'Elige la llave de firma';
+
+  @override
+  String get txPlanningMfpPickerSubtitle =>
+      'Elige con qué llave vas a firmar. Las transacciones que esta llave ya haya firmado se omitirán.';
+
+  @override
+  String txPlanningMfpPickerPending(int pending, int total) {
+    return '$pending / $total pendientes';
+  }
+
+  @override
+  String txPlanningHwBatchWrongDevice(String mfp) {
+    return 'Este hardware wallet ($mfp) no forma parte de las llaves de firma del plan.';
+  }
+
+  @override
+  String get txPlanningHwBatchAllSigned =>
+      'Esta llave ya ha firmado todas las transacciones del plan.';
+
+  @override
+  String get txPlanningQrSignTitle => 'Firmar lote por QR';
+
+  @override
+  String txPlanningQrSignProgress(int signed, int total) {
+    return '$signed de $total firmadas';
+  }
+
+  @override
+  String txPlanningQrSignCurrent(int current, int total) {
+    return 'Transacción $current de $total';
+  }
+
+  @override
+  String get txPlanningQrSignHint =>
+      'Escanea esta QR en tu firmante offline, luego pulsa “Escanear firma” para capturar la PSBT firmada.';
+
+  @override
+  String get txPlanningQrSignScanButton => 'Escanear firma';
+
+  @override
+  String get txPlanningQrSignMismatchToast =>
+      'La firma escaneada no corresponde a esta transacción.';
+
+  @override
+  String get txPlanningQrSignNoNewSigToast =>
+      'El PSBT escaneado no añadió ninguna firma nueva.';
+
+  @override
+  String get txPlanningQrSignAllDone => 'Lote firmado por completo.';
+
+  @override
+  String txPlanningConfirmCommitTitle(int count) {
+    return '¿Emitir $count transacciones?';
+  }
+
+  @override
+  String txPlanningConfirmCommitBody(
+    String fee,
+    String earliest,
+    String latest,
+  ) {
+    return 'Comisión total $fee sats. Primer broadcast aprox. $earliest, último aprox. $latest. Cada transacción se emitirá sola al madurar su timelock.';
+  }
+
+  @override
+  String txPlanningConfirmCommitBodyTipUnknown(String fee) {
+    return 'Comisión total $fee sats. Las ventanas de broadcast dependen del tip de la cadena (aún no sincronizado). Cada transacción se emitirá sola al madurar su timelock.';
+  }
+
+  @override
+  String get txPlanningCommitConfirmButton => 'Emitir';
 }

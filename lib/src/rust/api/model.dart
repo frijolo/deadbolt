@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -238,6 +238,60 @@ class APIBalance {
           immature == other.immature;
 }
 
+class APIBatchSignFailure {
+  final PlatformInt64 psbtId;
+  final String error;
+
+  const APIBatchSignFailure({required this.psbtId, required this.error});
+
+  @override
+  int get hashCode => psbtId.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIBatchSignFailure &&
+          runtimeType == other.runtimeType &&
+          psbtId == other.psbtId &&
+          error == other.error;
+}
+
+/// Result of a batch sign / merge operation. The cubit feeds this into
+/// the draft view's per-row badges (✓ / ✗ / ⌛) without re-reading the
+/// plan.
+///
+/// `signed_ids` lists ids whose updated PSBT row now carries the new
+/// signatures; `failed` lists ids that errored out, with the underlying
+/// message. The two lists never overlap. Ids that the caller did not
+/// touch in this batch are absent from both.
+class APIBatchSignReport {
+  final PlatformInt64 planId;
+  final int total;
+  final Int64List signedIds;
+  final List<APIBatchSignFailure> failed;
+
+  const APIBatchSignReport({
+    required this.planId,
+    required this.total,
+    required this.signedIds,
+    required this.failed,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^ total.hashCode ^ signedIds.hashCode ^ failed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIBatchSignReport &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          total == other.total &&
+          signedIds == other.signedIds &&
+          failed == other.failed;
+}
+
 /// One registered biometric slot in a UserPassword or XpubKey wallet.
 class APIBiometricSlot {
   /// UUID v4 — used as the key identifier in the platform keystore.
@@ -272,6 +326,45 @@ class APICoinControl {
           runtimeType == other.runtimeType &&
           txid == other.txid &&
           vout == other.vout;
+}
+
+class APICommitSpacedPlanReport {
+  final PlatformInt64 planId;
+
+  /// `true` when every child PSBT was fully signed and the plan moved to
+  /// `SIGNED`. `false` when at least one PSBT lacks signatures — caller
+  /// shows `unsigned_psbt_ids` so the user can finish signing.
+  final bool committed;
+  final int totalCount;
+  final int signedCount;
+  final Int64List unsignedPsbtIds;
+
+  const APICommitSpacedPlanReport({
+    required this.planId,
+    required this.committed,
+    required this.totalCount,
+    required this.signedCount,
+    required this.unsignedPsbtIds,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^
+      committed.hashCode ^
+      totalCount.hashCode ^
+      signedCount.hashCode ^
+      unsignedPsbtIds.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APICommitSpacedPlanReport &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          committed == other.committed &&
+          totalCount == other.totalCount &&
+          signedCount == other.signedCount &&
+          unsignedPsbtIds == other.unsignedPsbtIds;
 }
 
 class APICpfpInfo {
@@ -1095,6 +1188,521 @@ enum APISecurityLevel {
 
   Future<int> tCost() =>
       RustLib.instance.api.crateApiModelApiSecurityLevelTCost(that: this);
+}
+
+/// One signed PSBT in a batch handed back to
+/// `apply_spaced_plan_signed_psbts`. `psbt_id` must reference a child of
+/// the target plan or the call rejects with an error before any merge
+/// runs.
+class APISignedChildPsbt {
+  final PlatformInt64 psbtId;
+  final String signedB64;
+
+  const APISignedChildPsbt({required this.psbtId, required this.signedB64});
+
+  @override
+  int get hashCode => psbtId.hashCode ^ signedB64.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISignedChildPsbt &&
+          runtimeType == other.runtimeType &&
+          psbtId == other.psbtId &&
+          signedB64 == other.signedB64;
+}
+
+/// One auto-label entry handed to
+/// [`APIWallet::set_spaced_plan_address_labels`] so the cubit can seed
+/// the destination wallet's `address_labels` for a `Migrate` plan.
+///
+/// `source_entity` is reconstructed inside Rust from `(plan_id,
+/// src_txid, src_vout)` to keep the encoding canonical and to let
+/// `clear_spaced_plan_labels(plan_id)` sweep these rows on cancel.
+class APISpacedPlanAddressLabel {
+  final PlatformInt64 planId;
+  final String srcTxid;
+  final int srcVout;
+  final String address;
+  final String label;
+
+  const APISpacedPlanAddressLabel({
+    required this.planId,
+    required this.srcTxid,
+    required this.srcVout,
+    required this.address,
+    required this.label,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^
+      srcTxid.hashCode ^
+      srcVout.hashCode ^
+      address.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanAddressLabel &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          srcTxid == other.srcTxid &&
+          srcVout == other.srcVout &&
+          address == other.address &&
+          label == other.label;
+}
+
+/// One child PSBT of a spaced plan, packed for batch signing.
+///
+/// Returned by `prepare_spaced_plan_psbts` so the cubit/UI can drive a
+/// single signing ceremony over every row without re-reading the wallet
+/// once per PSBT.
+class APISpacedPlanChildPsbt {
+  final PlatformInt64 psbtId;
+  final String psbtB64;
+  final List<APIPsbtSignerStatus> signers;
+  final bool isFinalized;
+
+  const APISpacedPlanChildPsbt({
+    required this.psbtId,
+    required this.psbtB64,
+    required this.signers,
+    required this.isFinalized,
+  });
+
+  @override
+  int get hashCode =>
+      psbtId.hashCode ^
+      psbtB64.hashCode ^
+      signers.hashCode ^
+      isFinalized.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanChildPsbt &&
+          runtimeType == other.runtimeType &&
+          psbtId == other.psbtId &&
+          psbtB64 == other.psbtB64 &&
+          signers == other.signers &&
+          isFinalized == other.isFinalized;
+}
+
+class APISpacedPlanDetail {
+  final PlatformInt64 planId;
+  final String kind;
+  final String dstWalletPath;
+  final String status;
+  final PlatformInt64 createdAt;
+  final PlatformInt64 updatedAt;
+  final BigInt feerateMinMsatvb;
+  final BigInt feerateMaxMsatvb;
+  final int delayBlocksMin;
+  final int delayBlocksMax;
+  final double splitProbability;
+  final BigInt minSplitOutput;
+  final int spendPathId;
+
+  /// Children still in `unsigned_txs` (i.e. not yet broadcast).
+  final List<APISpacedPlanDetailRow> rows;
+
+  const APISpacedPlanDetail({
+    required this.planId,
+    required this.kind,
+    required this.dstWalletPath,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.feerateMinMsatvb,
+    required this.feerateMaxMsatvb,
+    required this.delayBlocksMin,
+    required this.delayBlocksMax,
+    required this.splitProbability,
+    required this.minSplitOutput,
+    required this.spendPathId,
+    required this.rows,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^
+      kind.hashCode ^
+      dstWalletPath.hashCode ^
+      status.hashCode ^
+      createdAt.hashCode ^
+      updatedAt.hashCode ^
+      feerateMinMsatvb.hashCode ^
+      feerateMaxMsatvb.hashCode ^
+      delayBlocksMin.hashCode ^
+      delayBlocksMax.hashCode ^
+      splitProbability.hashCode ^
+      minSplitOutput.hashCode ^
+      spendPathId.hashCode ^
+      rows.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanDetail &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          kind == other.kind &&
+          dstWalletPath == other.dstWalletPath &&
+          status == other.status &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          feerateMinMsatvb == other.feerateMinMsatvb &&
+          feerateMaxMsatvb == other.feerateMaxMsatvb &&
+          delayBlocksMin == other.delayBlocksMin &&
+          delayBlocksMax == other.delayBlocksMax &&
+          splitProbability == other.splitProbability &&
+          minSplitOutput == other.minSplitOutput &&
+          spendPathId == other.spendPathId &&
+          rows == other.rows;
+}
+
+/// Full read of a spaced TX plan and its (still-pending) child PSBTs.
+///
+/// Once a child PSBT auto-broadcasts, its `unsigned_txs` row is deleted
+/// by `try_auto_broadcast_one`. The running view should correlate the
+/// missing rows with the wallet's tx history (or with the
+/// `autoBroadcasted` events emitted by `WalletSyncService`).
+class APISpacedPlanDetailRow {
+  final PlatformInt64 psbtId;
+  final String utxoTxid;
+  final int utxoVout;
+  final BigInt amountSat;
+  final BigInt feeSat;
+  final int absNlocktime;
+  final bool autoBroadcast;
+  final bool hasSpentInputs;
+  final List<APIRecipient> recipients;
+
+  const APISpacedPlanDetailRow({
+    required this.psbtId,
+    required this.utxoTxid,
+    required this.utxoVout,
+    required this.amountSat,
+    required this.feeSat,
+    required this.absNlocktime,
+    required this.autoBroadcast,
+    required this.hasSpentInputs,
+    required this.recipients,
+  });
+
+  @override
+  int get hashCode =>
+      psbtId.hashCode ^
+      utxoTxid.hashCode ^
+      utxoVout.hashCode ^
+      amountSat.hashCode ^
+      feeSat.hashCode ^
+      absNlocktime.hashCode ^
+      autoBroadcast.hashCode ^
+      hasSpentInputs.hashCode ^
+      recipients.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanDetailRow &&
+          runtimeType == other.runtimeType &&
+          psbtId == other.psbtId &&
+          utxoTxid == other.utxoTxid &&
+          utxoVout == other.utxoVout &&
+          amountSat == other.amountSat &&
+          feeSat == other.feeSat &&
+          absNlocktime == other.absNlocktime &&
+          autoBroadcast == other.autoBroadcast &&
+          hasSpentInputs == other.hasSpentInputs &&
+          recipients == other.recipients;
+}
+
+/// Input parameters for `plan_spaced_txs`.
+///
+/// The plan's `kind` is derived inside Rust from `dst_wallet_path`: empty
+/// or equal to the source wallet's own path → `REFRESH`, anything else →
+/// `MIGRATE`. The label is only used for history rendering; the planning
+/// logic itself is identical for both modes.
+class APISpacedPlanParams {
+  final String dstWalletPath;
+
+  /// Human-readable destination wallet name. Optional snapshot taken
+  /// at plan time so `Migrate` child PSBTs/transactions carry a label
+  /// that names the destination (e.g. `"→ Cold: <coin label>"`).
+  /// Ignored for `Refresh` plans; `None` keeps the legacy label
+  /// format. Renames after plan creation do NOT propagate.
+  final String? dstWalletName;
+  final BigInt feerateMinMsatvb;
+  final BigInt feerateMaxMsatvb;
+  final int delayBlocksMin;
+  final int delayBlocksMax;
+  final double splitProbability;
+  final BigInt minSplitOutput;
+  final int spendPathId;
+  final int threshold;
+  final List<String> mfps;
+  final List<APIPolicyPath> policyPath;
+
+  /// Pre-peeked destination addresses. Caller must supply at least
+  /// `eligible_utxo_count` entries — one per UTXO. Excess addresses are
+  /// ignored. v1 builds 1-output txs; split (2-output) support lands in
+  /// a follow-up step and will consume 2 addresses per split tx.
+  final List<String> dstAddresses;
+
+  /// Optional allow-list of UTXOs (txid:vout). Empty = every confirmed UTXO.
+  final List<APICoinControl> selectedUtxos;
+
+  /// Optional seed for deterministic planning (UI re-roll, tests). `None`
+  /// = OS RNG.
+  final BigInt? rngSeed;
+
+  const APISpacedPlanParams({
+    required this.dstWalletPath,
+    this.dstWalletName,
+    required this.feerateMinMsatvb,
+    required this.feerateMaxMsatvb,
+    required this.delayBlocksMin,
+    required this.delayBlocksMax,
+    required this.splitProbability,
+    required this.minSplitOutput,
+    required this.spendPathId,
+    required this.threshold,
+    required this.mfps,
+    required this.policyPath,
+    required this.dstAddresses,
+    required this.selectedUtxos,
+    this.rngSeed,
+  });
+
+  @override
+  int get hashCode =>
+      dstWalletPath.hashCode ^
+      dstWalletName.hashCode ^
+      feerateMinMsatvb.hashCode ^
+      feerateMaxMsatvb.hashCode ^
+      delayBlocksMin.hashCode ^
+      delayBlocksMax.hashCode ^
+      splitProbability.hashCode ^
+      minSplitOutput.hashCode ^
+      spendPathId.hashCode ^
+      threshold.hashCode ^
+      mfps.hashCode ^
+      policyPath.hashCode ^
+      dstAddresses.hashCode ^
+      selectedUtxos.hashCode ^
+      rngSeed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanParams &&
+          runtimeType == other.runtimeType &&
+          dstWalletPath == other.dstWalletPath &&
+          dstWalletName == other.dstWalletName &&
+          feerateMinMsatvb == other.feerateMinMsatvb &&
+          feerateMaxMsatvb == other.feerateMaxMsatvb &&
+          delayBlocksMin == other.delayBlocksMin &&
+          delayBlocksMax == other.delayBlocksMax &&
+          splitProbability == other.splitProbability &&
+          minSplitOutput == other.minSplitOutput &&
+          spendPathId == other.spendPathId &&
+          threshold == other.threshold &&
+          mfps == other.mfps &&
+          policyPath == other.policyPath &&
+          dstAddresses == other.dstAddresses &&
+          selectedUtxos == other.selectedUtxos &&
+          rngSeed == other.rngSeed;
+}
+
+class APISpacedPlanRow {
+  final PlatformInt64 psbtId;
+  final String utxoTxid;
+  final int utxoVout;
+  final BigInt amountSat;
+  final int? confHeight;
+  final int nlocktimeDeltaBlocks;
+
+  /// Absolute block height (tip_height + delta) at which auto-broadcast
+  /// will fire. Useful for UI ETAs.
+  final int absNlocktime;
+  final double feerateSatPerVb;
+  final BigInt feeSat;
+  final BigInt netOutSat;
+
+  /// 1 entry for a single-output tx; 2 entries when `split == true`.
+  final List<String> recipientAddresses;
+
+  /// Parallel to `recipient_addresses` — the per-output amount BDK
+  /// actually assigned. Reading these is preferable to reverse-engineering
+  /// the split from `net_out_sat` × `split_ratio`.
+  final Uint64List recipientAmountsSat;
+
+  /// True when this row was emitted as 2 outputs to break the
+  /// change-output heuristic (§3 split rule).
+  final bool split;
+
+  /// Target ratio used to sample the split (≈ first-output share). The
+  /// realised ratio may differ slightly because BDK pays the fee from
+  /// the drain output. `None` when `split == false`.
+  final double? splitRatio;
+
+  /// "Inheritable" label derived from the source UTXO — its effective
+  /// coin label, or a generated fallback (see `default_plan_label`).
+  /// In `Refresh` plans this is also what gets written onto the
+  /// PSBT/tx row; in `Migrate` plans the PSBT/tx itself carries the
+  /// fixed `"Migration → <wallet_name>"` string instead, and this
+  /// field is only used by the cubit to seed the destination
+  /// wallet's `address_labels` (the source DB can't reach the dst).
+  final String label;
+
+  const APISpacedPlanRow({
+    required this.psbtId,
+    required this.utxoTxid,
+    required this.utxoVout,
+    required this.amountSat,
+    this.confHeight,
+    required this.nlocktimeDeltaBlocks,
+    required this.absNlocktime,
+    required this.feerateSatPerVb,
+    required this.feeSat,
+    required this.netOutSat,
+    required this.recipientAddresses,
+    required this.recipientAmountsSat,
+    required this.split,
+    this.splitRatio,
+    required this.label,
+  });
+
+  @override
+  int get hashCode =>
+      psbtId.hashCode ^
+      utxoTxid.hashCode ^
+      utxoVout.hashCode ^
+      amountSat.hashCode ^
+      confHeight.hashCode ^
+      nlocktimeDeltaBlocks.hashCode ^
+      absNlocktime.hashCode ^
+      feerateSatPerVb.hashCode ^
+      feeSat.hashCode ^
+      netOutSat.hashCode ^
+      recipientAddresses.hashCode ^
+      recipientAmountsSat.hashCode ^
+      split.hashCode ^
+      splitRatio.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanRow &&
+          runtimeType == other.runtimeType &&
+          psbtId == other.psbtId &&
+          utxoTxid == other.utxoTxid &&
+          utxoVout == other.utxoVout &&
+          amountSat == other.amountSat &&
+          confHeight == other.confHeight &&
+          nlocktimeDeltaBlocks == other.nlocktimeDeltaBlocks &&
+          absNlocktime == other.absNlocktime &&
+          feerateSatPerVb == other.feerateSatPerVb &&
+          feeSat == other.feeSat &&
+          netOutSat == other.netOutSat &&
+          recipientAddresses == other.recipientAddresses &&
+          recipientAmountsSat == other.recipientAmountsSat &&
+          split == other.split &&
+          splitRatio == other.splitRatio &&
+          label == other.label;
+}
+
+/// Plan-level signing context (descriptor + policy info) plus every
+/// pending child PSBT. Plan-level fields are hoisted out of the per-row
+/// struct because they are constant for the whole plan.
+class APISpacedPlanSigningBundle {
+  final PlatformInt64 planId;
+  final String descriptor;
+  final APINetwork network;
+  final int threshold;
+  final List<String> mfps;
+
+  /// Per-MFP change index for the plan's spend path. Mirrors
+  /// `APISpendPath.key_changes` and feeds straight into the HW
+  /// signing sheet (`keyChanges` parameter) for multi-leaf taproot.
+  final Map<String, int> keyChanges;
+  final List<APISpacedPlanChildPsbt> children;
+
+  const APISpacedPlanSigningBundle({
+    required this.planId,
+    required this.descriptor,
+    required this.network,
+    required this.threshold,
+    required this.mfps,
+    required this.keyChanges,
+    required this.children,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^
+      descriptor.hashCode ^
+      network.hashCode ^
+      threshold.hashCode ^
+      mfps.hashCode ^
+      keyChanges.hashCode ^
+      children.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanSigningBundle &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          descriptor == other.descriptor &&
+          network == other.network &&
+          threshold == other.threshold &&
+          mfps == other.mfps &&
+          keyChanges == other.keyChanges &&
+          children == other.children;
+}
+
+class APISpacedPlanSummary {
+  final PlatformInt64 planId;
+  final int tipHeight;
+  final List<APISpacedPlanRow> rows;
+  final BigInt totalAmountSat;
+  final BigInt totalFeeSat;
+  final int droppedUtxoCount;
+
+  const APISpacedPlanSummary({
+    required this.planId,
+    required this.tipHeight,
+    required this.rows,
+    required this.totalAmountSat,
+    required this.totalFeeSat,
+    required this.droppedUtxoCount,
+  });
+
+  @override
+  int get hashCode =>
+      planId.hashCode ^
+      tipHeight.hashCode ^
+      rows.hashCode ^
+      totalAmountSat.hashCode ^
+      totalFeeSat.hashCode ^
+      droppedUtxoCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APISpacedPlanSummary &&
+          runtimeType == other.runtimeType &&
+          planId == other.planId &&
+          tipHeight == other.tipHeight &&
+          rows == other.rows &&
+          totalAmountSat == other.totalAmountSat &&
+          totalFeeSat == other.totalFeeSat &&
+          droppedUtxoCount == other.droppedUtxoCount;
 }
 
 class APISpendPath {

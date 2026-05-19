@@ -128,11 +128,25 @@ class BitcoinFormatter {
   ///
   /// Replaces the repeated pattern `'${BitcoinFormatter.formatNum(x)} sats'`
   /// and `'${isReceived ? '+' : '-'}${BitcoinFormatter.formatNum(x)} sats'`.
+  /// Signed net change to the wallet's balance for a transaction (or
+  /// pending PSBT): positive when funds come in, negative when they go
+  /// out. A self-transfer is a net loss of the fee.
+  static int signedNetSats({
+    required bool isSelfTransfer,
+    required bool isReceived,
+    required int feeSat,
+    required int sentSat,
+    required int receivedSat,
+  }) {
+    if (isSelfTransfer) return -feeSat;
+    return isReceived ? receivedSat - sentSat : -(sentSat - receivedSat);
+  }
+
   static String satsLabel(int sats, {bool showSign = false}) {
-    final formatted = formatNum(sats);
     if (showSign) {
+      final formatted = formatNum(sats.abs());
       return sats >= 0 ? '+$formatted sats' : '-$formatted sats';
     }
-    return '$formatted sats';
+    return '${formatNum(sats)} sats';
   }
 }

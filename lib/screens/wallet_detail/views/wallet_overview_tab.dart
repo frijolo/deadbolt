@@ -10,6 +10,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
+import 'package:deadbolt/screens/tx_planning/tx_planning_reserved_chip.dart';
 
 enum BalanceUnit { sats, btc, fiat }
 
@@ -165,6 +166,13 @@ class _OverviewViewState extends State<OverviewView> {
                       ],
                     ),
                   ],
+                  // Spaced TX plan reservation chip — self-renders empty
+                  // when no active plan exists or the cubit is not
+                  // mounted (e.g. screens with no planning wired yet).
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TxPlanningReservedBalanceChip(formatSats: _fmt),
+                  ),
                   const SizedBox(height: 10),
                   Text(
                     lastSynced != null

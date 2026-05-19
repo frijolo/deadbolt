@@ -389,6 +389,21 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required List<String> mfps,
   });
 
+  /// Merge externally-signed PSBTs (HW device output / QR import /
+  /// envelope) into the matching children of a plan. Each entry must
+  /// reference a child of `plan_id`; entries whose `psbt_id` is not in
+  /// the plan are reported under `failed`. Merge errors are also
+  /// reported per-row and never abort the batch.
+  ///
+  /// The plan status is unchanged. Children whose ids do not appear in
+  /// `signed` are left untouched and are absent from both
+  /// `signed_ids` and `failed` (mirroring the batch contract — the
+  /// report covers the batch the caller submitted, not the whole plan).
+  APIBatchSignReport applySpacedPlanSignedPsbts({
+    required PlatformInt64 planId,
+    required List<APISignedChildPsbt> signed,
+  });
+
   String get path;
 
   set path(String path);
@@ -400,6 +415,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required PlatformInt64 id,
     required String electrumUrl,
   });
+
+  /// Cancel an active plan: discard every child PSBT (auto_broadcast
+  /// vanishes with the row) and move the plan to `CANCELLED` for
+  /// history. Errors when the plan is already terminal.
+  void cancelSpacedPlan({required PlatformInt64 planId});
 
   /// Change the wallet's encryption protection scheme.
   ///
@@ -428,6 +448,31 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   /// Delete all stored fiat prices (called when the user changes fiat currency).
   Future<void> clearFiatPrices();
+
+  /// Wipe every spaced-plan auto-label tagged with this `plan_id` on
+  /// this wallet's DB. The cubit calls this on the destination
+  /// wallet handle on cancel, mirroring the source-side cleanup in
+  /// [`Self::cancel_spaced_plan`]. Explicit user labels are not
+  /// affected (the sweep keys on `source_entity`, which is NULL for
+  /// user labels).
+  void clearSpacedPlanLabels({required PlatformInt64 planId});
+
+  /// Verify every child PSBT of a `DRAFT` plan is fully signed and arm it
+  /// for auto-broadcast.
+  ///
+  /// A child counts as "signed" when either its PSBT is already finalised
+  /// (BDK's `final_script_witness` / `final_script_sig` present) or at
+  /// least `threshold` MFPs have a partial signature on every input
+  /// (driven by `analyze_psbt` so the check matches what the UI shows).
+  ///
+  /// Reports the per-PSBT status instead of erroring on the partial case
+  /// so the cubit can render the missing-signers UI without parsing the
+  /// error string. The plan transition to `SIGNED` only happens when
+  /// `committed == true`.
+  ///
+  /// Idempotent on a plan already in `SIGNED`: no state change, returns a
+  /// report with `committed == true` and zero unsigned ids.
+  APICommitSpacedPlanReport commitSpacedPlan({required PlatformInt64 planId});
 
   /// Complete a descriptor signature from a signed BIP322 PSBT (BB02 or QR Variant B).
   ///
@@ -540,6 +585,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Fetches parent txs from Electrum when fee cannot be determined from the wallet graph.
   Future<APIRbfInfo> getRbfInfo({required String spendingTxid});
 
+  /// Fetch one plan plus the children still in `unsigned_txs`. Errors
+  /// when the plan does not exist (use the plan_id returned by
+  /// `plan_spaced_txs` / `list_spaced_plans`).
+  APISpacedPlanDetail getSpacedPlan({required PlatformInt64 planId});
+
   /// Return the current best block height from the local chain (0 if not yet synced).
   Future<int> getTipHeight();
 
@@ -568,6 +618,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Return all unspent outputs (UTXOs / coins), sorted by value descending.
   Future<List<APIUtxo>> getUtxos();
 
+  /// True when this wallet has a plan in any active state
+  /// (DRAFT / SIGNED / RUNNING). Used by the cubit to gate the
+  /// "Plan spaced transactions…" menu entry.
+  bool hasActiveSpacedPlan();
+
   /// Import labels from BIP-329 JSONL. Sets all as explicit, then re-propagates.
   /// Malformed lines and unknown types are silently skipped.
   void importBip329({required List<String> lines});
@@ -588,6 +643,11 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Return all saved unsigned PSBTs for this wallet, newest-first.
   Future<List<APIPsbtInfo>> listPsbts();
 
+  /// List every plan ever created in this wallet, newest first.
+  /// Terminal-state plans are kept for history (a CANCELLED row tells
+  /// the user why their "Plan…" menu was greyed out earlier).
+  List<APISpacedPlanDetail> listSpacedPlans();
+
   /// Merge partial signatures from a signed PSBT into the stored one.
   ///
   /// The signed PSBT must refer to the same transaction (same inputs/outputs).
@@ -596,6 +656,22 @@ abstract class ApiWallet implements RustOpaqueInterface {
     required PlatformInt64 id,
     required String signedPsbtBase64,
   });
+
+  /// Build a spaced TX plan over every confirmed UTXO of this wallet.
+  ///
+  /// Persists a new `tx_plans` row (status `DRAFT`) and one
+  /// `unsigned_txs` row per non-dropped intent. Returns a summary the
+  /// UI can render directly — no extra reads needed.
+  ///
+  /// Errors out when:
+  ///   - this wallet already has an active plan;
+  ///   - the planner params are invalid;
+  ///   - no confirmed UTXOs are eligible;
+  ///   - `dst_addresses.len() < eligible_utxo_count`;
+  ///   - every eligible UTXO yields a dust output at the chosen feerate
+  ///     range (rolls the plan row back so the user can retry without
+  ///     a separate cancel call).
+  APISpacedPlanSummary planSpacedTxs({required APISpacedPlanParams params});
 
   /// Build the TX_COMMIT PSBT for an on-chain descriptor backup.
   ///
@@ -623,6 +699,21 @@ abstract class ApiWallet implements RustOpaqueInterface {
   ///
   /// Also returns the temporary descriptor string required for BB02 registration.
   APIPrepareDescriptorSigPsbt prepareDescriptorSigPsbt({required String mfp});
+
+  /// Bundle every pending child PSBT of a plan together with plan-level
+  /// signing context (descriptor, threshold, key-change map). The cubit
+  /// uses this in a single call so the batch sign UI never has to
+  /// re-open the wallet per PSBT.
+  ///
+  /// The plan must be in `DRAFT` or `SIGNED`. `SIGNED` is allowed so the
+  /// UI can re-render the batch after a partial-sign attempt without
+  /// reverting to DRAFT.
+  ///
+  /// Empty plans (no pending children) return an error so the caller
+  /// surfaces "nothing to sign" explicitly instead of an empty list.
+  APISpacedPlanSigningBundle prepareSpacedPlanPsbts({
+    required PlatformInt64 planId,
+  });
 
   /// Preview the result of building an unsigned tx — fee, change, send, weight — without
   /// constructing or persisting a PSBT. Mirrors `create_psbt` inputs so the UI can show
@@ -703,6 +794,22 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Set or clear the label for a saved PSBT. Pass an empty string to clear.
   APIPsbtInfo setPsbtLabel({required PlatformInt64 id, required String label});
 
+  /// Seed this wallet's `address_labels` with the auto-labels of a
+  /// spaced plan executed by *another* wallet. The cubit calls this
+  /// on the destination wallet handle right after a `Migrate` plan
+  /// is created — the source wallet can't reach the destination DB,
+  /// so labels would otherwise be lost on receive.
+  ///
+  /// Each entry is tagged with the canonical
+  /// `spaced_plan:{plan_id}:coin:{src_txid}:{src_vout}` source so the
+  /// matching call to [`Self::clear_spaced_plan_labels`] can wipe
+  /// them on cancel. Entries whose address already carries an
+  /// explicit user label are skipped (auto-labels never overwrite
+  /// user input).
+  void setSpacedPlanAddressLabels({
+    required List<APISpacedPlanAddressLabel> entries,
+  });
+
   /// Persist a label for a transaction. Pass an empty string to remove it.
   /// Automatically propagates to related entities (addresses and UTXOs).
   /// Clearing an inherited (auto) label is a no-op.
@@ -733,6 +840,21 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// Returns the updated [`APIPsbtInfo`] with the partial signatures added.
   APIPsbtInfo signPsbtWithKey({
     required PlatformInt64 psbtId,
+    required String mfp,
+  });
+
+  /// Sign every pending child PSBT of a plan with the hot key
+  /// identified by `mfp`. Each row is signed in its own critical
+  /// section by reusing [`sign_psbt_with_key`]; partial failures
+  /// **do not** roll back already-signed children — the failed list
+  /// is returned so the UI can offer a retry.
+  ///
+  /// The plan must be in `DRAFT` or `SIGNED`. The plan status is
+  /// **not** mutated — `commit_spaced_plan` remains the only state
+  /// transition. An empty plan errors out so the caller surfaces
+  /// "nothing to sign" instead of an empty `signed_ids`.
+  APIBatchSignReport signSpacedPlanWithHotKey({
+    required PlatformInt64 planId,
     required String mfp,
   });
 

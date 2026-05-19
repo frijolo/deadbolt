@@ -37,6 +37,8 @@ import 'package:deadbolt/screens/wallet_detail/export_flow.dart' show showExport
 
 import 'package:deadbolt/screens/wallet_detail/import_flow.dart' show showImportChoiceSheet;
 import 'package:deadbolt/screens/wallet_detail/migration_flow.dart' show migrateWalletToProject;
+import 'package:deadbolt/cubit/tx_planning_cubit.dart';
+import 'package:deadbolt/screens/tx_planning/tx_planning_screen.dart';
 
 class WalletDetailScreen extends StatelessWidget {
   final String walletPath;
@@ -232,6 +234,8 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
         _handleImport(context, state);
       case _WalletMenuAction.generateProject:
         _handleGenerateProject(context, state);
+      case _WalletMenuAction.planSpacedTxs:
+        _openTxPlanning(context);
       case _WalletMenuAction.lock:
         context.read<WalletDetailCubit>().lockWallet();
         Navigator.of(context).pop();
@@ -241,6 +245,23 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           cubit: context.read<WalletDetailCubit>(),
         );
     }
+  }
+
+  void _openTxPlanning(BuildContext context) {
+    // The TxPlanningCubit is already provided at the loaded-state level so
+    // it survives navigation back-and-forth without re-running `load()`.
+    // The planning screen + every earmark consumer pick it up from
+    // context.
+    final cubit = context.read<TxPlanningCubit>();
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => BlocProvider<TxPlanningCubit>.value(
+        value: cubit,
+        child: BlocProvider<WalletDetailCubit>.value(
+          value: context.read<WalletDetailCubit>(),
+          child: const TxPlanningScreen(),
+        ),
+      ),
+    ));
   }
 
   Future<void> _openReceiveFlow(
@@ -339,7 +360,19 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
     final l10n = context.l10n;
     final network = state.walletInfo.network;
 
-    return PopScope(
+    // Mount the TxPlanningCubit at the loaded-state root so the earmark
+    // badge in coins_tab and the Reserved balance chip in
+    // wallet_overview_tab pick it up via `context.watch`, and
+    // `_openTxPlanning` can push the screen with a `BlocProvider.value`
+    // over the same instance (no duplicate sync subscriptions).
+    return BlocProvider<TxPlanningCubit>(
+      create: (_) => TxPlanningCubit(
+        wallet: state.walletHandle,
+        walletPath: state.walletInfo.walletPath,
+        syncService: context.read<WalletSyncService>(),
+        walletService: context.read<WalletService>(),
+      ),
+      child: Builder(builder: (context) => PopScope(
       canPop: state.selectedTab == WalletDetailCubit.tabOverview,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
@@ -386,6 +419,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                 iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
                 const PopupMenuDivider(),
                 iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
+                iconMenuItem(
+                  value: _WalletMenuAction.planSpacedTxs,
+                  icon: Icons.lock_clock,
+                  label: l10n.txPlanningMenuEntry,
+                ),
                 const PopupMenuDivider(),
                 iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.security, label: l10n.walletSecurityLabel),
                 if (state.walletInfo.protection.protectionType ==
@@ -465,11 +503,23 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           ],
         ),
       ),
+      )),
     );
   }
 }
 
-enum _WalletMenuAction { send, receive, sync, rescan, exportLabels, importLabels, generateProject, lock, changeProtection }
+enum _WalletMenuAction {
+  send,
+  receive,
+  sync,
+  rescan,
+  exportLabels,
+  importLabels,
+  generateProject,
+  planSpacedTxs,
+  lock,
+  changeProtection,
+}
 
 class _ElectrumPrivacyWarningBanner extends StatefulWidget {
   const _ElectrumPrivacyWarningBanner();

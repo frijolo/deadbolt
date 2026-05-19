@@ -68,6 +68,8 @@ mod ops;
 mod psbt;
 pub(super) mod psbt_maturity;
 mod queries;
+mod spaced_plan;
+pub(super) mod spaced_planner;
 
 // Detail query submodules (extracted from queries.rs)
 mod detail_address;

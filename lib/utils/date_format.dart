@@ -49,3 +49,14 @@ String formatDate(DateTime dt) =>
 /// the chain tip is expected to reach `currentTip + blocks`.
 DateTime etaFromBlocks(int blocks) =>
     DateTime.now().add(Duration(seconds: blocks * kSecondsPerBlock));
+
+/// Formats [dt] as `YYYY/MM/DD HH:MM` (local, zero-padded). Used for the
+/// compact "next broadcast" labels in the planning / PSBT screens.
+String formatShortSlashed(DateTime dt) {
+  final y = dt.year.toString().padLeft(4, '0');
+  final mo = dt.month.toString().padLeft(2, '0');
+  final d = dt.day.toString().padLeft(2, '0');
+  final h = dt.hour.toString().padLeft(2, '0');
+  final mi = dt.minute.toString().padLeft(2, '0');
+  return '$y/$mo/$d $h:$mi';
+}

@@ -633,29 +633,34 @@ async def lock_wallet(d):
     """
     Lock the current wallet via the 'More options' menu.
 
-    Wallet detail "More options" items (typical order — no dividers in semantics):
-      Send(+24) Receive(+72) — [divider] — Sync(+136) Rescan(+184) — [divider] —
-      ExportLabels(+248) ImportLabels(+296) — [divider] —
-      GenerateProject(+360) — [divider] — LockWallet(+424)
+    Resolves the 'Lock wallet' item by its semantic label after opening the
+    popup, so it is robust to menu reordering or new entries being added.
 
-    Only present for UserPassword wallets.
+    Only present for UserPassword / XpubKey wallets.
     """
-    # Try several offsets in case the menu layout shifts
-    for offset in (424, 376, 400, 448):
-        rect = await d.cs_find_by_tooltip("More options")
-        if rect is None:
-            raise AssertionError("'More options' button not found on wallet detail")
-        cx = (rect[0] + rect[2]) // 2
-        item_y = rect[3] + offset
-        print(f"    [lock] trying offset +{offset} at flutter ({cx},{item_y})")
-        d.flutter_click(cx, (rect[1] + rect[3]) // 2, delay_s=0.5)
-        await asyncio.sleep(0.4)
-        d.flutter_click(cx, item_y)
-        await asyncio.sleep(1.0)
-        flat = await d.cs_flat_text()
-        if '"Enter wallet password"' in flat or "Wallets" in flat:
-            print(f"    [ok] wallet locked (offset +{offset} worked)")
-            return
+    rect = await d.cs_find_by_tooltip("More options")
+    if rect is None:
+        raise AssertionError("'More options' button not found on wallet detail")
+    cx = (rect[0] + rect[2]) // 2
+    cy = (rect[1] + rect[3]) // 2
+    d.flutter_click(cx, cy, delay_s=0.5)
+    await asyncio.sleep(0.6)
+
+    item_rect = await d.cs_find_by_label("Lock wallet")
+    if item_rect is None:
+        item_rect = await d.cs_find_by_label_part("Lock wallet")
+    if item_rect is None:
+        raise AssertionError("'Lock wallet' item not found in More options menu")
+    icx = (item_rect[0] + item_rect[2]) // 2
+    icy = (item_rect[1] + item_rect[3]) // 2
+    print(f"    [lock] tapping 'Lock wallet' at flutter ({icx},{icy})")
+    d.flutter_click(icx, icy)
+    await asyncio.sleep(1.0)
+
+    flat = await d.cs_flat_text()
+    if '"Enter wallet password"' in flat or "Wallets" in flat:
+        print("    [ok] wallet locked")
+        return
     raise AssertionError("Lock wallet action did not produce password prompt or navigate away")
 
 
