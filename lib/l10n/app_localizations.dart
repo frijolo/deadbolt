@@ -3692,6 +3692,18 @@ abstract class AppLocalizations {
   /// **'Pairing code'**
   String get hwWalletPairingCode;
 
+  /// No description provided for @hwCompareCodeOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare this code with your device screen and confirm:'**
+  String get hwCompareCodeOnDevice;
+
+  /// No description provided for @hwSignTransactionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign transaction'**
+  String get hwSignTransactionButton;
+
   /// No description provided for @hwWalletNoConfirmNeeded.
   ///
   /// In en, this message translates to:
@@ -5198,12 +5210,6 @@ abstract class AppLocalizations {
   /// **'{count} transactions still need signatures.'**
   String txPlanningUnsignedRemaining(int count);
 
-  /// No description provided for @txPlanningCancelButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get txPlanningCancelButton;
-
   /// No description provided for @txPlanningCommitButton.
   ///
   /// In en, this message translates to:
@@ -5219,7 +5225,7 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningCancelDialogBody.
   ///
   /// In en, this message translates to:
-  /// **'Every child PSBT will be deleted. Any signatures collected so far will be lost.'**
+  /// **'Every child PSBT will be deleted.\n\nAny signatures collected so far will be lost.'**
   String get txPlanningCancelDialogBody;
 
   /// No description provided for @txPlanningKeepButton.
@@ -5258,12 +5264,6 @@ abstract class AppLocalizations {
   /// **'Just broadcast'**
   String get txPlanningJustBroadcast;
 
-  /// No description provided for @txPlanningStopButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop'**
-  String get txPlanningStopButton;
-
   /// No description provided for @txPlanningStopDialogTitle.
   ///
   /// In en, this message translates to:
@@ -5273,7 +5273,7 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningStopDialogBody.
   ///
   /// In en, this message translates to:
-  /// **'Pending transactions will be discarded. Anything already broadcast stays on chain.'**
+  /// **'Pending transactions will be discarded.\n\nAnything already broadcast stays on chain.'**
   String get txPlanningStopDialogBody;
 
   /// No description provided for @txPlanningKeepRunningButton.
@@ -5281,12 +5281,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep running'**
   String get txPlanningKeepRunningButton;
-
-  /// No description provided for @txPlanningStopShortButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop'**
-  String get txPlanningStopShortButton;
 
   /// No description provided for @txPlanningRowInputsSpent.
   ///
@@ -5573,14 +5567,8 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningConfirmBatchBody.
   ///
   /// In en, this message translates to:
-  /// **'Total fee {fee} sats · signer: {signer}. The batch never asks twice — the next prompt will be the broadcast confirmation.'**
+  /// **'Total fee {fee} sats · signer: {signer}.\n\nThe batch never asks twice — the next prompt will be the broadcast confirmation.'**
   String txPlanningConfirmBatchBody(String fee, String signer);
-
-  /// No description provided for @txPlanningBatchProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'{signed} / {total} signed'**
-  String txPlanningBatchProgress(int signed, int total);
 
   /// No description provided for @txPlanningBatchFailures.
   ///
@@ -5636,12 +5624,6 @@ abstract class AppLocalizations {
   /// **'Signing {current} of {total}…'**
   String txPlanningHwBatchProgress(int current, int total);
 
-  /// No description provided for @txPlanningHwBatchAbortButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop'**
-  String get txPlanningHwBatchAbortButton;
-
   /// No description provided for @txPlanningHwBatchApplying.
   ///
   /// In en, this message translates to:
@@ -5660,23 +5642,17 @@ abstract class AppLocalizations {
   /// **'Finish with {signed} signed'**
   String txPlanningHwBatchFinishEarlyButton(int signed);
 
-  /// No description provided for @txPlanningMfpPickerTitle.
+  /// No description provided for @txPlanningSignMfpTitle.
   ///
   /// In en, this message translates to:
-  /// **'Choose signing key'**
-  String get txPlanningMfpPickerTitle;
+  /// **'Sign with this key'**
+  String get txPlanningSignMfpTitle;
 
-  /// No description provided for @txPlanningMfpPickerSubtitle.
+  /// No description provided for @txPlanningSignerHotKeyOption.
   ///
   /// In en, this message translates to:
-  /// **'Pick which key you will sign with. Transactions already signed by this key will be skipped.'**
-  String get txPlanningMfpPickerSubtitle;
-
-  /// No description provided for @txPlanningMfpPickerPending.
-  ///
-  /// In en, this message translates to:
-  /// **'{pending} / {total} pending'**
-  String txPlanningMfpPickerPending(int pending, int total);
+  /// **'Hot key'**
+  String get txPlanningSignerHotKeyOption;
 
   /// No description provided for @txPlanningHwBatchWrongDevice.
   ///
@@ -5695,12 +5671,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign batch via QR'**
   String get txPlanningQrSignTitle;
-
-  /// No description provided for @txPlanningQrSignProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'{signed} of {total} signed'**
-  String txPlanningQrSignProgress(int signed, int total);
 
   /// No description provided for @txPlanningQrSignCurrent.
   ///
@@ -5747,7 +5717,7 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningConfirmCommitBody.
   ///
   /// In en, this message translates to:
-  /// **'Total fee {fee} sats. First broadcast around {earliest}, last around {latest}. Each transaction emits automatically when its timelock matures.'**
+  /// **'Total fee {fee} sats.\n\nFirst broadcast around {earliest}, last around {latest}.\n\nEach transaction emits automatically when its timelock matures.'**
   String txPlanningConfirmCommitBody(
     String fee,
     String earliest,
@@ -5757,7 +5727,7 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningConfirmCommitBodyTipUnknown.
   ///
   /// In en, this message translates to:
-  /// **'Total fee {fee} sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.'**
+  /// **'Total fee {fee} sats.\n\nBroadcast windows depend on the chain tip (not yet synced).\n\nEach transaction emits automatically when its timelock matures.'**
   String txPlanningConfirmCommitBodyTipUnknown(String fee);
 
   /// No description provided for @txPlanningCommitConfirmButton.

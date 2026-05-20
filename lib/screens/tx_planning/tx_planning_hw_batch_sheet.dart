@@ -8,6 +8,7 @@ import 'package:deadbolt/screens/tx_planning/tx_planning_signing_cursor.dart';
 import 'package:deadbolt/utils/toast_helper.dart'
     show showErrorToast, showErrorToastException;
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
+import 'package:deadbolt/widgets/hw_wallet_common.dart';
 
 /// Drive a single HW signing ceremony across every child PSBT of a
 /// spaced plan. The sheet holds one [HwWalletCubit] (=> one device
@@ -39,7 +40,6 @@ Future<APIBatchSignReport?> showTxPlanningHwBatchSheet(
         txPlanCubit: txPlanCubit,
       ),
     ),
-    isDismissible: false,
   );
 }
 
@@ -224,39 +224,25 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
 
   Widget _buildBody(BuildContext context, HwWalletState state) {
     final l10n = context.l10n;
+    final cubit = context.read<HwWalletCubit>();
 
     if (_applying) {
-      return _spinner(l10n.txPlanningHwBatchApplying);
+      return HwSpinner(label: l10n.txPlanningHwBatchApplying);
     }
 
     return switch (state) {
-      HwWalletScanning() => _spinner(l10n.hwWalletScanning),
+      HwWalletScanning() => HwSpinner(label: l10n.hwWalletScanning),
       HwWalletDevicesFound(devices: final devices) when devices.isEmpty =>
-        _emptyDevices(context),
-      HwWalletDevicesFound(devices: final devices) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final d in devices)
-              ListTile(
-                leading: const Icon(Icons.usb),
-                title: Text(d.productString),
-                subtitle:
-                    d.serialNumber.isNotEmpty ? Text(d.serialNumber) : null,
-                onTap: () =>
-                    context.read<HwWalletCubit>().connectDevice(d.devicePath),
-              ),
-            TextButton.icon(
-              onPressed: context.read<HwWalletCubit>().scanDevices,
-              icon: const Icon(Icons.refresh),
-              label: Text(l10n.refresh),
-            ),
-            _abortButton(context),
-          ],
+        HwEmptyDevices(onRefresh: cubit.scanDevices),
+      HwWalletDevicesFound(devices: final devices) => HwDeviceList(
+          devices: devices,
+          onRefresh: cubit.scanDevices,
+          onTap: (d) => cubit.connectDevice(d.devicePath),
         ),
-      HwWalletConnecting() => _spinner(l10n.hwWalletUnlockDevice),
+      HwWalletConnecting() => HwSpinner(label: l10n.hwWalletUnlockDevice),
       HwWalletPairing(pairingCode: final code) ||
       HwWalletConfirming(pairingCode: final code) =>
-        _pairing(code),
+        HwPairingCode(code: code),
       HwWalletReady(
         sessionId: final sid,
         productString: final prod,
@@ -268,9 +254,7 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
           children: [
             _progressChip(context),
             const SizedBox(height: 12),
-            _spinner(label),
-            const SizedBox(height: 8),
-            _abortButton(context),
+            HwSpinner(label: label),
           ],
         ),
       HwWalletError(message: final msg) => _errorPanel(context, msg),
@@ -289,14 +273,16 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              l10n.txPlanningHwBatchReady(_total - _cursor),
-              textAlign: TextAlign.center,
-            ),
+          HwReadyHeader(
+            productString: productString,
+            rootFingerprint: rootFingerprint,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          Text(
+            l10n.txPlanningHwBatchReady(_total - _cursor),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: () {
               setState(() => _signingStarted = true);
@@ -305,29 +291,22 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
             icon: const Icon(Icons.draw_outlined),
             label: Text(l10n.txPlanningHwBatchStartButton),
           ),
-          const SizedBox(height: 4),
-          _abortButton(context),
         ],
       );
     }
     // signingStarted: a transient HwWalletReady between two operations.
-    return _spinner(l10n.txPlanningHwBatchProgress(_cursor + 1, _total));
+    return HwSpinner(
+      label: l10n.txPlanningHwBatchProgress(_cursor + 1, _total),
+    );
   }
 
   Widget _errorPanel(BuildContext context, String message) {
     final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_signingStarted) _progressChip(context),
-        const SizedBox(height: 8),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: cs.error),
-        ),
-        const SizedBox(height: 12),
+        HwErrorMessage(message: message),
         OutlinedButton.icon(
           onPressed: () => context.read<HwWalletCubit>().scanDevices(),
           icon: const Icon(Icons.refresh),
@@ -346,7 +325,6 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
               l10n.txPlanningHwBatchFinishEarlyButton(_signedCount),
             ),
           ),
-        _abortButton(context),
       ],
     );
   }
@@ -361,15 +339,6 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
           _total,
         ),
       ),
-    );
-  }
-
-  Widget _abortButton(BuildContext context) {
-    final l10n = context.l10n;
-    return TextButton(
-      onPressed:
-          _applying ? null : () => Navigator.of(context).pop(_lastReport),
-      child: Text(l10n.txPlanningHwBatchAbortButton),
     );
   }
 
@@ -408,61 +377,4 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Tiny presentational helpers.
-  // -------------------------------------------------------------------------
-
-  Widget _spinner(String label) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 12),
-            Text(label, textAlign: TextAlign.center),
-          ],
-        ),
-      );
-
-  Widget _pairing(String code) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            const Text(
-              'Compare this code with your device screen and confirm:',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              code,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    letterSpacing: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(),
-          ],
-        ),
-      );
-
-  Widget _emptyDevices(BuildContext context) {
-    final l10n = context.l10n;
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Text(
-            'No hardware wallet detected.\nMake sure it is plugged in.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: context.read<HwWalletCubit>().scanDevices,
-          icon: const Icon(Icons.refresh),
-          label: Text(l10n.scanAgain),
-        ),
-        _abortButton(context),
-      ],
-    );
-  }
 }

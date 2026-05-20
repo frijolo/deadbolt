@@ -11,7 +11,6 @@ import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart' show showErrorToastException;
 import 'package:deadbolt/src/rust/api/model.dart'
     show
-        APIBatchSignFailure,
         APIBatchSignReport,
         APICommitSpacedPlanReport,
         APIPsbtSignerStatus,
@@ -27,7 +26,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 
 export 'package:deadbolt/src/rust/api/model.dart'
     show
-        APIBatchSignFailure,
         APIBatchSignReport,
         APICommitSpacedPlanReport,
         APIPsbtSignerStatus,
@@ -46,7 +44,7 @@ export 'package:deadbolt/src/rust/api/model.dart'
 
 /// Where the source wallet sits in the spaced-TX flow. The `Idle` branch is
 /// the default "no active plan" landing; the `Draft` / `Running` / `Terminal`
-/// branches mirror the §3 state machine and each carries a fresh
+/// branches mirror the plan-status machine and each carries a fresh
 /// [APISpacedPlanDetail] read from the Rust side.
 sealed class TxPlanningState {
   const TxPlanningState();
@@ -64,40 +62,11 @@ class TxPlanningIdle extends TxPlanningState {
   const TxPlanningIdle({this.lastTerminal});
 }
 
-/// Rolling counter of a batch sign / merge attempt. Reset to `null` once
-/// the user kicks off a new attempt; the new attempt's first emission
-/// carries `signed = 0` and `failed = []` so the UI never shows mixed
-/// state across batches.
-class SignProgress {
-  final int total;
-  final int signed;
-  final List<APIBatchSignFailure> failed;
-  const SignProgress({
-    required this.total,
-    required this.signed,
-    this.failed = const [],
-  });
-
-  factory SignProgress.fromReport(APIBatchSignReport report) => SignProgress(
-        total: report.total,
-        signed: report.signedIds.length,
-        failed: report.failed,
-      );
-
-  bool get isComplete => signed == total && failed.isEmpty;
-}
-
 class TxPlanningDraft extends TxPlanningState {
   final APISpacedPlanDetail detail;
   /// Last commit attempt's report — `null` until the user pressed Commit
   /// at least once. Drives the "X of Y signed" badge on the draft view.
   final APICommitSpacedPlanReport? lastCommitReport;
-  /// Last batch sign / merge result. `null` before the user picks a
-  /// signer; populated by [TxPlanningCubit.signBatchWithHotKey] and
-  /// [TxPlanningCubit.applySignedPsbts]. Distinct from
-  /// [lastCommitReport] because commit audits *every* row's stored
-  /// signatures, while a batch only covers the rows just submitted.
-  final SignProgress? signProgress;
   /// Per-child analysed signer status, keyed by `psbtId`. Populated
   /// lazily by [TxPlanningCubit._refreshSignerSnapshot] after every
   /// state transition into Draft. `null` until the first snapshot
@@ -107,20 +76,17 @@ class TxPlanningDraft extends TxPlanningState {
   const TxPlanningDraft(
     this.detail, {
     this.lastCommitReport,
-    this.signProgress,
     this.signers,
   });
 
   TxPlanningDraft copyWith({
     APISpacedPlanDetail? detail,
     APICommitSpacedPlanReport? lastCommitReport,
-    SignProgress? signProgress,
     Map<int, List<APIPsbtSignerStatus>>? signers,
   }) =>
       TxPlanningDraft(
         detail ?? this.detail,
         lastCommitReport: lastCommitReport ?? this.lastCommitReport,
-        signProgress: signProgress ?? this.signProgress,
         signers: signers ?? this.signers,
       );
 }
@@ -235,10 +201,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
   /// matching state. Safe to call at any time — used as a refresh after
   /// signing, cancel, or an auto-broadcast event.
   Future<void> load() async {
-    // Yield once so callers that attach listeners after constructing the
-    // cubit (the common case) observe every state change. Without this
-    // the first `emit` would run synchronously inside the constructor's
-    // microtask, before any listener has subscribed.
+    // Yield once so listeners attached after construction see the first emit.
     await Future<void>.delayed(Duration.zero);
     try {
       final plans = _wallet.listSpacedPlans();
@@ -410,8 +373,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
 
   /// Sign every pending child PSBT of the current DRAFT plan with the
   /// hot key identified by `mfp`. Returns the FFI report so the caller
-  /// can decide what to surface (the cubit also stores it on the new
-  /// [TxPlanningDraft.signProgress]).
+  /// can surface per-row failures via toast.
   ///
   /// Errors mid-batch don't abort: the Rust endpoint reports per-row
   /// failures, the cubit stays in Draft, and the UI can offer a retry.
@@ -428,7 +390,6 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       emit(TxPlanningDraft(
         detail,
         lastCommitReport: s.lastCommitReport,
-        signProgress: SignProgress.fromReport(report),
         signers: _signersSnapshotOrNull(detail.planId.toInt()),
       ));
       return report;
@@ -474,7 +435,6 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       emit(TxPlanningDraft(
         detail,
         lastCommitReport: s.lastCommitReport,
-        signProgress: SignProgress.fromReport(report),
         signers: _signersSnapshotOrNull(detail.planId.toInt()),
       ));
       return report;
@@ -551,12 +511,18 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       if (relevant.isEmpty) return;
       // We hold an interim "txid badges" snapshot while we kick off a
       // refresh; the refresh in turn re-routes the state once Rust's
-      // view of the plan catches up.
-      final newTxids = [
-        ...s.broadcastedTxids,
-        for (final r in relevant)
-          if (r.txid != null) r.txid!,
-      ];
+      // view of the plan catches up. Dedupe so repeated sync ticks
+      // before the refresh lands don't grow the list unboundedly.
+      final seen = s.broadcastedTxids.toSet();
+      final newTxids = [...s.broadcastedTxids];
+      for (final r in relevant) {
+        final txid = r.txid;
+        if (txid != null && seen.add(txid)) newTxids.add(txid);
+      }
+      if (newTxids.length == s.broadcastedTxids.length) {
+        unawaited(load());
+        return;
+      }
       emit(s.copyWith(broadcastedTxids: newTxids));
       unawaited(load());
     });

@@ -3,6 +3,10 @@ use crate::core::wallet::WalletType;
 use anyhow::Result;
 use bdk_wallet::bitcoin::Network;
 
+/// BIP-65 threshold: nLockTime values strictly below this are block heights;
+/// values at or above are Unix timestamps.
+pub(crate) const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
+
 ////////////////
 // APINetwork //
 ////////////////
@@ -214,7 +218,7 @@ impl APIAbsoluteTimelock {
                 timelock_type: APIAbsoluteTimelockType::Blocks,
                 value: 0,
             }
-        } else if consensus < 500_000_000 {
+        } else if consensus < LOCK_TIME_THRESHOLD {
             Self {
                 timelock_type: APIAbsoluteTimelockType::Blocks,
                 value: consensus,
@@ -235,7 +239,7 @@ impl APIAbsoluteTimelock {
 
         match self.timelock_type {
             APIAbsoluteTimelockType::Blocks => {
-                if self.value >= 500_000_000 {
+                if self.value >= LOCK_TIME_THRESHOLD {
                     return Err(crate::core::error::WalletError::BuilderError(
                         "Block height must be < 500,000,000".into(),
                     )
@@ -244,7 +248,7 @@ impl APIAbsoluteTimelock {
                 Ok(self.value)
             }
             APIAbsoluteTimelockType::Timestamp => {
-                if self.value < 500_000_000 {
+                if self.value < LOCK_TIME_THRESHOLD {
                     return Err(crate::core::error::WalletError::BuilderError(
                         "Timestamp must be >= 500,000,000".into(),
                     )

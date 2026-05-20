@@ -97,8 +97,9 @@ class TxPlanningRunningView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: OutlinedButton.icon(
         onPressed: () => _confirmCancel(context),
-        icon: const Icon(Icons.close),
-        label: Text(l10n.txPlanningStopButton),
+        icon: const Icon(Icons.delete_outline),
+        label: Text(l10n.cancel),
+        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
       ),
     );
   }
@@ -115,9 +116,11 @@ class TxPlanningRunningView extends StatelessWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l10n.txPlanningKeepRunningButton),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.txPlanningStopShortButton),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            icon: const Icon(Icons.delete_outline),
+            label: Text(l10n.cancel),
           ),
         ],
       ),

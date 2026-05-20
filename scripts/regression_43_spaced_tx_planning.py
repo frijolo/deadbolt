@@ -246,10 +246,17 @@ async def phase_verify_earmark_ui(d: UIDriver):
 # ---------------------------------------------------------------------------
 
 async def _click_hot_key_sign(d: UIDriver):
-    """The new draft view shows one signer row per spend-path MFP with an
-    inline 'Sign' FilledButton for hot keys. Pick the first such button —
-    in this inheritance wallet only the owner key is a hot key."""
-    await click_label(d, "Sign", delay=0.8)
+    """The draft view shows one signer row per spend-path MFP with an
+    inline 'Sign' IconButton (tooltip='Sign'). Tapping it opens the
+    per-MFP sign-method sheet (tx_planning_sign_mfp_sheet) which lists
+    'Hot key' and 'Offline signer (QR)'. Pick the hot key option."""
+    await click_tooltip(d, "Sign", delay=0.8)
+    await wait_for(
+        d, "Offline signer (QR)",
+        "per-MFP sign-method sheet opened (Hot key + QR options visible)",
+        retries=15, delay=0.5,
+    )
+    await click_label(d, "Hot key", delay=0.8)
 
 
 async def _confirm_sign_batch_dialog(d: UIDriver):
@@ -302,32 +309,34 @@ async def phase_sign_and_commit(d: UIDriver):
     await wait_for(d, "refresh", "draft view re-opened",
                    retries=15, delay=0.5)
 
-    # Step 1: check the new signers section shows the owner hot key row +
-    # HW / QR fallback buttons, then click the inline 'Sign' button on
-    # the hot-key row.
+    # Step 1: check the new signers section shows the "Signatures:" header
+    # and the inline "Sign with hardware wallet" fallback button. Per-MFP
+    # rows expose an inline 'Sign' button that opens the sign-method sheet
+    # (verified inside _click_hot_key_sign by the 'Offline signer (QR)'
+    # wait_for).
     sem = await d.cs_flat_text()
-    for needed in ("Signatures:", "Sign with hardware wallet", "Offline signer (QR)"):
+    for needed in ("Signatures:", "Sign with hardware wallet"):
         if needed not in sem:
             raise AssertionError(
                 f"Draft view missing '{needed}' in the signers section"
             )
-    print("    [ok] signers section shows hot key row + HW / QR buttons")
+    print("    [ok] signers section shows header + HW fallback button")
 
     await _click_hot_key_sign(d)
     await _confirm_sign_batch_dialog(d)
 
-    # Step 2: after the batch the cubit emits SignProgress; the signer
-    # row flips to a green 'Signed' status and the green progress banner
-    # appears at the top.
+    # Step 2: after the batch the cubit updates the signer row counter
+    # ("{signed} / {total}") and the signers section title ("Signatures:
+    # {signed} of {threshold}"). The per-row 'Signed' badge also appears.
     sem = await wait_for(
         d, "Signed",
         "draft view shows 'Signed' status after batch sign",
         retries=30, delay=1.0,
     )
-    # The progress banner reports "N / N signed" with no failures.
-    if " / " not in sem or "signed" not in sem:
+    # The per-MFP row counter '{signed} / {total}' must be present.
+    if " / " not in sem:
         raise AssertionError(
-            "Sign progress banner ('X / N signed') missing after batch sign"
+            "Per-MFP signer counter ('X / N') missing after batch sign"
         )
     print("    [ok] batch sign complete: signer row badged 'Signed'")
 
@@ -359,16 +368,17 @@ async def phase_sign_and_commit(d: UIDriver):
 async def phase_stop_plan(d: UIDriver):
     print("\n  [phase 4] stop running plan, verify earmark UI clears")
 
-    # We are still on the Running view from phase 3.
-    await click_label(d, "Stop", delay=0.8)
+    # We are still on the Running view from phase 3. The footer button and
+    # the dialog's confirm action both use the shared 'Cancel' label.
+    await click_label(d, "Cancel", delay=0.8)
     await wait_for(d, "Stop plan?", "stop dialog opened",
                    retries=10, delay=0.3)
-    # AlertDialog hides the outer "Stop plan" button from semantics — only
-    # the dialog's FilledButton (label "Stop") remains.
-    rects = await d.cs_find_all_by_label("Stop")
+    # AlertDialog hides the outer "Cancel" button from semantics — only
+    # the dialog's FilledButton (label "Cancel") remains.
+    rects = await d.cs_find_all_by_label("Cancel")
     if not rects:
         raise AssertionError(
-            "Expected the dialog's 'Stop' confirm button, found none."
+            "Expected the dialog's 'Cancel' confirm button, found none."
         )
     confirm = rects[-1]
     d.flutter_click(

@@ -367,6 +367,43 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
     _loadCpfpInfo();
   }
 
+  /// Re-fetches RBF infos for every conflicting spending txid right before
+  /// broadcast and re-validates the user's fee against the freshly-computed
+  /// `rbfMinFeeSats`. Closes the TOCTOU between preview and broadcast: a new
+  /// descendant entering the mempool after the user opened the form bumps
+  /// the minimum and the original fee would be rejected by the relay.
+  ///
+  /// Returns `true` when the user's fee still meets the (potentially higher)
+  /// minimum; `false` when the form must be re-edited — in that case
+  /// `_rbfInfos`/`_preview` have already been refreshed and a toast was
+  /// shown.
+  Future<bool> _revalidateRbfBeforeBroadcast(int feeSats) async {
+    if (_rbfInfos.isEmpty) return true;
+    final cubit = context.read<WalletDetailCubit>();
+    final fresh = <String, APIRbfInfo?>{};
+    for (final txid in _rbfInfos.keys) {
+      fresh[txid] = await cubit.getRbfInfo(txid);
+    }
+    if (!mounted) return false;
+    setState(() {
+      _rbfInfos
+        ..clear()
+        ..addAll(fresh);
+    });
+    _refreshPreview(immediate: true);
+    final preview = _preview;
+    final newMin = preview?.rbfMinFeeSats?.toInt();
+    if (newMin != null && feeSats < newMin) {
+      showErrorToast(context.l10n.rbfAbsFeeTooLow(newMin));
+      _totalFeeCtrl.text = newMin.toString();
+      setState(() => _feeEditMode = FeeEditMode.total);
+      _syncRateFromTotalUsingPreview();
+      _refreshPreview(immediate: true);
+      return false;
+    }
+    return true;
+  }
+
   /// Loads CPFP ancestor fee info for all unconfirmed UTXOs' parent txids.
   /// Passes all unique parent txids so Rust can BFS the full ancestor chain.
   void _loadCpfpInfo() {
@@ -1212,6 +1249,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
 
     setState(() => _creating = true);
     try {
+      if (!await _revalidateRbfBeforeBroadcast(params.feeSats)) return;
+      if (!mounted) return;
       final cubit = context.read<WalletDetailCubit>();
 
       final psbt = await cubit.createPsbt(
@@ -1297,6 +1336,8 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
   Future<void> _executeDirectSend(int feeSats) async {
     setState(() => _creating = true);
     try {
+      if (!await _revalidateRbfBeforeBroadcast(feeSats)) return;
+      if (!mounted) return;
       final cubit = context.read<WalletDetailCubit>();
       final settings = context.read<SettingsCubit>().state;
       final electrumUrl = settings.electrumUrlForNetwork(_currentNetwork);

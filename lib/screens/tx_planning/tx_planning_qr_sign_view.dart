@@ -63,7 +63,6 @@ class TxPlanningQrSignView extends StatefulWidget {
 class _TxPlanningQrSignViewState extends State<TxPlanningQrSignView> {
   late APISpacedPlanSigningBundle _bundle;
   late int _cursor;
-  int _signedThisPass = 0;
   bool _busy = false;
 
   // Persisted across child rebuilds (each child uses a different ValueKey,
@@ -109,14 +108,8 @@ class _TxPlanningQrSignViewState extends State<TxPlanningQrSignView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          l10n.txPlanningQrSignProgress(_signedThisPass, _total),
-          style: Theme.of(context).textTheme.titleMedium,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
           l10n.txPlanningQrSignCurrent(position, _total),
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: Theme.of(context).textTheme.titleMedium,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
@@ -252,7 +245,6 @@ class _TxPlanningQrSignViewState extends State<TxPlanningQrSignView> {
 
     setState(() {
       _bundle = fresh!;
-      _signedThisPass++;
       _cursor = _bundle.firstPendingForMfp(_cursor + 1, widget.activeMfp);
       _busy = false;
     });

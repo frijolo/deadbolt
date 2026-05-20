@@ -1166,9 +1166,17 @@ impl APIWallet {
 
         let tx = psbt.extract_tx()?;
         let txid = tx.compute_txid();
+        let tx_vsize = tx.weight().to_vbytes_ceil();
 
         let client = create_electrum_client(&electrum_url)?;
-        client.transaction_broadcast(&tx)?;
+        client.transaction_broadcast(&tx).map_err(|e| {
+            anyhow::anyhow!(
+                "broadcast failed (txid={}, vsize={} vB): {}",
+                txid,
+                tx_vsize,
+                e
+            )
+        })?;
 
         // Apply the PSBT's label to the transaction before deleting the PSBT.
         if let Some(label) = &psbt_label {

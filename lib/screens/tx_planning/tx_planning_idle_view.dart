@@ -55,11 +55,7 @@ class TxPlanningIdleView extends StatefulWidget {
 }
 
 class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
-  // Defaults are sat/vB to match the field label; `_compute` multiplies by
-  // 1000 to convert to msat/vB before handing the params to Rust. Earlier
-  // defaults of 2000/8000 looked like msat/vB but went through the same
-  // ×1000 multiplier, producing 2000 sat/vB — every UTXO turned into dust
-  // at plan time.
+  // Fee defaults are sat/vB; `_compute` multiplies by 1000 before FFI.
   final _feeRateMinCtrl = TextEditingController(text: '');
   final _feeRateMaxCtrl = TextEditingController(text: '');
   final _delayMinCtrl = TextEditingController(text: '24');
@@ -803,10 +799,6 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
         ),
       ),
     );
-    // "Self" means the destination path matches the *source* wallet
-    // (`Refresh` plan). Comparing against `w.walletPath` made the
-    // condition vacuously true and labelled every selection as
-    // `Refresh` regardless of the chosen wallet.
     final srcPath = _walletDetailLoaded(context)?.walletInfo.walletPath;
     final isSelf = srcPath != null && path == srcPath;
     final kind = isSelf ? l.txPlanningRefresh : l.txPlanningMigrate;

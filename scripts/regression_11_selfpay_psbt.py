@@ -871,14 +871,48 @@ async def phase_fullrbf(d: UIDriver):
     # --- Step 8: Click Send (direct send) ---
     # "Send" is the primary FilledButton when a hot key is available for the
     # selected spend path. It triggers the confirmation sheet → sign + broadcast.
-    await click_label(d, "Send", delay=0.5)
-    # Confirmation sheet appears — confirm the send
-    await wait_for(d, "Confirm send", "direct send confirmation sheet visible",
-                    retries=10, delay=0.5)
-    await click_label(d, "Sign and broadcast", delay=0.5)
-    # Wait to return to wallet detail after broadcast.
-    await wait_for(d, '"Receive"', "back on wallet detail after direct send",
-                    retries=60, delay=1.0)
+    #
+    # On a busy signet, new descendants of the parent we are replacing can
+    # appear between the preview and the broadcast — that pushes the RBF
+    # minimum fee up. The app catches this (re-fetches RBF infos right before
+    # broadcast and aborts when the user's fee falls below the new minimum),
+    # so the create-tx screen stays open. Retry up to 3 times: each attempt
+    # re-clicks the Fee field to auto-fill the freshly-computed minimum and
+    # re-issues the send.
+    success = False
+    for attempt in range(3):
+        await click_label(d, "Send", delay=0.5)
+        await wait_for(d, "Confirm send", "direct send confirmation sheet visible",
+                        retries=10, delay=0.5)
+        await click_label(d, "Sign and broadcast", delay=0.5)
+        # The signing+broadcast roundtrip can take >1s; without this short
+        # pause the success toast and the post-screen check race each other.
+        await asyncio.sleep(2.0)
+        try:
+            await wait_for(d, '"Receive"', "back on wallet detail after direct send",
+                            retries=20, delay=1.0)
+            success = True
+            break
+        except AssertionError:
+            # Still on the create-tx screen → RBF minimum bumped. Re-click the
+            # Fee field so the cubit auto-fills the new minimum and retry.
+            sem = await d.cs_flat_text()
+            if "Confirm send" in sem:
+                # The confirm sheet is still open (transient) — bounce back.
+                continue
+            fee_rect = await d.cs_find_by_label_part_containing("total_fee_display")
+            if fee_rect is None:
+                continue
+            fx = (fee_rect[0] + fee_rect[2]) // 2
+            fy = (fee_rect[1] + fee_rect[3]) // 2
+            d.flutter_click(fx, fy)
+            await asyncio.sleep(1.0)
+            print(f"    [warn] FullRBF attempt {attempt+1} aborted by mempool drift; retrying with new min")
+    if not success:
+        raise AssertionError(
+            "FullRBF direct send did not complete after 3 attempts — RBF "
+            "minimum kept moving."
+        )
     print("    [ok] navigated back to wallet detail after FullRBF send")
 
     # --- Step 9: Verify post-broadcast state ---

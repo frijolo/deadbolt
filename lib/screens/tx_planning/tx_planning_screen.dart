@@ -41,13 +41,11 @@ class TxPlanningScreen extends StatelessWidget {
             TxPlanningDraft(
               :final detail,
               :final lastCommitReport,
-              :final signProgress,
               :final signers,
             ) =>
               TxPlanningDraftView(
                 detail: detail,
                 lastCommitReport: lastCommitReport,
-                signProgress: signProgress,
                 signers: signers,
                 hotKeys: hotKeys,
                 tipHeight: tipHeight,

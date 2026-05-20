@@ -12,12 +12,8 @@
 //     (BIP68 validates against the candidate block tip+1, not the current tip.)
 //   - Relative time:      not supported for auto-broadcast in v1.
 
-use crate::api::model::{APIPsbtInfo, APIRelativeTimelockType, APISpendPath};
+use crate::api::model::{APIPsbtInfo, APIRelativeTimelockType, APISpendPath, LOCK_TIME_THRESHOLD};
 use flutter_rust_bridge::frb;
-
-/// BIP-65 threshold: nLockTime values below this are block heights; values at
-/// or above are Unix timestamps.
-const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 
 #[frb(ignore)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

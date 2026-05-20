@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'package:deadbolt/config/constants.dart' show kMonospaceFontFamily;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
@@ -9,6 +8,7 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
+import 'package:deadbolt/widgets/hw_wallet_common.dart';
 
 // re-export for callers that need the APIXpubSlot type
 export 'package:deadbolt/src/rust/api/model.dart' show APIXpubSlot;
@@ -360,7 +360,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
               children: [
                 const SheetHandle(),
                 Text(
-                  _sheetTitle(),
+                  _sheetTitle(context),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
@@ -372,31 +372,33 @@ class _HwWalletSheet<T> extends StatelessWidget {
     );
   }
 
-  String _sheetTitle() => switch (mode) {
-        _HwMode.sign => 'Sign with hardware wallet',
-        _HwMode.xpub => 'Export xpub from hardware wallet',
-        _HwMode.xpubUnlock => 'Unlock with hardware wallet',
-        _HwMode.register => 'Register wallet on hardware device',
-        _HwMode.checkRegistration => 'Check registration on device',
-        _HwMode.verifyAddress => 'Verify address on device',
-        _HwMode.connect => 'Connect hardware wallet',
-        _HwMode.checkAndRegister => 'Register wallet on hardware device',
-        _HwMode.checkRegisterAndSign => 'Sign with hardware wallet',
-      };
+  String _sheetTitle(BuildContext context) {
+    final l10n = context.l10n;
+    return switch (mode) {
+      _HwMode.sign || _HwMode.checkRegisterAndSign => l10n.signWithHwWallet,
+      _HwMode.xpub => 'Export xpub from hardware wallet',
+      _HwMode.xpubUnlock => 'Unlock with hardware wallet',
+      _HwMode.register => 'Register wallet on hardware device',
+      _HwMode.checkRegistration => 'Check registration on device',
+      _HwMode.verifyAddress => 'Verify address on device',
+      _HwMode.connect => 'Connect hardware wallet',
+      _HwMode.checkAndRegister => 'Register wallet on hardware device',
+    };
+  }
 
   Widget _buildBody(BuildContext context, HwWalletState state) {
     final cubit = context.read<HwWalletCubit>();
 
     return switch (state) {
       // ── Scanning ─────────────────────────────────────────────────────────
-      HwWalletScanning() => _Spinner(label: context.l10n.hwWalletScanning),
+      HwWalletScanning() => HwSpinner(label: context.l10n.hwWalletScanning),
 
       // ── No devices ───────────────────────────────────────────────────────
       HwWalletDevicesFound(devices: final devices) when devices.isEmpty =>
-        _EmptyDevices(onRefresh: cubit.scanDevices),
+        HwEmptyDevices(onRefresh: cubit.scanDevices),
 
       // ── Device list ──────────────────────────────────────────────────────
-      HwWalletDevicesFound(devices: final devices) => _DeviceList(
+      HwWalletDevicesFound(devices: final devices) => HwDeviceList(
           devices: devices,
           onRefresh: cubit.scanDevices,
           onTap: (d) => cubit.connectDevice(d.devicePath),
@@ -404,13 +406,12 @@ class _HwWalletSheet<T> extends StatelessWidget {
 
       // ── Connecting / waiting for PIN ─────────────────────────────────────
       HwWalletConnecting() =>
-        _Spinner(label: context.l10n.hwWalletUnlockDevice),
+        HwSpinner(label: context.l10n.hwWalletUnlockDevice),
 
       // ── Pairing code visible on both screens ──────────────────────────────
-      HwWalletPairing(pairingCode: final code) => _PairingCode(code: code),
-
-      // ── Waiting for device-side confirmation ──────────────────────────────
-      HwWalletConfirming(pairingCode: final code) => _PairingCode(code: code),
+      HwWalletPairing(pairingCode: final code) ||
+      HwWalletConfirming(pairingCode: final code) =>
+        HwPairingCode(code: code),
 
       // ── Ready ─────────────────────────────────────────────────────────────
       HwWalletReady(
@@ -429,7 +430,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
       HwWalletOperating(operationLabel: final label) =>
         mode == _HwMode.verifyAddress && address != null
             ? _VerifyAddressSpinner(label: label, address: address!)
-            : _Spinner(label: label),
+            : HwSpinner(label: label),
 
       // ── Done (handled in listener — navigator pops before this renders)
       HwWalletDone() => const SizedBox.shrink(),
@@ -560,116 +561,6 @@ class _HwWalletSheet<T> extends StatelessWidget {
 
 // ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
-class _Spinner extends StatelessWidget {
-  final String label;
-  const _Spinner({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Column(
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(label, textAlign: TextAlign.center),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyDevices extends StatelessWidget {
-  final VoidCallback onRefresh;
-  const _EmptyDevices({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Text(
-            'No hardware wallet detected.\nMake sure it is plugged in.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh),
-          label: Text(context.l10n.scanAgain),
-        ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-}
-
-class _DeviceList extends StatelessWidget {
-  final List<APIHwDevice> devices;
-  final VoidCallback onRefresh;
-  final void Function(APIHwDevice) onTap;
-  const _DeviceList({
-    required this.devices,
-    required this.onRefresh,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ...devices.map(
-          (d) => ListTile(
-            leading: const Icon(Icons.usb),
-            title: Text(d.productString),
-            subtitle: d.serialNumber.isNotEmpty ? Text(d.serialNumber) : null,
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => onTap(d),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh, size: 18),
-          label: Text(context.l10n.refresh),
-        ),
-      ],
-    );
-  }
-}
-
-class _PairingCode extends StatelessWidget {
-  final String code;
-  const _PairingCode({required this.code});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          'Compare this code with your device screen and confirm:',
-          style: Theme.of(context).textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          code,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontFamily: kMonospaceFontFamily,
-                letterSpacing: 8,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 20),
-        const CircularProgressIndicator(),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-}
-
 class _ReadyPanel extends StatelessWidget {
   final String productString;
   final String rootFingerprint;
@@ -685,39 +576,25 @@ class _ReadyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final actionLabel = switch (mode) {
-      _HwMode.sign => 'Sign transaction',
+      _HwMode.sign => l10n.hwSignTransactionButton,
+      _HwMode.checkRegisterAndSign => l10n.signButton,
       _HwMode.xpub => 'Export xpub',
       _HwMode.register => 'Register wallet',
       _HwMode.checkRegistration => 'Check registration',
       _HwMode.verifyAddress => 'Show address on device',
       _HwMode.xpubUnlock => 'Unlock wallet',
-      _HwMode.connect => context.l10n.done,
+      _HwMode.connect => l10n.done,
       _HwMode.checkAndRegister => 'Register wallet',
-      _HwMode.checkRegisterAndSign => 'Sign',
     };
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.usb, color: Colors.green),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(productString,
-                    style: Theme.of(context).textTheme.bodyLarge),
-                if (rootFingerprint.isNotEmpty)
-                  Text(
-                    rootFingerprint,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: kMonospaceFontFamily,
-                        ),
-                  ),
-              ],
-            ),
-          ],
+        HwReadyHeader(
+          productString: productString,
+          rootFingerprint: rootFingerprint,
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
@@ -777,14 +654,7 @@ class _ErrorPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ),
+        HwErrorMessage(message: message),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

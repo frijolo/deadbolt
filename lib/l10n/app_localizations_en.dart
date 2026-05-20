@@ -1993,6 +1993,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hwWalletPairingCode => 'Pairing code';
 
   @override
+  String get hwCompareCodeOnDevice =>
+      'Compare this code with your device screen and confirm:';
+
+  @override
+  String get hwSignTransactionButton => 'Sign transaction';
+
+  @override
   String get hwWalletNoConfirmNeeded =>
       'No confirmation needed on the device for key export.';
 
@@ -2849,9 +2856,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get txPlanningCancelButton => 'Cancel';
-
-  @override
   String get txPlanningCommitButton => 'Commit';
 
   @override
@@ -2859,7 +2863,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txPlanningCancelDialogBody =>
-      'Every child PSBT will be deleted. Any signatures collected so far will be lost.';
+      'Every child PSBT will be deleted.\n\nAny signatures collected so far will be lost.';
 
   @override
   String get txPlanningKeepButton => 'Keep plan';
@@ -2888,20 +2892,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txPlanningJustBroadcast => 'Just broadcast';
 
   @override
-  String get txPlanningStopButton => 'Stop';
-
-  @override
   String get txPlanningStopDialogTitle => 'Stop plan?';
 
   @override
   String get txPlanningStopDialogBody =>
-      'Pending transactions will be discarded. Anything already broadcast stays on chain.';
+      'Pending transactions will be discarded.\n\nAnything already broadcast stays on chain.';
 
   @override
   String get txPlanningKeepRunningButton => 'Keep running';
-
-  @override
-  String get txPlanningStopShortButton => 'Stop';
 
   @override
   String get txPlanningRowInputsSpent => 'Inputs spent';
@@ -3080,12 +3078,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String txPlanningConfirmBatchBody(String fee, String signer) {
-    return 'Total fee $fee sats · signer: $signer. The batch never asks twice — the next prompt will be the broadcast confirmation.';
-  }
-
-  @override
-  String txPlanningBatchProgress(int signed, int total) {
-    return '$signed / $total signed';
+    return 'Total fee $fee sats · signer: $signer.\n\nThe batch never asks twice — the next prompt will be the broadcast confirmation.';
   }
 
   @override
@@ -3124,9 +3117,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get txPlanningHwBatchAbortButton => 'Stop';
-
-  @override
   String get txPlanningHwBatchApplying => 'Merging signatures…';
 
   @override
@@ -3140,16 +3130,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get txPlanningMfpPickerTitle => 'Choose signing key';
+  String get txPlanningSignMfpTitle => 'Sign with this key';
 
   @override
-  String get txPlanningMfpPickerSubtitle =>
-      'Pick which key you will sign with. Transactions already signed by this key will be skipped.';
-
-  @override
-  String txPlanningMfpPickerPending(int pending, int total) {
-    return '$pending / $total pending';
-  }
+  String get txPlanningSignerHotKeyOption => 'Hot key';
 
   @override
   String txPlanningHwBatchWrongDevice(String mfp) {
@@ -3162,11 +3146,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txPlanningQrSignTitle => 'Sign batch via QR';
-
-  @override
-  String txPlanningQrSignProgress(int signed, int total) {
-    return '$signed of $total signed';
-  }
 
   @override
   String txPlanningQrSignCurrent(int current, int total) {
@@ -3202,12 +3181,12 @@ class AppLocalizationsEn extends AppLocalizations {
     String earliest,
     String latest,
   ) {
-    return 'Total fee $fee sats. First broadcast around $earliest, last around $latest. Each transaction emits automatically when its timelock matures.';
+    return 'Total fee $fee sats.\n\nFirst broadcast around $earliest, last around $latest.\n\nEach transaction emits automatically when its timelock matures.';
   }
 
   @override
   String txPlanningConfirmCommitBodyTipUnknown(String fee) {
-    return 'Total fee $fee sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.';
+    return 'Total fee $fee sats.\n\nBroadcast windows depend on the chain tip (not yet synced).\n\nEach transaction emits automatically when its timelock matures.';
   }
 
   @override

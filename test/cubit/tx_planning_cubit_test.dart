@@ -368,7 +368,7 @@ void main() {
   // signBatchWithHotKey()
   // ---------------------------------------------------------------------------
 
-  test('signBatchWithHotKey emits Draft with SignProgress on success',
+  test('signBatchWithHotKey returns success report and stays in Draft',
       () async {
     final draftDetail = _draftDetail(rows: [_row(10), _row(11)]);
     when(() => wallet.listSpacedPlans()).thenReturn([draftDetail]);
@@ -387,13 +387,10 @@ void main() {
     final cubit = build();
     await letLoadSettle(cubit);
     final report = await cubit.signBatchWithHotKey('c449c5c5');
+    expect(report?.total, 2);
     expect(report?.signedIds.length, 2);
+    expect(report?.failed, isEmpty);
     expect(cubit.state, isA<TxPlanningDraft>());
-    final s = cubit.state as TxPlanningDraft;
-    expect(s.signProgress?.total, 2);
-    expect(s.signProgress?.signed, 2);
-    expect(s.signProgress?.failed, isEmpty);
-    expect(s.signProgress?.isComplete, isTrue);
     await cubit.close();
   });
 
@@ -417,12 +414,10 @@ void main() {
 
     final cubit = build();
     await letLoadSettle(cubit);
-    await cubit.signBatchWithHotKey('deadbeef');
+    final report = await cubit.signBatchWithHotKey('deadbeef');
     expect(cubit.state, isA<TxPlanningDraft>());
-    final s = cubit.state as TxPlanningDraft;
-    expect(s.signProgress?.signed, 0);
-    expect(s.signProgress?.failed.length, 2);
-    expect(s.signProgress?.isComplete, isFalse);
+    expect(report?.signedIds, isEmpty);
+    expect(report?.failed.length, 2);
     await cubit.close();
   });
 
@@ -479,7 +474,7 @@ void main() {
     await cubit.close();
   });
 
-  test('applySignedPsbts merges and stores SignProgress', () async {
+  test('applySignedPsbts merges and returns per-row report', () async {
     final draftDetail = _draftDetail(rows: [_row(10), _row(11)]);
     when(() => wallet.listSpacedPlans()).thenReturn([draftDetail]);
     const input = [
@@ -503,9 +498,8 @@ void main() {
     await letLoadSettle(cubit);
     final report = await cubit.applySignedPsbts(input);
     expect(report?.signedIds.toList(), [BigInt.from(10)]);
-    final s = cubit.state as TxPlanningDraft;
-    expect(s.signProgress?.signed, 1);
-    expect(s.signProgress?.failed.first.psbtId, 11);
+    expect(report?.failed.first.psbtId, 11);
+    expect(cubit.state, isA<TxPlanningDraft>());
     await cubit.close();
   });
 

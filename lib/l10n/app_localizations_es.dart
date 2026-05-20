@@ -2006,6 +2006,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get hwWalletPairingCode => 'Código de emparejamiento';
 
   @override
+  String get hwCompareCodeOnDevice =>
+      'Compara este código con la pantalla del dispositivo y confirma:';
+
+  @override
+  String get hwSignTransactionButton => 'Firmar transacción';
+
+  @override
   String get hwWalletNoConfirmNeeded =>
       'No se requiere confirmación en el dispositivo para exportar claves.';
 
@@ -2874,9 +2881,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get txPlanningCancelButton => 'Cancelar';
-
-  @override
   String get txPlanningCommitButton => 'Confirmar';
 
   @override
@@ -2884,7 +2888,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get txPlanningCancelDialogBody =>
-      'Se eliminarán todos los PSBT hijos. Cualquier firma recopilada hasta ahora se perderá.';
+      'Se eliminarán todos los PSBT hijos.\n\nCualquier firma recopilada hasta ahora se perderá.';
 
   @override
   String get txPlanningKeepButton => 'Mantener plan';
@@ -2913,20 +2917,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get txPlanningJustBroadcast => 'Acabadas de emitir';
 
   @override
-  String get txPlanningStopButton => 'Detener';
-
-  @override
   String get txPlanningStopDialogTitle => '¿Detener el plan?';
 
   @override
   String get txPlanningStopDialogBody =>
-      'Las transacciones pendientes se descartarán. Lo ya emitido permanece en la cadena.';
+      'Las transacciones pendientes se descartarán.\n\nLo ya emitido permanece en la cadena.';
 
   @override
   String get txPlanningKeepRunningButton => 'Seguir';
-
-  @override
-  String get txPlanningStopShortButton => 'Detener';
 
   @override
   String get txPlanningRowInputsSpent => 'Entradas gastadas';
@@ -3105,12 +3103,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String txPlanningConfirmBatchBody(String fee, String signer) {
-    return 'Comisión total $fee sats · firmante: $signer. El lote no vuelve a preguntar — la siguiente confirmación será para emitir.';
-  }
-
-  @override
-  String txPlanningBatchProgress(int signed, int total) {
-    return '$signed / $total firmadas';
+    return 'Comisión total $fee sats · firmante: $signer.\n\nEl lote no vuelve a preguntar — la siguiente confirmación será para emitir.';
   }
 
   @override
@@ -3149,9 +3142,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get txPlanningHwBatchAbortButton => 'Detener';
-
-  @override
   String get txPlanningHwBatchApplying => 'Fusionando firmas…';
 
   @override
@@ -3165,16 +3155,10 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get txPlanningMfpPickerTitle => 'Elige la llave de firma';
+  String get txPlanningSignMfpTitle => 'Firmar con esta llave';
 
   @override
-  String get txPlanningMfpPickerSubtitle =>
-      'Elige con qué llave vas a firmar. Las transacciones que esta llave ya haya firmado se omitirán.';
-
-  @override
-  String txPlanningMfpPickerPending(int pending, int total) {
-    return '$pending / $total pendientes';
-  }
+  String get txPlanningSignerHotKeyOption => 'Hot key';
 
   @override
   String txPlanningHwBatchWrongDevice(String mfp) {
@@ -3187,11 +3171,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get txPlanningQrSignTitle => 'Firmar lote por QR';
-
-  @override
-  String txPlanningQrSignProgress(int signed, int total) {
-    return '$signed de $total firmadas';
-  }
 
   @override
   String txPlanningQrSignCurrent(int current, int total) {
@@ -3227,12 +3206,12 @@ class AppLocalizationsEs extends AppLocalizations {
     String earliest,
     String latest,
   ) {
-    return 'Comisión total $fee sats. Primer broadcast aprox. $earliest, último aprox. $latest. Cada transacción se emitirá sola al madurar su timelock.';
+    return 'Comisión total $fee sats.\n\nPrimer broadcast aprox. $earliest, último aprox. $latest.\n\nCada transacción se emitirá sola al madurar su timelock.';
   }
 
   @override
   String txPlanningConfirmCommitBodyTipUnknown(String fee) {
-    return 'Comisión total $fee sats. Las ventanas de broadcast dependen del tip de la cadena (aún no sincronizado). Cada transacción se emitirá sola al madurar su timelock.';
+    return 'Comisión total $fee sats.\n\nLas ventanas de broadcast dependen del tip de la cadena (aún no sincronizado).\n\nCada transacción se emitirá sola al madurar su timelock.';
   }
 
   @override

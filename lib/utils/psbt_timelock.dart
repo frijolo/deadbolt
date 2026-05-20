@@ -12,6 +12,12 @@ extension APIPsbtInfoTimelock on APIPsbtInfo {
   DateTime? unlockEta(int tipHeight) =>
       isLockedByTimelock(tipHeight) ? etaFromBlocks(lockTime - tipHeight) : null;
 
+  /// Remaining blocks until the timelock matures, clamped to `>= 0`.
+  int blocksLeft(int tipHeight) {
+    final left = lockTime - tipHeight;
+    return left > 0 ? left : 0;
+  }
+
   /// True when the signer threshold is met (or the PSBT is already fully
   /// finalized). Returns `false` when [analysis] is unavailable.
   bool isReadyToBroadcast(APIPsbtAnalysis? analysis) {

@@ -346,10 +346,9 @@ class _PsbtTile extends StatelessWidget {
     final eta = psbt.unlockEta(tipHeight);
     if (eta != null) {
       final queued = psbt.autoBroadcast;
-      final blocksLeft = psbt.lockTime - tipHeight;
       final locked = l10n.psbtLockedTooltip(
         formatShortSlashed(eta),
-        blocksLeft > 0 ? blocksLeft : 0,
+        psbt.blocksLeft(tipHeight),
       );
       final tooltip = queued
           ? '${l10n.psbtAutoBroadcastQueuedTooltip} · $locked'
@@ -376,22 +375,20 @@ class _PsbtTile extends StatelessWidget {
     );
   }
 
-  String _statusLabel(BuildContext context) {
+  String _statusLabel(BuildContext context, int signedCount) {
     final l10n = context.l10n;
     if (psbt.hasSpentInputs) return l10n.psbtStatusSpent;
     if (analysis == null) return l10n.psbtStatusUnsigned;
     if (_isFinalized) return l10n.psbtStatusSigned;
-    final signed = analysis!.signers.where((s) => s.hasSigned).length;
-    if (signed > 0) return l10n.psbtStatusPartial;
+    if (signedCount > 0) return l10n.psbtStatusPartial;
     return l10n.psbtStatusUnsigned;
   }
 
-  Color _statusColor(BuildContext context) {
+  Color _statusColor(int signedCount) {
     if (psbt.hasSpentInputs) return Colors.red;
     if (analysis == null) return AppAccent.color;
     if (_isFinalized) return Colors.green;
-    final signed = analysis!.signers.where((s) => s.hasSigned).length;
-    if (signed > 0) return Colors.amber;
+    if (signedCount > 0) return Colors.amber;
     return AppAccent.color;
   }
 
@@ -407,8 +404,10 @@ class _PsbtTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final statusColor = _statusColor(context);
-    final statusLabel = _statusLabel(context);
+    final signedCount =
+        analysis?.signers.where((s) => s.hasSigned).length ?? 0;
+    final statusColor = _statusColor(signedCount);
+    final statusLabel = _statusLabel(context, signedCount);
     final isSelfTransfer = psbt.isSelfTransfer;
     final effectiveLabel = psbt.effectiveLabel;
 

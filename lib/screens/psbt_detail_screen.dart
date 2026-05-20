@@ -352,7 +352,6 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
   Widget _buildBroadcastButton(BuildContext context, AppLocalizations l10n,
       DateTime? eta, int tipHeight) {
     final locked = eta != null;
-    final blocksLeft = locked ? (_psbt.lockTime - tipHeight) : 0;
     return FilledButton.icon(
       onPressed: (_isReadyToBroadcast && !_broadcasting && !locked)
           ? () => _broadcast(context)
@@ -368,7 +367,7 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
         locked
             ? l10n.psbtLockedTooltip(
                 formatShortSlashed(eta),
-                blocksLeft > 0 ? blocksLeft : 0,
+                _psbt.blocksLeft(tipHeight),
               )
             : l10n.psbtBroadcastButton,
       ),

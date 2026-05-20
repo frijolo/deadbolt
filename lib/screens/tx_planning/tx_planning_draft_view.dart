@@ -4,13 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/tx_planning_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/tx_planning/tx_planning_hw_batch_sheet.dart';
-import 'package:deadbolt/screens/tx_planning/tx_planning_mfp_picker_sheet.dart';
 import 'package:deadbolt/screens/tx_planning/tx_planning_qr_sign_view.dart';
+import 'package:deadbolt/screens/tx_planning/tx_planning_sign_mfp_sheet.dart';
 import 'package:deadbolt/src/rust/api/model.dart'
     show APIHotKeyInfo, APIPsbtSignerStatus, APISpendPath;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
-import 'package:deadbolt/utils/toast_helper.dart' show showErrorToastException;
+import 'package:deadbolt/utils/toast_helper.dart'
+    show showErrorToast, showErrorToastException;
 import 'package:deadbolt/utils/date_format.dart' show etaFromBlocks, formatDateTime;
 import 'package:deadbolt/widgets/mfp_badge.dart';
 
@@ -21,7 +22,6 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 class TxPlanningDraftView extends StatelessWidget {
   final APISpacedPlanDetail detail;
   final APICommitSpacedPlanReport? lastCommitReport;
-  final SignProgress? signProgress;
   final Map<int, List<APIPsbtSignerStatus>>? signers;
   final List<APIHotKeyInfo> hotKeys;
   /// Current chain tip. `0` when the wallet is not yet synced — the
@@ -39,7 +39,6 @@ class TxPlanningDraftView extends StatelessWidget {
     required this.keyLabels,
     this.spendPath,
     this.lastCommitReport,
-    this.signProgress,
     this.signers,
   });
 
@@ -70,11 +69,7 @@ class TxPlanningDraftView extends StatelessWidget {
                   totalAmount: totalAmount,
                   signedPsbts: fullySignedPsbts,
                 ),
-                if (signProgress != null) ...[
-                  const SizedBox(height: 12),
-                  _progressBanner(context, signProgress!),
-                ],
-                if (signProgress == null && lastCommitReport != null) ...[
+                if (lastCommitReport != null) ...[
                   const SizedBox(height: 12),
                   _legacyCommitBanner(context, lastCommitReport!),
                 ],
@@ -202,25 +197,21 @@ class TxPlanningDraftView extends StatelessWidget {
                   label: keyLabels[mfp],
                   signedCount: _mfpSignedCount(mfp),
                   totalCount: total,
-                  onSign: hotKeyMfps.contains(mfp)
-                      ? () => _confirmAndSignWithHotKey(
-                            context,
-                            mfp: mfp,
-                            totalFee: totalFee,
-                          )
-                      : null,
+                  onSign: () => _openSignSheet(
+                    context,
+                    mfp: mfp,
+                    hasHotKey: hotKeyMfps.contains(mfp),
+                    totalFee: totalFee,
+                  ),
                 )),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => _confirmAndSignWithHw(context, totalFee: totalFee),
-              icon: const Icon(Icons.hardware_outlined, size: 18),
-              label: Text(l10n.signWithHwWallet),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => _confirmAndExportQr(context, totalFee: totalFee),
-              icon: const Icon(Icons.qr_code_2, size: 18),
-              label: Text(l10n.txPlanningSignerQr),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _signWithHw(context),
+                icon: const Icon(Icons.hardware_outlined, size: 18),
+                label: Text(l10n.signWithHwWallet),
+              ),
             ),
           ],
         ),
@@ -266,25 +257,6 @@ class TxPlanningDraftView extends StatelessWidget {
     return count;
   }
 
-  Widget _progressBanner(BuildContext context, SignProgress p) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    final hasFailures = p.failed.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Card(
-        color: hasFailures ? cs.errorContainer : cs.surfaceContainerHighest,
-        child: ListTile(
-          leading: Icon(hasFailures ? Icons.error_outline : Icons.draw_outlined),
-          title: Text(l10n.txPlanningBatchProgress(p.signed, p.total)),
-          subtitle: hasFailures
-              ? Text(l10n.txPlanningBatchFailures(p.failed.length))
-              : null,
-        ),
-      ),
-    );
-  }
-
   /// Fallback banner shown when the user pressed Commit before signing
   /// anything via the batch flow — preserved so existing manual-sign
   /// behaviour keeps surfacing the unsigned count.
@@ -322,8 +294,9 @@ class TxPlanningDraftView extends StatelessWidget {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => _confirmCancel(context),
-              icon: const Icon(Icons.close),
-              label: Text(l10n.txPlanningCancelButton),
+              icon: const Icon(Icons.delete_outline),
+              label: Text(l10n.cancel),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
             ),
           ),
           const SizedBox(width: 12),
@@ -341,9 +314,10 @@ class TxPlanningDraftView extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmAndExportQr(
+  Future<bool> _confirmBatchSign(
     BuildContext context, {
     required BigInt totalFee,
+    required String signerLabel,
   }) async {
     final l10n = context.l10n;
     final ok = await showDialog<bool>(
@@ -351,10 +325,7 @@ class TxPlanningDraftView extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.txPlanningConfirmBatchTitle(detail.rows.length)),
         content: Text(
-          l10n.txPlanningConfirmBatchBody(
-            totalFee.toString(),
-            l10n.txPlanningSignerQr,
-          ),
+          l10n.txPlanningConfirmBatchBody(totalFee.toString(), signerLabel),
         ),
         actions: [
           TextButton(
@@ -368,7 +339,38 @@ class TxPlanningDraftView extends StatelessWidget {
         ],
       ),
     );
-    if (ok != true || !context.mounted) return;
+    return ok == true;
+  }
+
+  Future<void> _openSignSheet(
+    BuildContext context, {
+    required String mfp,
+    required bool hasHotKey,
+    required BigInt totalFee,
+  }) async {
+    final channel = await showTxPlanningSignMfpSheet(
+      context,
+      mfp: mfp,
+      label: keyLabels[mfp],
+      hasHotKey: hasHotKey,
+    );
+    if (channel == null || !context.mounted) return;
+    switch (channel) {
+      case TxPlanningSignChannel.hotKey:
+        await _confirmAndSignWithHotKey(
+          context,
+          mfp: mfp,
+          totalFee: totalFee,
+        );
+      case TxPlanningSignChannel.qr:
+        await _signWithQr(context, mfp: mfp);
+    }
+  }
+
+  Future<void> _signWithQr(
+    BuildContext context, {
+    required String mfp,
+  }) async {
     final cubit = context.read<TxPlanningCubit>();
     final APISpacedPlanSigningBundle? bundle;
     try {
@@ -378,12 +380,6 @@ class TxPlanningDraftView extends StatelessWidget {
       return;
     }
     if (bundle == null || !context.mounted) return;
-    final mfp = await showTxPlanningMfpPickerSheet(
-      context,
-      bundle: bundle,
-      keyLabels: keyLabels,
-    );
-    if (mfp == null || !context.mounted) return;
     await TxPlanningQrSignView.push(
       context,
       bundle: bundle,
@@ -391,34 +387,7 @@ class TxPlanningDraftView extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmAndSignWithHw(
-    BuildContext context, {
-    required BigInt totalFee,
-  }) async {
-    final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.txPlanningConfirmBatchTitle(detail.rows.length)),
-        content: Text(
-          l10n.txPlanningConfirmBatchBody(
-            totalFee.toString(),
-            l10n.txPlanningSignerHw,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.txPlanningSignAllButton),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
+  Future<void> _signWithHw(BuildContext context) async {
     final cubit = context.read<TxPlanningCubit>();
     final APISpacedPlanSigningBundle? bundle;
     try {
@@ -437,31 +406,18 @@ class TxPlanningDraftView extends StatelessWidget {
     required BigInt totalFee,
   }) async {
     final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.txPlanningConfirmBatchTitle(detail.rows.length)),
-        content: Text(
-          l10n.txPlanningConfirmBatchBody(
-            totalFee.toString(),
-            l10n.txPlanningSignerHotKey(mfp),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.txPlanningSignAllButton),
-          ),
-        ],
-      ),
+    final ok = await _confirmBatchSign(
+      context,
+      totalFee: totalFee,
+      signerLabel: l10n.txPlanningSignerHotKey(mfp),
     );
-    if (ok != true || !context.mounted) return;
+    if (!ok || !context.mounted) return;
     try {
-      await context.read<TxPlanningCubit>().signBatchWithHotKey(mfp);
+      final report =
+          await context.read<TxPlanningCubit>().signBatchWithHotKey(mfp);
+      if (report != null && report.failed.isNotEmpty) {
+        showErrorToast(l10n.txPlanningBatchFailures(report.failed.length));
+      }
     } catch (e) {
       showErrorToastException(e);
     }
@@ -533,9 +489,11 @@ class TxPlanningDraftView extends StatelessWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l10n.txPlanningKeepButton),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.txPlanningCancelButton),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            icon: const Icon(Icons.delete_outline),
+            label: Text(l10n.cancel),
           ),
         ],
       ),
@@ -579,14 +537,14 @@ class _PlanSignerRow extends StatelessWidget {
   final String? label;
   final int signedCount;
   final int totalCount;
-  final VoidCallback? onSign;
+  final VoidCallback onSign;
 
   const _PlanSignerRow({
     required this.mfp,
     required this.label,
     required this.signedCount,
     required this.totalCount,
-    this.onSign,
+    required this.onSign,
   });
 
   @override
@@ -596,19 +554,15 @@ class _PlanSignerRow extends StatelessWidget {
     final fullySigned = totalCount > 0 && signedCount == totalCount;
     final partial = signedCount > 0 && !fullySigned;
     final Color color;
-    final String statusText;
     final IconData icon;
     if (fullySigned) {
       color = Colors.green;
-      statusText = l10n.psbtSignerSigned;
       icon = Icons.check_circle;
     } else if (partial) {
       color = Colors.orange;
-      statusText = '$signedCount / $totalCount';
       icon = Icons.adjust;
     } else {
       color = theme.colorScheme.outline;
-      statusText = l10n.psbtSignerMissing;
       icon = Icons.radio_button_unchecked;
     }
 
@@ -629,17 +583,16 @@ class _PlanSignerRow extends StatelessWidget {
             )
           else
             const Spacer(),
-          if (onSign != null && !fullySigned)
-            FilledButton.tonalIcon(
-              onPressed: onSign,
-              icon: const Icon(Icons.key_outlined, size: 16),
-              label: Text(l10n.signButton),
-            )
-          else
-            Text(
-              statusText,
-              style: TextStyle(color: color, fontSize: 12),
-            ),
+          Text(
+            '$signedCount / $totalCount',
+            style: TextStyle(color: color, fontSize: 12),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: l10n.signButton,
+            onPressed: fullySigned ? null : onSign,
+            icon: const Icon(Icons.draw_outlined, size: 20),
+          ),
         ],
       ),
     );

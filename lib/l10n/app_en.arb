@@ -939,6 +939,10 @@
   "hwWalletSelectDevice": "Select a device",
   "hwWalletScanDevices": "Scan for devices",
   "hwWalletPairingCode": "Pairing code",
+  "hwCompareCodeOnDevice": "Compare this code with your device screen and confirm:",
+  "@hwCompareCodeOnDevice": {},
+  "hwSignTransactionButton": "Sign transaction",
+  "@hwSignTransactionButton": {},
   "hwWalletNoConfirmNeeded": "No confirmation needed on the device for key export.",
   "hwRegisterWallet": "Register wallet",
   "hwRegisterWalletSub": "Register this policy on the device",
@@ -1497,13 +1501,11 @@
   "@txPlanningUnsignedRemaining": {
     "placeholders": {"count": {"type": "int"}}
   },
-  "txPlanningCancelButton": "Cancel",
-  "@txPlanningCancelButton": {},
   "txPlanningCommitButton": "Commit",
   "@txPlanningCommitButton": {},
   "txPlanningCancelDialogTitle": "Cancel plan?",
   "@txPlanningCancelDialogTitle": {},
-  "txPlanningCancelDialogBody": "Every child PSBT will be deleted. Any signatures collected so far will be lost.",
+  "txPlanningCancelDialogBody": "Every child PSBT will be deleted.\n\nAny signatures collected so far will be lost.",
   "@txPlanningCancelDialogBody": {},
   "txPlanningKeepButton": "Keep plan",
   "@txPlanningKeepButton": {},
@@ -1529,16 +1531,12 @@
   },
   "txPlanningJustBroadcast": "Just broadcast",
   "@txPlanningJustBroadcast": {},
-  "txPlanningStopButton": "Stop",
-  "@txPlanningStopButton": {},
   "txPlanningStopDialogTitle": "Stop plan?",
   "@txPlanningStopDialogTitle": {},
-  "txPlanningStopDialogBody": "Pending transactions will be discarded. Anything already broadcast stays on chain.",
+  "txPlanningStopDialogBody": "Pending transactions will be discarded.\n\nAnything already broadcast stays on chain.",
   "@txPlanningStopDialogBody": {},
   "txPlanningKeepRunningButton": "Keep running",
   "@txPlanningKeepRunningButton": {},
-  "txPlanningStopShortButton": "Stop",
-  "@txPlanningStopShortButton": {},
   "txPlanningRowInputsSpent": "Inputs spent",
   "@txPlanningRowInputsSpent": {},
   "txPlanningRowArmed": "Broadcasts at block {block}",
@@ -1668,13 +1666,9 @@
   "@txPlanningConfirmBatchTitle": {
     "placeholders": {"count": {"type": "int"}}
   },
-  "txPlanningConfirmBatchBody": "Total fee {fee} sats · signer: {signer}. The batch never asks twice — the next prompt will be the broadcast confirmation.",
+  "txPlanningConfirmBatchBody": "Total fee {fee} sats · signer: {signer}.\n\nThe batch never asks twice — the next prompt will be the broadcast confirmation.",
   "@txPlanningConfirmBatchBody": {
     "placeholders": {"fee": {"type": "String"}, "signer": {"type": "String"}}
-  },
-  "txPlanningBatchProgress": "{signed} / {total} signed",
-  "@txPlanningBatchProgress": {
-    "placeholders": {"signed": {"type": "int"}, "total": {"type": "int"}}
   },
   "txPlanningBatchFailures": "{count} signing errors — review the failed rows.",
   "@txPlanningBatchFailures": {
@@ -1702,8 +1696,6 @@
   "@txPlanningHwBatchProgress": {
     "placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}
   },
-  "txPlanningHwBatchAbortButton": "Stop",
-  "@txPlanningHwBatchAbortButton": {},
   "txPlanningHwBatchApplying": "Merging signatures…",
   "@txPlanningHwBatchApplying": {},
   "txPlanningHwBatchRetryButton": "Retry transaction {current}",
@@ -1714,14 +1706,10 @@
   "@txPlanningHwBatchFinishEarlyButton": {
     "placeholders": {"signed": {"type": "int"}}
   },
-  "txPlanningMfpPickerTitle": "Choose signing key",
-  "@txPlanningMfpPickerTitle": {},
-  "txPlanningMfpPickerSubtitle": "Pick which key you will sign with. Transactions already signed by this key will be skipped.",
-  "@txPlanningMfpPickerSubtitle": {},
-  "txPlanningMfpPickerPending": "{pending} / {total} pending",
-  "@txPlanningMfpPickerPending": {
-    "placeholders": {"pending": {"type": "int"}, "total": {"type": "int"}}
-  },
+  "txPlanningSignMfpTitle": "Sign with this key",
+  "@txPlanningSignMfpTitle": {},
+  "txPlanningSignerHotKeyOption": "Hot key",
+  "@txPlanningSignerHotKeyOption": {},
   "txPlanningHwBatchWrongDevice": "This hardware wallet ({mfp}) is not part of the plan's signing keys.",
   "@txPlanningHwBatchWrongDevice": {
     "placeholders": {"mfp": {"type": "String"}}
@@ -1730,10 +1718,6 @@
   "@txPlanningHwBatchAllSigned": {},
   "txPlanningQrSignTitle": "Sign batch via QR",
   "@txPlanningQrSignTitle": {},
-  "txPlanningQrSignProgress": "{signed} of {total} signed",
-  "@txPlanningQrSignProgress": {
-    "placeholders": {"signed": {"type": "int"}, "total": {"type": "int"}}
-  },
   "txPlanningQrSignCurrent": "Transaction {current} of {total}",
   "@txPlanningQrSignCurrent": {
     "placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}
@@ -1752,7 +1736,7 @@
   "@txPlanningConfirmCommitTitle": {
     "placeholders": {"count": {"type": "int"}}
   },
-  "txPlanningConfirmCommitBody": "Total fee {fee} sats. First broadcast around {earliest}, last around {latest}. Each transaction emits automatically when its timelock matures.",
+  "txPlanningConfirmCommitBody": "Total fee {fee} sats.\n\nFirst broadcast around {earliest}, last around {latest}.\n\nEach transaction emits automatically when its timelock matures.",
   "@txPlanningConfirmCommitBody": {
     "placeholders": {
       "fee": {"type": "String"},
@@ -1760,7 +1744,7 @@
       "latest": {"type": "String"}
     }
   },
-  "txPlanningConfirmCommitBodyTipUnknown": "Total fee {fee} sats. Broadcast windows depend on the chain tip (not yet synced). Each transaction emits automatically when its timelock matures.",
+  "txPlanningConfirmCommitBodyTipUnknown": "Total fee {fee} sats.\n\nBroadcast windows depend on the chain tip (not yet synced).\n\nEach transaction emits automatically when its timelock matures.",
   "@txPlanningConfirmCommitBodyTipUnknown": {
     "placeholders": {"fee": {"type": "String"}}
   },

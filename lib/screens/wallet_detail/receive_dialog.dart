@@ -109,19 +109,21 @@ class _ReceiveDialogState extends State<ReceiveDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 220,
-            height: 220,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.all(8),
-            child: QrImageView(
-              data: _address.address,
-              version: QrVersions.auto,
-              errorCorrectionLevel: QrErrorCorrectLevel.M,
-              backgroundColor: Colors.white,
+          Center(
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: QrImageView(
+                data: _address.address,
+                version: QrVersions.auto,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+                backgroundColor: Colors.white,
+              ),
             ),
           ),
           const SizedBox(height: 6),

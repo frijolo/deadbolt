@@ -13,6 +13,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Fixes
 - **Inconsistent export file names** — Exported files now use consistent sanitization for non-ASCII wallet names.
+- **RBF fee re-validated at broadcast** — When sending an RBF replacement, Deadbolt now refetches the conflicting transactions' minimum fee right before broadcasting and re-checks the user's fee against it. Closes a race where a new descendant entering the mempool between preview and broadcast would push the minimum above the originally-typed fee and cause the relay to reject the replacement.
 
 ### Improvements
 - **Restructured Add-key sheet** — The Add-key flow now opens at a capacity picker (Watch-only / Hot key) with per-source sub-pickers (manual, QR, file, hardware wallet, generate, existing mnemonic, xprv) instead of a single bloated dialog. Extracted shared widgets (`keyspec`, `derivation_path_helpers`, `gap_stepper`, `mnemonic_confirm_step`, `mnemonic_mfp_preview`) for reuse across the wizard and the manual paths.
