@@ -1043,6 +1043,24 @@
   "unlock": "Unlock",
   "addPrivateKeyLabel": "Add private key",
   "addSigningKeyLabel": "Add signing key",
+  "addPrivateKeyMatchedKey": "Will be attached to: {label}",
+  "@addPrivateKeyMatchedKey": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "addPrivateKeyAlreadyHot": "{label} already has a private key stored",
+  "@addPrivateKeyAlreadyHot": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "addPrivateKeyNoMatch": "Fingerprint {mfp} does not belong to any key in this wallet",
+  "@addPrivateKeyNoMatch": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
   "editKeyTitle": "Edit key",
   "validating": "Validating...",
   "registeredKeys": "Registered keys",

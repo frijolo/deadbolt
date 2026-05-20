@@ -4058,6 +4058,24 @@ abstract class AppLocalizations {
   /// **'Add signing key'**
   String get addSigningKeyLabel;
 
+  /// No description provided for @addPrivateKeyMatchedKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Will be attached to: {label}'**
+  String addPrivateKeyMatchedKey(String label);
+
+  /// No description provided for @addPrivateKeyAlreadyHot.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} already has a private key stored'**
+  String addPrivateKeyAlreadyHot(String label);
+
+  /// No description provided for @addPrivateKeyNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint {mfp} does not belong to any key in this wallet'**
+  String addPrivateKeyNoMatch(String mfp);
+
   /// No description provided for @editKeyTitle.
   ///
   /// In en, this message translates to:

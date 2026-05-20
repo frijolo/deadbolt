@@ -2214,6 +2214,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get addSigningKeyLabel => 'Agregar clave de firma';
 
   @override
+  String addPrivateKeyMatchedKey(String label) {
+    return 'Se asociará a: $label';
+  }
+
+  @override
+  String addPrivateKeyAlreadyHot(String label) {
+    return '$label ya tiene una clave privada almacenada';
+  }
+
+  @override
+  String addPrivateKeyNoMatch(String mfp) {
+    return 'El fingerprint $mfp no pertenece a ninguna clave de esta cartera';
+  }
+
+  @override
   String get editKeyTitle => 'Editar clave';
 
   @override

@@ -2197,6 +2197,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addSigningKeyLabel => 'Add signing key';
 
   @override
+  String addPrivateKeyMatchedKey(String label) {
+    return 'Will be attached to: $label';
+  }
+
+  @override
+  String addPrivateKeyAlreadyHot(String label) {
+    return '$label already has a private key stored';
+  }
+
+  @override
+  String addPrivateKeyNoMatch(String mfp) {
+    return 'Fingerprint $mfp does not belong to any key in this wallet';
+  }
+
+  @override
   String get editKeyTitle => 'Edit key';
 
   @override

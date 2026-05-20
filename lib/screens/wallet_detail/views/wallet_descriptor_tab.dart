@@ -121,14 +121,38 @@ class WalletKeysTab extends StatefulWidget {
 class _WalletKeysTabState extends State<WalletKeysTab> {
   @override
   Widget build(BuildContext context) {
-    final hotMfps = widget.hotKeys.map((k) => k.mfp).toSet();
+    final hotMfps = widget.hotKeys.map((k) => k.mfp.toLowerCase()).toSet();
     final cubit = context.read<WalletDetailCubit>();
+    final l10n = context.l10n;
+    final allHot = widget.keys.every((k) => hotMfps.contains(k.mfp.toLowerCase()));
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: allHot
+                ? null
+                : () => showAddPrivateKeySheet(
+                      context,
+                      cubit: cubit,
+                      walletKeys: widget.keys,
+                      hotMfps: hotMfps,
+                      keyLabels: widget.keyLabels,
+                    ),
+            icon: const Icon(Icons.local_fire_department_outlined, size: 18),
+            label: Text(l10n.addPrivateKeyLabel),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppAccent.color,
+              side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.border)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         ...List.generate(widget.keys.length, (i) {
           final k = widget.keys[i];
-          final isHot = hotMfps.contains(k.mfp);
+          final isHot = hotMfps.contains(k.mfp.toLowerCase());
           return KeyCard(
             key: ValueKey(k.mfp),
             mfp: k.mfp,
@@ -138,18 +162,10 @@ class _WalletKeysTabState extends State<WalletKeysTab> {
             mfpColor: walletColorForMfpIndex(context, i),
             isHot: isHot,
             onNameSave: (name) => cubit.setWalletKeyLabel(k.mfp, name ?? ''),
-            onMakeHot: !isHot
-                ? () => showAddPrivateKeySheet(
-                      context,
-                      cubit: cubit,
-                      expectedMfp: k.mfp,
-                      keyLabel: widget.keyLabels[k.mfp],
-                    )
-                : null,
             onRevealSeed: isHot ? () => cubit.revealHotKey(k.mfp) : null,
             onDeletePrivateInfo:
                 isHot ? () => cubit.deleteHotKey(k.mfp) : null,
-            deletePrivateInfoDisclaimer: context.l10n.deleteWalletPrivateKeyDisclaimer,
+            deletePrivateInfoDisclaimer: l10n.deleteWalletPrivateKeyDisclaimer,
             network: isHot ? widget.network : null,
           );
         }),

@@ -27,7 +27,6 @@ class KeyCard extends StatelessWidget {
   final bool Function(String)? isDuplicateName;
   final VoidCallback? onDelete;
   final bool canDelete;
-  final VoidCallback? onMakeHot;
   final bool isHot;
   /// Called when the user confirms they want to view the seed phrase.
   /// Must return the decrypted seed string.
@@ -49,7 +48,6 @@ class KeyCard extends StatelessWidget {
     this.isDuplicateName,
     this.onDelete,
     this.canDelete = true,
-    this.onMakeHot,
     this.isHot = false,
     this.onRevealSeed,
     this.onDeletePrivateInfo,
@@ -148,7 +146,6 @@ class KeyCard extends StatelessWidget {
           isDuplicateName: isDuplicateName,
           onDelete: onDelete,
           canDelete: canDelete,
-          onMakeHot: isHot ? null : onMakeHot,
           isHot: isHot,
           onRevealSeed: onRevealSeed,
           onDeletePrivateInfo: onDeletePrivateInfo,

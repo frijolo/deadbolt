@@ -4,6 +4,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Add private key inferred by MFP** — The wallet/project Keys view now shows a single "Add private key" button at the top instead of a per-card "Make hot" entry. The destination key is inferred from the seed's master fingerprint, with live xprv validation and explicit errors when the MFP doesn't match any watch-only key in the wallet or when the matched key already has a private key stored.
+
 ## [v1.9.7]
 
 ### New Features

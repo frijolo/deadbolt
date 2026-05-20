@@ -161,8 +161,9 @@ async def _create_wallet(d: UIDriver):
 
 async def _make_owner_key_hot(d: UIDriver):
     """
-    Descriptor tab → Keys sub-tab → tap BC0DBBCE key card →
-    'Add private key' → paste mnemonic → Add.
+    Descriptor tab → Keys sub-tab → 'Add private key' button above the keys
+    list → paste mnemonic → Add. The destination key is inferred from the
+    mnemonic's MFP (no need to tap a specific key card).
     """
     await click_label(d, "Descriptor", delay=0.5)
     # The Descriptor view has 3 sub-tabs: Spend paths / Keys / Descriptor.
@@ -172,19 +173,13 @@ async def _make_owner_key_hot(d: UIDriver):
     # MFPs are shown uppercase in key cards.
     await wait_for(d, "BC0DBBCE", "Keys tab with owner key card", retries=8, delay=0.5)
 
-    # Tap the owner key card to open the key sheet.
-    rect = await d.cs_find_by_label_part_containing("BC0DBBCE")
-    if rect is None:
-        raise AssertionError("BC0DBBCE key card not found in Keys sub-tab")
-    d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2)
-    await asyncio.sleep(0.5)
-
-    # Key sheet opens — click "Add private key".
-    await wait_for(d, "Add private key", "key sheet open", retries=8, delay=0.5)
+    # Tap the global 'Add private key' button above the keys list.
+    await wait_for(d, "Add private key",
+                   "Add private key button visible", retries=8, delay=0.5)
     await click_label(d, "Add private key", delay=0.5)
 
-    # showAddPrivateKeySheet opens in Hot Key mode and now starts on the
-    # hot-sources picker (Enter existing mnemonic / Enter xprv) before the form.
+    # showAddPrivateKeySheet opens in Hot Key mode on the hot-sources picker
+    # (Enter existing mnemonic / Enter xprv) before the form.
     await wait_for(d, "Enter existing mnemonic", "hotSources picker", retries=8, delay=0.5)
     await click_label(d, "Enter existing mnemonic", delay=0.5)
     await wait_for(d, "word1 word2 word3 ...", "mnemonic field", retries=8, delay=0.5)

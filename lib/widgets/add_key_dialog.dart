@@ -12,6 +12,7 @@ import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/analyzer.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
+import 'package:deadbolt/src/rust/api/wallet.dart' show validateXprv;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/derivation_path_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart'
@@ -94,14 +95,15 @@ void showAddKeyDialog(
 
 /// Opens the "Add private key" bottom sheet for a **wallet** context.
 ///
-/// [expectedMfp] / [keyLabel] identify the watch-only key to make hot.
-/// When null the sheet is used for adding a standalone signing key.
-/// Returns true if a key was successfully added.
+/// The destination key is inferred from the seed's master fingerprint (MFP):
+/// the entered mnemonic/xprv must match a watch-only key in [walletKeys] that
+/// is not yet hot. Returns true if a key was successfully added.
 Future<bool> showAddPrivateKeySheet(
   BuildContext context, {
   required WalletDetailCubit cubit,
-  String? expectedMfp,
-  String? keyLabel,
+  required List<APIPubKey> walletKeys,
+  required Set<String> hotMfps,
+  Map<String, String> keyLabels = const {},
 }) async {
   final state = cubit.state;
   final network = state is WalletDetailLoaded
@@ -113,8 +115,9 @@ Future<bool> showAddPrivateKeySheet(
     (ctx) => _AddKeySheet(
       network: network,
       walletMode: true,
-      expectedMfp: expectedMfp,
-      keyLabel: keyLabel,
+      walletKeys: walletKeys,
+      hotMfps: hotMfps.map((m) => m.toLowerCase()).toSet(),
+      keyLabels: keyLabels,
       onAddMnemonic: (mnemonic, passphrase) =>
           cubit.addMnemonicKey(mnemonic, passphrase),
       onAddXprv: (xprv) => cubit.addXprvKey(xprv),
@@ -155,23 +158,38 @@ Future<KeyspecResult?> showKeyspecSheet(
 /// Opens the "Add private key" bottom sheet for a **project** context.
 ///
 /// Stores the seed in the encrypted project_seeds.db via [cubit].
-/// [expectedMfp] constrains which key is being made hot.
+/// The destination key is inferred from the seed's MFP: it must match a
+/// non-hot key in [projectKeys].
 Future<bool> showAddProjectPrivateKeySheet(
   BuildContext context, {
   required ProjectDetailCubit cubit,
-  required String expectedMfp,
-  String? keyLabel,
+  required List<EditableKey> projectKeys,
+  required Set<String> hotMfps,
 }) async {
   final state = cubit.state as ProjectDetailLoaded;
   final network = APINetwork.values.byName(state.project.network);
+
+  final pseudoKeys = projectKeys
+      .map((k) => APIPubKey(
+            mfp: k.mfp,
+            derivationPath: k.derivationPath,
+            xpub: k.xpub,
+          ))
+      .toList();
+  final keyLabels = {
+    for (final k in projectKeys)
+      if (k.customName != null && k.customName!.isNotEmpty)
+        k.mfp: k.customName!,
+  };
 
   final result = await showSheet<bool>(
     context,
     (ctx) => _AddKeySheet(
       network: network,
       walletMode: true,
-      expectedMfp: expectedMfp,
-      keyLabel: keyLabel,
+      walletKeys: pseudoKeys,
+      hotMfps: hotMfps.map((m) => m.toLowerCase()).toSet(),
+      keyLabels: keyLabels,
       onAddMnemonic: (mnemonic, passphrase) =>
           cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
       onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
@@ -200,10 +218,11 @@ class _AddKeySheet extends StatefulWidget {
   final Future<void> Function(String mnemonic, String? passphrase)? onSeedAdded;
   final Future<void> Function(String xprv)? onXprvSeedAdded;
 
-  // Wallet mode
+  // Wallet mode (attach private key to existing watch-only key inferred by MFP)
   final bool walletMode;
-  final String? expectedMfp;
-  final String? keyLabel;
+  final List<APIPubKey> walletKeys;
+  final Set<String> hotMfps;
+  final Map<String, String> keyLabels;
   final Future<APIHotKeyInfo?> Function(String mnemonic, String? passphrase)?
       onAddMnemonic;
   final Future<APIHotKeyInfo?> Function(String xprv)? onAddXprv;
@@ -226,8 +245,9 @@ class _AddKeySheet extends StatefulWidget {
     this.onSeedAdded,
     this.onXprvSeedAdded,
     this.walletMode = false,
-    this.expectedMfp,
-    this.keyLabel,
+    this.walletKeys = const [],
+    this.hotMfps = const {},
+    this.keyLabels = const {},
     this.onAddMnemonic,
     this.onAddXprv,
     this.isMultiPath = false,
@@ -252,12 +272,19 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   KeyspecResult? _capturedKeyspecResult;
   MfpPreview? _capturedMfpPreview;
 
+  // xprv live MFP validation (wallet mode only)
+  Timer? _xprvDebounce;
+  String? _xprvMfp;
+  String? _xprvError;
+  bool _xprvValidating = false;
+
   bool get _isEditMode => widget.editingKey != null;
 
   @override
   void initState() {
     super.initState();
     _mnemonicController.addListener(_onMnemonicChanged);
+    _xprvController.addListener(_onXprvChanged);
     _stage = _isEditMode
         ? _PickerStage.form
         : (widget.walletMode
@@ -268,13 +295,81 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   @override
   void dispose() {
     _mnemonicController.removeListener(_onMnemonicChanged);
+    _xprvController.removeListener(_onXprvChanged);
     _mnemonicController.dispose();
     _xprvController.dispose();
+    _xprvDebounce?.cancel();
     super.dispose();
   }
 
   void _onMnemonicChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onXprvChanged() {
+    if (!widget.walletMode) {
+      if (mounted) setState(() {});
+      return;
+    }
+    _xprvDebounce?.cancel();
+    _xprvDebounce = Timer(const Duration(milliseconds: 400), _validateXprv);
+    setState(() {
+      _xprvMfp = null;
+      _xprvError = null;
+    });
+  }
+
+  Future<void> _validateXprv() async {
+    if (!mounted) return;
+    final xprv = _xprvController.text.trim();
+    if (xprv.isEmpty) {
+      setState(() {
+        _xprvMfp = null;
+        _xprvError = null;
+        _xprvValidating = false;
+      });
+      return;
+    }
+    setState(() {
+      _xprvValidating = true;
+      _xprvError = null;
+    });
+    try {
+      final info = await validateXprv(xprv: xprv);
+      if (!mounted) return;
+      setState(() {
+        _xprvMfp = info.mfp;
+        _xprvError = null;
+        _xprvValidating = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _xprvMfp = null;
+        _xprvError = formatRustError(e);
+        _xprvValidating = false;
+      });
+    }
+  }
+
+  /// Match a computed [mfp] against the wallet's keys.
+  /// Returns null if there's no candidate (orphan), otherwise the matched key
+  /// plus whether it already has a hot seed.
+  ({APIPubKey key, String label, bool alreadyHot})? _matchInfoFor(String mfp) {
+    final lower = mfp.toLowerCase();
+    for (final k in widget.walletKeys) {
+      if (k.mfp.toLowerCase() == lower) {
+        final label = widget.keyLabels[k.mfp] ??
+            widget.keyLabels[k.mfp.toLowerCase()] ??
+            k.mfp.toUpperCase();
+        return (
+          key: k,
+          label: label,
+          alreadyHot: widget.hotMfps.contains(lower),
+        );
+      }
+    }
+    return null;
   }
 
   @override
@@ -320,25 +415,11 @@ class _AddKeySheetState extends State<_AddKeySheet> {
                         children: [
                           Text(
                             widget.walletMode
-                                ? (widget.expectedMfp != null
-                                    ? l10n.addPrivateKeyLabel
-                                    : l10n.addSigningKeyLabel)
+                                ? l10n.addPrivateKeyLabel
                                 : l10n.editKeyTitle,
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          if (widget.walletMode && widget.expectedMfp != null)
-                            Text(
-                              widget.keyLabel != null &&
-                                      widget.keyLabel!.isNotEmpty
-                                  ? '${widget.keyLabel} · ${widget.expectedMfp}'
-                                  : 'Key: ${widget.expectedMfp}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontFamily: kMonospaceFontFamily,
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
-                            )
-                          else if (_isEditMode)
+                          if (_isEditMode)
                             Text(
                               widget.editingKey!.mfp.toUpperCase(),
                               style: TextStyle(
@@ -395,7 +476,10 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _submit,
+                onPressed: widget.walletMode &&
+                        _walletSubmitBlocker(l10n) != null
+                    ? null
+                    : _submit,
                 child: Text(
                   widget.walletMode || _isEditMode
                       ? l10n.addPrivateKeyLabel
@@ -753,12 +837,39 @@ class _AddKeySheetState extends State<_AddKeySheet> {
 
   Future<void> _submitWallet() async {
     setState(() => _errorText = null);
+    final l10n = context.l10n;
 
+    // Determine the computed MFP for this submission (either via the mnemonic
+    // preview or the xprv preview). Submit is gated on a valid match — see
+    // [_walletSubmitBlocker] — so by the time we get here the match is valid.
+    final String mfp;
     if (_seedType == _SeedType.mnemonic) {
       if (_capturedMfpPreview == null) {
-        setState(() => _errorText = context.l10n.enterValidSeedPhrase);
+        setState(() => _errorText = l10n.enterValidSeedPhrase);
         return;
       }
+      mfp = _capturedMfpPreview!.mfp;
+    } else {
+      if (_xprvMfp == null) {
+        setState(() =>
+            _errorText = _xprvError ?? l10n.enterXprvKey);
+        return;
+      }
+      mfp = _xprvMfp!;
+    }
+
+    final match = _matchInfoFor(mfp);
+    if (match == null) {
+      setState(() => _errorText = l10n.addPrivateKeyNoMatch(mfp));
+      return;
+    }
+    if (match.alreadyHot) {
+      setState(
+          () => _errorText = l10n.addPrivateKeyAlreadyHot(match.label));
+      return;
+    }
+
+    if (_seedType == _SeedType.mnemonic) {
       final result = await widget.onAddMnemonic!(
         _mnemonicController.text.trim(),
         _capturedMfpPreview!.passphrase.isEmpty
@@ -767,23 +878,32 @@ class _AddKeySheetState extends State<_AddKeySheet> {
       );
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
+        showSuccessToast(l10n.signingKeyAdded(result.mfp));
         Navigator.pop(context, true);
       }
       // On null: cubit already emitted error toast via BlocListener.
     } else {
-      final xprv = _xprvController.text.trim();
-      if (xprv.isEmpty) {
-        setState(() => _errorText = context.l10n.enterXprvKey);
-        return;
-      }
-      final result = await widget.onAddXprv!(xprv);
+      final result = await widget.onAddXprv!(_xprvController.text.trim());
       if (!mounted) return;
       if (result != null) {
-        showSuccessToast(context.l10n.signingKeyAdded(result.mfp));
+        showSuccessToast(l10n.signingKeyAdded(result.mfp));
         Navigator.pop(context, true);
       }
     }
+  }
+
+  /// Returns null if the wallet-mode submit button can fire, otherwise the
+  /// reason it must remain disabled (used purely for UI feedback — the actual
+  /// validation lives in [_submitWallet]).
+  String? _walletSubmitBlocker(AppLocalizations l10n) {
+    final mfp = _seedType == _SeedType.mnemonic
+        ? _capturedMfpPreview?.mfp
+        : _xprvMfp;
+    if (mfp == null) return ''; // empty string → just disable, no message
+    final match = _matchInfoFor(mfp);
+    if (match == null) return l10n.addPrivateKeyNoMatch(mfp);
+    if (match.alreadyHot) return l10n.addPrivateKeyAlreadyHot(match.label);
+    return null;
   }
 
   Widget _buildSeedForm() {
@@ -877,7 +997,6 @@ class _AddKeySheetState extends State<_AddKeySheet> {
           MnemonicMfpPreview(
             mnemonic: _mnemonicController.text.trim(),
             network: widget.network,
-            expectedMfp: widget.expectedMfp,
             onMfpChanged: (preview) {
               setState(() => _capturedMfpPreview = preview);
             },
@@ -892,12 +1011,100 @@ class _AddKeySheetState extends State<_AddKeySheet> {
               hintText: 'xprv...',
             ),
           ),
+          const SizedBox(height: 8),
+          _buildXprvPreview(),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        _buildMatchBanner(),
       ],
     );
   }
 
+  Widget _buildXprvPreview() {
+    final l10n = context.l10n;
+    if (_xprvValidating) {
+      return Row(children: [
+        const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+        const SizedBox(width: 8),
+        Text(l10n.validating, style: const TextStyle(fontSize: 12)),
+      ]);
+    }
+    if (_xprvError != null) {
+      return Text(_xprvError!,
+          style: const TextStyle(color: Colors.red, fontSize: 12));
+    }
+    if (_xprvMfp != null) {
+      return Row(children: [
+        const Icon(Icons.fingerprint, size: 16),
+        const SizedBox(width: 4),
+        Text('MFP: $_xprvMfp',
+            style: const TextStyle(fontFamily: kMonospaceFontFamily)),
+      ]);
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// Shows the matched watch-only key (or a mismatch error) once an MFP is
+  /// available. Empty while the user is still typing.
+  Widget _buildMatchBanner() {
+    final mfp = _seedType == _SeedType.mnemonic
+        ? _capturedMfpPreview?.mfp
+        : _xprvMfp;
+    if (mfp == null) return const SizedBox.shrink();
+    final match = _matchInfoFor(mfp);
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+
+    if (match == null) {
+      return _MatchBanner(
+        icon: Icons.cancel,
+        color: Colors.red,
+        text: l10n.addPrivateKeyNoMatch(mfp),
+      );
+    }
+    if (match.alreadyHot) {
+      return _MatchBanner(
+        icon: Icons.warning_amber_rounded,
+        color: cs.tertiary,
+        text: l10n.addPrivateKeyAlreadyHot(match.label),
+      );
+    }
+    return _MatchBanner(
+      icon: Icons.check_circle,
+      color: Colors.green,
+      text: l10n.addPrivateKeyMatchedKey(match.label),
+    );
+  }
+}
+
+class _MatchBanner extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+  const _MatchBanner(
+      {required this.icon, required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        border: Border.all(color: color.withAlpha(80)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(text, style: const TextStyle(fontSize: 13)),
+        ),
+      ]),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

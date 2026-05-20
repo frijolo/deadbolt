@@ -29,7 +29,6 @@ void showKeySheet(
   bool Function(String name)? isDuplicateName,
   VoidCallback? onDelete,
   bool canDelete = false,
-  VoidCallback? onMakeHot,
   bool isHot = false,
   Future<String?> Function()? onRevealSeed,
   VoidCallback? onDeletePrivateInfo,
@@ -49,7 +48,6 @@ void showKeySheet(
       isDuplicateName: isDuplicateName,
       onDelete: onDelete,
       canDelete: canDelete,
-      onMakeHot: onMakeHot,
       isHot: isHot,
       onRevealSeed: onRevealSeed,
       onDeletePrivateInfo: onDeletePrivateInfo,
@@ -69,7 +67,6 @@ class _KeySheetContent extends StatefulWidget {
   final bool Function(String name)? isDuplicateName;
   final VoidCallback? onDelete;
   final bool canDelete;
-  final VoidCallback? onMakeHot;
   final bool isHot;
   final Future<String?> Function()? onRevealSeed;
   final VoidCallback? onDeletePrivateInfo;
@@ -86,7 +83,6 @@ class _KeySheetContent extends StatefulWidget {
     this.isDuplicateName,
     this.onDelete,
     this.canDelete = false,
-    this.onMakeHot,
     this.isHot = false,
     this.onRevealSeed,
     this.onDeletePrivateInfo,
@@ -136,12 +132,6 @@ class _KeySheetContentState extends State<_KeySheetContent> {
                     const Divider(),
                     const SizedBox(height: 8),
                     _buildPrivateKeySection(context, cs, l10n),
-                  ],
-                  if (widget.onMakeHot != null) ...[
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    _buildMakeHotButton(context),
                   ],
                   if (widget.onDelete != null) ...[
                     const SizedBox(height: 16),
@@ -290,22 +280,6 @@ class _KeySheetContentState extends State<_KeySheetContent> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildMakeHotButton(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: () {
-        Navigator.of(context).pop();
-        widget.onMakeHot!();
-      },
-      icon: const Icon(Icons.local_fire_department_outlined, size: 18),
-      label: Text(context.l10n.addPrivateKeyLabel),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppAccent.color,
-        side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.half)),
-        minimumSize: const Size(double.infinity, 40),
-      ),
     );
   }
 

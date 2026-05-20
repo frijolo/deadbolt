@@ -9,12 +9,13 @@ Flow:
   1. Create project (wpkh singlesig, known MFP 5436d724)
   2. Create wallet from project (Device Key protection, no password)
   3. Navigate to Descriptor tab → Keys (1) sub-tab
-  4. Open key card (mfp uppercase) → key_edit_sheet shows "Add private key" button
-  5. Click "Add private key" → addPrivateKeySheet opens in SeedTab / mnemonic mode
-  6. Enter test mnemonic → 24/24 word count confirmed
-  7. Confirm → HOT badge visible on key card
-  8. Open key card again → key_edit_sheet shows "Remove signing key" button
-  9. Click "Remove signing key" → confirm dialog → "Remove" → HOT badge gone
+  4. Tap the "Add private key" button above the keys list → addPrivateKeySheet
+     opens directly on the hot-sources picker (walletMode)
+  5. Enter test mnemonic → 24/24 word count confirmed; banner shows the seed
+     will be attached to the (only) watch-only key in the wallet
+  6. Confirm → HOT badge visible on key card
+  7. Open key card → key_edit_sheet shows "Remove signing key" button
+  8. Click "Remove signing key" → confirm dialog → "Remove" → HOT badge gone
 
 Prerequisites:
   bash scripts/prepare_test_build.sh
@@ -91,17 +92,13 @@ async def test_hot_keys(d: UIDriver):
         raise AssertionError("HOT badge already present — sandbox not clean")
     print("    [ok] Keys sub-tab active — no HOT badge (expected)")
 
-    # 5. Tap the key card (title = MFP uppercase when no label)
-    #    → opens key_edit_sheet which shows the "Add private key" button
-    await click_label(d, EXPECTED_MFP_UP, delay=0.6)
-    await wait_for(d, '"Add private key"', "key_edit_sheet opened", retries=8, delay=0.5)
-    print("    [ok] key_edit_sheet opened — 'Add private key' visible")
-
-    # 6. Click "Add private key" in the key_edit_sheet
-    #    → closes key_edit_sheet, opens addPrivateKeySheet (walletMode → hotSources picker)
+    # 5. Click the "Add private key" button above the keys list
+    #    → opens addPrivateKeySheet directly on hotSources picker (walletMode).
+    #    The destination key is inferred from the seed's MFP, so no key card
+    #    has to be tapped first.
+    await wait_for(d, '"Add private key"', "Add private key button visible",
+                   retries=8, delay=0.5)
     await click_label(d, "Add private key", delay=1.2)
-    # In wallet mode the sheet now opens on the hot-sources picker; pick
-    # "Enter existing mnemonic" to reach the seed form.
     await wait_for(d, '"Enter existing mnemonic"', "addPrivateKeySheet hotSources picker visible",
                    retries=8, delay=0.5)
     await click_label(d, "Enter existing mnemonic", delay=0.6)

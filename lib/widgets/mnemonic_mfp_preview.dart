@@ -13,10 +13,6 @@ import 'package:deadbolt/src/rust/api/wallet.dart' show validateMnemonic;
 /// Collects an optional BIP39 passphrase and live-validates the mnemonic
 /// against [network] to derive the master fingerprint (MFP).
 ///
-/// Used by:
-///   * wallet mode "make hot" seed form,
-///   * any context where only MFP validation is needed (no derivation path).
-///
 /// The widget does **not** own the mnemonic input field — callers pass the
 /// mnemonic string in via [mnemonic]. The widget owns the passphrase UI.
 ///
@@ -29,10 +25,6 @@ class MnemonicMfpPreview extends StatefulWidget {
   /// Bitcoin network — affects coin type in default paths.
   final APINetwork network;
 
-  /// If non-null, the derived MFP must match this value (case-insensitive)
-  /// for the preview to show a green check. Used for "make hot" flows.
-  final String? expectedMfp;
-
   /// Initial value for the BIP39 passphrase field.
   final String initialPassphrase;
 
@@ -43,7 +35,6 @@ class MnemonicMfpPreview extends StatefulWidget {
     super.key,
     required this.mnemonic,
     required this.network,
-    this.expectedMfp,
     this.initialPassphrase = '',
     this.onMfpChanged,
   });
@@ -55,10 +46,9 @@ class MnemonicMfpPreview extends StatefulWidget {
 /// Result of MFP validation.
 class MfpPreview {
   final String mfp;
-  final bool matchesExpected;
   final String passphrase;
 
-  const MfpPreview({required this.mfp, required this.matchesExpected, this.passphrase = ''});
+  const MfpPreview({required this.mfp, this.passphrase = ''});
 }
 
 class _MnemonicMfpPreviewState extends State<MnemonicMfpPreview> {
@@ -137,15 +127,13 @@ class _MnemonicMfpPreviewState extends State<MnemonicMfpPreview> {
         network: widget.network,
       );
       if (!mounted) return;
-      final matches = widget.expectedMfp == null ||
-          info.mfp.toLowerCase() == widget.expectedMfp!.toLowerCase();
       setState(() {
         _mfp = info.mfp;
         _error = null;
         _validating = false;
       });
       _reportMfp(
-        MfpPreview(mfp: info.mfp, matchesExpected: matches, passphrase: _passphraseController.text),
+        MfpPreview(mfp: info.mfp, passphrase: _passphraseController.text),
       );
     } catch (e) {
       if (!mounted) return;
@@ -184,13 +172,20 @@ class _MnemonicMfpPreviewState extends State<MnemonicMfpPreview> {
           const SizedBox(height: 8),
           Row(children: [
             const SizedBox(
-                width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2)),
             const SizedBox(width: 8),
             Text(l10n.validating, style: const TextStyle(fontSize: 12)),
           ]),
         ] else if (_mfp != null && _error == null) ...[
           const SizedBox(height: 8),
-          _buildMfpPreview(),
+          Row(children: [
+            const Icon(Icons.fingerprint, size: 16),
+            const SizedBox(width: 4),
+            Text('MFP: $_mfp',
+                style: const TextStyle(fontFamily: kMonospaceFontFamily)),
+          ]),
         ] else if (_error != null) ...[
           const SizedBox(height: 8),
           Text(_error!,
@@ -198,31 +193,5 @@ class _MnemonicMfpPreviewState extends State<MnemonicMfpPreview> {
         ],
       ],
     );
-  }
-
-  Widget _buildMfpPreview() {
-    final l10n = context.l10n;
-    final expected = widget.expectedMfp;
-    final matches = expected == null ||
-        _mfp!.toLowerCase() == expected.toLowerCase();
-    return Row(children: [
-      Icon(
-        matches ? Icons.check_circle : Icons.cancel,
-        color: matches ? Colors.green : Colors.red,
-        size: 16,
-      ),
-      const SizedBox(width: 4),
-      if (matches)
-        Text('MFP: $_mfp',
-            style: const TextStyle(fontFamily: kMonospaceFontFamily))
-      else
-        Expanded(
-          child: Text(
-            l10n.wrongKeyMfp(_mfp!, expected),
-            style: const TextStyle(
-                color: Colors.red, fontSize: 12, fontFamily: kMonospaceFontFamily),
-          ),
-        ),
-    ]);
   }
 }

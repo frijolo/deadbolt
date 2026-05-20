@@ -318,12 +318,12 @@ async def _select_first_utxo(d):
 async def _promote_key_to_hot(d):
     """Recovery via on-chain backup imports the wallet as watch-only — the
     descriptor blob carries no key material. Promote the BC0DBBCE key to
-    hot by attaching the mnemonic via Descriptor tab → key card →
-    'Add private key' → Mnemonic form."""
+    hot by tapping the 'Add private key' button above the keys list and
+    pasting the mnemonic; the destination is inferred from the MFP."""
     print("\n  [phase 2b] Promote BC0DBBCE key to hot (attach mnemonic)")
     await click_label(d, "Descriptor", delay=1.0)
     # Descriptor view has sub-tabs: Spend paths / Keys / Descriptor.
-    # Switch to Keys so we tap the actual key card, not the spend-path row.
+    # Switch to Keys so the global 'Add private key' button is visible.
     keys_tab = await d.cs_find_label_containing("Keys (")
     if keys_tab is None:
         raise AssertionError("Keys sub-tab not found in Descriptor view")
@@ -333,15 +333,16 @@ async def _promote_key_to_hot(d):
     await wait_for(d, "BC0DBBCE", "key card visible in Keys sub-tab",
                    retries=15, delay=0.6)
 
-    # Tap the key card row to open the key edit sheet.
-    rect = await d.cs_find_label_containing("BC0DBBCE")
-    d.flutter_click((rect[0] + rect[2]) // 2, (rect[1] + rect[3]) // 2)
-    await asyncio.sleep(0.8)
-    await wait_for(d, "Add private key", "key edit sheet open with 'Add private key'",
+    # Tap the global 'Add private key' button above the keys list.
+    # The sheet opens directly on the hot-sources picker (walletMode).
+    await wait_for(d, "Add private key",
+                   "Add private key button visible above keys list",
                    retries=10, delay=0.5)
-
-    # Tap the 'Add private key' button to switch to the seed-input sheet.
     await click_label(d, "Add private key", delay=0.8)
+    await wait_for(d, '"Enter existing mnemonic"',
+                   "addPrivateKeySheet hot-sources picker visible",
+                   retries=8, delay=0.5)
+    await click_label(d, "Enter existing mnemonic", delay=0.6)
 
     # Wallet-mode seed form is opened on the Mnemonic tab by default.
     await wait_for(d, "word1 word2 word3 ...", "mnemonic field ready",

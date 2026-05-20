@@ -195,6 +195,10 @@ Future<APIHotKeyInfo> validateMnemonic({
   network: network,
 );
 
+/// Validate a master xprv (depth-0) and return its MFP without storing anything.
+Future<APIHotKeyInfo> validateXprv({required String xprv}) =>
+    RustLib.instance.api.crateApiWalletValidateXprv(xprv: xprv);
+
 /// `derivation_path` may include or omit the leading `m/`.
 /// Returns a string suitable for use in a Bitcoin descriptor.
 Future<String> deriveKeyspec({
@@ -804,8 +808,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// `spaced_plan:{plan_id}:coin:{src_txid}:{src_vout}` source so the
   /// matching call to [`Self::clear_spaced_plan_labels`] can wipe
   /// them on cancel. Entries whose address already carries an
-  /// explicit user label are skipped (auto-labels never overwrite
-  /// user input).
+  /// explicit user label are skipped (the planner must never
+  /// overwrite user input).
+  ///
+  /// Stored with `is_auto = false`: the user expects migrated coins
+  /// on the destination wallet to look like *their own* labelled
+  /// addresses, not as auto-inherited ones. The `source_entity` tag
+  /// is still set so cancel cleanup can find and wipe them.
   void setSpacedPlanAddressLabels({
     required List<APISpacedPlanAddressLabel> entries,
   });

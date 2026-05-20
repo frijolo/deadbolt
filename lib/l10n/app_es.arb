@@ -1031,6 +1031,24 @@
   "unlock": "Desbloquear",
   "addPrivateKeyLabel": "Agregar clave privada",
   "addSigningKeyLabel": "Agregar clave de firma",
+  "addPrivateKeyMatchedKey": "Se asociará a: {label}",
+  "@addPrivateKeyMatchedKey": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "addPrivateKeyAlreadyHot": "{label} ya tiene una clave privada almacenada",
+  "@addPrivateKeyAlreadyHot": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "addPrivateKeyNoMatch": "El fingerprint {mfp} no pertenece a ninguna clave de esta cartera",
+  "@addPrivateKeyNoMatch": {
+    "placeholders": {
+      "mfp": { "type": "String" }
+    }
+  },
   "editKeyTitle": "Editar clave",
   "validating": "Validando...",
   "registeredKeys": "Claves registradas",

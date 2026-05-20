@@ -78,7 +78,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -740808125;
+  int get rustContentHash => 976738602;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -965,6 +965,8 @@ abstract class RustLibApi extends BaseApi {
     String? passphrase,
     required APINetwork network,
   });
+
+  Future<APIHotKeyInfo> crateApiWalletValidateXprv({required String xprv});
 
   Future<void> crateApiHwWalletWaitHwPairing({required String sessionId});
 
@@ -7284,6 +7286,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<APIHotKeyInfo> crateApiWalletValidateXprv({required String xprv}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(xprv, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 172,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_api_hot_key_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWalletValidateXprvConstMeta,
+        argValues: [xprv],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWalletValidateXprvConstMeta =>
+      const TaskConstMeta(debugName: "validate_xprv", argNames: ["xprv"]);
+
+  @override
   Future<void> crateApiHwWalletWaitHwPairing({required String sessionId}) {
     return handler.executeNormal(
       NormalTask(
@@ -7293,7 +7323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 172,
+            funcId: 173,
             port: port_,
           );
         },
@@ -7326,7 +7356,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 173,
+            funcId: 174,
             port: port_,
           );
         },
@@ -7359,7 +7389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 174,
+            funcId: 175,
             port: port_,
           );
         },
@@ -7392,7 +7422,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 175,
+            funcId: 176,
             port: port_,
           );
         },
@@ -7423,7 +7453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 176,
+            funcId: 177,
             port: port_,
           );
         },
@@ -14597,8 +14627,13 @@ class ApiWalletImpl extends RustOpaque implements ApiWallet {
   /// `spaced_plan:{plan_id}:coin:{src_txid}:{src_vout}` source so the
   /// matching call to [`Self::clear_spaced_plan_labels`] can wipe
   /// them on cancel. Entries whose address already carries an
-  /// explicit user label are skipped (auto-labels never overwrite
-  /// user input).
+  /// explicit user label are skipped (the planner must never
+  /// overwrite user input).
+  ///
+  /// Stored with `is_auto = false`: the user expects migrated coins
+  /// on the destination wallet to look like *their own* labelled
+  /// addresses, not as auto-inherited ones. The `source_entity` tag
+  /// is still set so cancel cleanup can find and wipe them.
   void setSpacedPlanAddressLabels({
     required List<APISpacedPlanAddressLabel> entries,
   }) => RustLib.instance.api.crateApiWalletApiWalletSetSpacedPlanAddressLabels(

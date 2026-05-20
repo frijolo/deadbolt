@@ -847,6 +847,21 @@ pub fn validate_mnemonic(
     })
 }
 
+/// Validate a master xprv (depth-0) and return its MFP without storing anything.
+pub fn validate_xprv(xprv: String) -> Result<APIHotKeyInfo> {
+    use crate::core::seed::{root_xprv_to_mfp, xprv_str_to_root_xprv};
+    use bdk_wallet::bitcoin::secp256k1::Secp256k1;
+
+    let secp = Secp256k1::new();
+    let root_xprv = xprv_str_to_root_xprv(&xprv)?;
+    let mfp = root_xprv_to_mfp(&root_xprv, &secp);
+    Ok(APIHotKeyInfo {
+        mfp,
+        seed_type: "xprv".to_string(),
+        created_at: 0,
+    })
+}
+
 /// Derive a public keyspec `[mfp/path]xpub` from a mnemonic and derivation path.
 ///
 /// Shared implementation: derive a child xpub from `root` and `derivation_path`,
