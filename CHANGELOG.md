@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.7]
 
 ### New Features
 - **Spaced transaction planning** — A new wallet menu entry plans N future-dated, single-input transactions per confirmed UTXO with randomised feerates, staggered nLockTimes, optional 2-output anti-fingerprint split, and label propagation from source coins to destination addresses. Covers both refresh (same wallet) and migrate (different destination) in one unified flow, batch-signed via hot key, hardware wallet, or QR with two confirmation gates. Auto-broadcast emits each child as its timelock matures; a Reserved balance chip and per-coin earmark badge surface active plans.
@@ -466,6 +466,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.9.7]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.7
 [v1.7.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.0
 [v1.6.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.2
 [v1.6.1]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.1

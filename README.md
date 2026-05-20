@@ -42,6 +42,14 @@ Export unsigned PSBTs as animated QR codes (BC-UR). Import signed results from a
 
 Create Taproot wallets where you control funds normally and a designated heir can access them after a configurable timelock (3 months to custom block height). Re-vault resets the clock in one tap.
 
+### Spaced UTXO migration and refresh
+
+Plan a series of future-dated, single-input transactions that move every confirmed UTXO to fresh addresses — either inside the same wallet (refresh) or to a different wallet (migration). Each child transaction gets a randomised feerate, a staggered nLockTime, and an optional 2-output anti-fingerprint split. Sign the whole batch once via hot key, BitBox02, or animated QR, and Deadbolt broadcasts each transaction automatically as its timelock matures. Coin labels follow their UTXO into the destination address. No coordinator, no third party.
+
+### Future-dated transactions with auto-broadcast
+
+Pick any send and delay its broadcast by days, hours, or minutes; Deadbolt sets an nLockTime in the future and queues the signed PSBT. The next Electrum sync after the timelock matures broadcasts the transaction automatically. The transactions list shows a queued badge with the unlock ETA — useful for scheduled payments, dead-man switches, or pre-signing a recovery transaction.
+
 ### Deep descriptor analysis
 
 Deadbolt parses every descriptor type (P2PKH, P2WPKH, P2WSH, Taproot, miniscript, multipath) and shows you exactly what each spend path costs in fees — before you commit any funds.
