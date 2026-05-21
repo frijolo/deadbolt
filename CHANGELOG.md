@@ -8,6 +8,11 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Improvements
 - **Add private key inferred by MFP** — The wallet/project Keys view now shows a single "Add private key" button at the top instead of a per-card "Make hot" entry. The destination key is inferred from the seed's master fingerprint, with live xprv validation and explicit errors when the MFP doesn't match any watch-only key in the wallet or when the matched key already has a private key stored.
+- **Unified Add-key flow attaches private keys** — Adding a key (mnemonic or xprv) whose MFP already matches an existing watch-only key in a project now prompts to attach it as the private key for that slot, removing the separate project-level "Add private key" button. The wallet Descriptor tab moves the "Add private key" button below the key list for a less crowded header.
+- **Clearer stored-seed terminology** — Key-card labels and confirmation copy now talk about "Stored seed" / "Delete stored seed" with an explicit warning that, without a backup, deleting the seed permanently loses access while the watch-only public key remains.
+
+### Fixes
+- **Orphaned hot seed when removing a key from a project** — Removing a key that had a stored seed now cascade-deletes the seed from `project_seeds.db` instead of leaving the secret orphaned with no UI to reach it.
 
 ## [v1.9.7]
 

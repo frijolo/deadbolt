@@ -126,49 +126,56 @@ class _WalletKeysTabState extends State<WalletKeysTab> {
     final l10n = context.l10n;
     final allHot = widget.keys.every((k) => hotMfps.contains(k.mfp.toLowerCase()));
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+    return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: allHot
-                ? null
-                : () => showAddPrivateKeySheet(
-                      context,
-                      cubit: cubit,
-                      walletKeys: widget.keys,
-                      hotMfps: hotMfps,
-                      keyLabels: widget.keyLabels,
-                    ),
-            icon: const Icon(Icons.local_fire_department_outlined, size: 18),
-            label: Text(l10n.addPrivateKeyLabel),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppAccent.color,
-              side: BorderSide(color: AppAccent.color.withAlpha(AppAlpha.border)),
-            ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            children: List.generate(widget.keys.length, (i) {
+              final k = widget.keys[i];
+              final isHot = hotMfps.contains(k.mfp.toLowerCase());
+              return KeyCard(
+                key: ValueKey(k.mfp),
+                mfp: k.mfp,
+                derivationPath: k.derivationPath,
+                xpub: k.xpub,
+                label: widget.keyLabels[k.mfp],
+                mfpColor: walletColorForMfpIndex(context, i),
+                isHot: isHot,
+                onNameSave: (name) => cubit.setWalletKeyLabel(k.mfp, name ?? ''),
+                onRevealSeed: isHot ? () => cubit.revealHotKey(k.mfp) : null,
+                onDeletePrivateInfo:
+                    isHot ? () => cubit.deleteHotKey(k.mfp) : null,
+                deletePrivateInfoDisclaimer:
+                    l10n.deleteWalletPrivateKeyDisclaimer,
+                network: isHot ? widget.network : null,
+              );
+            }),
           ),
         ),
-        const SizedBox(height: 12),
-        ...List.generate(widget.keys.length, (i) {
-          final k = widget.keys[i];
-          final isHot = hotMfps.contains(k.mfp.toLowerCase());
-          return KeyCard(
-            key: ValueKey(k.mfp),
-            mfp: k.mfp,
-            derivationPath: k.derivationPath,
-            xpub: k.xpub,
-            label: widget.keyLabels[k.mfp],
-            mfpColor: walletColorForMfpIndex(context, i),
-            isHot: isHot,
-            onNameSave: (name) => cubit.setWalletKeyLabel(k.mfp, name ?? ''),
-            onRevealSeed: isHot ? () => cubit.revealHotKey(k.mfp) : null,
-            onDeletePrivateInfo:
-                isHot ? () => cubit.deleteHotKey(k.mfp) : null,
-            deletePrivateInfoDisclaimer: l10n.deleteWalletPrivateKeyDisclaimer,
-            network: isHot ? widget.network : null,
-          );
-        }),
+        if (!allHot)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => showAddPrivateKeySheet(
+                  context,
+                  cubit: cubit,
+                  walletKeys: widget.keys,
+                  hotMfps: hotMfps,
+                  keyLabels: widget.keyLabels,
+                ),
+                icon: const Icon(Icons.local_fire_department_outlined, size: 18),
+                label: Text(l10n.addPrivateKeyLabel),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppAccent.color,
+                  side: BorderSide(
+                      color: AppAccent.color.withAlpha(AppAlpha.border)),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

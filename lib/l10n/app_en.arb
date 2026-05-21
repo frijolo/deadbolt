@@ -195,17 +195,17 @@
   "keyFingerprintLabel": "Fingerprint",
   "keyDerivPathLabel": "Derivation path",
   "keyXpubLabel": "Extended public key",
-  "removeKeyTooltip": "Remove key",
-  "keyInUseTooltip": "Key in use - cannot delete",
+  "removeKeyTooltip": "Remove key from project",
+  "keyInUseTooltip": "Key in use, cannot remove",
   "hotKeyBadge": "HOT",
-  "privateKeySection": "Private key",
+  "privateKeySection": "Stored seed",
   "viewPrivateKeyButton": "View seed phrase",
-  "deletePrivateKeyButton": "Remove signing key",
+  "deletePrivateKeyButton": "Delete stored seed",
   "viewPrivateKeyDisclaimer": "Make sure no one can see your screen. Your seed phrase gives full access to your funds.",
-  "deletePrivateKeyDisclaimer": "This removes the signing key from this project. You will no longer be able to sign transactions from the Designer.",
+  "deletePrivateKeyDisclaimer": "This deletes the seed phrase stored in this project. If you don't have a backup, you will permanently lose access to this key. The public key will remain in the project as watch-only.",
   "deleteWalletPrivateKeyDisclaimer": "This removes the signing key from this wallet. You will no longer be able to sign transactions with it.",
   "viewPrivateKeyConfirm": "Show seed",
-  "deletePrivateKeyConfirm": "Remove",
+  "deletePrivateKeyConfirm": "Delete seed",
   "seedPhraseDialogTitle": "Seed phrase",
   "seedPhraseCopied": "Seed phrase copied",
   "seedExportTitle": "Seed Export",
@@ -1061,6 +1061,13 @@
       "mfp": { "type": "String" }
     }
   },
+  "attachPrivateKeyConfirmMessage": "This seed matches the existing key \"{label}\". Attach it as a private key?",
+  "@attachPrivateKeyConfirmMessage": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "attachPrivateKeyConfirmAction": "Attach",
   "editKeyTitle": "Edit key",
   "validating": "Validating...",
   "registeredKeys": "Registered keys",

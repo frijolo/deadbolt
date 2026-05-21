@@ -318,7 +318,7 @@ async def _select_first_utxo(d):
 async def _promote_key_to_hot(d):
     """Recovery via on-chain backup imports the wallet as watch-only — the
     descriptor blob carries no key material. Promote the BC0DBBCE key to
-    hot by tapping the 'Add private key' button above the keys list and
+    hot by tapping the 'Add private key' button below the keys list and
     pasting the mnemonic; the destination is inferred from the MFP."""
     print("\n  [phase 2b] Promote BC0DBBCE key to hot (attach mnemonic)")
     await click_label(d, "Descriptor", delay=1.0)
@@ -333,10 +333,10 @@ async def _promote_key_to_hot(d):
     await wait_for(d, "BC0DBBCE", "key card visible in Keys sub-tab",
                    retries=15, delay=0.6)
 
-    # Tap the global 'Add private key' button above the keys list.
+    # Tap the global 'Add private key' button below the keys list.
     # The sheet opens directly on the hot-sources picker (walletMode).
     await wait_for(d, "Add private key",
-                   "Add private key button visible above keys list",
+                   "Add private key button visible below keys list",
                    retries=10, delay=0.5)
     await click_label(d, "Add private key", delay=0.8)
     await wait_for(d, '"Enter existing mnemonic"',

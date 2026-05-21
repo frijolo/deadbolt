@@ -428,22 +428,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keyXpubLabel => 'Extended public key';
 
   @override
-  String get removeKeyTooltip => 'Remove key';
+  String get removeKeyTooltip => 'Remove key from project';
 
   @override
-  String get keyInUseTooltip => 'Key in use - cannot delete';
+  String get keyInUseTooltip => 'Key in use, cannot remove';
 
   @override
   String get hotKeyBadge => 'HOT';
 
   @override
-  String get privateKeySection => 'Private key';
+  String get privateKeySection => 'Stored seed';
 
   @override
   String get viewPrivateKeyButton => 'View seed phrase';
 
   @override
-  String get deletePrivateKeyButton => 'Remove signing key';
+  String get deletePrivateKeyButton => 'Delete stored seed';
 
   @override
   String get viewPrivateKeyDisclaimer =>
@@ -451,7 +451,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deletePrivateKeyDisclaimer =>
-      'This removes the signing key from this project. You will no longer be able to sign transactions from the Designer.';
+      'This deletes the seed phrase stored in this project. If you don\'t have a backup, you will permanently lose access to this key. The public key will remain in the project as watch-only.';
 
   @override
   String get deleteWalletPrivateKeyDisclaimer =>
@@ -461,7 +461,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewPrivateKeyConfirm => 'Show seed';
 
   @override
-  String get deletePrivateKeyConfirm => 'Remove';
+  String get deletePrivateKeyConfirm => 'Delete seed';
 
   @override
   String get seedPhraseDialogTitle => 'Seed phrase';
@@ -2210,6 +2210,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String addPrivateKeyNoMatch(String mfp) {
     return 'Fingerprint $mfp does not belong to any key in this wallet';
   }
+
+  @override
+  String attachPrivateKeyConfirmMessage(String label) {
+    return 'This seed matches the existing key \"$label\". Attach it as a private key?';
+  }
+
+  @override
+  String get attachPrivateKeyConfirmAction => 'Attach';
 
   @override
   String get editKeyTitle => 'Edit key';

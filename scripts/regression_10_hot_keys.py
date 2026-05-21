@@ -9,13 +9,13 @@ Flow:
   1. Create project (wpkh singlesig, known MFP 5436d724)
   2. Create wallet from project (Device Key protection, no password)
   3. Navigate to Descriptor tab → Keys (1) sub-tab
-  4. Tap the "Add private key" button above the keys list → addPrivateKeySheet
+  4. Tap the "Add private key" button below the keys list → addPrivateKeySheet
      opens directly on the hot-sources picker (walletMode)
   5. Enter test mnemonic → 24/24 word count confirmed; banner shows the seed
      will be attached to the (only) watch-only key in the wallet
   6. Confirm → HOT badge visible on key card
-  7. Open key card → key_edit_sheet shows "Remove signing key" button
-  8. Click "Remove signing key" → confirm dialog → "Remove" → HOT badge gone
+  7. Open key card → key_edit_sheet shows "Delete stored seed" button
+  8. Click "Delete stored seed" → confirm dialog → "Delete seed" → HOT badge gone
 
 Prerequisites:
   bash scripts/prepare_test_build.sh
@@ -92,7 +92,7 @@ async def test_hot_keys(d: UIDriver):
         raise AssertionError("HOT badge already present — sandbox not clean")
     print("    [ok] Keys sub-tab active — no HOT badge (expected)")
 
-    # 5. Click the "Add private key" button above the keys list
+    # 5. Click the "Add private key" button below the keys list
     #    → opens addPrivateKeySheet directly on hotSources picker (walletMode).
     #    The destination key is inferred from the seed's MFP, so no key card
     #    has to be tapped first.
@@ -142,18 +142,18 @@ async def test_hot_keys(d: UIDriver):
 
     # 9. Tap the key card again → key_edit_sheet with private-key section visible
     await click_label(d, EXPECTED_MFP_UP, delay=0.6)
-    await wait_for(d, '"Remove signing key"', "key_edit_sheet: remove button visible",
+    await wait_for(d, '"Delete stored seed"', "key_edit_sheet: delete button visible",
                    retries=8, delay=0.5)
-    print("    [ok] key_edit_sheet opened — 'Remove signing key' visible")
+    print("    [ok] key_edit_sheet opened — 'Delete stored seed' visible")
 
-    # 10. Click "Remove signing key" → confirmation AlertDialog
-    await click_label(d, "Remove signing key", delay=0.6)
-    # Dialog title is also "Remove signing key"; the confirm button is "Remove"
-    await wait_for(d, '"Remove signing key"', "confirmation dialog visible",
+    # 10. Click "Delete stored seed" → confirmation AlertDialog
+    await click_label(d, "Delete stored seed", delay=0.6)
+    # Dialog title is also "Delete stored seed"; the confirm button is "Delete seed"
+    await wait_for(d, '"Delete stored seed"', "confirmation dialog visible",
                    retries=6, delay=0.5)
 
-    # 11. Confirm deletion ("Remove" = deletePrivateKeyConfirm i18n key)
-    await click_label(d, "Remove", delay=1.5)
+    # 11. Confirm deletion ("Delete seed" = deletePrivateKeyConfirm i18n key)
+    await click_label(d, "Delete seed", delay=1.5)
 
     # Dialog and sheet close; cubit deletes the hot key; HOT badge disappears
     await wait_absent(d, 'HOT', "HOT badge gone — key removed", retries=12, delay=0.5)

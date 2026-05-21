@@ -471,6 +471,22 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
     final keyToRemove = s.editedKeys!.where((k) => k.mfp == mfp).firstOrNull;
     if (keyToRemove == null) return;
 
+    // Cascade-delete the stored seed if this key is hot, otherwise the
+    // secret would be orphaned in project_seeds.db with no UI to reach it.
+    final mfpLower = mfp.toLowerCase();
+    final isHot = s.hotKeys.any((k) => k.mfp == mfpLower);
+    var hotKeys = s.hotKeys;
+    if (isHot && _hotKeyManager != null) {
+      try {
+        await _hotKeyManager!.delete(mfpLower);
+        hotKeys = removeHotKey(s.hotKeys, mfpLower);
+      } catch (e, st) {
+        logError('ProjectDetailCubit.removeKey() hot seed cascade', e, st);
+        emit(s.copyWith(errorMessage: formatRustError(e)));
+        return;
+      }
+    }
+
     // Remove from database if it has a database ID
     if (keyToRemove.originalDbId != null) {
       await (_db.delete(_db.projectKeys)
@@ -479,7 +495,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> with CubitErrorLogger
     }
 
     final keys = List.of(s.editedKeys!)..removeWhere((k) => k.mfp == mfp);
-    emit(s.copyWith(editedKeys: keys, isDirty: true));
+    emit(s.copyWith(editedKeys: keys, hotKeys: hotKeys, isDirty: true));
   }
 
   Future<void> updateKeyCustomName(String mfp, String? customName) async {

@@ -403,9 +403,6 @@ class _KeysSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final editedKeys = state.editedKeys ?? [];
-    final hotMfps = state.hotKeys.map((k) => k.mfp.toLowerCase()).toSet();
-    final hasNonHotKey = editedKeys
-        .any((k) => !hotMfps.contains(k.mfp.toLowerCase()));
 
     return Column(
       children: [
@@ -420,44 +417,18 @@ class _KeysSection extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => showAddKeyDialog(context, cubit),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(l10n.addKeyButton),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppAccent.color,
-                    side: BorderSide(
-                        color: AppAccent.color.withAlpha(AppAlpha.border)),
-                  ),
-                ),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => showAddKeyDialog(context, cubit),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(l10n.addKeyButton),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppAccent.color,
+                side: BorderSide(
+                    color: AppAccent.color.withAlpha(AppAlpha.border)),
               ),
-              if (hasNonHotKey) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => showAddProjectPrivateKeySheet(
-                      context,
-                      cubit: cubit,
-                      projectKeys: editedKeys,
-                      hotMfps: hotMfps,
-                    ),
-                    icon: const Icon(Icons.local_fire_department_outlined,
-                        size: 18),
-                    label: Text(l10n.addPrivateKeyLabel),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppAccent.color,
-                      side: BorderSide(
-                          color: AppAccent.color.withAlpha(AppAlpha.border)),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ],

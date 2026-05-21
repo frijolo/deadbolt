@@ -161,7 +161,7 @@ async def _create_wallet(d: UIDriver):
 
 async def _make_owner_key_hot(d: UIDriver):
     """
-    Descriptor tab → Keys sub-tab → 'Add private key' button above the keys
+    Descriptor tab → Keys sub-tab → 'Add private key' button below the keys
     list → paste mnemonic → Add. The destination key is inferred from the
     mnemonic's MFP (no need to tap a specific key card).
     """
@@ -173,7 +173,7 @@ async def _make_owner_key_hot(d: UIDriver):
     # MFPs are shown uppercase in key cards.
     await wait_for(d, "BC0DBBCE", "Keys tab with owner key card", retries=8, delay=0.5)
 
-    # Tap the global 'Add private key' button above the keys list.
+    # Tap the global 'Add private key' button below the keys list.
     await wait_for(d, "Add private key",
                    "Add private key button visible", retries=8, delay=0.5)
     await click_label(d, "Add private key", delay=0.5)

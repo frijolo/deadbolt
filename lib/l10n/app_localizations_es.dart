@@ -428,22 +428,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get keyXpubLabel => 'Clave pública extendida';
 
   @override
-  String get removeKeyTooltip => 'Eliminar clave';
+  String get removeKeyTooltip => 'Quitar clave del proyecto';
 
   @override
-  String get keyInUseTooltip => 'Clave en uso - no se puede eliminar';
+  String get keyInUseTooltip => 'Clave en uso, no se puede quitar';
 
   @override
   String get hotKeyBadge => 'HOT';
 
   @override
-  String get privateKeySection => 'Clave privada';
+  String get privateKeySection => 'Semilla guardada';
 
   @override
   String get viewPrivateKeyButton => 'Ver semilla';
 
   @override
-  String get deletePrivateKeyButton => 'Eliminar clave firmante';
+  String get deletePrivateKeyButton => 'Borrar semilla guardada';
 
   @override
   String get viewPrivateKeyDisclaimer =>
@@ -451,7 +451,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deletePrivateKeyDisclaimer =>
-      'Esto elimina la clave firmante de este proyecto. Ya no podrás firmar transacciones desde el Diseñador.';
+      'Esto borra la frase semilla guardada en este proyecto. Si no tienes una copia, perderás el acceso a esta clave de forma permanente. La clave pública seguirá en el proyecto como watch-only.';
 
   @override
   String get deleteWalletPrivateKeyDisclaimer =>
@@ -461,7 +461,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get viewPrivateKeyConfirm => 'Mostrar semilla';
 
   @override
-  String get deletePrivateKeyConfirm => 'Eliminar';
+  String get deletePrivateKeyConfirm => 'Borrar semilla';
 
   @override
   String get seedPhraseDialogTitle => 'Frase semilla';
@@ -2227,6 +2227,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String addPrivateKeyNoMatch(String mfp) {
     return 'El fingerprint $mfp no pertenece a ninguna clave de esta cartera';
   }
+
+  @override
+  String attachPrivateKeyConfirmMessage(String label) {
+    return 'Esta semilla coincide con la clave existente «$label». ¿Adjuntarla como clave privada?';
+  }
+
+  @override
+  String get attachPrivateKeyConfirmAction => 'Adjuntar';
 
   @override
   String get editKeyTitle => 'Editar clave';

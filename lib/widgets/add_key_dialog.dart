@@ -16,7 +16,7 @@ import 'package:deadbolt/src/rust/api/wallet.dart' show validateXprv;
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/derivation_path_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart'
-    show SheetHandle, sheetCloseTitle, showSheet;
+    show SheetHandle, confirmDestructive, sheetCloseTitle, showSheet;
 import 'package:deadbolt/widgets/generate_mnemonic_sheet.dart'
     show showGenerateMnemonicSheet;
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwXpubSheet;
@@ -61,6 +61,13 @@ Future<void> showAddKeySheet(
       APIWalletType.values.byName(state.project.walletType);
   final existingMfps =
       state.editedKeys!.map((k) => k.mfp.toLowerCase()).toSet();
+  final hotMfps =
+      state.hotKeys.map((k) => k.mfp.toLowerCase()).toSet();
+  final keyLabels = {
+    for (final k in state.editedKeys!)
+      if (k.customName != null && k.customName!.isNotEmpty)
+        k.mfp.toLowerCase(): k.customName!,
+  };
   final existingKeyCount = state.editedKeys!.length;
 
   await showSheet<void>(
@@ -70,6 +77,8 @@ Future<void> showAddKeySheet(
       walletType: walletType,
       existingKeyCount: existingKeyCount,
       existingMfps: existingMfps,
+      hotMfps: hotMfps,
+      keyLabels: keyLabels,
       editingKey: editingKey,
       onKeyAdded: onKeyAdded,
       onAddKey: (key) => cubit.addKey(key),
@@ -116,7 +125,7 @@ Future<bool> showAddPrivateKeySheet(
       network: network,
       walletMode: true,
       walletKeys: walletKeys,
-      hotMfps: hotMfps.map((m) => m.toLowerCase()).toSet(),
+      hotMfps: hotMfps,
       keyLabels: keyLabels,
       onAddMnemonic: (mnemonic, passphrase) =>
           cubit.addMnemonicKey(mnemonic, passphrase),
@@ -153,50 +162,6 @@ Future<KeyspecResult?> showKeyspecSheet(
     ),
     isDismissible: false,
   );
-}
-
-/// Opens the "Add private key" bottom sheet for a **project** context.
-///
-/// Stores the seed in the encrypted project_seeds.db via [cubit].
-/// The destination key is inferred from the seed's MFP: it must match a
-/// non-hot key in [projectKeys].
-Future<bool> showAddProjectPrivateKeySheet(
-  BuildContext context, {
-  required ProjectDetailCubit cubit,
-  required List<EditableKey> projectKeys,
-  required Set<String> hotMfps,
-}) async {
-  final state = cubit.state as ProjectDetailLoaded;
-  final network = APINetwork.values.byName(state.project.network);
-
-  final pseudoKeys = projectKeys
-      .map((k) => APIPubKey(
-            mfp: k.mfp,
-            derivationPath: k.derivationPath,
-            xpub: k.xpub,
-          ))
-      .toList();
-  final keyLabels = {
-    for (final k in projectKeys)
-      if (k.customName != null && k.customName!.isNotEmpty)
-        k.mfp: k.customName!,
-  };
-
-  final result = await showSheet<bool>(
-    context,
-    (ctx) => _AddKeySheet(
-      network: network,
-      walletMode: true,
-      walletKeys: pseudoKeys,
-      hotMfps: hotMfps.map((m) => m.toLowerCase()).toSet(),
-      keyLabels: keyLabels,
-      onAddMnemonic: (mnemonic, passphrase) =>
-          cubit.addProjectMnemonicHotKey(mnemonic, passphrase),
-      onAddXprv: (xprv) => cubit.addProjectXprvHotKey(xprv),
-    ),
-    isDismissible: false,
-  );
-  return result ?? false;
 }
 
 // ---------------------------------------------------------------------------
@@ -476,10 +441,8 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: widget.walletMode &&
-                        _walletSubmitBlocker(l10n) != null
-                    ? null
-                    : _submit,
+                onPressed:
+                    widget.walletMode && !_canSubmitWallet ? null : _submit,
                 child: Text(
                   widget.walletMode || _isEditMode
                       ? l10n.addPrivateKeyLabel
@@ -742,6 +705,30 @@ class _AddKeySheetState extends State<_AddKeySheet> {
 
     // In add mode check for duplicate MFP
     if (!_isEditMode && widget.existingMfps.contains(mfp)) {
+      final isSeedAttach = seedMnemonic != null || seedXprv != null;
+      final alreadyHot = widget.hotMfps.contains(mfp);
+      if (isSeedAttach && !alreadyHot) {
+        final label = widget.keyLabels[mfp] ?? mfp.toUpperCase();
+        final l10n = context.l10n;
+        final confirm = await confirmDestructive(
+          context,
+          title: l10n.addPrivateKeyLabel,
+          body: l10n.attachPrivateKeyConfirmMessage(label),
+          confirmLabel: l10n.attachPrivateKeyConfirmAction,
+          destructive: false,
+        );
+        if (!mounted) return;
+        if (!confirm) return;
+        if (seedMnemonic != null) {
+          await widget.onSeedAdded!(seedMnemonic, seedPassphrase);
+        } else {
+          await widget.onXprvSeedAdded!(seedXprv!);
+        }
+        if (!mounted) return;
+        widget.onKeyAdded?.call(mfp);
+        Navigator.pop(context);
+        return;
+      }
       setState(() => _errorText = context.l10n.duplicateMfp(mfp));
       return;
     }
@@ -839,9 +826,6 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     setState(() => _errorText = null);
     final l10n = context.l10n;
 
-    // Determine the computed MFP for this submission (either via the mnemonic
-    // preview or the xprv preview). Submit is gated on a valid match — see
-    // [_walletSubmitBlocker] — so by the time we get here the match is valid.
     final String mfp;
     if (_seedType == _SeedType.mnemonic) {
       if (_capturedMfpPreview == null) {
@@ -892,18 +876,16 @@ class _AddKeySheetState extends State<_AddKeySheet> {
     }
   }
 
-  /// Returns null if the wallet-mode submit button can fire, otherwise the
-  /// reason it must remain disabled (used purely for UI feedback — the actual
-  /// validation lives in [_submitWallet]).
-  String? _walletSubmitBlocker(AppLocalizations l10n) {
+  /// True when wallet-mode submit can fire. The reason for any block is
+  /// already surfaced by [_buildMatchBanner]; final validation lives in
+  /// [_submitWallet].
+  bool get _canSubmitWallet {
     final mfp = _seedType == _SeedType.mnemonic
         ? _capturedMfpPreview?.mfp
         : _xprvMfp;
-    if (mfp == null) return ''; // empty string → just disable, no message
+    if (mfp == null) return false;
     final match = _matchInfoFor(mfp);
-    if (match == null) return l10n.addPrivateKeyNoMatch(mfp);
-    if (match.alreadyHot) return l10n.addPrivateKeyAlreadyHot(match.label);
-    return null;
+    return match != null && !match.alreadyHot;
   }
 
   Widget _buildSeedForm() {
@@ -1288,3 +1270,4 @@ class _MethodTile extends StatelessWidget {
     );
   }
 }
+

@@ -875,13 +875,13 @@ abstract class AppLocalizations {
   /// No description provided for @removeKeyTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Remove key'**
+  /// **'Remove key from project'**
   String get removeKeyTooltip;
 
   /// No description provided for @keyInUseTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Key in use - cannot delete'**
+  /// **'Key in use, cannot remove'**
   String get keyInUseTooltip;
 
   /// No description provided for @hotKeyBadge.
@@ -893,7 +893,7 @@ abstract class AppLocalizations {
   /// No description provided for @privateKeySection.
   ///
   /// In en, this message translates to:
-  /// **'Private key'**
+  /// **'Stored seed'**
   String get privateKeySection;
 
   /// No description provided for @viewPrivateKeyButton.
@@ -905,7 +905,7 @@ abstract class AppLocalizations {
   /// No description provided for @deletePrivateKeyButton.
   ///
   /// In en, this message translates to:
-  /// **'Remove signing key'**
+  /// **'Delete stored seed'**
   String get deletePrivateKeyButton;
 
   /// No description provided for @viewPrivateKeyDisclaimer.
@@ -917,7 +917,7 @@ abstract class AppLocalizations {
   /// No description provided for @deletePrivateKeyDisclaimer.
   ///
   /// In en, this message translates to:
-  /// **'This removes the signing key from this project. You will no longer be able to sign transactions from the Designer.'**
+  /// **'This deletes the seed phrase stored in this project. If you don\'t have a backup, you will permanently lose access to this key. The public key will remain in the project as watch-only.'**
   String get deletePrivateKeyDisclaimer;
 
   /// No description provided for @deleteWalletPrivateKeyDisclaimer.
@@ -935,7 +935,7 @@ abstract class AppLocalizations {
   /// No description provided for @deletePrivateKeyConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Remove'**
+  /// **'Delete seed'**
   String get deletePrivateKeyConfirm;
 
   /// No description provided for @seedPhraseDialogTitle.
@@ -4075,6 +4075,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fingerprint {mfp} does not belong to any key in this wallet'**
   String addPrivateKeyNoMatch(String mfp);
+
+  /// No description provided for @attachPrivateKeyConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This seed matches the existing key \"{label}\". Attach it as a private key?'**
+  String attachPrivateKeyConfirmMessage(String label);
+
+  /// No description provided for @attachPrivateKeyConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach'**
+  String get attachPrivateKeyConfirmAction;
 
   /// No description provided for @editKeyTitle.
   ///
