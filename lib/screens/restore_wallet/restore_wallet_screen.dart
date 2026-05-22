@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/hw_wallet_cubit.dart';
 import 'package:deadbolt/config/app_settings_extensions.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -278,7 +279,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = formatRustError(e);
         _phase = _ScanPhase.error;
       });
     }
@@ -354,7 +355,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = formatRustError(e);
         _phase = _ScanPhase.error;
       });
     }
@@ -457,7 +458,7 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = formatRustError(e);
         _phase = _ScanPhase.error;
       });
     }

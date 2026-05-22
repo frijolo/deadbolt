@@ -495,7 +495,9 @@ class _HwWalletSheet<T> extends StatelessWidget {
           );
         } else {
           showErrorToast(
-            'This device (${rootFingerprint.toUpperCase()}) is not registered for this wallet.',
+            context.l10n.hwDeviceNotRegisteredForWallet(
+              rootFingerprint.toUpperCase(),
+            ),
           );
         }
       case _HwMode.register:

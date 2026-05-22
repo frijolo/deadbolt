@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/config/app_settings_extensions.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart';
@@ -195,7 +196,7 @@ class _SweepWifScreenState extends State<SweepWifScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _queryError = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
+          _queryError = formatRustError(e);
           _querying = false;
         });
       }

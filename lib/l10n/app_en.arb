@@ -691,6 +691,7 @@
   "createTxSelectCoinsFirst": "Select coins to build a transaction",
   "walletSendButton": "Send",
   "coinSelectorTitle": "Select coins",
+  "coinSelectorSearchHint": "Search",
   "coinSelectorNoCoinsSelected": "Tap to select coins...",
   "coinSelectorDoneCount": "Done ({count})",
   "@coinSelectorDoneCount": {
@@ -1215,6 +1216,14 @@
       }
     }
   },
+  "hwDeviceNotRegisteredForWallet": "This device ({mfp}) is not registered for this wallet.",
+  "@hwDeviceNotRegisteredForWallet": {
+    "placeholders": {
+      "mfp": {
+        "type": "String"
+      }
+    }
+  },
   "mfpMismatch": "MFP mismatch: got {mfp}, expected {expected}",
   "@mfpMismatch": {
     "placeholders": {
@@ -1242,7 +1251,7 @@
   "@onChainBackupTitle": {},
   "onChainBackupSubtitle": "Descriptor backup embedded in a Bitcoin transaction",
   "@onChainBackupSubtitle": {},
-  "onChainBackupSecurityNote": "Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner's xpub.",
+  "onChainBackupSecurityNote": "Descriptor backed up on-chain. Recoverable from any cosigner's xpub.",
   "@onChainBackupSecurityNote": {},
   "onChainBackupAnchors": "Anchors: {count} × {amount} sats",
   "@onChainBackupAnchors": {

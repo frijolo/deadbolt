@@ -68,12 +68,10 @@ HIGH_FEE_RATE = "50"
 # ---------------------------------------------------------------------------
 
 async def _open_publish_backup_sheet(d):
-    """Wallet detail → More options → Export → Descriptor → Publish Backup → On-chain."""
+    """Wallet detail → More options → Export → Publish Backup → On-chain."""
     await click_tooltip(d, "More options", delay=0.6)
     await click_label(d, "Export", delay=0.6)
-    await wait_for(d, "Descriptor", "Export choice sheet open")
-    await click_label(d, "Descriptor", delay=0.6)
-    await wait_for(d, "Publish Backup", "Descriptor export sheet open")
+    await wait_for(d, "Publish Backup", "Export choice sheet open")
     await click_label(d, "Publish Backup", delay=0.6)
     flat = await d.cs_flat_text()
     # Singlesig wallets get an info panel first; click the "I understand"

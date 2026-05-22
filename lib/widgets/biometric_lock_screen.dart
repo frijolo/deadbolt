@@ -54,7 +54,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
       // Ensure the button is never permanently disabled if the plugin throws.
       if (!mounted) return;
       setState(() => _authenticating = false);
-      showErrorToast(e.toString());
+      showErrorToastException(e);
     }
   }
 

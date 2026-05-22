@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 
 import 'package:deadbolt/theme/app_theme.dart';
@@ -78,7 +79,8 @@ class _CoinSelectorScreenState extends State<CoinSelectorScreen> {
     if (q.isEmpty) return widget.allUtxos;
     return widget.allUtxos.where((u) {
       return u.address.toLowerCase().contains(q) ||
-          u.valueSat.toString().contains(q);
+          u.valueSat.toString().contains(q) ||
+          (u.effectiveLabel?.toLowerCase().contains(q) ?? false);
     }).toList();
   }
 
@@ -119,7 +121,7 @@ class _CoinSelectorScreenState extends State<CoinSelectorScreen> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: l10n.coinSelectorTitle,
+                hintText: l10n.coinSelectorSearchHint,
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 border: OutlineInputBorder(
@@ -163,6 +165,7 @@ class _CoinSelectorScreenState extends State<CoinSelectorScreen> {
               )
             : ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                dragStartBehavior: DragStartBehavior.down,
                 itemCount: filtered.length,
                 itemBuilder: (context, index) {
                   final utxo = filtered[index];

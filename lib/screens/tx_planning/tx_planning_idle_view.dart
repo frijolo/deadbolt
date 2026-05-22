@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -416,6 +417,7 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
+      dragStartBehavior: DragStartBehavior.down,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

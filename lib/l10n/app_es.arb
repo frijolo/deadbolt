@@ -77,7 +77,7 @@
       }
     }
   },
-  "preferredWalletTypeLabel": "Tipo de billetera predeterminado",
+  "preferredWalletTypeLabel": "Tipo de wallet predeterminada",
   "settingsLanguageEn": "English",
   "settingsLanguageEs": "Español",
   "themeLabel": "Tema",
@@ -169,7 +169,7 @@
   "projectNameDialogTitle": "Nombre del proyecto",
   "discardChangesDialogTitle": "¿Descartar cambios?",
   "discardChangesContent": "Tienes cambios sin guardar. Esta acción no se puede deshacer.",
-  "changeWalletTypeTooltip": "Cambiar tipo de billetera",
+  "changeWalletTypeTooltip": "Cambiar tipo de wallet",
   "buildingDescriptor": "Construyendo descriptor...",
   "buildingDescriptorMultiPath": "Construyendo descriptor con múltiples rutas...",
   "buildingComplexDescriptor": "Construyendo descriptor complejo...\nEsto puede tardar unos momentos",
@@ -193,7 +193,7 @@
   "deletePrivateKeyButton": "Borrar semilla guardada",
   "viewPrivateKeyDisclaimer": "Asegúrate de que nadie vea tu pantalla. Tu frase semilla da acceso total a tus fondos.",
   "deletePrivateKeyDisclaimer": "Esto borra la frase semilla guardada en este proyecto. Si no tienes una copia, perderás el acceso a esta clave de forma permanente. La clave pública seguirá en el proyecto como watch-only.",
-  "deleteWalletPrivateKeyDisclaimer": "Esto elimina la clave firmante de esta cartera. Ya no podrás firmar transacciones con ella.",
+  "deleteWalletPrivateKeyDisclaimer": "Esto elimina la clave firmante de esta wallet. Ya no podrás firmar transacciones con ella.",
   "viewPrivateKeyConfirm": "Mostrar semilla",
   "deletePrivateKeyConfirm": "Borrar semilla",
   "seedPhraseDialogTitle": "Frase semilla",
@@ -312,20 +312,20 @@
   "walletAddressNested": "Nested",
   "walletAddressTaproot": "Taproot",
   "navDesigner": "Diseñador",
-  "navWallet": "Billetera",
-  "walletsTitle": "Billeteras",
-  "noWallets": "No hay billeteras.\nToca + para crear una.",
-  "createWalletFromProject": "Crear billetera",
+  "navWallet": "Wallet",
+  "walletsTitle": "Wallets",
+  "noWallets": "No hay wallets.\nToca + para crear una.",
+  "createWalletFromProject": "Crear wallet",
   "generateProjectFromWallet": "Analizar en Diseñador",
   "projectHasNoDescriptor": "Este proyecto aún no tiene descriptor. Constrúyelo primero.",
-  "loadingWallets": "Cargando billeteras...",
-  "openingWallet": "Abriendo cartera…",
-  "loadingWalletData": "Cargando datos de cartera…",
+  "loadingWallets": "Cargando wallets…",
+  "openingWallet": "Abriendo wallet…",
+  "loadingWalletData": "Cargando datos de wallet…",
   "loadingAddresses": "Cargando direcciones…",
   "loadingCoins": "Cargando monedas…",
   "initializingCamera": "Iniciando cámara…",
   "switchCamera": "Cambiar cámara",
-  "deleteWalletTitle": "Eliminar billetera",
+  "deleteWalletTitle": "Eliminar wallet",
   "deleteWalletConfirm": "¿Eliminar \"{name}\"?",
   "@deleteWalletConfirm": {
     "placeholders": {
@@ -334,12 +334,12 @@
       }
     }
   },
-  "createWalletTitle": "Nueva Billetera",
+  "createWalletTitle": "Nueva Wallet",
   "walletNameLabel": "Nombre del wallet",
   "walletNameRequired": "El nombre es obligatorio",
-  "deleteProjectAfterCreate": "Eliminar este proyecto al crear la billetera",
+  "deleteProjectAfterCreate": "Eliminar este proyecto al crear la wallet",
   "createWalletButton": "Crear wallet",
-  "creatingWallet": "Creando billetera...",
+  "creatingWallet": "Creando wallet…",
   "balanceConfirmed": "Confirmado",
   "balancePending": "Pendiente",
   "balanceImmature": "Inmaduro",
@@ -361,7 +361,7 @@
     }
   },
   "walletPasswordProtected": "Protegida con contraseña",
-  "lockWallet": "Bloquear cartera",
+  "lockWallet": "Bloquear wallet",
   "backupSaved": "Copia de seguridad guardada",
   "changeProtectionMenu": "Cambiar protección",
   "walletSecurityLabel": "Seguridad",
@@ -387,7 +387,7 @@
     }
   },
   "syncButton": "Sincronizar",
-  "syncTooltip": "Sincronizar billetera",
+  "syncTooltip": "Sincronizar wallet",
   "syncing": "Sincronizando...",
   "rescanButton": "Reescaneo completo",
   "rescanConfirmTitle": "Reescaneo completo",
@@ -628,7 +628,7 @@
     }
   },
   "psbtAutoBroadcastSwitch": "Retransmitir automáticamente al desbloquearse",
-  "psbtAutoBroadcastHint": "La cartera debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.",
+  "psbtAutoBroadcastHint": "La wallet debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.",
   "psbtAutoBroadcastQueuedTooltip": "En cola para retransmisión automática",
   "psbtAutoBroadcastedToast": "Retransmitida automáticamente: {txid}",
   "@psbtAutoBroadcastedToast": {
@@ -681,6 +681,7 @@
   "createTxSelectCoinsFirst": "Selecciona monedas para crear la transacción",
   "walletSendButton": "Enviar",
   "coinSelectorTitle": "Seleccionar monedas",
+  "coinSelectorSearchHint": "Buscar",
   "coinSelectorNoCoinsSelected": "Toca para seleccionar monedas...",
   "coinSelectorDoneCount": "Hecho ({count})",
   "@coinSelectorDoneCount": {
@@ -849,7 +850,7 @@
   "walletTypeSinglesigDesc": "Una sola clave controla el wallet. Más simple y rápido de configurar.",
   "walletTypeMultisigDesc": "Se requieren varias claves para firmar. Ideal para control compartido o seguridad adicional.",
   "walletTypeInheritance": "Herencia",
-  "walletTypeInheritanceDesc": "Cartera multipaso: tú controlas los fondos ahora; los herederos pueden acceder tras un retraso de tiempo.",
+  "walletTypeInheritanceDesc": "Wallet multipaso: tú controlas los fondos ahora; los herederos pueden acceder tras un retraso de tiempo.",
   "ownerKeysSection": "Tus claves",
   "heirsSection": "Herederos",
   "addHeir": "Añadir heredero",
@@ -1006,7 +1007,7 @@
   },
   "scanAccountsCreateWallet": "Crear wallet",
   "scanAccountsRetry": "Reintentar",
-  "walletNotFound": "Cartera no encontrada en el dispositivo",
+  "walletNotFound": "Wallet no encontrada en el dispositivo",
   "searchNostrLabel": "Buscar backups en Nostr",
   "searchNostrHint": "Busca copias de seguridad del descriptor en los relays configurados",
   "hwSkipLegacyLabel": "Omitir derivaciones legacy (P2PKH)",
@@ -1015,7 +1016,7 @@
   "onChainScanningHint": "También buscando respaldos de descriptor on-chain…",
   "importFromNostrBackup": "Restaurar desde Nostr",
   "nostrImportTamperTitle": "Verifica tras importar",
-  "nostrImportTamperBody": "Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu billetera esperada antes de enviar fondos.",
+  "nostrImportTamperBody": "Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu wallet esperada antes de enviar fondos.",
   "scanTypeAll": "Todos",
   "bip39PassphraseLabel": "Frase BIP39 (opcional)",
   "pressBackAgainToExit": "Pulsa atrás otra vez para salir",
@@ -1043,7 +1044,7 @@
       "label": { "type": "String" }
     }
   },
-  "addPrivateKeyNoMatch": "El fingerprint {mfp} no pertenece a ninguna clave de esta cartera",
+  "addPrivateKeyNoMatch": "El fingerprint {mfp} no pertenece a ninguna clave de esta wallet",
   "@addPrivateKeyNoMatch": {
     "placeholders": {
       "mfp": { "type": "String" }
@@ -1061,12 +1062,12 @@
   "registeredKeys": "Claves registradas",
   "showRegisteredKeys": "Mostrar claves registradas",
   "enterXpubToUnlock": "Ingrese xpub para desbloquear",
-  "xpubUnlockHint": "Pegue cualquier xpub registrado para esta billetera. También se acepta el formato keyspec ([mfp/path]xpub).",
+  "xpubUnlockHint": "Pegue cualquier xpub registrado para esta wallet. También se acepta el formato keyspec ([mfp/path]xpub).",
   "required": "Requerido",
   "invalidXpubOrKeyspec": "xpub o keyspec inválido",
-  "signWithHwWallet": "Firmar con billetera hardware",
-  "enterWalletPassword": "Ingresar contraseña de billetera",
-  "walletPasswordSubtitle": "Esta billetera está protegida con contraseña.",
+  "signWithHwWallet": "Firmar con hardware wallet",
+  "enterWalletPassword": "Ingresar contraseña de wallet",
+  "walletPasswordSubtitle": "Esta wallet está protegida con contraseña.",
   "enterBackupPassword": "Ingresar contraseña de respaldo",
   "backupPasswordSubtitle": "Este respaldo está protegido con contraseña.",
   "wifPrivateKeyLabel": "Clave privada WIF",
@@ -1103,8 +1104,8 @@
   "nostrBackupDeleteConfirm": "¿Reemplazar el respaldo en este relay con un evento vacío? El descriptor ya no será recuperable desde este relay.",
   "nostrRestoreXpubHint": "xpub6... o [mfp/ruta]xpub...",
   "nostrRestoreFound": "Respaldo encontrado",
-  "nostrRestoreImport": "Importar billetera",
-  "recoverWalletTitle": "Recuperar Cartera",
+  "nostrRestoreImport": "Importar wallet",
+  "recoverWalletTitle": "Recuperar Wallet",
   "restoreTabXpub": "xpub",
   "restoreTabSeed": "Semilla",
   "restoreTabHardware": "Hardware",
@@ -1187,6 +1188,14 @@
       }
     }
   },
+  "hwDeviceNotRegisteredForWallet": "Este dispositivo ({mfp}) no está registrado para esta wallet.",
+  "@hwDeviceNotRegisteredForWallet": {
+    "placeholders": {
+      "mfp": {
+        "type": "String"
+      }
+    }
+  },
   "mfpMismatch": "Discordancia MFP: obtenido {mfp}, esperado {expected}",
   "@mfpMismatch": {
     "placeholders": {
@@ -1213,7 +1222,7 @@
   "onChainBackupTitle": "On-chain",
   "@onChainBackupTitle": {},
   "onChainBackupSubtitle": "Respaldo del descriptor embebido en una transacción Bitcoin",
-  "onChainBackupSecurityNote": "Descriptor respaldado en Bitcoin Signet. Recuperable desde el xpub de cualquier cosignante.",
+  "onChainBackupSecurityNote": "Descriptor respaldado on-chain. Recuperable desde el xpub de cualquier cosignante.",
   "@onChainBackupSecurityNote": {},
   "onChainBackupAnchors": "Anclas: {count} × {amount} sats",
   "@onChainBackupAnchors": {
@@ -1281,7 +1290,7 @@
   "@onChainBackupCommitTx": {},
   "onChainBackupRevealTx": "TX_REVEAL",
   "@onChainBackupRevealTx": {},
-  "onChainBackupSignCommitHint": "Firma la transacción commit con tu billetera hardware o dispositivo QR, luego importa el PSBT firmado.",
+  "onChainBackupSignCommitHint": "Firma la transacción commit con tu hardware wallet o dispositivo QR, luego importa el PSBT firmado.",
   "@onChainBackupSignCommitHint": {},
   "onChainBackupBuildingPsbt": "Construyendo PSBT…",
   "@onChainBackupBuildingPsbt": {},
@@ -1441,11 +1450,11 @@
       "kind": {"type": "String"}
     }
   },
-  "txPlanningWalletNotLoaded": "Cartera no cargada",
+  "txPlanningWalletNotLoaded": "Wallet no cargada",
   "@txPlanningWalletNotLoaded": {},
   "txPlanningNoConfirmedUtxos": "No hay UTXOs confirmadas para planificar",
   "@txPlanningNoConfirmedUtxos": {},
-  "txPlanningTooFewAddresses": "La cartera tiene pocas direcciones reveladas ({needed} necesarias). Genera más en la pantalla de Recibir primero.",
+  "txPlanningTooFewAddresses": "La wallet tiene pocas direcciones reveladas ({needed} necesarias). Genera más en la pantalla de Recibir primero.",
   "@txPlanningTooFewAddresses": {
     "placeholders": {"needed": {"type": "int"}}
   },
@@ -1592,7 +1601,7 @@
   "@txPlanningConfigTitle": {},
   "txPlanningDestinationLabel": "Destino",
   "@txPlanningDestinationLabel": {},
-  "txPlanningDestinationSelf": "Misma cartera (refrescar)",
+  "txPlanningDestinationSelf": "Misma wallet (refrescar)",
   "@txPlanningDestinationSelf": {},
   "txPlanningDestinationWallet": "{name} ({kind})",
   "@txPlanningDestinationWallet": {

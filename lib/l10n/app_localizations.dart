@@ -2600,6 +2600,12 @@ abstract class AppLocalizations {
   /// **'Select coins'**
   String get coinSelectorTitle;
 
+  /// No description provided for @coinSelectorSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get coinSelectorSearchHint;
+
   /// No description provided for @coinSelectorNoCoinsSelected.
   ///
   /// In en, this message translates to:
@@ -4628,6 +4634,12 @@ abstract class AppLocalizations {
   /// **'Signing key added ({mfp})'**
   String signingKeyAdded(String mfp);
 
+  /// No description provided for @hwDeviceNotRegisteredForWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'This device ({mfp}) is not registered for this wallet.'**
+  String hwDeviceNotRegisteredForWallet(String mfp);
+
   /// No description provided for @mfpMismatch.
   ///
   /// In en, this message translates to:
@@ -4661,7 +4673,7 @@ abstract class AppLocalizations {
   /// No description provided for @onChainBackupSecurityNote.
   ///
   /// In en, this message translates to:
-  /// **'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.'**
+  /// **'Descriptor backed up on-chain. Recoverable from any cosigner\'s xpub.'**
   String get onChainBackupSecurityNote;
 
   /// No description provided for @onChainBackupAnchors.

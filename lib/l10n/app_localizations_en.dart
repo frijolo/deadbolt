@@ -1403,6 +1403,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coinSelectorTitle => 'Select coins';
 
   @override
+  String get coinSelectorSearchHint => 'Search';
+
+  @override
   String get coinSelectorNoCoinsSelected => 'Tap to select coins...';
 
   @override
@@ -2515,6 +2518,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String hwDeviceNotRegisteredForWallet(String mfp) {
+    return 'This device ($mfp) is not registered for this wallet.';
+  }
+
+  @override
   String mfpMismatch(String mfp, String expected) {
     return 'MFP mismatch: got $mfp, expected $expected';
   }
@@ -2536,7 +2544,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onChainBackupSecurityNote =>
-      'Descriptor backed up to Bitcoin Signet. Recoverable from any cosigner\'s xpub.';
+      'Descriptor backed up on-chain. Recoverable from any cosigner\'s xpub.';
 
   @override
   String onChainBackupAnchors(int count, int amount) {

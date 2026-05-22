@@ -308,11 +308,16 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
   int get _totalFee => (_packageVbytes * _feeRate).ceil();
 
   // Delegated to Rust: same weight model and threshold logic as prepare_backup_psbt.
+  // Pass the path-adjusted commit vbytes so the minimum scales with the
+  // selected spend path and extra UTXO inputs, not just the 1-input baseline.
   int get _minUtxoSats {
     final params = _backupParams;
     if (params == null) return 0;
+    final commitVb = _commitVbytes > 0
+        ? BigInt.from(_commitVbytes)
+        : params.commitVbytes;
     return rust_backup.computeMinUtxoSats(
-      commitVbytes: params.commitVbytes,
+      commitVbytes: commitVb,
       revealVbytes: params.revealVbytes,
       nAnchors: params.participantCount,
       feeRateSatPerVb: _feeRate,

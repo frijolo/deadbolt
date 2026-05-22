@@ -13,21 +13,19 @@ import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLia
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart' show DescriptorDisplay;
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
-import 'package:deadbolt/widgets/text_export_sheet.dart' show ExportSheetAction, showTextExportSheet, showQrDialog;
-import 'package:deadbolt/screens/wallet_detail/dialogs/publish_backup_sheet.dart' show showPublishBackupSheet;
-import 'package:deadbolt/cubit/wallet_detail_cubit.dart' show WalletDetailLoaded;
+import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet, showQrDialog;
 
 /// Shows the Liana/Standard format dialog when the descriptor has a NUMS
 /// unspendable key, then opens the export sheet with the chosen text.
 ///
-/// If the descriptor doesn't require a format choice (not TR with NUMS key),
-/// jumps straight to the export sheet.
+/// The QR action always uses the standard descriptor regardless of the
+/// format choice — it's meant for hardware-wallet and scanner consumption,
+/// which never expect the Liana-flavored encoding.
 Future<void> showDescriptorExportSheet(
   BuildContext context, {
   required String descriptor,
   required String fileName,
   required String copiedMessage,
-  WalletDetailLoaded? state,
 }) async {
   final lianaDescriptor = await formatDescriptorForLiana(descriptor: descriptor);
 
@@ -67,23 +65,12 @@ Future<void> showDescriptorExportSheet(
 
   if (!context.mounted) return;
 
-  final l10n = context.l10n;
-  final extraItems = state != null
-      ? [
-          (
-            icon: Icons.cloud_outlined,
-            label: l10n.publishBackupMenu,
-            onTap: () => showPublishBackupSheet(context, state: state),
-          ),
-        ]
-      : <ExportSheetAction>[];
-
   showTextExportSheet(
     context,
     text: exportText,
+    qrText: descriptor,
     fileName: fileName,
     copiedMessage: copiedMessage,
-    extraItems: extraItems,
     showAsTextBuilder: (ctx, text) => DescriptorDisplay(
       descriptor: text,
       shrinkWrap: true,

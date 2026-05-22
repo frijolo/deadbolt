@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/models/project_export.dart';
 import 'package:deadbolt/services/project_descriptor_service.dart';
@@ -51,7 +52,7 @@ class ProjectListCubit extends Cubit<ProjectListState> with CubitErrorLogger {
       (projects) => emit(ProjectListLoaded(projects)),
       onError: (e, stackTrace) {
         logError('ProjectListCubit stream', e, stackTrace);
-        emit(ProjectListError(e.toString()));
+        emit(ProjectListError(formatRustError(e)));
       },
     );
   }

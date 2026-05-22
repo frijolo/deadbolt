@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
+import 'package:deadbolt/errors.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -111,7 +112,7 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
       emit(WalletListLoaded(wallets, balances: preserved));
     } catch (e, stackTrace) {
       logError('WalletListCubit.refresh()', e, stackTrace);
-      emit(WalletListError(e.toString()));
+      emit(WalletListError(formatRustError(e)));
     }
   }
 

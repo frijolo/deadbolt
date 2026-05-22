@@ -13,7 +13,7 @@ import 'package:deadbolt/utils/export_sheet.dart' show saveBytes, shareBytes, sh
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
 
-enum ExportChoice { labels, descriptor, wallet }
+enum ExportChoice { labels, descriptor, publishDescriptor, wallet }
 
 Future<ExportChoice?> showExportChoiceSheet(BuildContext context) async {
   final l10n = context.l10n;
@@ -32,6 +32,11 @@ Future<ExportChoice?> showExportChoiceSheet(BuildContext context) async {
             leading: const Icon(Icons.schema_outlined),
             title: Text(l10n.descriptorLabel),
             onTap: () => Navigator.of(ctx).pop(ExportChoice.descriptor),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: Text(l10n.publishBackupMenu),
+            onTap: () => Navigator.of(ctx).pop(ExportChoice.publishDescriptor),
           ),
           ListTile(
             leading: const Icon(Icons.save_alt_outlined),
@@ -80,7 +85,6 @@ Future<void> exportDescriptor(
     descriptor: state.walletInfo.descriptor,
     fileName: '${safeName}_descriptor',
     copiedMessage: l10n.copiedToClipboard,
-    state: state,
   );
 }
 

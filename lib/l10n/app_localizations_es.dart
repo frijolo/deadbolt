@@ -171,7 +171,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get preferredWalletTypeLabel => 'Tipo de billetera predeterminado';
+  String get preferredWalletTypeLabel => 'Tipo de wallet predeterminada';
 
   @override
   String get settingsLanguageEn => 'English';
@@ -378,7 +378,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Tienes cambios sin guardar. Esta acción no se puede deshacer.';
 
   @override
-  String get changeWalletTypeTooltip => 'Cambiar tipo de billetera';
+  String get changeWalletTypeTooltip => 'Cambiar tipo de wallet';
 
   @override
   String get buildingDescriptor => 'Construyendo descriptor...';
@@ -455,7 +455,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteWalletPrivateKeyDisclaimer =>
-      'Esto elimina la clave firmante de esta cartera. Ya no podrás firmar transacciones con ella.';
+      'Esto elimina la clave firmante de esta wallet. Ya no podrás firmar transacciones con ella.';
 
   @override
   String get viewPrivateKeyConfirm => 'Mostrar semilla';
@@ -703,16 +703,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navDesigner => 'Diseñador';
 
   @override
-  String get navWallet => 'Billetera';
+  String get navWallet => 'Wallet';
 
   @override
-  String get walletsTitle => 'Billeteras';
+  String get walletsTitle => 'Wallets';
 
   @override
-  String get noWallets => 'No hay billeteras.\nToca + para crear una.';
+  String get noWallets => 'No hay wallets.\nToca + para crear una.';
 
   @override
-  String get createWalletFromProject => 'Crear billetera';
+  String get createWalletFromProject => 'Crear wallet';
 
   @override
   String get generateProjectFromWallet => 'Analizar en Diseñador';
@@ -722,13 +722,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Este proyecto aún no tiene descriptor. Constrúyelo primero.';
 
   @override
-  String get loadingWallets => 'Cargando billeteras...';
+  String get loadingWallets => 'Cargando wallets…';
 
   @override
-  String get openingWallet => 'Abriendo cartera…';
+  String get openingWallet => 'Abriendo wallet…';
 
   @override
-  String get loadingWalletData => 'Cargando datos de cartera…';
+  String get loadingWalletData => 'Cargando datos de wallet…';
 
   @override
   String get loadingAddresses => 'Cargando direcciones…';
@@ -743,7 +743,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get switchCamera => 'Cambiar cámara';
 
   @override
-  String get deleteWalletTitle => 'Eliminar billetera';
+  String get deleteWalletTitle => 'Eliminar wallet';
 
   @override
   String deleteWalletConfirm(String name) {
@@ -751,7 +751,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get createWalletTitle => 'Nueva Billetera';
+  String get createWalletTitle => 'Nueva Wallet';
 
   @override
   String get walletNameLabel => 'Nombre del wallet';
@@ -761,13 +761,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deleteProjectAfterCreate =>
-      'Eliminar este proyecto al crear la billetera';
+      'Eliminar este proyecto al crear la wallet';
 
   @override
   String get createWalletButton => 'Crear wallet';
 
   @override
-  String get creatingWallet => 'Creando billetera...';
+  String get creatingWallet => 'Creando wallet…';
 
   @override
   String get balanceConfirmed => 'Confirmado';
@@ -797,7 +797,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletPasswordProtected => 'Protegida con contraseña';
 
   @override
-  String get lockWallet => 'Bloquear cartera';
+  String get lockWallet => 'Bloquear wallet';
 
   @override
   String get backupSaved => 'Copia de seguridad guardada';
@@ -856,7 +856,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get syncButton => 'Sincronizar';
 
   @override
-  String get syncTooltip => 'Sincronizar billetera';
+  String get syncTooltip => 'Sincronizar wallet';
 
   @override
   String get syncing => 'Sincronizando...';
@@ -1306,7 +1306,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get psbtAutoBroadcastHint =>
-      'La cartera debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.';
+      'La wallet debe permanecer desbloqueada. Se intentará la retransmisión tras cada sincronización en cuanto venza el bloqueo temporal.';
 
   @override
   String get psbtAutoBroadcastQueuedTooltip =>
@@ -1407,6 +1407,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get coinSelectorTitle => 'Seleccionar monedas';
+
+  @override
+  String get coinSelectorSearchHint => 'Buscar';
 
   @override
   String get coinSelectorNoCoinsSelected => 'Toca para seleccionar monedas...';
@@ -1800,7 +1803,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletTypeInheritanceDesc =>
-      'Cartera multipaso: tú controlas los fondos ahora; los herederos pueden acceder tras un retraso de tiempo.';
+      'Wallet multipaso: tú controlas los fondos ahora; los herederos pueden acceder tras un retraso de tiempo.';
 
   @override
   String get ownerKeysSection => 'Tus claves';
@@ -2134,7 +2137,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get scanAccountsRetry => 'Reintentar';
 
   @override
-  String get walletNotFound => 'Cartera no encontrada en el dispositivo';
+  String get walletNotFound => 'Wallet no encontrada en el dispositivo';
 
   @override
   String get searchNostrLabel => 'Buscar backups en Nostr';
@@ -2166,7 +2169,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get nostrImportTamperBody =>
-      'Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu billetera esperada antes de enviar fondos.';
+      'Cualquier persona que conozca el xpub puede modificar este respaldo. Tras importar, confirma que el descriptor y las direcciones de recepción coincidan con tu wallet esperada antes de enviar fondos.';
 
   @override
   String get scanTypeAll => 'Todos';
@@ -2225,7 +2228,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String addPrivateKeyNoMatch(String mfp) {
-    return 'El fingerprint $mfp no pertenece a ninguna clave de esta cartera';
+    return 'El fingerprint $mfp no pertenece a ninguna clave de esta wallet';
   }
 
   @override
@@ -2253,7 +2256,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get xpubUnlockHint =>
-      'Pegue cualquier xpub registrado para esta billetera. También se acepta el formato keyspec ([mfp/path]xpub).';
+      'Pegue cualquier xpub registrado para esta wallet. También se acepta el formato keyspec ([mfp/path]xpub).';
 
   @override
   String get required => 'Requerido';
@@ -2262,14 +2265,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get invalidXpubOrKeyspec => 'xpub o keyspec inválido';
 
   @override
-  String get signWithHwWallet => 'Firmar con billetera hardware';
+  String get signWithHwWallet => 'Firmar con hardware wallet';
 
   @override
-  String get enterWalletPassword => 'Ingresar contraseña de billetera';
+  String get enterWalletPassword => 'Ingresar contraseña de wallet';
 
   @override
   String get walletPasswordSubtitle =>
-      'Esta billetera está protegida con contraseña.';
+      'Esta wallet está protegida con contraseña.';
 
   @override
   String get enterBackupPassword => 'Ingresar contraseña de respaldo';
@@ -2392,10 +2395,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get nostrRestoreFound => 'Respaldo encontrado';
 
   @override
-  String get nostrRestoreImport => 'Importar billetera';
+  String get nostrRestoreImport => 'Importar wallet';
 
   @override
-  String get recoverWalletTitle => 'Recuperar Cartera';
+  String get recoverWalletTitle => 'Recuperar Wallet';
 
   @override
   String get restoreTabXpub => 'xpub';
@@ -2535,6 +2538,11 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String hwDeviceNotRegisteredForWallet(String mfp) {
+    return 'Este dispositivo ($mfp) no está registrado para esta wallet.';
+  }
+
+  @override
   String mfpMismatch(String mfp, String expected) {
     return 'Discordancia MFP: obtenido $mfp, esperado $expected';
   }
@@ -2556,7 +2564,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onChainBackupSecurityNote =>
-      'Descriptor respaldado en Bitcoin Signet. Recuperable desde el xpub de cualquier cosignante.';
+      'Descriptor respaldado on-chain. Recuperable desde el xpub de cualquier cosignante.';
 
   @override
   String onChainBackupAnchors(int count, int amount) {
@@ -2622,7 +2630,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onChainBackupSignCommitHint =>
-      'Firma la transacción commit con tu billetera hardware o dispositivo QR, luego importa el PSBT firmado.';
+      'Firma la transacción commit con tu hardware wallet o dispositivo QR, luego importa el PSBT firmado.';
 
   @override
   String get onChainBackupBuildingPsbt => 'Construyendo PSBT…';
@@ -2835,7 +2843,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get txPlanningWalletNotLoaded => 'Cartera no cargada';
+  String get txPlanningWalletNotLoaded => 'Wallet no cargada';
 
   @override
   String get txPlanningNoConfirmedUtxos =>
@@ -2843,7 +2851,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String txPlanningTooFewAddresses(int needed) {
-    return 'La cartera tiene pocas direcciones reveladas ($needed necesarias). Genera más en la pantalla de Recibir primero.';
+    return 'La wallet tiene pocas direcciones reveladas ($needed necesarias). Genera más en la pantalla de Recibir primero.';
   }
 
   @override
@@ -3022,7 +3030,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get txPlanningDestinationLabel => 'Destino';
 
   @override
-  String get txPlanningDestinationSelf => 'Misma cartera (refrescar)';
+  String get txPlanningDestinationSelf => 'Misma wallet (refrescar)';
 
   @override
   String txPlanningDestinationWallet(String name, String kind) {

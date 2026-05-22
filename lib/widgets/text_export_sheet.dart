@@ -78,6 +78,7 @@ typedef ExportSheetAction = ({IconData icon, String label, VoidCallback onTap});
 void showTextExportSheet(
   BuildContext context, {
   required String text,
+  String? qrText,
   required String fileName,
   required String copiedMessage,
   String fileExtension = 'txt',
@@ -103,7 +104,7 @@ void showTextExportSheet(
             title: Text(l10n.showQrCode),
             onTap: () {
               Navigator.pop(ctx);
-              showQrDialog(context, text);
+              showQrDialog(context, qrText ?? text);
             },
           ),
           ListTile(
