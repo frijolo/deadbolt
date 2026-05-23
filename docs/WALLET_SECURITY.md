@@ -421,10 +421,10 @@ On import, the original wallet protection type is preserved:
 
 **Argon2id parameters** vary by context:
 
-*Wallet open (Type 1 / Type 2 initial creation)*:
-- Memory: 4096 KiB (4 MiB), Iterations: 1, Parallelism: 1 (~10–30 ms on mobile)
+*Wallet creation (Type 1 / Type 2)*:
+- The security level chosen at creation time (default **Standard** = 64 MiB / 5 iters) is applied immediately; there is no separate "initial low-cost" tier.
 - For Type 2 (XpubKey), the xpub itself provides ~256 bits of entropy, making brute-force computationally infeasible regardless of Argon2 parameters.
-- For Type 1 (UserPassword) at initial creation, the low parameters are compensated by strong password choice. Users who want higher resistance should use **Change Protection** to re-encrypt with a selected security level.
+- For Type 1 (UserPassword), users who want higher resistance can pick **High** or **Extreme** at creation, or re-encrypt later via **Change Protection**.
 
 *Change-protection and backup export (selectable security level)*:
 | Level    | Memory     | Iterations | Target latency (mobile) |
