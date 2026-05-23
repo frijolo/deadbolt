@@ -364,6 +364,9 @@
   "lockWallet": "Bloquear wallet",
   "backupSaved": "Copia de seguridad guardada",
   "changeProtectionMenu": "Cambiar protección",
+  "renameWalletMenu": "Renombrar wallet",
+  "renameWalletTitle": "Renombrar wallet",
+  "walletRenamedToast": "Renombrada a \"{name}\"",
   "walletSecurityLabel": "Seguridad",
   "walletSecurityTitle": "Seguridad del wallet",
   "encryptionSection": "Cifrado",
@@ -994,7 +997,7 @@
   "scanAccountsNoActivitySubtitle": "Recupera cuentas a partir de una frase semilla",
   "hwDiscoveryNoDevice": "No hay hardware wallet conectada. Conecta y empareja tu dispositivo primero.",
   "hwDiscoveryStart": "Buscar cuentas",
-  "hwDiscoveryDeriving": "Exportando claves… ({n}/{total})",
+  "hwDiscoveryDeriving": "Exportando xpubs… ({n}/{total})",
   "@hwDiscoveryDeriving": {
     "placeholders": {
       "n": {

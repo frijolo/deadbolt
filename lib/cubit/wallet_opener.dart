@@ -87,6 +87,13 @@ abstract class WalletOpener {
     required APISecurityLevel securityLevel,
     List<APIPubKey>? xpubKeys,
   });
+
+  /// Rename the wallet on disk. Requires the wallet to be unlocked (the
+  /// service uses the cached credential to open the encrypted DB).
+  Future<void> renameWallet({
+    required String walletPath,
+    required String name,
+  });
 }
 
 class WalletOpenerImpl implements WalletOpener {
@@ -213,6 +220,14 @@ class WalletOpenerImpl implements WalletOpener {
       },
       tag: 'WalletOpener.changeProtection',
     );
+  }
+
+  @override
+  Future<void> renameWallet({
+    required String walletPath,
+    required String name,
+  }) {
+    return _service.renameWallet(walletPath, name);
   }
 
   /// Build the initial [WalletDetailView] right after a successful credential

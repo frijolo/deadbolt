@@ -1,7 +1,7 @@
 name: deadbolt
 description: "Bitcoin descriptor analyzer"
 publish_to: 'none'
-version: 1.9.7+26052201
+version: 1.9.7+26052300
 
 environment:
   sdk: ^3.10.7

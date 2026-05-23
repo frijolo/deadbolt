@@ -23,6 +23,7 @@ import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
 import 'package:deadbolt/widgets/popup_menu_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
+import 'package:deadbolt/widgets/edit_name_dialog.dart';
 import 'package:deadbolt/screens/create_tx_screen.dart';
 import 'package:deadbolt/screens/settings_screen.dart';
 import 'package:deadbolt/screens/wallet_detail/wallet_detail_shared.dart';
@@ -245,7 +246,28 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
           context,
           cubit: context.read<WalletDetailCubit>(),
         );
+      case _WalletMenuAction.rename:
+        _handleRename(context, state);
     }
+  }
+
+  void _handleRename(BuildContext context, WalletDetailLoaded state) {
+    final cubit = context.read<WalletDetailCubit>();
+    final l10n = context.l10n;
+    showEditNameDialog(
+      context,
+      title: l10n.renameWalletTitle,
+      currentName: state.walletInfo.name,
+      onSave: (newName) async {
+        if (newName == null || newName.isEmpty) return;
+        if (newName == state.walletInfo.name) return;
+        final ok = await cubit.renameWallet(newName);
+        if (!ok) return;
+        if (context.mounted) {
+          showSuccessToast(context.l10n.walletRenamedToast(newName));
+        }
+      },
+    );
   }
 
   void _openTxPlanning(BuildContext context) {
@@ -412,27 +434,34 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               tooltip: l10n.moreOptionsTooltip,
               onSelected: (action) => _onMenuAction(context, action, state),
               itemBuilder: (_) => [
+                // Primary actions
                 iconMenuItem(value: _WalletMenuAction.send, icon: Icons.arrow_upward, label: l10n.walletSendButton),
                 iconMenuItem(value: _WalletMenuAction.receive, icon: Icons.arrow_downward, label: l10n.walletReceiveButton),
                 const PopupMenuDivider(),
+                // Chain state
                 iconMenuItem(value: _WalletMenuAction.sync, icon: Icons.sync, label: l10n.syncButton, enabled: !state.isSyncing),
                 iconMenuItem(value: _WalletMenuAction.rescan, icon: Icons.manage_search, label: l10n.rescanButton),
                 const PopupMenuDivider(),
-                iconMenuItem(value: _WalletMenuAction.exportLabels, icon: Icons.upload_outlined, label: l10n.exportBip329Button),
-                iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
-                const PopupMenuDivider(),
-                iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
+                // Advanced operations
                 iconMenuItem(
                   value: _WalletMenuAction.planSpacedTxs,
                   icon: Icons.lock_clock,
                   label: l10n.txPlanningMenuEntry,
                 ),
+                iconMenuItem(value: _WalletMenuAction.generateProject, icon: Icons.design_services_outlined, label: l10n.generateProjectFromWallet),
                 const PopupMenuDivider(),
+                // Labels I/O
+                iconMenuItem(value: _WalletMenuAction.exportLabels, icon: Icons.upload_outlined, label: l10n.exportBip329Button),
+                iconMenuItem(value: _WalletMenuAction.importLabels, icon: Icons.download_outlined, label: l10n.importBip329Button),
+                const PopupMenuDivider(),
+                // Wallet settings
+                iconMenuItem(value: _WalletMenuAction.rename, icon: Icons.edit_outlined, label: l10n.renameWalletMenu),
                 iconMenuItem(value: _WalletMenuAction.changeProtection, icon: Icons.security, label: l10n.walletSecurityLabel),
                 if (state.walletInfo.protection.protectionType ==
                         APIProtectionType.userPassword ||
                     state.walletInfo.protection.protectionType ==
                         APIProtectionType.xpubKey) ...[
+                  const PopupMenuDivider(),
                   iconMenuItem(value: _WalletMenuAction.lock, icon: Icons.lock_outline, label: l10n.lockWallet),
                 ],
               ],
@@ -522,6 +551,7 @@ enum _WalletMenuAction {
   planSpacedTxs,
   lock,
   changeProtection,
+  rename,
 }
 
 class _ElectrumPrivacyWarningBanner extends StatefulWidget {

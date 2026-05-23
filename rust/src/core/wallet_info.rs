@@ -391,6 +391,23 @@ pub fn rename_wallet_in_file(
         "UPDATE wallet_info SET name = ?1 WHERE id = 1",
         rusqlite::params![new_name],
     )?;
+
+    // Keep the sidecar display_name in sync so locked UserPassword/XpubKey wallets
+    // show the new name in the list before they are unlocked.
+    if let Ok(mut meta) = read_meta(wallet_path) {
+        let touched = match &mut meta {
+            ProtectionMeta::UserPassword { display_name, .. }
+            | ProtectionMeta::XpubKey { display_name, .. } => {
+                *display_name = Some(new_name.to_string());
+                true
+            }
+            _ => false,
+        };
+        if touched {
+            let _ = write_meta(wallet_path, &meta);
+        }
+    }
+
     Ok(())
 }
 

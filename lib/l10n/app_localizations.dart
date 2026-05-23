@@ -1568,6 +1568,24 @@ abstract class AppLocalizations {
   /// **'Change protection'**
   String get changeProtectionMenu;
 
+  /// No description provided for @renameWalletMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename wallet'**
+  String get renameWalletMenu;
+
+  /// No description provided for @renameWalletTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename wallet'**
+  String get renameWalletTitle;
+
+  /// No description provided for @walletRenamedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed to \"{name}\"'**
+  String walletRenamedToast(String name);
+
   /// No description provided for @walletSecurityLabel.
   ///
   /// In en, this message translates to:
@@ -3899,7 +3917,7 @@ abstract class AppLocalizations {
   /// No description provided for @hwDiscoveryDeriving.
   ///
   /// In en, this message translates to:
-  /// **'Exporting keys… ({n}/{total})'**
+  /// **'Exporting xpubs… ({n}/{total})'**
   String hwDiscoveryDeriving(int n, int total);
 
   /// No description provided for @scanAccountsCreateWallet.

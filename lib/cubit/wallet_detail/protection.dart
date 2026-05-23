@@ -110,4 +110,47 @@ mixin WalletDetailProtection
         return true;
     }
   }
+
+  /// Update the wallet's display name on disk and reflect it in the loaded state.
+  /// The wallet must be unlocked (UserPassword/XpubKey wallets need their
+  /// credential cached). Returns true on success.
+  Future<bool> renameWallet(String newName) async {
+    final current = loadedState;
+    if (current == null) return false;
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == current.walletInfo.name) return false;
+
+    try {
+      await opener.renameWallet(
+        walletPath: current.walletInfo.walletPath,
+        name: trimmed,
+      );
+    } catch (e, st) {
+      logError('WalletDetailProtection.renameWallet()', e, st);
+      final err = loadedState;
+      if (err != null) emit(err.copyWith(errorMessage: e.toString()));
+      return false;
+    }
+
+    final after = loadedState;
+    if (after == null) return true;
+    final updatedInfo = APIWalletInfo(
+      walletPath: after.walletInfo.walletPath,
+      name: trimmed,
+      descriptor: after.walletInfo.descriptor,
+      network: after.walletInfo.network,
+      createdAt: after.walletInfo.createdAt,
+      lastSyncedAt: after.walletInfo.lastSyncedAt,
+      protection: after.walletInfo.protection,
+    );
+    emit(after.copyWith(
+      info: WalletInfo(
+        walletInfo: updatedInfo,
+        balance: after.balance,
+        hasBiometricSlot: after.hasBiometricSlot,
+        tipHeight: after.tipHeight,
+      ),
+    ));
+    return true;
+  }
 }

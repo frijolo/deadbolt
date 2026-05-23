@@ -22,6 +22,7 @@ class TxSummary {
   final int totalWu;
   final bool hasChange;
   final bool insufficientFunds;
+  final List<int> recipientAmountsSat;
 
   const TxSummary({
     required this.feeSats,
@@ -31,6 +32,7 @@ class TxSummary {
     required this.totalWu,
     required this.hasChange,
     this.insufficientFunds = false,
+    this.recipientAmountsSat = const [],
   });
 
   /// Adapt a Rust-side preview into the TxSummary shape consumed by the fee widgets.
@@ -42,6 +44,8 @@ class TxSummary {
         totalWu: p.totalWu.toInt(),
         hasChange: p.hasChange,
         insufficientFunds: p.insufficientFunds,
+        recipientAmountsSat:
+            p.recipients.map((r) => r.amountSat.toInt()).toList(growable: false),
       );
 }
 

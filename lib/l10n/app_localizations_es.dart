@@ -806,6 +806,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get changeProtectionMenu => 'Cambiar protección';
 
   @override
+  String get renameWalletMenu => 'Renombrar wallet';
+
+  @override
+  String get renameWalletTitle => 'Renombrar wallet';
+
+  @override
+  String walletRenamedToast(String name) {
+    return 'Renombrada a \"$name\"';
+  }
+
+  @override
   String get walletSecurityLabel => 'Seguridad';
 
   @override
@@ -2127,7 +2138,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String hwDiscoveryDeriving(int n, int total) {
-    return 'Exportando claves… ($n/$total)';
+    return 'Exportando xpubs… ($n/$total)';
   }
 
   @override

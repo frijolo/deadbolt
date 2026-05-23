@@ -860,8 +860,10 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
                                   color: colorScheme.primary.withAlpha(180)),
                             ),
                             child: Text(
-                              (summary != null && !summary.insufficientFunds)
-                                  ? '${BitcoinFormatter.formatNum(summary.sendSats)} sats'
+                              (summary != null &&
+                                      !summary.insufficientFunds &&
+                                      i < summary.recipientAmountsSat.length)
+                                  ? '${BitcoinFormatter.formatNum(summary.recipientAmountsSat[i])} sats'
                                   : '— sats',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.primary),
@@ -1313,8 +1315,11 @@ class _CreateTxScreenState extends State<CreateTxScreen> {
           opReturnData: encodeOpReturnInput(entry.opReturnCtrl.text, hex: entry.opReturnHexMode),
         );
       }
-      final amount = (e.key == _maxRecipientIndex && summary != null && !summary.insufficientFunds)
-          ? summary.sendSats
+      final amount = (e.key == _maxRecipientIndex &&
+              summary != null &&
+              !summary.insufficientFunds &&
+              e.key < summary.recipientAmountsSat.length)
+          ? summary.recipientAmountsSat[e.key]
           : entry.rawAmount;
       return (address: entry.addressCtrl.text.trim(), amountSat: amount, opReturnData: null);
     }).toList();

@@ -374,6 +374,14 @@
   "lockWallet": "Lock wallet",
   "backupSaved": "Backup saved",
   "changeProtectionMenu": "Change protection",
+  "renameWalletMenu": "Rename wallet",
+  "renameWalletTitle": "Rename wallet",
+  "walletRenamedToast": "Renamed to \"{name}\"",
+  "@walletRenamedToast": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
   "walletSecurityLabel": "Security",
   "walletSecurityTitle": "Wallet Security",
   "encryptionSection": "Encryption",
@@ -1006,7 +1014,7 @@
   "scanAccountsNoActivitySubtitle": "Recover accounts from a mnemonic phrase",
   "hwDiscoveryNoDevice": "No hardware wallet connected. Connect and pair your device first.",
   "hwDiscoveryStart": "Scan accounts",
-  "hwDiscoveryDeriving": "Exporting keys… ({n}/{total})",
+  "hwDiscoveryDeriving": "Exporting xpubs… ({n}/{total})",
   "@hwDiscoveryDeriving": {
     "placeholders": {
       "n": {

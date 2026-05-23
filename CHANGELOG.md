@@ -6,7 +6,12 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### New Features
+- **Rename wallet** — A new "Rename wallet" entry in the wallet menu lets you update the display name in place. The change is persisted inside the encrypted wallet DB and mirrored to the unencrypted sidecar so locked UserPassword/XpubKey wallets show the new name in the wallet list before being unlocked.
+
 ### Improvements
+- **Per-recipient amount preview in multi-send** — When sending to multiple recipients with one of them set to MAX, each row now shows its own resolved amount instead of repeating the MAX recipient's send amount. The broadcast payload uses the same per-row values, so the on-chain transaction matches what the UI displayed.
+- **Wallet menu reorganized** — The wallet detail overflow menu groups entries by purpose (primary actions, chain state, advanced operations, labels I/O, wallet settings) with dividers between groups, and surfaces Rename next to Change protection.
 - **Add private key inferred by MFP** — The wallet/project Keys view now shows a single "Add private key" button at the top instead of a per-card "Make hot" entry. The destination key is inferred from the seed's master fingerprint, with live xprv validation and explicit errors when the MFP doesn't match any watch-only key in the wallet or when the matched key already has a private key stored.
 - **Unified Add-key flow attaches private keys** — Adding a key (mnemonic or xprv) whose MFP already matches an existing watch-only key in a project now prompts to attach it as the private key for that slot, removing the separate project-level "Add private key" button. The wallet Descriptor tab moves the "Add private key" button below the key list for a less crowded header.
 - **Clearer stored-seed terminology** — Key-card labels and confirmation copy now talk about "Stored seed" / "Delete stored seed" with an explicit warning that, without a backup, deleting the seed permanently loses access while the watch-only public key remains.
