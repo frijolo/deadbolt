@@ -348,7 +348,7 @@ pub async fn hw_sign_psbt(
     psbt_base64: String,
     network: APINetwork,
     descriptor: Option<String>,
-    signer_chain_index: Option<u32>,
+    signer_chain_indices: Option<Vec<u32>>,
 ) -> Result<String> {
     session_guard!(guard, session, session_id);
     hw::btc_sign_psbt(
@@ -356,7 +356,7 @@ pub async fn hw_sign_psbt(
         &psbt_base64,
         network,
         descriptor.as_deref(),
-        signer_chain_index,
+        signer_chain_indices,
     )
     .await
 }

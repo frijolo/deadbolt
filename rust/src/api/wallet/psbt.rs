@@ -181,11 +181,21 @@ fn sign_psbt_in_place(
 /// Maximum user-supplied broadcast delay (~1 year @ 10 min/block).
 pub(crate) const MAX_NLOCKTIME_DELTA_BLOCKS: u32 = 144 * 365;
 
-/// Patch nSequence on foreign (mempool) UTXO inputs and resolve the final nLockTime.
+/// Canonicalise nSequence for the selected spend path and resolve the final nLockTime.
 ///
-/// BDK applies policy_path to internal UTXOs but leaves foreign UTXOs with the default
-/// ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1). OP_CSV requires bit 31 = 0, so
-/// Bitcoin Core rejects the broadcast with "Locktime requirement not satisfied" without this fixup.
+/// nSequence is forced to `sp.rel_timelock` on **every** input whenever the spend
+/// path declares an `older(N)`. Two motivations:
+///   - Foreign UTXOs: BDK ignores `policy_path` for them and keeps the default
+///     ENABLE_RBF_NO_LOCKTIME sequence (0xFFFFFFFD, bit 31 = 1). OP_CSV requires
+///     bit 31 = 0, so Bitcoin Core rejects the broadcast otherwise.
+///   - Internal UTXOs: BDK *usually* picks a sequence that satisfies BIP68 at
+///     mempool level (often the UTXO's real age), but strict HW signers — BB02 in
+///     particular — validate the tx against the registered policy and reject any
+///     input whose nSequence is not exactly the branch's `older(N)`. Forcing the
+///     canonical value keeps every signer happy.
+///
+/// All call sites build single-spend-path transactions (one `policy_path` per tx),
+/// so applying the same sequence to every input is safe.
 ///
 /// The absolute nLockTime is the maximum of:
 ///   - the spend path's `abs_timelock` (inheritance policy, when applicable),
@@ -194,14 +204,10 @@ fn apply_timelock_fixup(
     psbt: &mut bdk_wallet::bitcoin::psbt::Psbt,
     core: &CoreWallet,
     spend_path_id: u32,
-    has_foreign: bool,
     tip_height: u32,
     nlocktime_delta_blocks: Option<u32>,
 ) {
     let user_delta = nlocktime_delta_blocks.unwrap_or(0);
-    if !has_foreign && user_delta == 0 {
-        return;
-    }
 
     let abs_timelock = 'lookup: {
         if spend_path_id == 0 {
@@ -213,7 +219,7 @@ fn apply_timelock_fixup(
         let Some(sp) = paths.iter().find(|sp| sp.id == spend_path_id) else {
             break 'lookup 0;
         };
-        if has_foreign && sp.rel_timelock > 0 {
+        if sp.rel_timelock > 0 {
             let seq = bdk_wallet::bitcoin::Sequence(sp.rel_timelock);
             for txin in &mut psbt.unsigned_tx.input {
                 txin.sequence = seq;
@@ -422,12 +428,10 @@ impl APIWallet {
 
         let mut psbt = builder.finish()?;
 
-        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
         apply_timelock_fixup(
             &mut psbt,
             &core,
             spend_path_id,
-            has_foreign,
             tip_height,
             nlocktime_delta_blocks,
         );
@@ -703,15 +707,7 @@ impl APIWallet {
             }
         };
 
-        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(
-            &mut psbt,
-            &core,
-            spend_path_id,
-            has_foreign,
-            tip_height,
-            None,
-        );
+        apply_timelock_fixup(&mut psbt, &core, spend_path_id, tip_height, None);
 
         // Identify recipient outputs vs change.
         let recipient_scripts: std::collections::HashSet<ScriptBuf> =
@@ -1522,15 +1518,7 @@ impl APIWallet {
         }
         let mut psbt = builder.finish()?;
 
-        let has_foreign = resolved.iter().any(|r| r.foreign.is_some());
-        apply_timelock_fixup(
-            &mut psbt,
-            &core,
-            spend_path_id,
-            has_foreign,
-            tip_height,
-            None,
-        );
+        apply_timelock_fixup(&mut psbt, &core, spend_path_id, tip_height, None);
 
         core.persist()?;
 

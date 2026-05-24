@@ -82,7 +82,12 @@ struct SpendPathBuilder {
     is_tr_script: bool,
     tr_depth: usize,
 
-    key_changes: BTreeMap<String, u32>, // mfp → change index (0=external, 1=internal)
+    // mfp → all multipath lanes for that key in this spend path.
+    // For canonical `<0;1>/*` keys this is `[0, 1]`. For taproot multi-leaf
+    // descriptors reusing the same xpub with non-canonical pairs (e.g. `<8;9>`)
+    // it carries every lane (receive + change) for that leaf, so the HW signing
+    // PSBT pruner in `core::hw` can match a UTXO derived via ANY lane.
+    key_changes: BTreeMap<String, Vec<u32>>,
 }
 
 impl SpendPathBuilder {
@@ -337,7 +342,11 @@ pub struct SpendPath {
     pub addr_type: String,
     pub tr_depth: usize,
 
-    pub key_changes: BTreeMap<String, u32>, // mfp → change index (0=external, 1=internal)
+    // mfp → all multipath lanes for that key in this spend path. See
+    // `SpendPathBuilder::key_changes` for the rationale (we need every lane to
+    // recognise UTXOs derived via the change lane of non-canonical multipath
+    // pairs like `<8;9>`).
+    pub key_changes: BTreeMap<String, Vec<u32>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -353,53 +362,70 @@ fn mfp_of_dpk(dpk: &DescriptorPublicKey) -> Option<String> {
     }
 }
 
-/// Extract the change index from a DescriptorPublicKey derivation path.
-/// Returns 0 for external chain, 1 for internal (change) chain, or the first path component
-/// for MultiXPub keys using `<m;n>` notation.
-fn change_of_dpk(dpk: &DescriptorPublicKey) -> Option<u32> {
-    let last_child = match dpk {
-        DescriptorPublicKey::MultiXPub(m) => {
-            let paths = m.derivation_paths.paths();
-            paths.first()?.as_ref().last().copied()?
-        }
-        DescriptorPublicKey::XPub(x) => x.derivation_path.as_ref().last().copied()?,
+/// Extract every multipath lane this key contributes — the last (non-hardened)
+/// component of each derivation path the descriptor declares for it.
+///
+/// For a canonical `tpub.../<0;1>/*` this returns `[0, 1]` (receive + change).
+/// For non-canonical multipath pairs (e.g. `tpub.../<8;9>/*`) it returns
+/// `[8, 9]`. For a plain `tpub.../0/*` it returns `[0]`. `None` only for keys
+/// without any derivation path (Single, unrooted XPub).
+///
+/// HW signing relies on the full set: a change UTXO derived via the second
+/// lane of `<8;9>` (i.e. index 9) must still be recognised as belonging to
+/// the spend path, even though the descriptor lists "8" first.
+fn change_lanes_of_dpk(dpk: &DescriptorPublicKey) -> Option<Vec<u32>> {
+    let lanes: Vec<u32> = match dpk {
+        DescriptorPublicKey::MultiXPub(m) => m
+            .derivation_paths
+            .paths()
+            .iter()
+            .filter_map(|p| match p.as_ref().last().copied()? {
+                ChildNumber::Normal { index } => Some(index),
+                ChildNumber::Hardened { .. } => None,
+            })
+            .collect(),
+        DescriptorPublicKey::XPub(x) => match x.derivation_path.as_ref().last().copied()? {
+            ChildNumber::Normal { index } => vec![index],
+            ChildNumber::Hardened { .. } => return None,
+        },
         DescriptorPublicKey::Single(_) => return None,
     };
-    match last_child {
-        ChildNumber::Normal { index } => Some(index),
-        ChildNumber::Hardened { .. } => None,
+    if lanes.is_empty() {
+        None
+    } else {
+        Some(lanes)
     }
 }
 
-/// Extract all keys from a miniscript subtree (recursively)
+/// Extract all keys from a miniscript subtree (recursively), keeping every
+/// multipath lane each key contributes (see [`change_lanes_of_dpk`]).
 fn extract_keys_from_ms<Ctx: ScriptContext>(
     ms: &bdk_wallet::miniscript::Miniscript<DescriptorPublicKey, Ctx>,
-) -> BTreeMap<String, u32> {
+) -> BTreeMap<String, Vec<u32>> {
     let mut result = BTreeMap::new();
-    match &ms.node {
-        Terminal::PkK(dpk) | Terminal::PkH(dpk) => {
-            if let (Some(mfp), Some(ci)) = (mfp_of_dpk(dpk), change_of_dpk(dpk)) {
-                result.insert(mfp, ci);
-            }
+    let mut insert = |dpk: &DescriptorPublicKey| {
+        if let (Some(mfp), Some(lanes)) = (mfp_of_dpk(dpk), change_lanes_of_dpk(dpk)) {
+            result.entry(mfp).or_insert(lanes);
         }
+    };
+    match &ms.node {
+        Terminal::PkK(dpk) | Terminal::PkH(dpk) => insert(dpk),
         Terminal::Multi(thresh) => {
             for dpk in thresh.data() {
-                if let (Some(mfp), Some(ci)) = (mfp_of_dpk(dpk), change_of_dpk(dpk)) {
-                    result.insert(mfp, ci);
-                }
+                insert(dpk);
             }
         }
         Terminal::MultiA(thresh) => {
             for dpk in thresh.data() {
-                if let (Some(mfp), Some(ci)) = (mfp_of_dpk(dpk), change_of_dpk(dpk)) {
-                    result.insert(mfp, ci);
-                }
+                insert(dpk);
             }
         }
         _ => {
             // Wrappers, combinators, timelocks, etc.: recurse into branches
             for child in ms.branches() {
-                result.extend(extract_keys_from_ms(child));
+                for (mfp, lanes) in extract_keys_from_ms(child) {
+                    result.entry(mfp).or_insert(lanes);
+                }
             }
         }
     }
@@ -419,7 +445,7 @@ fn policy_path_guided_key_changes<Ctx: ScriptContext>(
     bdk_policy: &Policy,
     ms: &bdk_wallet::miniscript::Miniscript<DescriptorPublicKey, Ctx>,
     policy_path: &BTreeMap<String, Vec<usize>>,
-) -> BTreeMap<String, u32> {
+) -> BTreeMap<String, Vec<u32>> {
     let Some(indices) = policy_path.get(&bdk_policy.id) else {
         // Not a decision node: extract all keys from this subtree
         return extract_keys_from_ms(ms);
@@ -442,9 +468,11 @@ fn policy_path_guided_key_changes<Ctx: ScriptContext>(
     if let Terminal::AndOr(_, _, _) = &ms_core.node {
         if idx == 0 {
             // "then" arm: collect keys from condition (A) and consequence (B)
-            let mut result = BTreeMap::new();
+            let mut result: BTreeMap<String, Vec<u32>> = BTreeMap::new();
             for b in branches.iter().take(branches.len().saturating_sub(1)) {
-                result.extend(extract_keys_from_ms(b));
+                for (mfp, lanes) in extract_keys_from_ms(b) {
+                    result.entry(mfp).or_insert(lanes);
+                }
             }
             return result;
         } else if let Some(else_ms) = branches.last() {
@@ -481,14 +509,14 @@ fn strip_ms_wrappers<Ctx: ScriptContext>(
 fn walk_key_changes_tr(tr: &Tr<DescriptorPublicKey>, spbs: &mut [SpendPathBuilder]) {
     // Key-path
     let ik = tr.internal_key();
-    if let (Some(mfp), Some(ci)) = (mfp_of_dpk(ik), change_of_dpk(ik)) {
+    if let (Some(mfp), Some(lanes)) = (mfp_of_dpk(ik), change_lanes_of_dpk(ik)) {
         for spb in spbs.iter_mut().filter(|s| !s.is_tr_script) {
-            spb.key_changes.insert(mfp.clone(), ci);
+            spb.key_changes.insert(mfp.clone(), lanes.clone());
         }
     }
     // Script-paths: correlate by MFP set
     for (_depth, leaf_ms) in tr.iter_scripts() {
-        let leaf_chains: BTreeMap<String, u32> = extract_keys_from_ms(leaf_ms);
+        let leaf_chains: BTreeMap<String, Vec<u32>> = extract_keys_from_ms(leaf_ms);
         let leaf_mfps: BTreeSet<String> = leaf_chains.keys().cloned().collect();
         for spb in spbs
             .iter_mut()
@@ -561,9 +589,12 @@ impl SpendPath {
             .add_mfp(pkh.as_inner().master_fingerprint().to_string())
             .addr_type(String::from("P2PKH"));
 
-        // Extract change index from key
-        if let (Some(mfp), Some(ci)) = (mfp_of_dpk(pkh.as_inner()), change_of_dpk(pkh.as_inner())) {
-            spb.key_changes.insert(mfp, ci);
+        // Extract every multipath lane from the inner key.
+        if let (Some(mfp), Some(lanes)) = (
+            mfp_of_dpk(pkh.as_inner()),
+            change_lanes_of_dpk(pkh.as_inner()),
+        ) {
+            spb.key_changes.insert(mfp, lanes);
         }
 
         let mut spbs = vec![spb];
@@ -586,10 +617,10 @@ impl SpendPath {
                 // SH(WSH) - extract from inner WSH
                 match wsh.as_inner() {
                     WshInner::SortedMulti(sm) => {
-                        let chains: BTreeMap<String, u32> = sm
+                        let chains: BTreeMap<String, Vec<u32>> = sm
                             .pks()
                             .iter()
-                            .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
+                            .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_lanes_of_dpk(dpk)?)))
                             .collect();
                         for spb in &mut spbs {
                             spb.key_changes = chains.clone();
@@ -609,20 +640,20 @@ impl SpendPath {
                 }
             }
             ShInner::SortedMulti(sm) => {
-                let chains: BTreeMap<String, u32> = sm
+                let chains: BTreeMap<String, Vec<u32>> = sm
                     .pks()
                     .iter()
-                    .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
+                    .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_lanes_of_dpk(dpk)?)))
                     .collect();
                 for spb in &mut spbs {
                     spb.key_changes = chains.clone();
                 }
             }
             ShInner::Wpkh(wpkh) => {
-                // sh(wpkh(...)) — extract change index from the inner key
-                let chains: BTreeMap<String, u32> = mfp_of_dpk(wpkh.as_inner())
-                    .zip(change_of_dpk(wpkh.as_inner()))
-                    .map(|(mfp, ci)| [(mfp, ci)].into_iter().collect())
+                // sh(wpkh(...)) — extract every multipath lane from the inner key
+                let chains: BTreeMap<String, Vec<u32>> = mfp_of_dpk(wpkh.as_inner())
+                    .zip(change_lanes_of_dpk(wpkh.as_inner()))
+                    .map(|(mfp, lanes)| [(mfp, lanes)].into_iter().collect())
                     .unwrap_or_default();
                 for spb in &mut spbs {
                     spb.key_changes = chains.clone();
@@ -647,10 +678,12 @@ impl SpendPath {
             .threshold(1)?
             .add_mfp(wpkh.as_inner().master_fingerprint().to_string());
 
-        // Extract change index from key
-        if let (Some(mfp), Some(ci)) = (mfp_of_dpk(wpkh.as_inner()), change_of_dpk(wpkh.as_inner()))
-        {
-            spb.key_changes.insert(mfp, ci);
+        // Extract every multipath lane from the inner key.
+        if let (Some(mfp), Some(lanes)) = (
+            mfp_of_dpk(wpkh.as_inner()),
+            change_lanes_of_dpk(wpkh.as_inner()),
+        ) {
+            spb.key_changes.insert(mfp, lanes);
         }
 
         let mut spbs = vec![spb];
@@ -675,10 +708,10 @@ impl SpendPath {
         match wsh.as_inner() {
             WshInner::SortedMulti(sm) => {
                 // All keys in sortedmulti belong to single spend path
-                let chains: BTreeMap<String, u32> = sm
+                let chains: BTreeMap<String, Vec<u32>> = sm
                     .pks()
                     .iter()
-                    .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_of_dpk(dpk)?)))
+                    .filter_map(|dpk| Some((mfp_of_dpk(dpk)?, change_lanes_of_dpk(dpk)?)))
                     .collect();
                 for spb in &mut spbs {
                     spb.key_changes = chains.clone();
@@ -1048,13 +1081,18 @@ impl WeightCalc {
 // Misc utility helpers
 // ---------------------------------------------------------------------------
 
-/// Returns true if this (mfp, path) pair matches the expected change index for this spend path.
-/// The change index is the second-to-last derivation step (immediately before the address index).
-/// All MFPs must be present in key_changes; a missing entry means the key does not belong here.
-fn matches_chain(key_changes: &BTreeMap<String, u32>, mfp: &str, path: &DerivationPath) -> bool {
-    if let Some(&expected_idx) = key_changes.get(mfp) {
+/// Returns true if this (mfp, path) pair belongs to one of the lanes the key
+/// contributes in this spend path. The lane is the second-to-last derivation
+/// step (immediately before the address index). A missing entry means the key
+/// does not belong here.
+fn matches_chain(
+    key_changes: &BTreeMap<String, Vec<u32>>,
+    mfp: &str,
+    path: &DerivationPath,
+) -> bool {
+    if let Some(lanes) = key_changes.get(mfp) {
         if let Some(&ChildNumber::Normal { index }) = path.as_ref().iter().rev().nth(1) {
-            return index == expected_idx;
+            return lanes.contains(&index);
         }
     }
     false

@@ -342,10 +342,12 @@ pub struct APISpendPath {
 
     pub tr_depth: i32,
 
-    /// Per-MFP change index (0=external, 1=internal, taproot leaf chain index, …).
-    /// Used by callers (e.g. HW signing) to disambiguate which leaf each cosigner
-    /// belongs to in multi-leaf taproot descriptors.
-    pub key_changes: std::collections::HashMap<String, u32>,
+    /// Per-MFP multipath lanes (every chain index this key contributes in this
+    /// spend path). For canonical `<0;1>/*` this is `[0, 1]`; for non-canonical
+    /// pairs like `<8;9>/*` it is `[8, 9]`. HW signing uses the full set to
+    /// recognise UTXOs derived via either lane (e.g. change UTXOs whose path
+    /// ends in the second component of the pair).
+    pub key_changes: std::collections::HashMap<String, Vec<u32>>,
 
     // Calculated
     pub vb_sweep: f32,
@@ -369,7 +371,7 @@ impl TryFrom<&SpendPath> for APISpendPath {
             key_changes: sp
                 .key_changes
                 .iter()
-                .map(|(k, v)| (k.clone(), *v))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
             vb_sweep: sp.estimate_tx_vb(1, 1),
         })
@@ -1200,10 +1202,10 @@ pub struct APISpacedPlanSigningBundle {
     pub network: APINetwork,
     pub threshold: u32,
     pub mfps: Vec<String>,
-    /// Per-MFP change index for the plan's spend path. Mirrors
+    /// Per-MFP multipath lanes for the plan's spend path. Mirrors
     /// `APISpendPath.key_changes` and feeds straight into the HW
     /// signing sheet (`keyChanges` parameter) for multi-leaf taproot.
-    pub key_changes: std::collections::HashMap<String, u32>,
+    pub key_changes: std::collections::HashMap<String, Vec<u32>>,
     pub children: Vec<APISpacedPlanChildPsbt>,
 }
 

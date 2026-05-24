@@ -1072,10 +1072,10 @@ fn test_complex_andor_wsh_multiple_spend_paths() -> Result<()> {
         .find(|p| p.threshold == 1 && p.rel_timelock == 61200)
         .expect("Path 1 (1 of 4, older(61200)) not found");
     assert_eq!(path1.mfps.len(), 4);
-    assert_eq!(path1.key_changes.get("8a72f038"), Some(&4u32));
-    assert_eq!(path1.key_changes.get("bdc0483f"), Some(&6u32));
-    assert_eq!(path1.key_changes.get("c8e8e42a"), Some(&4u32));
-    assert_eq!(path1.key_changes.get("fa729acd"), Some(&6u32));
+    assert_eq!(path1.key_changes.get("8a72f038"), Some(&vec![4u32, 5u32]));
+    assert_eq!(path1.key_changes.get("bdc0483f"), Some(&vec![6u32, 7u32]));
+    assert_eq!(path1.key_changes.get("c8e8e42a"), Some(&vec![4u32, 5u32]));
+    assert_eq!(path1.key_changes.get("fa729acd"), Some(&vec![6u32, 7u32]));
 
     // Path 2: 2 of 2 older(2)
     let path2 = paths
@@ -1083,8 +1083,8 @@ fn test_complex_andor_wsh_multiple_spend_paths() -> Result<()> {
         .find(|p| p.threshold == 2 && p.rel_timelock == 2)
         .expect("Path 2 (2 of 2, older(2)) not found");
     assert_eq!(path2.mfps.len(), 2);
-    assert_eq!(path2.key_changes.get("bdc0483f"), Some(&0u32));
-    assert_eq!(path2.key_changes.get("fa729acd"), Some(&0u32));
+    assert_eq!(path2.key_changes.get("bdc0483f"), Some(&vec![0u32, 1u32]));
+    assert_eq!(path2.key_changes.get("fa729acd"), Some(&vec![0u32, 1u32]));
 
     // Path 3: 2 of 3 older(52560)
     let path3 = paths
@@ -1092,9 +1092,9 @@ fn test_complex_andor_wsh_multiple_spend_paths() -> Result<()> {
         .find(|p| p.threshold == 2 && p.rel_timelock == 52560)
         .expect("Path 3 (2 of 3, older(52560)) not found");
     assert_eq!(path3.mfps.len(), 3);
-    assert_eq!(path3.key_changes.get("8a72f038"), Some(&0u32));
-    assert_eq!(path3.key_changes.get("bdc0483f"), Some(&2u32));
-    assert_eq!(path3.key_changes.get("fa729acd"), Some(&2u32));
+    assert_eq!(path3.key_changes.get("8a72f038"), Some(&vec![0u32, 1u32]));
+    assert_eq!(path3.key_changes.get("bdc0483f"), Some(&vec![2u32, 3u32]));
+    assert_eq!(path3.key_changes.get("fa729acd"), Some(&vec![2u32, 3u32]));
 
     // Path 4: 2 of 3 older(52561)
     let path4 = paths
@@ -1102,9 +1102,9 @@ fn test_complex_andor_wsh_multiple_spend_paths() -> Result<()> {
         .find(|p| p.threshold == 2 && p.rel_timelock == 52561)
         .expect("Path 4 (2 of 3, older(52561)) not found");
     assert_eq!(path4.mfps.len(), 3);
-    assert_eq!(path4.key_changes.get("bdc0483f"), Some(&4u32));
-    assert_eq!(path4.key_changes.get("c8e8e42a"), Some(&0u32));
-    assert_eq!(path4.key_changes.get("fa729acd"), Some(&4u32));
+    assert_eq!(path4.key_changes.get("bdc0483f"), Some(&vec![4u32, 5u32]));
+    assert_eq!(path4.key_changes.get("c8e8e42a"), Some(&vec![0u32, 1u32]));
+    assert_eq!(path4.key_changes.get("fa729acd"), Some(&vec![4u32, 5u32]));
 
     // Path 5: 2 of 2 older(56880)
     let path5 = paths
@@ -1112,8 +1112,8 @@ fn test_complex_andor_wsh_multiple_spend_paths() -> Result<()> {
         .find(|p| p.threshold == 2 && p.rel_timelock == 56880)
         .expect("Path 5 (2 of 2, older(56880)) not found");
     assert_eq!(path5.mfps.len(), 2);
-    assert_eq!(path5.key_changes.get("8a72f038"), Some(&2u32));
-    assert_eq!(path5.key_changes.get("c8e8e42a"), Some(&2u32));
+    assert_eq!(path5.key_changes.get("8a72f038"), Some(&vec![2u32, 3u32]));
+    assert_eq!(path5.key_changes.get("c8e8e42a"), Some(&vec![2u32, 3u32]));
 
     Ok(())
 }

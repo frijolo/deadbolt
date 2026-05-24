@@ -373,7 +373,7 @@ class _HwBatchSheetState extends State<_HwBatchSheet> {
       psbtBase64: child.psbtB64,
       network: widget.bundle.network,
       descriptor: widget.bundle.descriptor,
-      signerChainIndex: widget.bundle.keyChanges[rootFingerprint],
+      signerChainIndices: widget.bundle.keyChanges[rootFingerprint],
     );
   }
 

@@ -1,4 +1,6 @@
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -32,7 +34,7 @@ Future<String?> showHwSignSheet(
   // Per-MFP change index for the chosen spend path. Used in multi-leaf taproot
   // descriptors so the device signs the user-selected leaf instead of the first
   // one matching its fingerprint. Null disables filtering (single-leaf cases).
-  Map<String, int>? keyChanges,
+  Map<String, Uint32List>? keyChanges,
 }) {
   return _showHwWalletSheet<String>(
     context,
@@ -208,7 +210,7 @@ Future<T?> _showHwWalletSheet<T>(
   int? index,
   String? address,
   List<APIXpubSlot>? slots,
-  Map<String, int>? keyChanges,
+  Map<String, Uint32List>? keyChanges,
 }) {
   return showSheet<T>(context, (_) => BlocProvider(
     create: (_) => HwWalletCubit()..scanDevices(),
@@ -245,7 +247,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
   final int? index;
   final String? address;
   final List<APIXpubSlot>? slots;
-  final Map<String, int>? keyChanges;
+  final Map<String, Uint32List>? keyChanges;
 
   const _HwWalletSheet({
     super.key,
@@ -308,7 +310,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
                   psbtBase64: psbtBase64!,
                   network: network,
                   descriptor: policy,
-                  signerChainIndex: keyChanges?[state.rootFingerprint],
+                  signerChainIndices: keyChanges?[state.rootFingerprint],
                 );
               }
               return;
@@ -321,7 +323,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
                 psbtBase64: psbtBase64!,
                 network: network,
                 descriptor: policy,
-                signerChainIndex: keyChanges?[state.rootFingerprint],
+                signerChainIndices: keyChanges?[state.rootFingerprint],
               );
               return;
             }
@@ -468,7 +470,7 @@ class _HwWalletSheet<T> extends StatelessWidget {
             psbtBase64: psbtBase64!,
             network: network,
             descriptor: descriptor,
-            signerChainIndex: keyChanges?[rootFingerprint],
+            signerChainIndices: keyChanges?[rootFingerprint],
           );
         }
       case _HwMode.xpub:

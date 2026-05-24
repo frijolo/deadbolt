@@ -158,13 +158,13 @@ Future<String> hwSignPsbt({
   required String psbtBase64,
   required APINetwork network,
   String? descriptor,
-  int? signerChainIndex,
+  Uint32List? signerChainIndices,
 }) => RustLib.instance.api.crateApiHwWalletHwSignPsbt(
   sessionId: sessionId,
   psbtBase64: psbtBase64,
   network: network,
   descriptor: descriptor,
-  signerChainIndex: signerChainIndex,
+  signerChainIndices: signerChainIndices,
 );
 
 /// Shows an address on the BitBox02 screen so the user can verify it matches

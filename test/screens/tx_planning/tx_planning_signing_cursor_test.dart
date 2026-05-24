@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:deadbolt/screens/tx_planning/tx_planning_signing_cursor.dart';
 import 'package:deadbolt/src/rust/api/model.dart'
     show
@@ -33,7 +35,11 @@ APISpacedPlanSigningBundle _bundle(List<APISpacedPlanChildPsbt> children) =>
       network: APINetwork.bitcoin,
       threshold: 2,
       mfps: const [_mfpA, _mfpB, _mfpC],
-      keyChanges: const {_mfpA: 0, _mfpB: 0, _mfpC: 0},
+      keyChanges: {
+        _mfpA: Uint32List.fromList([0, 1]),
+        _mfpB: Uint32List.fromList([0, 1]),
+        _mfpC: Uint32List.fromList([0, 1]),
+      },
       children: children,
     );
 

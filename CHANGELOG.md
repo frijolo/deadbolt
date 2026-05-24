@@ -21,6 +21,8 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Wallet terminology in Spanish** — Replaced the inconsistent "billetera"/"cartera" mix with "wallet" across the Spanish translation for a uniform vocabulary.
 
 ### Fixes
+- **BitBox02 batch signing of spaced plans with relative timelocks** — Forced the PSBT's `nSequence` to the spend path's exact `older(N)` on every input (not just foreign UTXOs), so BB02 no longer rejects internal-UTXO children of a spaced plan whose sequence happened to encode the real UTXO age instead of the policy-registered value.
+- **Multi-leaf taproot signing with non-canonical multipath pairs** — HW signing now keeps every multipath lane a key contributes (e.g. both `8` and `9` for `<8;9>/*`) when pruning `tap_key_origins`, so change UTXOs derived via the second lane are recognised and signed instead of failing with "Could not find our key in an input".
 - **Orphaned hot seed when removing a key from a project** — Removing a key that had a stored seed now cascade-deletes the seed from `project_seeds.db` instead of leaving the secret orphaned with no UI to reach it.
 - **On-chain backup minimum UTXO ignored spend path** — `_minUtxoSats` now feeds the path-adjusted commit vbytes into the Rust helper so the threshold scales with the selected spend path and extra inputs instead of the 1-input baseline.
 - **Tap-to-edit selecting to end of line on Android** — Added `dragStartBehavior: DragStartBehavior.down` to the coin selector list and the TX planning idle view so tapping a field no longer selects from the tap point onwards.

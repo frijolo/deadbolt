@@ -6598,7 +6598,7 @@ fn wire__crate__api__hw_wallet__hw_sign_psbt_impl(
             let api_psbt_base64 = <String>::sse_decode(&mut deserializer);
             let api_network = <crate::api::model::APINetwork>::sse_decode(&mut deserializer);
             let api_descriptor = <Option<String>>::sse_decode(&mut deserializer);
-            let api_signer_chain_index = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_signer_chain_indices = <Option<Vec<u32>>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -6608,7 +6608,7 @@ fn wire__crate__api__hw_wallet__hw_sign_psbt_impl(
                             api_psbt_base64,
                             api_network,
                             api_descriptor,
-                            api_signer_chain_index,
+                            api_signer_chain_indices,
                         )
                         .await?;
                         Ok(output_ok)
@@ -8184,10 +8184,10 @@ impl SseDecode for XOnlyPublicKey {
     }
 }
 
-impl SseDecode for std::collections::HashMap<String, u32> {
+impl SseDecode for std::collections::HashMap<String, Vec<u32>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <Vec<(String, u32)>>::sse_decode(deserializer);
+        let mut inner = <Vec<(String, Vec<u32>)>>::sse_decode(deserializer);
         return inner.into_iter().collect();
     }
 }
@@ -9135,7 +9135,8 @@ impl SseDecode for crate::api::model::APISpacedPlanSigningBundle {
         let mut var_network = <crate::api::model::APINetwork>::sse_decode(deserializer);
         let mut var_threshold = <u32>::sse_decode(deserializer);
         let mut var_mfps = <Vec<String>>::sse_decode(deserializer);
-        let mut var_keyChanges = <std::collections::HashMap<String, u32>>::sse_decode(deserializer);
+        let mut var_keyChanges =
+            <std::collections::HashMap<String, Vec<u32>>>::sse_decode(deserializer);
         let mut var_children =
             <Vec<crate::api::model::APISpacedPlanChildPsbt>>::sse_decode(deserializer);
         return crate::api::model::APISpacedPlanSigningBundle {
@@ -9185,7 +9186,8 @@ impl SseDecode for crate::api::model::APISpendPath {
         let mut var_wuIn = <u32>::sse_decode(deserializer);
         let mut var_wuOut = <u32>::sse_decode(deserializer);
         let mut var_trDepth = <i32>::sse_decode(deserializer);
-        let mut var_keyChanges = <std::collections::HashMap<String, u32>>::sse_decode(deserializer);
+        let mut var_keyChanges =
+            <std::collections::HashMap<String, Vec<u32>>>::sse_decode(deserializer);
         let mut var_vbSweep = <f32>::sse_decode(deserializer);
         return crate::api::model::APISpendPath {
             id: var_id,
@@ -10186,13 +10188,13 @@ impl SseDecode for Vec<u8> {
     }
 }
 
-impl SseDecode for Vec<(String, u32)> {
+impl SseDecode for Vec<(String, Vec<u32>)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<(String, u32)>::sse_decode(deserializer));
+            ans_.push(<(String, Vec<u32>)>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -10432,6 +10434,17 @@ impl SseDecode for Option<u64> {
     }
 }
 
+impl SseDecode for Option<Vec<u32>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<u32>>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10452,11 +10465,11 @@ impl SseDecode for (f32, String) {
     }
 }
 
-impl SseDecode for (String, u32) {
+impl SseDecode for (String, Vec<u32>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
-        let mut var_field1 = <u32>::sse_decode(deserializer);
+        let mut var_field1 = <Vec<u32>>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -13222,10 +13235,10 @@ impl SseEncode for XOnlyPublicKey {
     }
 }
 
-impl SseEncode for std::collections::HashMap<String, u32> {
+impl SseEncode for std::collections::HashMap<String, Vec<u32>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<(String, u32)>>::sse_encode(self.into_iter().collect(), serializer);
+        <Vec<(String, Vec<u32>)>>::sse_encode(self.into_iter().collect(), serializer);
     }
 }
 
@@ -13890,7 +13903,7 @@ impl SseEncode for crate::api::model::APISpacedPlanSigningBundle {
         <crate::api::model::APINetwork>::sse_encode(self.network, serializer);
         <u32>::sse_encode(self.threshold, serializer);
         <Vec<String>>::sse_encode(self.mfps, serializer);
-        <std::collections::HashMap<String, u32>>::sse_encode(self.key_changes, serializer);
+        <std::collections::HashMap<String, Vec<u32>>>::sse_encode(self.key_changes, serializer);
         <Vec<crate::api::model::APISpacedPlanChildPsbt>>::sse_encode(self.children, serializer);
     }
 }
@@ -13920,7 +13933,7 @@ impl SseEncode for crate::api::model::APISpendPath {
         <u32>::sse_encode(self.wu_in, serializer);
         <u32>::sse_encode(self.wu_out, serializer);
         <i32>::sse_encode(self.tr_depth, serializer);
-        <std::collections::HashMap<String, u32>>::sse_encode(self.key_changes, serializer);
+        <std::collections::HashMap<String, Vec<u32>>>::sse_encode(self.key_changes, serializer);
         <f32>::sse_encode(self.vb_sweep, serializer);
     }
 }
@@ -14641,12 +14654,12 @@ impl SseEncode for Vec<u8> {
     }
 }
 
-impl SseEncode for Vec<(String, u32)> {
+impl SseEncode for Vec<(String, Vec<u32>)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <(String, u32)>::sse_encode(item, serializer);
+            <(String, Vec<u32>)>::sse_encode(item, serializer);
         }
     }
 }
@@ -14822,6 +14835,16 @@ impl SseEncode for Option<u64> {
     }
 }
 
+impl SseEncode for Option<Vec<u32>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<u32>>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -14840,11 +14863,11 @@ impl SseEncode for (f32, String) {
     }
 }
 
-impl SseEncode for (String, u32) {
+impl SseEncode for (String, Vec<u32>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
-        <u32>::sse_encode(self.1, serializer);
+        <Vec<u32>>::sse_encode(self.1, serializer);
     }
 }
 

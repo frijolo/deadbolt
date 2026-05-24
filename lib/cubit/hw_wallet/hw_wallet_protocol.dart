@@ -4,6 +4,8 @@
 // displayAddress, signPsbt. Each method emits operating state, calls the
 // Rust FFI, and emits the done/error state.
 
+import 'dart:typed_data';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/errors.dart';
@@ -156,7 +158,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
     required String psbtBase64,
     required APINetwork network,
     String? descriptor,
-    int? signerChainIndex,
+    Uint32List? signerChainIndices,
   }) async {
     emit(HwWalletOperating(
       sessionId: sessionId,
@@ -170,7 +172,7 @@ mixin HwWalletProtocol on Cubit<HwWalletState> {
         psbtBase64: psbtBase64,
         network: network,
         descriptor: descriptor,
-        signerChainIndex: signerChainIndex,
+        signerChainIndices: signerChainIndices,
       ));
       emit(HwWalletDone(
         sessionId: sessionId,

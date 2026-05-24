@@ -804,7 +804,7 @@ abstract class RustLibApi extends BaseApi {
     required String psbtBase64,
     required APINetwork network,
     String? descriptor,
-    int? signerChainIndex,
+    Uint32List? signerChainIndices,
   });
 
   Future<NostrImportResult> crateApiWalletNostrBackupImportNostrBackup({
@@ -6060,7 +6060,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String psbtBase64,
     required APINetwork network,
     String? descriptor,
-    int? signerChainIndex,
+    Uint32List? signerChainIndices,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -6070,7 +6070,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(psbtBase64, serializer);
           sse_encode_api_network(network, serializer);
           sse_encode_opt_String(descriptor, serializer);
-          sse_encode_opt_box_autoadd_u_32(signerChainIndex, serializer);
+          sse_encode_opt_list_prim_u_32_strict(signerChainIndices, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -6088,7 +6088,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           psbtBase64,
           network,
           descriptor,
-          signerChainIndex,
+          signerChainIndices,
         ],
         apiImpl: this,
       ),
@@ -6102,7 +6102,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       "psbtBase64",
       "network",
       "descriptor",
-      "signerChainIndex",
+      "signerChainIndices",
     ],
   );
 
@@ -7611,10 +7611,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw) {
+  Map<String, Uint32List> dco_decode_Map_String_list_prim_u_32_strict_None(
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Map.fromEntries(
-      dco_decode_list_record_string_u_32(raw).map((e) => MapEntry(e.$1, e.$2)),
+      dco_decode_list_record_string_list_prim_u_32_strict(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
     );
   }
 
@@ -8394,7 +8398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       network: dco_decode_api_network(arr[2]),
       threshold: dco_decode_u_32(arr[3]),
       mfps: dco_decode_list_String(arr[4]),
-      keyChanges: dco_decode_Map_String_u_32_None(arr[5]),
+      keyChanges: dco_decode_Map_String_list_prim_u_32_strict_None(arr[5]),
       children: dco_decode_list_api_spaced_plan_child_psbt(arr[6]),
     );
   }
@@ -8432,7 +8436,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       wuIn: dco_decode_u_32(arr[7]),
       wuOut: dco_decode_u_32(arr[8]),
       trDepth: dco_decode_i_32(arr[9]),
-      keyChanges: dco_decode_Map_String_u_32_None(arr[10]),
+      keyChanges: dco_decode_Map_String_list_prim_u_32_strict_None(arr[10]),
       vbSweep: dco_decode_f_32(arr[11]),
     );
   }
@@ -9139,9 +9143,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw) {
+  List<(String, Uint32List)>
+  dco_decode_list_record_string_list_prim_u_32_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_record_string_u_32).toList();
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_list_prim_u_32_strict)
+        .toList();
   }
 
   @protected
@@ -9307,6 +9314,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Uint32List? dco_decode_opt_list_prim_u_32_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_prim_u_32_strict(raw);
+  }
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
@@ -9323,13 +9336,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (String, int) dco_decode_record_string_u_32(dynamic raw) {
+  (String, Uint32List) dco_decode_record_string_list_prim_u_32_strict(
+    dynamic raw,
+  ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2) {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
-    return (dco_decode_String(arr[0]), dco_decode_u_32(arr[1]));
+    return (
+      dco_decode_String(arr[0]),
+      dco_decode_list_prim_u_32_strict(arr[1]),
+    );
   }
 
   @protected
@@ -9515,11 +9533,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Map<String, int> sse_decode_Map_String_u_32_None(
+  Map<String, Uint32List> sse_decode_Map_String_list_prim_u_32_strict_None(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_list_record_string_u_32(deserializer);
+    var inner = sse_decode_list_record_string_list_prim_u_32_strict(
+      deserializer,
+    );
     return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
   }
 
@@ -10408,7 +10428,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_network = sse_decode_api_network(deserializer);
     var var_threshold = sse_decode_u_32(deserializer);
     var var_mfps = sse_decode_list_String(deserializer);
-    var var_keyChanges = sse_decode_Map_String_u_32_None(deserializer);
+    var var_keyChanges = sse_decode_Map_String_list_prim_u_32_strict_None(
+      deserializer,
+    );
     var var_children = sse_decode_list_api_spaced_plan_child_psbt(deserializer);
     return APISpacedPlanSigningBundle(
       planId: var_planId,
@@ -10455,7 +10477,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_wuIn = sse_decode_u_32(deserializer);
     var var_wuOut = sse_decode_u_32(deserializer);
     var var_trDepth = sse_decode_i_32(deserializer);
-    var var_keyChanges = sse_decode_Map_String_u_32_None(deserializer);
+    var var_keyChanges = sse_decode_Map_String_list_prim_u_32_strict_None(
+      deserializer,
+    );
     var var_vbSweep = sse_decode_f_32(deserializer);
     return APISpendPath(
       id: var_id,
@@ -11513,15 +11537,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<(String, int)> sse_decode_list_record_string_u_32(
+  List<(String, Uint32List)>
+  sse_decode_list_record_string_list_prim_u_32_strict(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <(String, int)>[];
+    var ans_ = <(String, Uint32List)>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_record_string_u_32(deserializer));
+      ans_.add(sse_decode_record_string_list_prim_u_32_strict(deserializer));
     }
     return ans_;
   }
@@ -11773,6 +11798,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Uint32List? sse_decode_opt_list_prim_u_32_strict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_prim_u_32_strict(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -11792,10 +11830,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer) {
+  (String, Uint32List) sse_decode_record_string_list_prim_u_32_strict(
+    SseDeserializer deserializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_String(deserializer);
-    var var_field1 = sse_decode_u_32(deserializer);
+    var var_field1 = sse_decode_list_prim_u_32_strict(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -11998,12 +12038,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_Map_String_u_32_None(
-    Map<String, int> self,
+  void sse_encode_Map_String_list_prim_u_32_strict_None(
+    Map<String, Uint32List> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_list_record_string_u_32(
+    sse_encode_list_record_string_list_prim_u_32_strict(
       self.entries.map((e) => (e.key, e.value)).toList(),
       serializer,
     );
@@ -12693,7 +12733,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_api_network(self.network, serializer);
     sse_encode_u_32(self.threshold, serializer);
     sse_encode_list_String(self.mfps, serializer);
-    sse_encode_Map_String_u_32_None(self.keyChanges, serializer);
+    sse_encode_Map_String_list_prim_u_32_strict_None(
+      self.keyChanges,
+      serializer,
+    );
     sse_encode_list_api_spaced_plan_child_psbt(self.children, serializer);
   }
 
@@ -12724,7 +12767,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.wuIn, serializer);
     sse_encode_u_32(self.wuOut, serializer);
     sse_encode_i_32(self.trDepth, serializer);
-    sse_encode_Map_String_u_32_None(self.keyChanges, serializer);
+    sse_encode_Map_String_list_prim_u_32_strict_None(
+      self.keyChanges,
+      serializer,
+    );
     sse_encode_f_32(self.vbSweep, serializer);
   }
 
@@ -13630,14 +13676,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_record_string_u_32(
-    List<(String, int)> self,
+  void sse_encode_list_record_string_list_prim_u_32_strict(
+    List<(String, Uint32List)> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_record_string_u_32(item, serializer);
+      sse_encode_record_string_list_prim_u_32_strict(item, serializer);
     }
   }
 
@@ -13837,6 +13883,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_prim_u_32_strict(
+    Uint32List? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_prim_u_32_strict(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -13860,13 +13919,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_record_string_u_32(
-    (String, int) self,
+  void sse_encode_record_string_list_prim_u_32_strict(
+    (String, Uint32List) self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.$1, serializer);
-    sse_encode_u_32(self.$2, serializer);
+    sse_encode_list_prim_u_32_strict(self.$2, serializer);
   }
 
   @protected

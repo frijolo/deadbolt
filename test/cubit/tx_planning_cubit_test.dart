@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show Int64List;
@@ -164,14 +165,17 @@ void main() {
     final detail = _draftDetail(rows: [_row(10), _row(11)]);
     when(() => wallet.listSpacedPlans()).thenReturn([detail]);
     when(() => wallet.prepareSpacedPlanPsbts(planId: 1)).thenReturn(
-      const APISpacedPlanSigningBundle(
+      APISpacedPlanSigningBundle(
         planId: 1,
         descriptor: 'wsh(...)',
         network: APINetwork.bitcoin,
         threshold: 2,
-        mfps: ['aaaaaaaa', 'bbbbbbbb'],
-        keyChanges: {'aaaaaaaa': 0, 'bbbbbbbb': 0},
-        children: [
+        mfps: const ['aaaaaaaa', 'bbbbbbbb'],
+        keyChanges: {
+          'aaaaaaaa': Uint32List.fromList([0, 1]),
+          'bbbbbbbb': Uint32List.fromList([0, 1]),
+        },
+        children: const [
           APISpacedPlanChildPsbt(
             psbtId: 10,
             psbtB64: 'b64',
@@ -446,14 +450,17 @@ void main() {
       () async {
     final draftDetail = _draftDetail(rows: [_row(10)]);
     when(() => wallet.listSpacedPlans()).thenReturn([draftDetail]);
-    const bundle = APISpacedPlanSigningBundle(
+    final bundle = APISpacedPlanSigningBundle(
       planId: 1,
       descriptor: 'wsh(...)',
       network: APINetwork.bitcoin,
       threshold: 2,
-      mfps: ['aaaaaaaa', 'bbbbbbbb'],
-      keyChanges: {'aaaaaaaa': 0, 'bbbbbbbb': 0},
-      children: [
+      mfps: const ['aaaaaaaa', 'bbbbbbbb'],
+      keyChanges: {
+        'aaaaaaaa': Uint32List.fromList([0, 1]),
+        'bbbbbbbb': Uint32List.fromList([0, 1]),
+      },
+      children: const [
         APISpacedPlanChildPsbt(
           psbtId: 10,
           psbtB64: 'b64',

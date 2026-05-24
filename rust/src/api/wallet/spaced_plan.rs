@@ -304,10 +304,10 @@ impl APIWallet {
                 .ok_or_else(|| {
                     anyhow!("Spend path {} not found on this wallet", plan.spend_path_id)
                 })?;
-            let key_changes: std::collections::HashMap<String, u32> = path
+            let key_changes: std::collections::HashMap<String, Vec<u32>> = path
                 .key_changes
                 .iter()
-                .map(|(mfp, idx)| (mfp.clone(), *idx))
+                .map(|(mfp, lanes)| (mfp.clone(), lanes.clone()))
                 .collect();
             (
                 info.descriptor,

@@ -821,3 +821,56 @@ fn test_create_psbt_relative_timelock_with_delta() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+/// Regression for the BB02 batch-sign failure in spaced TX planning: when the
+/// chosen spend path declares `older(N)`, every internal input of the resulting
+/// PSBT must carry `nSequence == N` exactly — not just a value that happens to
+/// satisfy BIP68 at mempool level (e.g. the real UTXO age). Strict HW signers
+/// validate the tx against the registered policy and reject any other value.
+///
+/// Covers the path with `delta = None`, which used to short-circuit the fixup
+/// when no foreign inputs were present.
+#[test]
+fn test_create_psbt_forces_canonical_nsequence_for_rel_timelock() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let wallet = make_wallet(&dir, SIGNET_INHERITANCE_DESC, APINetwork::Signet);
+    let funding_txid = inject_utxo(&wallet);
+    let recv = recv_addr_for(&wallet);
+
+    let analyzer = DescriptorAnalyzer::analyze(SIGNET_INHERITANCE_DESC)?;
+    let paths = analyzer.spend_paths()?;
+    let heir = paths
+        .iter()
+        .filter(|sp| sp.rel_timelock > 0 && sp.abs_timelock == 0)
+        .min_by_key(|sp| sp.rel_timelock)
+        .expect("descriptor must expose at least one relative-timelock heir path");
+
+    let info = wallet.create_psbt(
+        vec![APIRecipient {
+            address: recv,
+            amount_sat: 500_000,
+            op_return_data: None,
+        }],
+        None,
+        1_000,
+        vec![APICoinControl {
+            txid: funding_txid.to_string(),
+            vout: 0,
+        }],
+        APIPolicyPath::from_spendpath(heir)?,
+        heir.id,
+        heir.threshold as u32,
+        heir.mfps.clone(),
+        None,
+    )?;
+
+    let psbt = crate::api::wallet::psbt::psbt_from_base64(&info.psbt_base64)?;
+    for (i, txin) in psbt.unsigned_tx.input.iter().enumerate() {
+        assert_eq!(
+            txin.sequence.to_consensus_u32(),
+            heir.rel_timelock,
+            "input {i}: nSequence must equal the spend path's rel_timelock exactly"
+        );
+    }
+    Ok(())
+}

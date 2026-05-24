@@ -305,6 +305,45 @@ fn count_unique_xpubs(descriptor: &str) -> usize {
         .len()
 }
 
+/// Diagnostic: mirror `async_hwi::bitbox::extract_script_config_policy`'s regex
+/// extraction and print the resulting wallet-policy template plus the ordered
+/// `@N` → key-info mapping. Use to verify that the policy registered on the
+/// device matches the policy used at signing time when debugging
+/// "Could not find our key in an input" / mismatched policy errors.
+fn debug_log_policy(descriptor: &str, source: &str) {
+    use regex::Regex;
+    use std::sync::OnceLock;
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(r"((\[.+?\])?[xyYzZtuUvV]pub[1-9A-HJ-NP-Za-km-z]{79,108})")
+            .expect("static regex")
+    });
+    let mut pubkeys: Vec<&str> = Vec::new();
+    for capture in re.find_iter(descriptor) {
+        let s = capture.as_str();
+        if !pubkeys.contains(&s) {
+            pubkeys.push(s);
+        }
+    }
+    let mut template = descriptor.to_string();
+    for (i, k) in pubkeys.iter().enumerate() {
+        template = template.replace(k, &format!("@{}", i));
+    }
+    let template = template
+        .rsplit_once('#')
+        .map(|(t, _)| t.to_string())
+        .unwrap_or(template);
+    eprintln!("[HW policy/{source}] template = {template}");
+    for (i, k) in pubkeys.iter().enumerate() {
+        eprintln!("[HW policy/{source}]   @{i} = {k}");
+    }
+    eprintln!(
+        "[HW policy/{source}] {} key(s), {} occurrences of '@'",
+        pubkeys.len(),
+        template.matches('@').count()
+    );
+}
+
 fn api_network_to_btc_network(network: APINetwork) -> bdk_wallet::bitcoin::Network {
     match network {
         APINetwork::Bitcoin => bdk_wallet::bitcoin::Network::Bitcoin,
@@ -349,7 +388,7 @@ pub async fn btc_sign_psbt(
     psbt_base64: &str,
     network: APINetwork,
     descriptor: Option<&str>,
-    signer_chain_index: Option<u32>,
+    signer_chain_indices: Option<Vec<u32>>,
 ) -> Result<String> {
     use async_hwi::HWI as _;
     use base64::engine::general_purpose::STANDARD as B64;
@@ -368,6 +407,18 @@ pub async fn btc_sign_psbt(
     // single-key types (P2WPKH, P2PKH, P2SH-P2WPKH, single-key P2TR) and plain
     // BIP48 sortedmulti must keep policy=None — the firmware rejects those
     // with InvalidInput when sent through the wallet-policies path.
+    eprintln!(
+        "[HW policy/sign] session.root_fingerprint = {}",
+        session.root_fingerprint
+    );
+    // Fresh fingerprint from the device, exactly as bitbox_api::btc_sign_psbt
+    // will read it internally to compare against PSBT tap_key_origins. If the
+    // user toggled passphrase / restarted into a different seed after pairing,
+    // this will differ from session.root_fingerprint.
+    match session.device.client.root_fingerprint().await {
+        Ok(fp) => eprintln!("[HW policy/sign] live device root_fingerprint = {fp}"),
+        Err(e) => eprintln!("[HW policy/sign] live device root_fingerprint query failed: {e}"),
+    }
     session.device.policy = descriptor
         .filter(|d| {
             let s = d.trim();
@@ -381,6 +432,7 @@ pub async fn btc_sign_psbt(
                 s.starts_with("wsh(sortedmulti(") || s.starts_with("sh(wsh(sortedmulti(");
             !is_native && !is_bip48_multisig
         })
+        .inspect(|d| debug_log_policy(d, "sign"))
         .map(async_hwi::bitbox::extract_script_config_policy)
         .transpose()
         .map_err(|e| anyhow!("Invalid descriptor policy: {e}"))?;
@@ -389,6 +441,70 @@ pub async fn btc_sign_psbt(
         .decode(psbt_base64)
         .map_err(|e| anyhow!("Invalid PSBT base64: {e}"))?;
     let mut psbt = Psbt::deserialize(&psbt_bytes).map_err(|e| anyhow!("Invalid PSBT: {e}"))?;
+
+    // Diagnostic dump: what does bitbox-api's find_our_key() actually see?
+    // It walks tap_key_origins per input and matches by fingerprint bytes against
+    // the device's root_fingerprint. KeyNotFound = nothing matched here.
+    //
+    // Replicate EXACTLY: bitbox-api uses `&fingerprint[..] == our_root_fingerprint`,
+    // where `our_root_fingerprint = hex::decode(self.root_fingerprint().await?)`.
+    // Compare raw bytes side by side to catch any endianness / serialization gotcha.
+    let live_fp = session
+        .device
+        .client
+        .root_fingerprint()
+        .await
+        .map_err(|e| anyhow!("Cannot fetch live device fingerprint: {e}"))?;
+    let our_root_fingerprint: Vec<u8> = match hex::decode(&live_fp) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("[HW psbt/sign] hex::decode({live_fp}) failed: {e}");
+            Vec::new()
+        }
+    };
+    eprintln!(
+        "[HW psbt/sign] our_root_fingerprint raw bytes = {:02x?} (hex={live_fp})",
+        our_root_fingerprint
+    );
+    for (idx, input) in psbt.inputs.iter().enumerate() {
+        eprintln!(
+            "[HW psbt/sign] input #{idx}: tap_key_origins.len() = {}, bip32_derivation.len() = {}",
+            input.tap_key_origins.len(),
+            input.bip32_derivation.len()
+        );
+        let mut matches_by_bytes = 0;
+        let mut matches_by_string = 0;
+        for (xonly, (leaves, (fp, path))) in input.tap_key_origins.iter() {
+            let fp_bytes: &[u8] = &fp[..];
+            let fp_hex = fp.to_string().to_lowercase();
+            let by_string = fp_hex == live_fp;
+            let by_bytes = fp_bytes == our_root_fingerprint.as_slice();
+            if by_string {
+                matches_by_string += 1;
+            }
+            if by_bytes {
+                matches_by_bytes += 1;
+            }
+            let mark = match (by_bytes, by_string) {
+                (true, true) => "  <-- OURS (bytes+string)",
+                (true, false) => "  <-- OURS (bytes only!)",
+                (false, true) => "  <-- mismatch (string only — endianness!)",
+                (false, false) => "",
+            };
+            eprintln!(
+                "[HW psbt/sign]   tap xonly={}… fp_bytes={:02x?} fp_str={} path={} leaves={}{}",
+                &xonly.to_string()[..16],
+                fp_bytes,
+                fp_hex,
+                path,
+                leaves.len(),
+                mark
+            );
+        }
+        eprintln!(
+            "[HW psbt/sign]   → matches: {matches_by_bytes} by raw bytes (bitbox-api path), {matches_by_string} by string"
+        );
+    }
 
     // BIP48 sortedmulti: bypass async_hwi.sign_tx and call bitbox-api directly
     // with force_script_config=Multisig. The high-level sign_tx panics in
@@ -429,12 +545,18 @@ pub async fn btc_sign_psbt(
 
     // BB02 signs the first tap_key_origin entry matching its master fingerprint
     // (firmware/protocol limitation). For multi-leaf tr descriptors we prune the
-    // entries whose derivation path's change index does not match the spend path
-    // the user selected, then restore them after the device signs so the returned
-    // PSBT remains structurally complete for downstream finalization.
+    // entries whose derivation lane does not belong to the spend path the user
+    // selected, then restore them after the device signs so the returned PSBT
+    // remains structurally complete for downstream finalization.
+    //
+    // `signer_chain_indices` carries EVERY lane the signer's key contributes in
+    // this spend path — typically two values (receive + change) for multipath
+    // keys like `<0;1>/*` or `<8;9>/*`. We keep the entry if its second-to-last
+    // path component (the lane) is in that set, so a change UTXO derived via
+    // the non-canonical change lane of `<8;9>` (i.e. 9) is recognised.
     let signer_fp = session.root_fingerprint.clone();
     let mut saved_origins: Vec<SavedTapOrigins> = Vec::new();
-    if let Some(chain_idx) = signer_chain_index {
+    if let Some(chain_lanes) = signer_chain_indices.as_ref() {
         for input in psbt.inputs.iter_mut() {
             let to_remove: Vec<XOnlyPublicKey> = input
                 .tap_key_origins
@@ -445,7 +567,7 @@ pub async fn btc_sign_psbt(
                     }
                     let matches_chain = matches!(
                         path.as_ref().iter().rev().nth(1),
-                        Some(ChildNumber::Normal { index }) if *index == chain_idx
+                        Some(ChildNumber::Normal { index }) if chain_lanes.contains(index)
                     );
                     if matches_chain {
                         None
@@ -728,11 +850,18 @@ pub async fn btc_check_registration(
             .map_err(|e| anyhow!("Registration check failed: {e}"));
     }
 
-    session
+    eprintln!(
+        "[HW policy/check] connected device root_fingerprint = {}",
+        session.root_fingerprint
+    );
+    debug_log_policy(descriptor, "check");
+    let registered = session
         .device
         .is_policy_registered(descriptor)
         .await
-        .map_err(|e| anyhow!("Registration check failed: {e}"))
+        .map_err(|e| anyhow!("Registration check failed: {e}"))?;
+    eprintln!("[HW policy/check] is_policy_registered → {registered}");
+    Ok(registered)
 }
 
 pub async fn btc_register_descriptor(
@@ -852,6 +981,11 @@ pub async fn btc_register_descriptor(
     // Generic policy / miniscript / taproot script-path path.
     // We bypass async-hwi's register_wallet wrapper to get distinct error messages
     // for the two separate firmware calls it makes.
+    eprintln!(
+        "[HW policy/register] connected device root_fingerprint = {}, wallet_name = '{}'",
+        session.root_fingerprint, wallet_name
+    );
+    debug_log_policy(descriptor, "register");
     let script_config: pb::BtcScriptConfig =
         async_hwi::bitbox::extract_script_config_policy(descriptor)
             .map_err(|e| anyhow!("Cannot parse descriptor as a policy: {e}"))?
@@ -864,10 +998,12 @@ pub async fn btc_register_descriptor(
         .btc_is_script_config_registered(pb_coin, &script_config, None)
         .await
         .map_err(|e| anyhow!("Cannot check registration status: {e}"))?;
+    eprintln!("[HW policy/register] btc_is_script_config_registered → {already}");
 
     if already {
         return Ok(false);
     }
+    eprintln!("[HW policy/register] sending btc_register_script_config to device…");
 
     // Step 2: register on device (user must confirm on the BitBox02 screen).
     session

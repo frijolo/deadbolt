@@ -116,7 +116,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
+  Map<String, Uint32List> dco_decode_Map_String_list_prim_u_32_strict_None(
+    dynamic raw,
+  );
 
   @protected
   ApiWallet
@@ -591,7 +593,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
+  List<(String, Uint32List)>
+  dco_decode_list_record_string_list_prim_u_32_strict(dynamic raw);
 
   @protected
   NostrBackupResponse dco_decode_nostr_backup_response(dynamic raw);
@@ -640,13 +643,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
+  Uint32List? dco_decode_opt_list_prim_u_32_strict(dynamic raw);
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   (double, String) dco_decode_record_f_32_string(dynamic raw);
 
   @protected
-  (String, int) dco_decode_record_string_u_32(dynamic raw);
+  (String, Uint32List) dco_decode_record_string_list_prim_u_32_strict(
+    dynamic raw,
+  );
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -733,7 +741,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  Map<String, int> sse_decode_Map_String_u_32_None(
+  Map<String, Uint32List> sse_decode_Map_String_list_prim_u_32_strict_None(
     SseDeserializer deserializer,
   );
 
@@ -1328,7 +1336,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
-  List<(String, int)> sse_decode_list_record_string_u_32(
+  List<(String, Uint32List)>
+  sse_decode_list_record_string_list_prim_u_32_strict(
     SseDeserializer deserializer,
   );
 
@@ -1397,13 +1406,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
+  Uint32List? sse_decode_opt_list_prim_u_32_strict(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   (double, String) sse_decode_record_f_32_string(SseDeserializer deserializer);
 
   @protected
-  (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
+  (String, Uint32List) sse_decode_record_string_list_prim_u_32_strict(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -1507,8 +1523,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_Map_String_u_32_None(
-    Map<String, int> self,
+  void sse_encode_Map_String_list_prim_u_32_strict_None(
+    Map<String, Uint32List> self,
     SseSerializer serializer,
   );
 
@@ -2266,8 +2282,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_record_string_u_32(
-    List<(String, int)> self,
+  void sse_encode_list_record_string_list_prim_u_32_strict(
+    List<(String, Uint32List)> self,
     SseSerializer serializer,
   );
 
@@ -2350,6 +2366,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_list_prim_u_32_strict(
+    Uint32List? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -2362,8 +2384,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_record_string_u_32(
-    (String, int) self,
+  void sse_encode_record_string_list_prim_u_32_strict(
+    (String, Uint32List) self,
     SseSerializer serializer,
   );
 

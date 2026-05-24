@@ -1626,10 +1626,10 @@ class APISpacedPlanSigningBundle {
   final int threshold;
   final List<String> mfps;
 
-  /// Per-MFP change index for the plan's spend path. Mirrors
+  /// Per-MFP multipath lanes for the plan's spend path. Mirrors
   /// `APISpendPath.key_changes` and feeds straight into the HW
   /// signing sheet (`keyChanges` parameter) for multi-leaf taproot.
-  final Map<String, int> keyChanges;
+  final Map<String, Uint32List> keyChanges;
   final List<APISpacedPlanChildPsbt> children;
 
   const APISpacedPlanSigningBundle({
@@ -1717,10 +1717,12 @@ class APISpendPath {
   final int wuOut;
   final int trDepth;
 
-  /// Per-MFP change index (0=external, 1=internal, taproot leaf chain index, …).
-  /// Used by callers (e.g. HW signing) to disambiguate which leaf each cosigner
-  /// belongs to in multi-leaf taproot descriptors.
-  final Map<String, int> keyChanges;
+  /// Per-MFP multipath lanes (every chain index this key contributes in this
+  /// spend path). For canonical `<0;1>/*` this is `[0, 1]`; for non-canonical
+  /// pairs like `<8;9>/*` it is `[8, 9]`. HW signing uses the full set to
+  /// recognise UTXOs derived via either lane (e.g. change UTXOs whose path
+  /// ends in the second component of the pair).
+  final Map<String, Uint32List> keyChanges;
   final double vbSweep;
 
   const APISpendPath({

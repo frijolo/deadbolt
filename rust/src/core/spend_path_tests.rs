@@ -98,10 +98,10 @@ fn test_key_changes_chain_indices() -> Result<()> {
     let dpk: DescriptorPublicKey = keystr.parse()?;
 
     let mfp = mfp_of_dpk(&dpk);
-    let change_idx = change_of_dpk(&dpk);
+    let lanes = change_lanes_of_dpk(&dpk);
 
     assert_eq!(mfp, Some("73c5da0a".to_string()));
-    assert_eq!(change_idx, Some(0)); // External chain from <0;1>
+    assert_eq!(lanes, Some(vec![0, 1])); // Multipath <0;1> exposes both lanes
 
     Ok(())
 }
