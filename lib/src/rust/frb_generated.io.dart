@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/analyzer.dart';
+import 'api/background.dart';
 import 'api/hw_wallet.dart';
 import 'api/model.dart';
 import 'api/tor.dart';
@@ -174,6 +175,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   APIAutoBroadcastResult dco_decode_api_auto_broadcast_result(dynamic raw);
+
+  @protected
+  APIAutoBroadcastSummary dco_decode_api_auto_broadcast_summary(dynamic raw);
 
   @protected
   APIBalance dco_decode_api_balance(dynamic raw);
@@ -378,6 +382,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BackupParams dco_decode_backup_params(dynamic raw);
 
   @protected
+  BgWalletHeader dco_decode_bg_wallet_header(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -560,6 +567,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIXpubSlot> dco_decode_list_api_xpub_slot(dynamic raw);
+
+  @protected
+  List<BgWalletHeader> dco_decode_list_bg_wallet_header(dynamic raw);
 
   @protected
   List<NostrBackupResponse> dco_decode_list_nostr_backup_response(dynamic raw);
@@ -813,6 +823,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  APIAutoBroadcastSummary sse_decode_api_auto_broadcast_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   APIBalance sse_decode_api_balance(SseDeserializer deserializer);
 
   @protected
@@ -1057,6 +1072,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BackupParams sse_decode_backup_params(SseDeserializer deserializer);
 
   @protected
+  BgWalletHeader sse_decode_bg_wallet_header(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -1299,6 +1317,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<APIXpubSlot> sse_decode_list_api_xpub_slot(SseDeserializer deserializer);
+
+  @protected
+  List<BgWalletHeader> sse_decode_list_bg_wallet_header(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<NostrBackupResponse> sse_decode_list_nostr_backup_response(
@@ -1606,6 +1629,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_auto_broadcast_result(
     APIAutoBroadcastResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_auto_broadcast_summary(
+    APIAutoBroadcastSummary self,
     SseSerializer serializer,
   );
 
@@ -1922,6 +1951,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_backup_params(BackupParams self, SseSerializer serializer);
 
   @protected
+  void sse_encode_bg_wallet_header(
+    BgWalletHeader self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -2225,6 +2260,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_api_xpub_slot(
     List<APIXpubSlot> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_bg_wallet_header(
+    List<BgWalletHeader> self,
     SseSerializer serializer,
   );
 

@@ -874,3 +874,107 @@ fn test_create_psbt_forces_canonical_nsequence_for_rel_timelock() -> anyhow::Res
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// auto_broadcast_summary
+// ---------------------------------------------------------------------------
+
+fn craft_psbt_b64(lock_time: u32) -> String {
+    use base64::{engine::general_purpose, Engine as _};
+    let tx = Transaction {
+        version: transaction::Version::TWO,
+        lock_time: absolute::LockTime::from_consensus(lock_time),
+        input: vec![],
+        output: vec![],
+    };
+    let psbt = bdk_wallet::bitcoin::psbt::Psbt::from_unsigned_tx(tx).expect("psbt");
+    general_purpose::STANDARD.encode(psbt.serialize())
+}
+
+fn insert_pending(wallet: &APIWallet, lock_time: u32, auto_broadcast: bool) -> i64 {
+    use crate::core::wallet_persistence::psbt_storage::{insert_psbt, set_psbt_auto_broadcast};
+    let core = wallet.lock_wallet().unwrap();
+    let id = insert_psbt(
+        &core.conn,
+        &craft_psbt_b64(lock_time),
+        "",
+        None,
+        "addr",
+        500_000,
+        1_000,
+        0,
+        1,
+        &["c449c5c5".to_string()],
+        None,
+    )
+    .unwrap();
+    if auto_broadcast {
+        set_psbt_auto_broadcast(&core.conn, id, true).unwrap();
+    }
+    id
+}
+
+#[test]
+fn auto_broadcast_summary_empty_queue_returns_zero_and_none() {
+    let dir = tempdir().unwrap();
+    let wallet = make_wallet(&dir, MAINNET_DESC, APINetwork::Bitcoin);
+    let summary = wallet.auto_broadcast_summary().unwrap();
+    assert_eq!(summary.pending_count, 0);
+    assert!(summary.min_locktime.is_none());
+}
+
+#[test]
+fn auto_broadcast_summary_returns_min_locktime_across_pending_rows() {
+    let dir = tempdir().unwrap();
+    let wallet = make_wallet(&dir, MAINNET_DESC, APINetwork::Bitcoin);
+
+    insert_pending(&wallet, 850_000, true);
+    insert_pending(&wallet, 820_000, true);
+    insert_pending(&wallet, 900_000, true);
+
+    let summary = wallet.auto_broadcast_summary().unwrap();
+    assert_eq!(summary.pending_count, 3);
+    assert_eq!(summary.min_locktime, Some(820_000));
+}
+
+#[test]
+fn auto_broadcast_summary_ignores_rows_without_auto_broadcast() {
+    let dir = tempdir().unwrap();
+    let wallet = make_wallet(&dir, MAINNET_DESC, APINetwork::Bitcoin);
+
+    insert_pending(&wallet, 800_000, false); // not armed → must be ignored
+    insert_pending(&wallet, 850_000, true);
+
+    let summary = wallet.auto_broadcast_summary().unwrap();
+    assert_eq!(summary.pending_count, 1);
+    assert_eq!(summary.min_locktime, Some(850_000));
+}
+
+#[test]
+fn auto_broadcast_summary_treats_zero_locktime_as_no_contribution() {
+    let dir = tempdir().unwrap();
+    let wallet = make_wallet(&dir, MAINNET_DESC, APINetwork::Bitcoin);
+
+    // PSBT with lock_time=0 (e.g. only a BIP68 relative timelock) must not
+    // be reported as the next wake target — the scheduler relies on
+    // `min_locktime == None` to fall back to its 24h heartbeat.
+    insert_pending(&wallet, 0, true);
+    insert_pending(&wallet, 900_000, true);
+
+    let summary = wallet.auto_broadcast_summary().unwrap();
+    assert_eq!(summary.pending_count, 2);
+    assert_eq!(summary.min_locktime, Some(900_000));
+}
+
+#[test]
+fn auto_broadcast_summary_all_zero_locktime_returns_none() {
+    let dir = tempdir().unwrap();
+    let wallet = make_wallet(&dir, MAINNET_DESC, APINetwork::Bitcoin);
+
+    insert_pending(&wallet, 0, true);
+    insert_pending(&wallet, 0, true);
+
+    let summary = wallet.auto_broadcast_summary().unwrap();
+    assert_eq!(summary.pending_count, 2);
+    assert!(summary.min_locktime.is_none());
+}

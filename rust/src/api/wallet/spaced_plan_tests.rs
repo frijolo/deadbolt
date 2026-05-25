@@ -674,6 +674,152 @@ fn refresh_plan_without_source_label_generates_friendly_fallback() {
 }
 
 #[test]
+fn refresh_plan_regenerates_label_when_source_coin_carries_prior_spaced_plan_auto_label() {
+    // Reuses the same source coin a second time, simulating the
+    // round-2 scenario: BB02/Refresh round 1 stamps the destination
+    // address with an auto-label whose `source_entity` is
+    // `spaced_plan:N:coin:…`. If the planner later sees that label as a
+    // coin label (because the user moved/edited it onto the coin, or a
+    // future propagation pipeline copies it down), it must NOT inherit
+    // the stale date — it has to drop a fresh fallback in instead.
+    use crate::core::wallet_persistence::labels::set_coin_label;
+    use crate::core::wallet_persistence::psbt_storage::get_psbt_row;
+
+    let src_dir = tempdir().unwrap();
+    let src = make_wallet_for(&src_dir, MAINNET_DESC, APINetwork::Bitcoin, "src");
+
+    let funded = inject_confirmed_utxo(&src, 0xaa, 100, 500_000).unwrap();
+    let outpoint = format!("{}:{}", funded.txid, funded.vout);
+
+    // Pre-stamp the coin as if a previous spaced plan had propagated
+    // its date-stamped label onto it.
+    let stale_label = "Refresh 2020-01-01 (deadbeef…cafebabe:0)";
+    {
+        let core = src.lock_wallet().unwrap();
+        set_coin_label(
+            &core.conn,
+            &outpoint,
+            stale_label,
+            true,
+            Some("spaced_plan:999:coin:deadbeef:0"),
+        )
+        .unwrap();
+    }
+
+    let dst_addrs = peek_addresses(&src, 2);
+    let summary = src
+        .plan_spaced_txs(refresh_params(&src, dst_addrs))
+        .unwrap();
+    assert_eq!(summary.rows.len(), 1);
+
+    let core = src.lock_wallet().unwrap();
+    let psbt = get_psbt_row(&core.conn, summary.rows[0].psbt_id).unwrap();
+    let psbt_label = psbt.label.expect("PSBT should carry a label");
+    assert_ne!(
+        psbt_label, stale_label,
+        "planner reused stale spaced-plan auto-label instead of regenerating",
+    );
+    assert!(
+        psbt_label.starts_with("Refresh "),
+        "regenerated label must be a fresh fallback: {psbt_label}",
+    );
+    assert_eq!(summary.rows[0].label, psbt_label);
+}
+
+#[test]
+fn refresh_plan_inherits_label_propagated_to_source_address() {
+    // When the source coin has no label of its own but the address it
+    // sits on does (e.g. user-propagated auto-label coming from a tx or
+    // address label), the planner falls back to the address label so
+    // the user's labelling intent survives the refresh.
+    use crate::core::wallet_persistence::labels::set_address_label;
+    use crate::core::wallet_persistence::psbt_storage::get_psbt_row;
+
+    let src_dir = tempdir().unwrap();
+    let src = make_wallet_for(&src_dir, MAINNET_DESC, APINetwork::Bitcoin, "src");
+
+    inject_confirmed_utxo(&src, 0xaa, 100, 500_000).unwrap();
+    let funded_address = {
+        let core = src.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(KeychainKind::External, 0)
+            .address
+            .to_string()
+    };
+    {
+        let core = src.lock_wallet().unwrap();
+        // Simulates `propagate_label` running from a user-set tx label.
+        set_address_label(
+            &core.conn,
+            &funded_address,
+            "Salary",
+            true,
+            Some("tx:fakefakefake"),
+        )
+        .unwrap();
+    }
+
+    let dst_addrs = peek_addresses(&src, 2);
+    let summary = src
+        .plan_spaced_txs(refresh_params(&src, dst_addrs))
+        .unwrap();
+    assert_eq!(summary.rows.len(), 1);
+
+    let core = src.lock_wallet().unwrap();
+    let psbt = get_psbt_row(&core.conn, summary.rows[0].psbt_id).unwrap();
+    assert_eq!(psbt.label.as_deref(), Some("Salary"));
+    assert_eq!(summary.rows[0].label, "Salary");
+}
+
+#[test]
+fn refresh_plan_regenerates_label_when_source_address_carries_prior_spaced_plan_auto_label() {
+    // Round-2 scenario where the source coin itself has no row in
+    // `coin_labels`, but the address it sits on carries an auto-label
+    // stamped by a previous spaced plan. The fallback through the
+    // address must also filter out `spaced_plan:` sources to avoid
+    // copying the stale date forward.
+    use crate::core::wallet_persistence::labels::set_address_label;
+    use crate::core::wallet_persistence::psbt_storage::get_psbt_row;
+
+    let src_dir = tempdir().unwrap();
+    let src = make_wallet_for(&src_dir, MAINNET_DESC, APINetwork::Bitcoin, "src");
+
+    inject_confirmed_utxo(&src, 0xaa, 100, 500_000).unwrap();
+    let funded_address = {
+        let core = src.lock_wallet().unwrap();
+        core.wallet
+            .peek_address(KeychainKind::External, 0)
+            .address
+            .to_string()
+    };
+    let stale_label = "Refresh 2020-01-01 (deadbeef…cafebabe:0)";
+    {
+        let core = src.lock_wallet().unwrap();
+        set_address_label(
+            &core.conn,
+            &funded_address,
+            stale_label,
+            true,
+            Some("spaced_plan:42:coin:deadbeef:0"),
+        )
+        .unwrap();
+    }
+
+    let dst_addrs = peek_addresses(&src, 2);
+    let summary = src
+        .plan_spaced_txs(refresh_params(&src, dst_addrs))
+        .unwrap();
+    let core = src.lock_wallet().unwrap();
+    let psbt = get_psbt_row(&core.conn, summary.rows[0].psbt_id).unwrap();
+    let psbt_label = psbt.label.expect("PSBT should carry a label");
+    assert_ne!(psbt_label, stale_label);
+    assert!(
+        psbt_label.starts_with("Refresh "),
+        "regenerated label must be a fresh fallback: {psbt_label}",
+    );
+}
+
+#[test]
 fn migrate_plan_writes_psbt_label_but_no_source_address_labels() {
     // For `Migrate` plans the destination addresses live in another
     // wallet's DB, so the planner must not seed the source DB's

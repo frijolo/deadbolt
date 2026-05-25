@@ -160,8 +160,8 @@ async def phase_open_and_compute(d: UIDriver):
     expected_labels = (
         "Min fee (sat/vB)",
         "Max fee (sat/vB)",
-        "Min delay (blocks)",
-        "Max delay (blocks)",
+        "Min spacing (blocks)",
+        "Max spacing (blocks)",
         "Split probability",
         "Destination",
         "Select coins",

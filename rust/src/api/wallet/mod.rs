@@ -4,12 +4,13 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 
 use crate::api::model::{
-    APIAddress, APIAddressDetails, APIAutoBroadcastResult, APIBalance, APIBiometricSlot,
-    APICoinControl, APICpfpInfo, APIFiatPrice, APIHotKeyInfo, APIHotKeyList, APIImportPsbtResult,
-    APIKeychain, APINetwork, APIPolicyPath, APIProtectionType, APIPsbtAnalysis, APIPsbtInfo,
-    APIPsbtSignerStatus, APIRbfInfo, APIRecipient, APIRelatedAddress, APIRelatedTx, APIRelatedUtxo,
-    APISecurityLevel, APITransaction, APITransactionPage, APITxDetails, APITxMissingFiat,
-    APITxPreview, APIUtxo, APIUtxoDetails, APIWalletInfo, APIWalletProtection, APIXpubSlot,
+    APIAddress, APIAddressDetails, APIAutoBroadcastResult, APIAutoBroadcastSummary, APIBalance,
+    APIBiometricSlot, APICoinControl, APICpfpInfo, APIFiatPrice, APIHotKeyInfo, APIHotKeyList,
+    APIImportPsbtResult, APIKeychain, APINetwork, APIPolicyPath, APIProtectionType,
+    APIPsbtAnalysis, APIPsbtInfo, APIPsbtSignerStatus, APIRbfInfo, APIRecipient, APIRelatedAddress,
+    APIRelatedTx, APIRelatedUtxo, APISecurityLevel, APITransaction, APITransactionPage,
+    APITxDetails, APITxMissingFiat, APITxPreview, APIUtxo, APIUtxoDetails, APIWalletInfo,
+    APIWalletProtection, APIXpubSlot,
 };
 use crate::core::descriptor_parser::{extract_xpub_derivation_map, extract_xpub_mfp_map};
 use crate::core::key_protection::{
@@ -46,7 +47,7 @@ use crate::core::wallet_persistence::propagation::{
 };
 use crate::core::wallet_persistence::psbt_storage::{
     delete_psbt_row, ensure_unsigned_txs_table, get_psbt_row, get_psbt_row_by_txid, insert_psbt,
-    list_auto_broadcast_pending_ids, list_psbt_rows,
+    list_auto_broadcast_pending_ids, list_psbt_rows, pending_auto_broadcast_psbts,
     set_psbt_auto_broadcast as db_set_psbt_auto_broadcast, update_psbt_data, update_psbt_label,
     PsbtRow,
 };

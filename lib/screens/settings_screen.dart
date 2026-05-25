@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/config/app_settings_extensions.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
+import 'package:deadbolt/services/battery_optimization_service.dart';
 import 'package:deadbolt/services/biometric_service.dart';
 import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
@@ -67,6 +68,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 if (Platform.isAndroid)
                   _SecuritySection(settings: settings, cubit: cubit),
+                if (Platform.isAndroid) const _BackgroundSection(),
                 _SectionCard(
                   title: l10n.settingsSectionDefaults,
                   icon: Icons.tune_outlined,
@@ -788,6 +790,77 @@ class _SecuritySectionState extends State<_SecuritySection> {
           ],
         );
       },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Background broadcasts (Android only)
+// ─────────────────────────────────────────────────────────────
+
+class _BackgroundSection extends StatefulWidget {
+  const _BackgroundSection();
+
+  @override
+  State<_BackgroundSection> createState() => _BackgroundSectionState();
+}
+
+class _BackgroundSectionState extends State<_BackgroundSection>
+    with WidgetsBindingObserver {
+  final _service = BatteryOptimizationService();
+  bool? _exempt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final ok = await _service.isIgnored();
+    if (!mounted) return;
+    setState(() => _exempt = ok);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final exempt = _exempt ?? false;
+    return _SectionCard(
+      title: l10n.settingsSectionBackground,
+      icon: Icons.battery_saver,
+      children: [
+        ListTile(
+          leading: Icon(
+            exempt ? Icons.check_circle_outline : Icons.warning_amber_outlined,
+            color: exempt ? cs.primary : cs.tertiary,
+          ),
+          title: Text(l10n.batteryOptTileTitle),
+          subtitle: Text(
+            exempt
+                ? l10n.batteryOptTileExempt
+                : l10n.batteryOptTileRestricted,
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            await _service.openSettings();
+            // Lifecycle observer re-checks on resume.
+          },
+        ),
+      ],
     );
   }
 }

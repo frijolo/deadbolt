@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/l10n/l10n.dart' show AppLocalizations;
+import 'package:deadbolt/services/background_broadcast_scheduler.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/utils/toast_helper.dart' show showErrorToastException;
@@ -73,21 +74,28 @@ class TxPlanningDraft extends TxPlanningState {
   /// lands or when prepareSpacedPlanPsbts fails — the view falls back
   /// to "unknown" badges in that case.
   final Map<int, List<APIPsbtSignerStatus>>? signers;
+  /// Plan-level signing threshold (`m` in `m-of-n`). Sourced from
+  /// `APISpacedPlanSigningBundle.threshold`, travels with [signers].
+  /// `null` whenever [signers] is `null`.
+  final int? signersThreshold;
   const TxPlanningDraft(
     this.detail, {
     this.lastCommitReport,
     this.signers,
+    this.signersThreshold,
   });
 
   TxPlanningDraft copyWith({
     APISpacedPlanDetail? detail,
     APICommitSpacedPlanReport? lastCommitReport,
     Map<int, List<APIPsbtSignerStatus>>? signers,
+    int? signersThreshold,
   }) =>
       TxPlanningDraft(
         detail ?? this.detail,
         lastCommitReport: lastCommitReport ?? this.lastCommitReport,
         signers: signers ?? this.signers,
+        signersThreshold: signersThreshold ?? this.signersThreshold,
       );
 }
 
@@ -264,10 +272,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       // After plan_spaced_txs the plan is DRAFT in Rust; re-read the
       // detail so the state carries the canonical row.
       final detail = _wallet.getSpacedPlan(planId: summary.planId);
-      emit(TxPlanningDraft(
-        detail,
-        signers: _signersSnapshotOrNull(detail.planId.toInt()),
-      ));
+      emit(_draftFor(detail));
       return summary;
     } catch (e, st) {
       logError('TxPlanningCubit.createPlan()', e, st);
@@ -322,6 +327,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       // and any post-commit auto_broadcast flags.
       final detail = _wallet.getSpacedPlan(planId: s.detail.planId);
       emit(_routeActive(detail, parseTxPlanningStatus(detail.status)));
+      BackgroundBroadcastScheduler.instance.refresh();
       return report;
     } catch (e, st) {
       logError('TxPlanningCubit.commit()', e, st);
@@ -387,11 +393,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
       );
       // Re-read so the next commit sees the freshly-merged signatures.
       final detail = _wallet.getSpacedPlan(planId: s.detail.planId);
-      emit(TxPlanningDraft(
-        detail,
-        lastCommitReport: s.lastCommitReport,
-        signers: _signersSnapshotOrNull(detail.planId.toInt()),
-      ));
+      emit(_draftFor(detail, lastCommitReport: s.lastCommitReport));
       return report;
     } catch (e, st) {
       logError('TxPlanningCubit.signBatchWithHotKey()', e, st);
@@ -432,11 +434,7 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
         signed: signed,
       );
       final detail = _wallet.getSpacedPlan(planId: s.detail.planId);
-      emit(TxPlanningDraft(
-        detail,
-        lastCommitReport: s.lastCommitReport,
-        signers: _signersSnapshotOrNull(detail.planId.toInt()),
-      ));
+      emit(_draftFor(detail, lastCommitReport: s.lastCommitReport));
       return report;
     } catch (e, st) {
       logError('TxPlanningCubit.applySignedPsbts()', e, st);
@@ -463,10 +461,30 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
   /// when prepareSpacedPlanPsbts fails — the view falls back to
   /// "unknown" badges in that case so an FFI hiccup never blocks the
   /// rest of the flow.
-  Map<int, List<APIPsbtSignerStatus>>? _signersSnapshotOrNull(int planId) {
+  /// Builds a Draft state for [detail], fetching the signer snapshot and
+  /// plan threshold from `prepareSpacedPlanPsbts`. Threshold and signers
+  /// always travel together so the view can render `m / n` correctly.
+  TxPlanningDraft _draftFor(
+    APISpacedPlanDetail detail, {
+    APICommitSpacedPlanReport? lastCommitReport,
+  }) {
+    final snap = _signersSnapshotOrNull(detail.planId.toInt());
+    return TxPlanningDraft(
+      detail,
+      lastCommitReport: lastCommitReport,
+      signers: snap?.map,
+      signersThreshold: snap?.threshold,
+    );
+  }
+
+  ({Map<int, List<APIPsbtSignerStatus>> map, int threshold})?
+      _signersSnapshotOrNull(int planId) {
     try {
       final bundle = _wallet.prepareSpacedPlanPsbts(planId: planId);
-      return {for (final c in bundle.children) c.psbtId.toInt(): c.signers};
+      return (
+        map: {for (final c in bundle.children) c.psbtId.toInt(): c.signers},
+        threshold: bundle.threshold,
+      );
     } catch (_) {
       return null;
     }
@@ -479,15 +497,12 @@ class TxPlanningCubit extends Cubit<TxPlanningState> with CubitErrorLogger {
   }) {
     switch (status) {
       case TxPlanningStatus.draft:
-        return TxPlanningDraft(
-          detail,
-          signers: _signersSnapshotOrNull(detail.planId.toInt()),
-        );
+        return _draftFor(detail);
       case TxPlanningStatus.signed:
       case TxPlanningStatus.running:
-        // Once every child has auto-broadcast, `rows` is empty — treat
-        // the plan as terminal for UI purposes even before Rust tags it
-        // DONE (the SIGNED → DONE transition lands in a follow-up).
+        // Defensive: reconcile runs on every Rust read path, so an empty
+        // rows list with status SIGNED/RUNNING shouldn't happen — but
+        // treat it as terminal just in case to avoid an empty active view.
         if (detail.rows.isEmpty) return TxPlanningTerminal(detail);
         return TxPlanningRunning(detail, broadcastedTxids: priorTxids);
       case TxPlanningStatus.done:

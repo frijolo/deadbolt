@@ -123,16 +123,20 @@ fn output_covers_every_input_utxo() {
 }
 
 #[test]
-fn delay_and_feerate_stay_within_band() {
+fn deltas_are_monotonic_and_gaps_stay_within_band() {
     let mut rng = StdRng::seed_from_u64(99);
     let params = params_default();
     let intents = plan_intents(utxos(50), &params, 800_000, 0, &mut rng).unwrap();
-    for p in &intents {
+    let mut prev: u32 = 0;
+    for (i, p) in intents.iter().enumerate() {
+        let gap = p.nlocktime_delta_blocks - prev;
         assert!(
-            p.nlocktime_delta_blocks >= params.delay_blocks_min
-                && p.nlocktime_delta_blocks <= params.delay_blocks_max,
-            "delta {} out of band",
-            p.nlocktime_delta_blocks
+            gap >= params.delay_blocks_min && gap <= params.delay_blocks_max,
+            "intent {i}: gap {gap} out of band [{}, {}] (delta={}, prev={})",
+            params.delay_blocks_min,
+            params.delay_blocks_max,
+            p.nlocktime_delta_blocks,
+            prev,
         );
         assert!(
             p.feerate_msatvb >= params.feerate_min_msatvb
@@ -140,6 +144,7 @@ fn delay_and_feerate_stay_within_band() {
             "feerate {} out of band",
             p.feerate_msatvb
         );
+        prev = p.nlocktime_delta_blocks;
     }
 }
 
@@ -184,7 +189,11 @@ fn collapsed_band_is_constant_and_legal() {
     let mut rng = StdRng::seed_from_u64(0);
     let intents = plan_intents(utxos(10), &params, 800_000, 0, &mut rng).unwrap();
     assert!(intents.iter().all(|p| p.feerate_msatvb == 5_000));
-    assert!(intents.iter().all(|p| p.nlocktime_delta_blocks == 7));
+    // With a fixed gap of 7, deltas should be 7, 14, 21, ..., 70.
+    for (i, p) in intents.iter().enumerate() {
+        let expected = ((i as u32) + 1) * 7;
+        assert_eq!(p.nlocktime_delta_blocks, expected);
+    }
 }
 
 #[test]
@@ -233,9 +242,16 @@ fn rel_floor_uses_tip_when_conf_height_unknown() {
 
 #[test]
 fn plan_respects_rel_timelock_floor() {
-    // tip 800_000, rel 200, UTXOs confirmed at 799_900..799_999 (unlocked
-    // anywhere from 100_100..100_199 height). delay band 1..10 — below
-    // every floor. Every intent's delta must be ≥ its UTXO's floor.
+    // tip 800_000, rel 200, UTXOs confirmed at 799_900..799_999 (unlock
+    // heights 800_100..800_199 — every UTXO immature). Gap band 1..10.
+    //
+    // Expected schedule:
+    //   - Immature UTXOs sorted by ascending floor (conf 799_900 first,
+    //     floor 100; conf 799_999 last, floor 199).
+    //   - Each intent's delta = max(prev_delta + gap, own floor). Since
+    //     gaps ∈ [1, 10] and floors grow by 1..1 between neighbours,
+    //     the cumulative gap quickly overtakes the floor — but the
+    //     first intent's delta must be ≥ its own floor (100).
     let params = PlannerParams {
         delay_blocks_min: 1,
         delay_blocks_max: 10,
@@ -251,18 +267,70 @@ fn plan_respects_rel_timelock_floor() {
     let mut rng = StdRng::seed_from_u64(11);
     let intents = plan_intents(utxos.clone(), &params, 800_000, 200, &mut rng).unwrap();
 
+    // Immature ordering: conf_height ascending (= floor ascending).
+    let confs: Vec<u32> = intents
+        .iter()
+        .map(|i| i.utxo.conf_height.unwrap())
+        .collect();
+    let mut sorted = confs.clone();
+    sorted.sort();
+    assert_eq!(confs, sorted, "immature UTXOs must be ordered by floor");
+
+    let mut prev: u32 = 0;
     for intent in &intents {
         let conf = intent.utxo.conf_height.unwrap();
-        let expected_floor = (conf + 200).saturating_sub(800_000);
+        let floor = (conf + 200).saturating_sub(800_000);
         assert!(
-            intent.nlocktime_delta_blocks >= expected_floor,
+            intent.nlocktime_delta_blocks >= floor,
             "delta {} below floor {}",
             intent.nlocktime_delta_blocks,
-            expected_floor,
+            floor,
         );
-        // Sampled delay is in [1, 10] which is well below the floor, so
-        // every intent's delta should sit exactly at the floor.
-        assert_eq!(intent.nlocktime_delta_blocks, expected_floor);
+        // Each delta must be ≥ prev + min_gap (monotonic, gap respected).
+        assert!(
+            intent.nlocktime_delta_blocks >= prev + params.delay_blocks_min,
+            "delta {} violates min gap from prev {}",
+            intent.nlocktime_delta_blocks,
+            prev,
+        );
+        prev = intent.nlocktime_delta_blocks;
+    }
+}
+
+#[test]
+fn mature_utxos_come_before_immature() {
+    // 5 mature (deep conf) + 5 immature (just confirmed) with rel = 100.
+    let mut utxos = Vec::new();
+    for i in 0..5 {
+        utxos.push(PlannerUtxo {
+            outpoint_key: format!("mature:{i}"),
+            amount_sat: 500_000,
+            conf_height: Some(700_000 + i), // very old
+        });
+    }
+    for i in 0..5 {
+        utxos.push(PlannerUtxo {
+            outpoint_key: format!("immature:{i}"),
+            amount_sat: 500_000,
+            conf_height: Some(799_950 + i),
+        });
+    }
+    let params = params_default();
+    let mut rng = StdRng::seed_from_u64(5);
+    let intents = plan_intents(utxos, &params, 800_000, 100, &mut rng).unwrap();
+
+    let mut seen_immature = false;
+    for intent in &intents {
+        let is_mature = intent.utxo.outpoint_key.starts_with("mature:");
+        if !is_mature {
+            seen_immature = true;
+        } else {
+            assert!(
+                !seen_immature,
+                "mature UTXO {} appeared after an immature one",
+                intent.utxo.outpoint_key
+            );
+        }
     }
 }
 

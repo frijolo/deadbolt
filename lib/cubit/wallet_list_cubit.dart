@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:deadbolt/cubit/cubit_error_logger.dart';
 import 'package:deadbolt/errors.dart';
+import 'package:deadbolt/services/background_broadcast_scheduler.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
@@ -151,6 +152,7 @@ class WalletListCubit extends Cubit<WalletListState> with CubitErrorLogger {
       _syncService?.untrack(walletPath);
       await _service.deleteWallet(walletPath);
       await refresh();
+      BackgroundBroadcastScheduler.instance.refresh();
     } catch (e, stackTrace) {
       logError('WalletListCubit.deleteWallet()', e, stackTrace);
       rethrow;

@@ -5195,13 +5195,13 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningInvalidDelay.
   ///
   /// In en, this message translates to:
-  /// **'Invalid delay'**
+  /// **'Invalid spacing'**
   String get txPlanningInvalidDelay;
 
   /// No description provided for @txPlanningDelayOrder.
   ///
   /// In en, this message translates to:
-  /// **'Min delay must be ≤ max delay'**
+  /// **'Min spacing must be ≤ max spacing'**
   String get txPlanningDelayOrder;
 
   /// No description provided for @txPlanningInvalidSplitProbability.
@@ -5501,14 +5501,44 @@ abstract class AppLocalizations {
   /// No description provided for @txPlanningDelayMinLabel.
   ///
   /// In en, this message translates to:
-  /// **'Min delay (blocks)'**
+  /// **'Min spacing (blocks)'**
   String get txPlanningDelayMinLabel;
 
   /// No description provided for @txPlanningDelayMaxLabel.
   ///
   /// In en, this message translates to:
-  /// **'Max delay (blocks)'**
+  /// **'Max spacing (blocks)'**
   String get txPlanningDelayMaxLabel;
+
+  /// No description provided for @txPlanningSpacingHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocks between consecutive transactions. Larger ranges mean more privacy and a longer overall migration.'**
+  String get txPlanningSpacingHelper;
+
+  /// No description provided for @txPlanningEtaPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated duration: {minBlocks}–{maxBlocks} blocks (~{minWindow}–{maxWindow}) for {count} transactions'**
+  String txPlanningEtaPreview(
+    int count,
+    int minBlocks,
+    int maxBlocks,
+    String minWindow,
+    String maxWindow,
+  );
+
+  /// No description provided for @txPlanningEtaHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String txPlanningEtaHours(int hours);
+
+  /// No description provided for @txPlanningEtaDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d'**
+  String txPlanningEtaDays(int days);
 
   /// No description provided for @txPlanningSplitProbabilityLabel.
   ///
@@ -5795,6 +5825,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Broadcast'**
   String get txPlanningCommitConfirmButton;
+
+  /// No description provided for @batteryOptBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Improve background broadcasting'**
+  String get batteryOptBannerTitle;
+
+  /// No description provided for @batteryOptBannerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Android may delay or skip scheduled broadcasts when Deadbolt is in the background. Exclude the app from battery optimization for reliable auto-broadcast.'**
+  String get batteryOptBannerBody;
+
+  /// No description provided for @batteryOptBannerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get batteryOptBannerAction;
+
+  /// No description provided for @batteryOptBannerDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get batteryOptBannerDismiss;
+
+  /// No description provided for @settingsSectionBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get settingsSectionBackground;
+
+  /// No description provided for @batteryOptTileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery optimization'**
+  String get batteryOptTileTitle;
+
+  /// No description provided for @batteryOptTileExempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed — background broadcasts will run reliably.'**
+  String get batteryOptTileExempt;
+
+  /// No description provided for @batteryOptTileRestricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Restricted — Android may delay or skip background broadcasts.'**
+  String get batteryOptTileRestricted;
 }
 
 class _AppLocalizationsDelegate

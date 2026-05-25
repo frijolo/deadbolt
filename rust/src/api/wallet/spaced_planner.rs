@@ -79,8 +79,26 @@ pub struct PlanIntent {
     pub split: SplitIntent,
 }
 
-/// Top-level planner. Returns one `PlanIntent` per input UTXO, shuffled.
+/// Top-level planner. Returns one `PlanIntent` per input UTXO, ordered
+/// so the broadcast schedule maximises privacy:
 ///
+/// - `delay_blocks_min`..`delay_blocks_max` is sampled per intent as the
+///   **gap** between consecutive broadcasts. The first intent uses its
+///   sampled gap as its own `nlocktime_delta_blocks` (relative to tip);
+///   each subsequent intent stacks its gap on top of the previous
+///   intent's delta. This guarantees a minimum block separation between
+///   any two children of the plan instead of letting two intents collide
+///   on the same block.
+/// - UTXOs are ordered **mature first, immature last**. Mature UTXOs are
+///   shuffled (preserving the existing privacy property). Immature ones
+///   are sorted by ascending rel-timelock floor so the schedule grows
+///   monotonically and the rel-floor only rarely overrides the gap.
+/// - When the accumulated delta is below an intent's rel-timelock floor
+///   the floor wins, and the cumulative anchor advances to that floor —
+///   so subsequent intents keep their minimum spacing from the actual
+///   broadcast height, not from the pre-floor estimate.
+///
+/// Arguments:
 /// - `tip_height`: current chain tip.
 /// - `rel_timelock_blocks`: BIP68 relative-blocks requirement of the
 ///   chosen spend path; pass `0` if the path has no rel timelock.
@@ -88,7 +106,7 @@ pub struct PlanIntent {
 ///   `StdRng` in tests.
 #[frb(ignore)]
 pub fn plan_intents<R: Rng + ?Sized>(
-    mut utxos: Vec<PlannerUtxo>,
+    utxos: Vec<PlannerUtxo>,
     params: &PlannerParams,
     tip_height: u32,
     rel_timelock_blocks: u32,
@@ -96,46 +114,71 @@ pub fn plan_intents<R: Rng + ?Sized>(
 ) -> Result<Vec<PlanIntent>> {
     params.validate()?;
 
-    utxos.shuffle(rng);
+    let ordered = order_utxos(utxos, tip_height, rel_timelock_blocks, rng);
 
-    let intents = utxos
-        .into_iter()
-        .map(|utxo| sample_intent(utxo, params, tip_height, rel_timelock_blocks, rng))
-        .collect();
+    let mut intents = Vec::with_capacity(ordered.len());
+    let mut cum_delta: u32 = 0;
+    for utxo in ordered {
+        let gap = sample_inclusive_u32(rng, params.delay_blocks_min, params.delay_blocks_max);
+        cum_delta = cum_delta.saturating_add(gap);
+        let rel_floor = rel_timelock_floor(tip_height, rel_timelock_blocks, utxo.conf_height);
+        let delta = cum_delta.max(rel_floor);
+        // Advance the anchor so the next gap stacks on the actually-used
+        // delta — otherwise an immature UTXO bumped by its floor would
+        // let the next intent broadcast right after it.
+        cum_delta = delta;
+
+        let feerate_msatvb = if params.feerate_min_msatvb >= params.feerate_max_msatvb {
+            params.feerate_min_msatvb
+        } else {
+            rng.random_range(params.feerate_min_msatvb..=params.feerate_max_msatvb)
+        };
+
+        let split = if rng.random::<f64>() < params.split_probability {
+            // ratio ∈ [0.2, 0.8]
+            let ratio = 0.2 + rng.random::<f64>() * 0.6;
+            SplitIntent::Try { ratio }
+        } else {
+            SplitIntent::None
+        };
+
+        intents.push(PlanIntent {
+            utxo,
+            nlocktime_delta_blocks: delta,
+            feerate_msatvb,
+            split,
+        });
+    }
     Ok(intents)
 }
 
-fn sample_intent<R: Rng + ?Sized>(
-    utxo: PlannerUtxo,
-    params: &PlannerParams,
+/// Split UTXOs into mature / immature groups and produce a single
+/// ordered vector: mature ones first (shuffled), then immature ones
+/// sorted by ascending rel-timelock floor. When `rel_timelock_blocks`
+/// is 0 every UTXO is mature and the result is just a shuffle.
+fn order_utxos<R: Rng + ?Sized>(
+    utxos: Vec<PlannerUtxo>,
     tip_height: u32,
     rel_timelock_blocks: u32,
     rng: &mut R,
-) -> PlanIntent {
-    let sampled = sample_inclusive_u32(rng, params.delay_blocks_min, params.delay_blocks_max);
-    let rel_floor = rel_timelock_floor(tip_height, rel_timelock_blocks, utxo.conf_height);
-    let nlocktime_delta_blocks = sampled.max(rel_floor);
-
-    let feerate_msatvb = if params.feerate_min_msatvb >= params.feerate_max_msatvb {
-        params.feerate_min_msatvb
-    } else {
-        rng.random_range(params.feerate_min_msatvb..=params.feerate_max_msatvb)
-    };
-
-    let split = if rng.random::<f64>() < params.split_probability {
-        // ratio ∈ [0.2, 0.8]
-        let ratio = 0.2 + rng.random::<f64>() * 0.6;
-        SplitIntent::Try { ratio }
-    } else {
-        SplitIntent::None
-    };
-
-    PlanIntent {
-        utxo,
-        nlocktime_delta_blocks,
-        feerate_msatvb,
-        split,
+) -> Vec<PlannerUtxo> {
+    let mut mature: Vec<PlannerUtxo> = Vec::with_capacity(utxos.len());
+    let mut immature: Vec<(u32, PlannerUtxo)> = Vec::new();
+    for u in utxos {
+        let floor = rel_timelock_floor(tip_height, rel_timelock_blocks, u.conf_height);
+        if floor == 0 {
+            mature.push(u);
+        } else {
+            immature.push((floor, u));
+        }
     }
+    mature.shuffle(rng);
+    // Stable sort by ascending floor; ties keep insertion order which is
+    // wallet-list order — deterministic given the input.
+    immature.sort_by_key(|(floor, _)| *floor);
+    let mut out = mature;
+    out.extend(immature.into_iter().map(|(_, u)| u));
+    out
 }
 
 /// Minimum delta (in blocks from `tip_height`) needed so the tx's

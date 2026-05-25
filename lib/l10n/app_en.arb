@@ -1499,9 +1499,9 @@
   "@txPlanningInvalidFeeRate": {},
   "txPlanningFeeRateOrder": "Min fee must be ≤ max fee",
   "@txPlanningFeeRateOrder": {},
-  "txPlanningInvalidDelay": "Invalid delay",
+  "txPlanningInvalidDelay": "Invalid spacing",
   "@txPlanningInvalidDelay": {},
-  "txPlanningDelayOrder": "Min delay must be ≤ max delay",
+  "txPlanningDelayOrder": "Min spacing must be ≤ max spacing",
   "@txPlanningDelayOrder": {},
   "txPlanningInvalidSplitProbability": "Invalid split probability",
   "@txPlanningInvalidSplitProbability": {},
@@ -1658,10 +1658,30 @@
   "@txPlanningFeeRateMinLabel": {},
   "txPlanningFeeRateMaxLabel": "Max fee (sat/vB)",
   "@txPlanningFeeRateMaxLabel": {},
-  "txPlanningDelayMinLabel": "Min delay (blocks)",
+  "txPlanningDelayMinLabel": "Min spacing (blocks)",
   "@txPlanningDelayMinLabel": {},
-  "txPlanningDelayMaxLabel": "Max delay (blocks)",
+  "txPlanningDelayMaxLabel": "Max spacing (blocks)",
   "@txPlanningDelayMaxLabel": {},
+  "txPlanningSpacingHelper": "Blocks between consecutive transactions. Larger ranges mean more privacy and a longer overall migration.",
+  "@txPlanningSpacingHelper": {},
+  "txPlanningEtaPreview": "Estimated duration: {minBlocks}–{maxBlocks} blocks (~{minWindow}–{maxWindow}) for {count} transactions",
+  "@txPlanningEtaPreview": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "minBlocks": {"type": "int"},
+      "maxBlocks": {"type": "int"},
+      "minWindow": {"type": "String"},
+      "maxWindow": {"type": "String"}
+    }
+  },
+  "txPlanningEtaHours": "{hours} h",
+  "@txPlanningEtaHours": {
+    "placeholders": {"hours": {"type": "int"}}
+  },
+  "txPlanningEtaDays": "{days} d",
+  "@txPlanningEtaDays": {
+    "placeholders": {"days": {"type": "int"}}
+  },
   "txPlanningSplitProbabilityLabel": "Split probability",
   "@txPlanningSplitProbabilityLabel": {},
   "txPlanningMinOutputLabel": "Min output (sats)",
@@ -1791,5 +1811,21 @@
     "placeholders": {"fee": {"type": "String"}}
   },
   "txPlanningCommitConfirmButton": "Broadcast",
-  "@txPlanningCommitConfirmButton": {}
+  "@txPlanningCommitConfirmButton": {},
+  "batteryOptBannerTitle": "Improve background broadcasting",
+  "@batteryOptBannerTitle": {},
+  "batteryOptBannerBody": "Android may delay or skip scheduled broadcasts when Deadbolt is in the background. Exclude the app from battery optimization for reliable auto-broadcast.",
+  "@batteryOptBannerBody": {},
+  "batteryOptBannerAction": "Open settings",
+  "@batteryOptBannerAction": {},
+  "batteryOptBannerDismiss": "Not now",
+  "@batteryOptBannerDismiss": {},
+  "settingsSectionBackground": "Background",
+  "@settingsSectionBackground": {},
+  "batteryOptTileTitle": "Battery optimization",
+  "@batteryOptTileTitle": {},
+  "batteryOptTileExempt": "Allowed — background broadcasts will run reliably.",
+  "@batteryOptTileExempt": {},
+  "batteryOptTileRestricted": "Restricted — Android may delay or skip background broadcasts.",
+  "@batteryOptTileRestricted": {}
 }

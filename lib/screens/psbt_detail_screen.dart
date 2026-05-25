@@ -15,6 +15,7 @@ import 'package:deadbolt/utils/op_return_encoding.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/psbt_timelock.dart';
 import 'package:deadbolt/utils/toast_helper.dart';
+import 'package:deadbolt/widgets/battery_optimization_banner.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/widgets/hw_wallet_sheet.dart' show showHwSignSheet;
@@ -328,23 +329,29 @@ class _PsbtDetailScreenState extends State<PsbtDetailScreen> {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        value: _psbt.autoBroadcast,
-        onChanged: (value) {
-          final updated = context
-              .read<WalletDetailCubit>()
-              .setPsbtAutoBroadcast(_psbt.id.toInt(), value);
-          if (updated != null) setState(() => _psbt = updated);
-        },
-        title: Text(l10n.psbtAutoBroadcastSwitch),
-        subtitle: Text(
-          l10n.psbtAutoBroadcastHint,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: _psbt.autoBroadcast,
+            onChanged: (value) {
+              final updated = context
+                  .read<WalletDetailCubit>()
+                  .setPsbtAutoBroadcast(_psbt.id.toInt(), value);
+              if (updated != null) setState(() => _psbt = updated);
+            },
+            title: Text(l10n.psbtAutoBroadcastSwitch),
+            subtitle: Text(
+              l10n.psbtAutoBroadcastHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(AppAlpha.inactive),
+              ),
+            ),
           ),
-        ),
+          if (_psbt.autoBroadcast) const BatteryOptimizationBanner(),
+        ],
       ),
     );
   }

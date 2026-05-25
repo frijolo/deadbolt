@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 import 'package:deadbolt/config/app_settings_extensions.dart';
 import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/errors.dart' show sanitizeForLog, formatRustError;
+import 'package:deadbolt/services/background_broadcast_scheduler.dart';
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
@@ -55,12 +58,86 @@ class _SyncEntry {
 ///
 /// Consumers (WalletListCubit, WalletDetailCubit) listen to [events] to
 /// receive balance/sync updates without ever calling sync themselves.
-class WalletSyncService {
+class WalletSyncService with WidgetsBindingObserver {
   final WalletService _walletService;
   final Map<String, _SyncEntry> _entries = {};
   final _controller = StreamController<WalletSyncEvent>.broadcast();
 
-  WalletSyncService(this._walletService);
+  /// True while the app is in `paused` / `hidden` AND the grace period has
+  /// elapsed. Electrum subscriptions are torn down in this state to save
+  /// battery; the bg-alarm scheduler covers auto-broadcast while minimised.
+  /// Subscriptions resume on `resumed` with an immediate catch-up sync.
+  bool _suspended = false;
+
+  /// Pending suspension timer. We don't cut the subscriptions the instant
+  /// the app goes background — users frequently swap apps for seconds
+  /// (copying an address, checking a chat) and tearing down 20+ TCP+TLS
+  /// connections only to re-handshake them moments later would be wasteful
+  /// (and slow on the return path). Only if the app stays in background
+  /// past [_suspendGrace] do we actually disconnect.
+  Timer? _suspendTimer;
+  static const Duration _suspendGrace = Duration(seconds: 120);
+
+  WalletSyncService(this._walletService) {
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        // Don't suspend yet — start the grace timer. If the user comes back
+        // before it fires, we never tear anything down.
+        _suspendTimer ??= Timer(_suspendGrace, () {
+          _suspendTimer = null;
+          if (!_suspended) {
+            _suspended = true;
+            _pauseSubscriptions();
+          }
+        });
+      case AppLifecycleState.resumed:
+        _suspendTimer?.cancel();
+        _suspendTimer = null;
+        if (_suspended) {
+          _suspended = false;
+          unawaited(_resumeSubscriptions());
+        }
+      default:
+    }
+  }
+
+  void _pauseSubscriptions() {
+    for (final entry in _entries.values) {
+      entry.sub?.cancel();
+      entry.sub = null;
+    }
+    debugPrint(
+      '[WalletSyncService] paused — cancelled ${_entries.length} subscription(s)',
+    );
+  }
+
+  Future<void> _resumeSubscriptions() async {
+    debugPrint(
+      '[WalletSyncService] resumed — restarting ${_entries.length} subscription(s)',
+    );
+    for (final walletPath in _entries.keys.toList()) {
+      final entry = _entries[walletPath];
+      if (entry == null) continue;
+      // Trigger a catch-up sync first so the UI reflects any blocks that
+      // arrived while we were paused, then re-subscribe for future pushes.
+      unawaited(_syncOne(walletPath));
+      entry.sub = entry.handle
+          .startSubscription(electrumUrl: entry.electrumUrl)
+          .listen(
+        (_) {
+          if (!entry.isSyncing) unawaited(_syncOne(walletPath));
+        },
+        onError: (_) => entry.sub = null,
+        onDone: () => entry.sub = null,
+      );
+    }
+  }
 
   /// Broadcast stream of sync events. Never errors; events are dropped if
   /// no listener is attached (broadcast semantics).
@@ -130,6 +207,9 @@ class WalletSyncService {
   /// Cancel all subscriptions and close the event stream.
   /// Should be called only when the service itself is disposed.
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _suspendTimer?.cancel();
+    _suspendTimer = null;
     for (final e in _entries.values) {
       e.sub?.cancel();
     }
@@ -179,16 +259,21 @@ class WalletSyncService {
             const Duration(hours: 1);
     if (needsSync) unawaited(_syncOne(walletPath));
 
-    // Subscribe to Electrum notifications (new blocks + SPK activity).
-    entry.sub = handle
-        .startSubscription(electrumUrl: electrumUrl)
-        .listen(
-      (_) {
-        if (!entry.isSyncing) unawaited(_syncOne(walletPath));
-      },
-      onError: (_) => entry.sub = null,
-      onDone: () => entry.sub = null,
-    );
+    // Subscribe to Electrum notifications (new blocks + SPK activity) —
+    // unless the app is currently in background, in which case we'll spin
+    // up the subscription on resume to avoid running a TCP socket per
+    // wallet while minimised. Battery > push latency in that state.
+    if (!_suspended) {
+      entry.sub = handle
+          .startSubscription(electrumUrl: electrumUrl)
+          .listen(
+        (_) {
+          if (!entry.isSyncing) unawaited(_syncOne(walletPath));
+        },
+        onError: (_) => entry.sub = null,
+        onDone: () => entry.sub = null,
+      );
+    }
     // Guard: if untrack() was called during the awaits above, the entry is
     // no longer in _entries — cancel the subscription we just started.
     if (!_entries.containsKey(walletPath)) {
@@ -238,6 +323,16 @@ class WalletSyncService {
           isSyncing: false,
           autoBroadcasted: autoBroadcasted,
         ));
+      }
+      if (autoBroadcasted.isNotEmpty) {
+        // Queue changed — next pause re-evaluates the next wake.
+        BackgroundBroadcastScheduler.instance.refresh();
+        // When the user has the app minimised but the foreground isolate
+        // happens to broadcast (via the Electrum push subscription that
+        // keeps running even in background), surface the same notification
+        // the bg-alarm path would have posted. In-foreground broadcasts
+        // are left silent so the UI handles them.
+        unawaited(notifyForegroundBroadcasts(walletPath, info.name, autoBroadcasted));
       }
     } catch (e) {
       if (!_controller.isClosed) {

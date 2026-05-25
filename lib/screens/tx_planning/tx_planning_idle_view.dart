@@ -59,8 +59,8 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
   // Fee defaults are sat/vB; `_compute` multiplies by 1000 before FFI.
   final _feeRateMinCtrl = TextEditingController(text: '');
   final _feeRateMaxCtrl = TextEditingController(text: '');
-  final _delayMinCtrl = TextEditingController(text: '24');
-  final _delayMaxCtrl = TextEditingController(text: '288');
+  final _delayMinCtrl = TextEditingController(text: '3');
+  final _delayMaxCtrl = TextEditingController(text: '12');
   final _splitProbCtrl = TextEditingController(text: '0');
   final _minOutputCtrl = TextEditingController(text: BitcoinFormatter.formatNum(100000));
   final _minOutputFocus = FocusNode();
@@ -71,6 +71,7 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
 
   List<APIUtxo> _selectedUtxos = const [];
   bool _allCoinsSelected = true;
+  int? _confirmedUtxoCount;
 
   APISpendPath? _selectedSpendPath;
 
@@ -85,9 +86,27 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
     super.initState();
     _loadWallets();
     _minOutputFocus.addListener(_reformatMinOutput);
+    // Rebuild on delay edits so the ETA preview tracks the inputs live.
+    _delayMinCtrl.addListener(_onDelayChanged);
+    _delayMaxCtrl.addListener(_onDelayChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autofillFeeFields(null);
       _refreshBlockSnapshot();
+      _loadConfirmedUtxoCount();
+    });
+  }
+
+  void _onDelayChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadConfirmedUtxoCount() async {
+    final wallet = _walletDetailLoaded(context);
+    if (wallet == null) return;
+    final utxos = await wallet.walletHandle.getUtxos();
+    if (!mounted) return;
+    setState(() {
+      _confirmedUtxoCount = utxos.where((u) => u.isConfirmed).length;
     });
   }
 
@@ -103,6 +122,8 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
   void dispose() {
     _feeRateMinCtrl.dispose();
     _feeRateMaxCtrl.dispose();
+    _delayMinCtrl.removeListener(_onDelayChanged);
+    _delayMaxCtrl.removeListener(_onDelayChanged);
     _delayMinCtrl.dispose();
     _delayMaxCtrl.dispose();
     _splitProbCtrl.dispose();
@@ -403,6 +424,38 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
     }
   }
 
+  /// Estimated migration duration string, or `null` when inputs are
+  /// incomplete. Uses the gap-based planner semantics: total ≈ N×gap,
+  /// formatted as hours (<48h) or days. Bitcoin's ~10 min/block.
+  String? _etaPreview(AppLocalizations l10n) {
+    final dMin = int.tryParse(_delayMinCtrl.text);
+    final dMax = int.tryParse(_delayMaxCtrl.text);
+    if (dMin == null || dMax == null || dMin <= 0 || dMax <= 0 || dMin > dMax) {
+      return null;
+    }
+    final n = _allCoinsSelected
+        ? (_confirmedUtxoCount ?? 0)
+        : _selectedUtxos.length;
+    if (n <= 0) return null;
+    final minBlocks = dMin * n;
+    final maxBlocks = dMax * n;
+    return l10n.txPlanningEtaPreview(
+      n,
+      minBlocks,
+      maxBlocks,
+      _formatBlockWindow(l10n, minBlocks),
+      _formatBlockWindow(l10n, maxBlocks),
+    );
+  }
+
+  String _formatBlockWindow(AppLocalizations l10n, int blocks) {
+    // 1 block ≈ 10 minutes on Bitcoin.
+    final hours = (blocks * 10 + 30) ~/ 60;
+    if (hours < 48) return l10n.txPlanningEtaHours(hours);
+    final days = (hours + 12) ~/ 24;
+    return l10n.txPlanningEtaDays(days);
+  }
+
   WalletDetailLoaded? _walletDetailLoaded(BuildContext context) {
     final s = context.read<WalletDetailCubit>().state;
     return s is WalletDetailLoaded ? s : null;
@@ -529,7 +582,7 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
             ),
             const SizedBox(height: 12),
 
-            // Delay min/max
+            // Spacing min/max (blocks between consecutive transactions).
             Row(
               children: [
                 Expanded(
@@ -557,6 +610,29 @@ class _TxPlanningIdleViewState extends State<TxPlanningIdleView> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                l10n.txPlanningSpacingHelper,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+              ),
+            ),
+            if (_etaPreview(l10n) case final eta?) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  eta,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Split probability

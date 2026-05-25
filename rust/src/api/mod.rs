@@ -1,4 +1,5 @@
 pub mod analyzer;
+pub mod background;
 pub mod hw_wallet;
 pub mod model;
 pub mod tor;

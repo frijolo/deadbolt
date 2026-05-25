@@ -1465,9 +1465,9 @@
   "@txPlanningInvalidFeeRate": {},
   "txPlanningFeeRateOrder": "La comisión mínima debe ser ≤ a la máxima",
   "@txPlanningFeeRateOrder": {},
-  "txPlanningInvalidDelay": "Retardo inválido",
+  "txPlanningInvalidDelay": "Separación inválida",
   "@txPlanningInvalidDelay": {},
-  "txPlanningDelayOrder": "El retardo mínimo debe ser ≤ al máximo",
+  "txPlanningDelayOrder": "La separación mínima debe ser ≤ a la máxima",
   "@txPlanningDelayOrder": {},
   "txPlanningInvalidSplitProbability": "Probabilidad de división inválida",
   "@txPlanningInvalidSplitProbability": {},
@@ -1624,10 +1624,30 @@
   "@txPlanningFeeRateMinLabel": {},
   "txPlanningFeeRateMaxLabel": "Comisión máx (sat/vB)",
   "@txPlanningFeeRateMaxLabel": {},
-  "txPlanningDelayMinLabel": "Retraso mín (bloques)",
+  "txPlanningDelayMinLabel": "Separación mín (bloques)",
   "@txPlanningDelayMinLabel": {},
-  "txPlanningDelayMaxLabel": "Retraso máx (bloques)",
+  "txPlanningDelayMaxLabel": "Separación máx (bloques)",
   "@txPlanningDelayMaxLabel": {},
+  "txPlanningSpacingHelper": "Bloques entre transacciones consecutivas. Cuanto mayor el rango, más privacidad y mayor duración total de la migración.",
+  "@txPlanningSpacingHelper": {},
+  "txPlanningEtaPreview": "Duración estimada: {minBlocks}–{maxBlocks} bloques (~{minWindow}–{maxWindow}) para {count} transacciones",
+  "@txPlanningEtaPreview": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "minBlocks": {"type": "int"},
+      "maxBlocks": {"type": "int"},
+      "minWindow": {"type": "String"},
+      "maxWindow": {"type": "String"}
+    }
+  },
+  "txPlanningEtaHours": "{hours} h",
+  "@txPlanningEtaHours": {
+    "placeholders": {"hours": {"type": "int"}}
+  },
+  "txPlanningEtaDays": "{days} d",
+  "@txPlanningEtaDays": {
+    "placeholders": {"days": {"type": "int"}}
+  },
   "txPlanningSplitProbabilityLabel": "Probabilidad de split",
   "@txPlanningSplitProbabilityLabel": {},
   "txPlanningMinOutputLabel": "Salida mínima (sats)",
@@ -1757,5 +1777,21 @@
     "placeholders": {"fee": {"type": "String"}}
   },
   "txPlanningCommitConfirmButton": "Emitir",
-  "@txPlanningCommitConfirmButton": {}
+  "@txPlanningCommitConfirmButton": {},
+  "batteryOptBannerTitle": "Mejorar el broadcast en segundo plano",
+  "@batteryOptBannerTitle": {},
+  "batteryOptBannerBody": "Android puede retrasar o saltarse los broadcasts programados cuando Deadbolt está en segundo plano. Excluye la app de la optimización de batería para un auto-broadcast fiable.",
+  "@batteryOptBannerBody": {},
+  "batteryOptBannerAction": "Abrir ajustes",
+  "@batteryOptBannerAction": {},
+  "batteryOptBannerDismiss": "Ahora no",
+  "@batteryOptBannerDismiss": {},
+  "settingsSectionBackground": "Segundo plano",
+  "@settingsSectionBackground": {},
+  "batteryOptTileTitle": "Optimización de batería",
+  "@batteryOptTileTitle": {},
+  "batteryOptTileExempt": "Permitida — los broadcasts en segundo plano se ejecutarán con fiabilidad.",
+  "@batteryOptTileExempt": {},
+  "batteryOptTileRestricted": "Restringida — Android puede retrasar o saltarse los broadcasts en segundo plano.",
+  "@batteryOptTileRestricted": {}
 }

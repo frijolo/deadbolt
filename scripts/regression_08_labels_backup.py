@@ -554,13 +554,21 @@ async def test_labels_and_backup(d: UIDriver):
     await click_tooltip(d, "Sync wallet", delay=1.5)
     # Navigate to Transactions tab so we can detect sync completion.
     await click_label(d, "Transactions", delay=1.0)
-    # Wait up to 180 s for at least one transaction type label to appear.
-    # Transaction tile labels are multi-line in the semantics dump, so we search
-    # for the opening quote prefix without the closing quote.
-    await wait_for(
-        d, '"Received', "sync complete — transactions visible",
-        retries=120, delay=1.5,
-    )
+    # Wait up to 180 s for at least one transaction tile to appear. Any of the
+    # three type labels counts — this wallet's on-chain history may consist of
+    # only self-transfers depending on prior test runs that spent its UTXOs.
+    sync_ok = False
+    for _ in range(120):
+        sem = await d.cs_flat_text()
+        if any(f'"{t}' in sem for t in ("Received", "Sent", "Self-transfer")):
+            sync_ok = True
+            break
+        await asyncio.sleep(1.5)
+    if not sync_ok:
+        raise AssertionError(
+            "Timeout: no Received/Sent/Self-transfer tile after sync"
+        )
+    print("    [ok] sync complete — transactions visible")
     print("    [ok] sync complete — transactions present")
 
     # ── Phase 2: label an address ────────────────────────────────────────────

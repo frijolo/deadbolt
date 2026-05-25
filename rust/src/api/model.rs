@@ -631,6 +631,25 @@ pub struct APIAutoBroadcastResult {
     pub txid: Option<String>,
     /// Error message on failure. `None` when [`txid`] is `Some`.
     pub error: Option<String>,
+    /// Effective label of the PSBT at broadcast time, if any.
+    pub label: Option<String>,
+}
+
+//////////////////////////////
+// APIAutoBroadcastSummary  //
+//////////////////////////////
+
+/// Aggregate state of the auto-broadcast queue, used by the background
+/// scheduler to decide when to wake next.
+///
+/// `min_locktime` is the smallest absolute `nLockTime` among pending PSBTs.
+/// Pending PSBTs locked **only** by a relative timelock (BIP68) contribute
+/// nothing — the scheduler falls back to a periodic check for those.
+#[derive(Clone)]
+pub struct APIAutoBroadcastSummary {
+    pub pending_count: u32,
+    pub min_locktime: Option<u32>,
+    pub tip_height: u32,
 }
 
 //////////////////////

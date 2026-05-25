@@ -5,14 +5,16 @@ use std::collections::HashSet;
 use super::descriptor_sig_storage::ensure_descriptor_sigs_table;
 use super::fiat_storage::ensure_fiat_prices_table;
 use super::labels::{
-    ensure_address_labels_table, ensure_coin_labels_table, ensure_key_labels_table,
+    ensure_address_labels_table, ensure_coin_labels_table, ensure_column, ensure_key_labels_table,
     ensure_path_labels_table, ensure_tx_labels_table,
 };
+use super::psbt_storage::ensure_unsigned_txs_table;
 use super::seed_storage::ensure_seed_entries_table;
+use super::tx_plan_storage::ensure_tx_plans_table;
 
 /// Current target schema version for wallet databases.
 /// Bump this constant and add a new migration step whenever the schema changes.
-pub const WALLET_SCHEMA_VERSION: u32 = 1;
+pub const WALLET_SCHEMA_VERSION: u32 = 2;
 
 /// Run all pending schema migrations for a wallet database.
 ///
@@ -24,20 +26,14 @@ pub const WALLET_SCHEMA_VERSION: u32 = 1;
 /// subsequent opens are a single PRAGMA read and immediate return.
 pub fn run_wallet_migrations(conn: &Connection) -> Result<()> {
     let from = get_schema_version(conn)?;
-    #[allow(clippy::collapsible_if)] // structure kept as a template for future migrations
     if from < WALLET_SCHEMA_VERSION {
         if from < 1 {
             migrate_v0_to_v1(conn)?;
         }
-
-        // Template for future migrations:
-        // if from < 2 { migrate_v1_to_v2(conn)?; }
+        if from < 2 {
+            migrate_v1_to_v2(conn)?;
+        }
     }
-
-    // DEV ZONE — feature/future-tx-planning. Runs on every open. Must be
-    // idempotent. Collapse into the next numbered migration before merge.
-    super::migrations_dev::apply_dev_schema(conn)?;
-
     Ok(())
 }
 
@@ -66,6 +62,27 @@ fn migrate_v0_to_v1(conn: &Connection) -> Result<()> {
     ensure_fiat_prices_table(conn)?;
     fix_descriptor_sigs_if_needed(conn)?;
     set_schema_version(conn, 1)?;
+    Ok(())
+}
+
+/// Migration v1 → v2: spaced transaction planning.
+///
+/// - Ensures `unsigned_txs` exists (older v1 wallets only created it lazily on
+///   first PSBT use; v2 needs it as the anchor for the new columns).
+/// - Adds `unsigned_txs.auto_broadcast` — flag set on PSBTs the scheduler is
+///   allowed to broadcast once their nLockTime matures.
+/// - Adds `tx_plans` table + the `unsigned_txs.plan_id` column linking each
+///   child PSBT to its parent spaced plan.
+fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
+    ensure_unsigned_txs_table(conn)?;
+    ensure_column(
+        conn,
+        "unsigned_txs",
+        "auto_broadcast",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_tx_plans_table(conn)?;
+    set_schema_version(conn, 2)?;
     Ok(())
 }
 

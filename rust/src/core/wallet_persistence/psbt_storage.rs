@@ -139,6 +139,21 @@ pub fn list_auto_broadcast_pending_ids(conn: &Connection) -> Result<Vec<i64>> {
     Ok(rows)
 }
 
+/// Return the raw PSBT base64 of every pending auto-broadcast row.
+///
+/// Used by the background-broadcast scheduler to derive each row's
+/// `nLockTime` without loading the rest of the row data.
+pub fn pending_auto_broadcast_psbts(conn: &Connection) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(
+        "SELECT psbt FROM unsigned_txs WHERE auto_broadcast = 1 ORDER BY created_at ASC",
+    )?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
 pub fn delete_psbt_row(conn: &Connection, id: i64) -> Result<()> {
     conn.execute(
         "DELETE FROM unsigned_txs WHERE id = ?1",

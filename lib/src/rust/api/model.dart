@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -192,10 +192,19 @@ class APIAutoBroadcastResult {
   /// Error message on failure. `None` when [`txid`] is `Some`.
   final String? error;
 
-  const APIAutoBroadcastResult({required this.id, this.txid, this.error});
+  /// Effective label of the PSBT at broadcast time, if any.
+  final String? label;
+
+  const APIAutoBroadcastResult({
+    required this.id,
+    this.txid,
+    this.error,
+    this.label,
+  });
 
   @override
-  int get hashCode => id.hashCode ^ txid.hashCode ^ error.hashCode;
+  int get hashCode =>
+      id.hashCode ^ txid.hashCode ^ error.hashCode ^ label.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -204,7 +213,39 @@ class APIAutoBroadcastResult {
           runtimeType == other.runtimeType &&
           id == other.id &&
           txid == other.txid &&
-          error == other.error;
+          error == other.error &&
+          label == other.label;
+}
+
+/// Aggregate state of the auto-broadcast queue, used by the background
+/// scheduler to decide when to wake next.
+///
+/// `min_locktime` is the smallest absolute `nLockTime` among pending PSBTs.
+/// Pending PSBTs locked **only** by a relative timelock (BIP68) contribute
+/// nothing — the scheduler falls back to a periodic check for those.
+class APIAutoBroadcastSummary {
+  final int pendingCount;
+  final int? minLocktime;
+  final int tipHeight;
+
+  const APIAutoBroadcastSummary({
+    required this.pendingCount,
+    this.minLocktime,
+    required this.tipHeight,
+  });
+
+  @override
+  int get hashCode =>
+      pendingCount.hashCode ^ minLocktime.hashCode ^ tipHeight.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is APIAutoBroadcastSummary &&
+          runtimeType == other.runtimeType &&
+          pendingCount == other.pendingCount &&
+          minLocktime == other.minLocktime &&
+          tipHeight == other.tipHeight;
 }
 
 class APIBalance {

@@ -265,6 +265,28 @@ pub fn has_active_tx_plan(conn: &Connection) -> Result<bool> {
     Ok(active_tx_plan(conn)?.is_some())
 }
 
+/// Sweep any active plan whose children have all been auto-broadcast (i.e. no
+/// remaining `unsigned_txs` rows for that `plan_id`) and flip it to `Done`.
+///
+/// Idempotent. Used as a self-heal on every read path that routes the UI so
+/// wallets that crossed a broken release survive without manual SQL surgery.
+pub fn reconcile_completed_tx_plans(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id FROM tx_plans p
+         WHERE p.status IN ('DRAFT','SIGNED','RUNNING')
+           AND NOT EXISTS (
+                 SELECT 1 FROM unsigned_txs u WHERE u.plan_id = p.id
+             )",
+    )?;
+    let ids = stmt
+        .query_map([], |r| r.get::<_, i64>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for id in ids {
+        set_tx_plan_status(conn, id, TxPlanStatus::Done)?;
+    }
+    Ok(())
+}
+
 pub fn set_tx_plan_status(conn: &Connection, id: i64, status: TxPlanStatus) -> Result<()> {
     let now = now_secs()?;
     let changed = conn.execute(

@@ -23,6 +23,10 @@ class TxPlanningDraftView extends StatelessWidget {
   final APISpacedPlanDetail detail;
   final APICommitSpacedPlanReport? lastCommitReport;
   final Map<int, List<APIPsbtSignerStatus>>? signers;
+  /// Plan-level signing threshold (`m` in `m-of-n`). Must travel
+  /// alongside [signers]; falls back to `n` when missing so the view
+  /// stays safe even if the snapshot fetch failed.
+  final int? signersThreshold;
   final List<APIHotKeyInfo> hotKeys;
   /// Current chain tip. `0` when the wallet is not yet synced — the
   /// commit dialog falls back to a tip-unknown message in that case
@@ -40,6 +44,7 @@ class TxPlanningDraftView extends StatelessWidget {
     this.spendPath,
     this.lastCommitReport,
     this.signers,
+    this.signersThreshold,
   });
 
   @override
@@ -250,7 +255,7 @@ class TxPlanningDraftView extends StatelessWidget {
     for (final row in detail.rows) {
       final perRow = snap[row.psbtId.toInt()];
       if (perRow == null) continue;
-      final threshold = _threshold(row.psbtId.toInt());
+      final threshold = _planThreshold(perRow);
       final signed = perRow.where((s) => s.hasSigned).length;
       if (signed >= threshold) count++;
     }
@@ -513,21 +518,21 @@ class TxPlanningDraftView extends StatelessWidget {
     for (final row in detail.rows) {
       final perRow = snap[row.psbtId.toInt()];
       if (perRow == null) return false;
-      final threshold = _threshold(row.psbtId.toInt());
+      final threshold = _planThreshold(perRow);
       final count = perRow.where((s) => s.hasSigned).length;
       if (count < threshold) return false;
     }
     return true;
   }
 
-  /// Treats "all signers signed" as the commit threshold — a safe lower
-  /// bound versus the Rust audit when m == n, and an overestimate that
-  /// blocks Commit when m < n. The real per-plan threshold isn't carried
-  /// on `APISpacedPlanDetailRow`; revisit when the signing bundle exposes it.
-  int _threshold(int psbtId) {
-    final perRow = signers?[psbtId];
-    if (perRow == null || perRow.isEmpty) return 1;
-    return perRow.length;
+  /// Plan-level `m` from the signing bundle. Falls back to `n` (the
+  /// number of signers in the row) when the bundle snapshot didn't
+  /// reach the state — that's a strict overestimate, so Commit can
+  /// only be blocked, never spuriously enabled.
+  int _planThreshold(List<APIPsbtSignerStatus> perRow) {
+    final t = signersThreshold;
+    if (t != null && t > 0) return t;
+    return perRow.isEmpty ? 1 : perRow.length;
   }
 
 }

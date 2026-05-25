@@ -2849,10 +2849,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txPlanningFeeRateOrder => 'Min fee must be ≤ max fee';
 
   @override
-  String get txPlanningInvalidDelay => 'Invalid delay';
+  String get txPlanningInvalidDelay => 'Invalid spacing';
 
   @override
-  String get txPlanningDelayOrder => 'Min delay must be ≤ max delay';
+  String get txPlanningDelayOrder => 'Min spacing must be ≤ max spacing';
 
   @override
   String get txPlanningInvalidSplitProbability => 'Invalid split probability';
@@ -3044,10 +3044,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txPlanningFeeRateMaxLabel => 'Max fee (sat/vB)';
 
   @override
-  String get txPlanningDelayMinLabel => 'Min delay (blocks)';
+  String get txPlanningDelayMinLabel => 'Min spacing (blocks)';
 
   @override
-  String get txPlanningDelayMaxLabel => 'Max delay (blocks)';
+  String get txPlanningDelayMaxLabel => 'Max spacing (blocks)';
+
+  @override
+  String get txPlanningSpacingHelper =>
+      'Blocks between consecutive transactions. Larger ranges mean more privacy and a longer overall migration.';
+
+  @override
+  String txPlanningEtaPreview(
+    int count,
+    int minBlocks,
+    int maxBlocks,
+    String minWindow,
+    String maxWindow,
+  ) {
+    return 'Estimated duration: $minBlocks–$maxBlocks blocks (~$minWindow–$maxWindow) for $count transactions';
+  }
+
+  @override
+  String txPlanningEtaHours(int hours) {
+    return '$hours h';
+  }
+
+  @override
+  String txPlanningEtaDays(int days) {
+    return '$days d';
+  }
 
   @override
   String get txPlanningSplitProbabilityLabel => 'Split probability';
@@ -3233,4 +3258,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txPlanningCommitConfirmButton => 'Broadcast';
+
+  @override
+  String get batteryOptBannerTitle => 'Improve background broadcasting';
+
+  @override
+  String get batteryOptBannerBody =>
+      'Android may delay or skip scheduled broadcasts when Deadbolt is in the background. Exclude the app from battery optimization for reliable auto-broadcast.';
+
+  @override
+  String get batteryOptBannerAction => 'Open settings';
+
+  @override
+  String get batteryOptBannerDismiss => 'Not now';
+
+  @override
+  String get settingsSectionBackground => 'Background';
+
+  @override
+  String get batteryOptTileTitle => 'Battery optimization';
+
+  @override
+  String get batteryOptTileExempt =>
+      'Allowed — background broadcasts will run reliably.';
+
+  @override
+  String get batteryOptTileRestricted =>
+      'Restricted — Android may delay or skip background broadcasts.';
 }

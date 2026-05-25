@@ -1220,16 +1220,18 @@ impl APIWallet {
                 .try_auto_broadcast_one(id, &electrum_url, now_secs)
                 .await
             {
-                Ok(Some(txid)) => results.push(APIAutoBroadcastResult {
+                Ok(Some((txid, label))) => results.push(APIAutoBroadcastResult {
                     id,
                     txid: Some(txid),
                     error: None,
+                    label,
                 }),
                 Ok(None) => {}
                 Err(e) => results.push(APIAutoBroadcastResult {
                     id,
                     txid: None,
                     error: Some(format!("{e:#}")),
+                    label: None,
                 }),
             }
         }
@@ -1247,7 +1249,7 @@ impl APIWallet {
         id: i64,
         electrum_url: &str,
         now_secs: u64,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<(String, Option<String>)>> {
         use crate::api::model::APISpendPath;
         use crate::api::wallet::psbt_maturity::psbt_is_broadcastable_now;
 
@@ -1298,19 +1300,79 @@ impl APIWallet {
         let txid = tx.compute_txid().to_string();
 
         {
+            use crate::core::wallet_persistence::tx_plan_storage::{
+                list_unsigned_tx_ids_for_plan, set_tx_plan_status, TxPlanStatus,
+            };
             let core = self.lock_wallet()?;
             if let Some(label) = &psbt_label {
                 if !label.is_empty() && !tx_has_explicit_label(&core.conn, &txid).unwrap_or(false) {
                     let _ = db_set_tx_label(&core.conn, &txid, label, false, None);
                 }
             }
+            // Snapshot the plan link before deleting the row.
+            let plan_id: Option<i64> = core
+                .conn
+                .query_row(
+                    "SELECT plan_id FROM unsigned_txs WHERE id = ?1",
+                    [id],
+                    |r| r.get::<_, Option<i64>>(0),
+                )
+                .ok()
+                .flatten();
             let _ = delete_psbt_row(&core.conn, id);
+            // If this PSBT was the last child of a plan, transition the plan
+            // to DONE so the UI stops treating it as active.
+            if let Some(pid) = plan_id {
+                if list_unsigned_tx_ids_for_plan(&core.conn, pid)
+                    .map(|v| v.is_empty())
+                    .unwrap_or(false)
+                {
+                    let _ = set_tx_plan_status(&core.conn, pid, TxPlanStatus::Done);
+                }
+            }
         }
         if let Ok(mut u) = self.electrum_url.lock() {
             *u = electrum_url.to_string();
         }
 
-        Ok(Some(txid))
+        Ok(Some((txid, psbt_label)))
+    }
+
+    /// Snapshot of the auto-broadcast queue, for the background scheduler.
+    ///
+    /// Returns the number of pending PSBTs, the minimum absolute `nLockTime`
+    /// among them (if any has one set), and the current tip height as known
+    /// to the wallet. Cheap: one SQL + a base64+PSBT deserialize per row.
+    ///
+    /// PSBTs locked only by a BIP68 relative timelock contribute `None` to
+    /// `min_locktime` — the scheduler treats those as "check again later"
+    /// via its 24h heartbeat ceiling.
+    #[frb(sync)]
+    pub fn auto_broadcast_summary(&self) -> Result<APIAutoBroadcastSummary> {
+        let core = self.lock_wallet()?;
+        let psbt_strings = pending_auto_broadcast_psbts(&core.conn)?;
+        let pending_count = psbt_strings.len() as u32;
+        let mut min_locktime: Option<u32> = None;
+        for s in &psbt_strings {
+            let psbt = match psbt_from_base64(s) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+            let lt = psbt.unsigned_tx.lock_time.to_consensus_u32();
+            if lt == 0 {
+                continue;
+            }
+            min_locktime = Some(match min_locktime {
+                Some(cur) => cur.min(lt),
+                None => lt,
+            });
+        }
+        let tip_height = core.wallet.latest_checkpoint().block_id().height;
+        Ok(APIAutoBroadcastSummary {
+            pending_count,
+            min_locktime,
+            tip_height,
+        })
     }
 
     /// Sign a stored PSBT using the hot key identified by `mfp`.

@@ -2873,10 +2873,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'La comisión mínima debe ser ≤ a la máxima';
 
   @override
-  String get txPlanningInvalidDelay => 'Retardo inválido';
+  String get txPlanningInvalidDelay => 'Separación inválida';
 
   @override
-  String get txPlanningDelayOrder => 'El retardo mínimo debe ser ≤ al máximo';
+  String get txPlanningDelayOrder =>
+      'La separación mínima debe ser ≤ a la máxima';
 
   @override
   String get txPlanningInvalidSplitProbability =>
@@ -3069,10 +3070,35 @@ class AppLocalizationsEs extends AppLocalizations {
   String get txPlanningFeeRateMaxLabel => 'Comisión máx (sat/vB)';
 
   @override
-  String get txPlanningDelayMinLabel => 'Retraso mín (bloques)';
+  String get txPlanningDelayMinLabel => 'Separación mín (bloques)';
 
   @override
-  String get txPlanningDelayMaxLabel => 'Retraso máx (bloques)';
+  String get txPlanningDelayMaxLabel => 'Separación máx (bloques)';
+
+  @override
+  String get txPlanningSpacingHelper =>
+      'Bloques entre transacciones consecutivas. Cuanto mayor el rango, más privacidad y mayor duración total de la migración.';
+
+  @override
+  String txPlanningEtaPreview(
+    int count,
+    int minBlocks,
+    int maxBlocks,
+    String minWindow,
+    String maxWindow,
+  ) {
+    return 'Duración estimada: $minBlocks–$maxBlocks bloques (~$minWindow–$maxWindow) para $count transacciones';
+  }
+
+  @override
+  String txPlanningEtaHours(int hours) {
+    return '$hours h';
+  }
+
+  @override
+  String txPlanningEtaDays(int days) {
+    return '$days d';
+  }
 
   @override
   String get txPlanningSplitProbabilityLabel => 'Probabilidad de split';
@@ -3258,4 +3284,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get txPlanningCommitConfirmButton => 'Emitir';
+
+  @override
+  String get batteryOptBannerTitle => 'Mejorar el broadcast en segundo plano';
+
+  @override
+  String get batteryOptBannerBody =>
+      'Android puede retrasar o saltarse los broadcasts programados cuando Deadbolt está en segundo plano. Excluye la app de la optimización de batería para un auto-broadcast fiable.';
+
+  @override
+  String get batteryOptBannerAction => 'Abrir ajustes';
+
+  @override
+  String get batteryOptBannerDismiss => 'Ahora no';
+
+  @override
+  String get settingsSectionBackground => 'Segundo plano';
+
+  @override
+  String get batteryOptTileTitle => 'Optimización de batería';
+
+  @override
+  String get batteryOptTileExempt =>
+      'Permitida — los broadcasts en segundo plano se ejecutarán con fiabilidad.';
+
+  @override
+  String get batteryOptTileRestricted =>
+      'Restringida — Android puede retrasar o saltarse los broadcasts en segundo plano.';
 }

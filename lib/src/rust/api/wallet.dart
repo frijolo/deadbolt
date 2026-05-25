@@ -412,6 +412,17 @@ abstract class ApiWallet implements RustOpaqueInterface {
 
   set path(String path);
 
+  /// Snapshot of the auto-broadcast queue, for the background scheduler.
+  ///
+  /// Returns the number of pending PSBTs, the minimum absolute `nLockTime`
+  /// among them (if any has one set), and the current tip height as known
+  /// to the wallet. Cheap: one SQL + a base64+PSBT deserialize per row.
+  ///
+  /// PSBTs locked only by a BIP68 relative timelock contribute `None` to
+  /// `min_locktime` — the scheduler treats those as "check again later"
+  /// via its 24h heartbeat ceiling.
+  APIAutoBroadcastSummary autoBroadcastSummary();
+
   /// Finalize the PSBT, broadcast via Electrum, and delete the local record.
   ///
   /// Returns the broadcast txid on success.

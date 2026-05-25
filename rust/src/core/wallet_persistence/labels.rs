@@ -11,9 +11,7 @@ const TABLES: &[&str] = &[
     "key_labels",
     "path_labels",
     "coin_labels",
-    // Dev zone (feature/future-tx-planning): apply_dev_schema uses ensure_column
-    // on unsigned_txs to add the auto_broadcast flag. Remove from this list once
-    // the dev migration is collapsed into a numbered migrate_v1_to_v2.
+    // migrate_v1_to_v2 adds `auto_broadcast` to unsigned_txs via `ensure_column`.
     "unsigned_txs",
 ];
 
@@ -183,6 +181,29 @@ fn get_entity_label_with_flag(
         .query_row([key], |row| {
             let is_auto: i32 = row.get(1)?;
             Ok((row.get::<_, String>(0)?, is_auto != 0))
+        })
+        .ok();
+    Ok(result)
+}
+
+fn get_entity_label_with_source(
+    conn: &Connection,
+    table: &str,
+    key_col: &str,
+    key: &str,
+) -> Result<Option<(String, bool, Option<String>)>> {
+    validate_table_name(table)?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT label, is_auto, source_entity FROM {table} WHERE {key_col} = ?1"
+    ))?;
+    let result = stmt
+        .query_row([key], |row| {
+            let is_auto: i32 = row.get(1)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                is_auto != 0,
+                row.get::<_, Option<String>>(2)?,
+            ))
         })
         .ok();
     Ok(result)
@@ -470,4 +491,22 @@ pub fn get_coin_label_with_flag(
 /// Check if a coin has an explicit (non-auto) label.
 pub fn coin_has_explicit_label(conn: &Connection, outpoint: &str) -> Result<bool> {
     entity_has_explicit_label(conn, "coin_labels", "outpoint", outpoint)
+}
+
+/// Get a coin label together with its `is_auto` flag and `source_entity`.
+/// Callers that need to distinguish auto-labels by origin (e.g. spaced-plan
+/// generated labels vs. user-propagated ones) use this variant.
+pub fn get_coin_label_with_source(
+    conn: &Connection,
+    outpoint: &str,
+) -> Result<Option<(String, bool, Option<String>)>> {
+    get_entity_label_with_source(conn, "coin_labels", "outpoint", outpoint)
+}
+
+/// Get an address label together with its `is_auto` flag and `source_entity`.
+pub fn get_address_label_with_source(
+    conn: &Connection,
+    address: &str,
+) -> Result<Option<(String, bool, Option<String>)>> {
+    get_entity_label_with_source(conn, "address_labels", "address", address)
 }
