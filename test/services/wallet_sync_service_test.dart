@@ -64,6 +64,8 @@ StreamController<bool> _stubHandle(
 int _nowSecs() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late _MockWalletService walletService;
   late WalletSyncService service;
 
