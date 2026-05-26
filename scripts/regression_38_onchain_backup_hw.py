@@ -114,12 +114,10 @@ async def _sync_and_check_funds(d: UIDriver):
 # ---------------------------------------------------------------------------
 
 async def _open_publish_backup_sheet(d):
-    """Wallet detail → Export → Descriptor → Publish Backup → On-chain."""
+    """Wallet detail → More options → Export → Publish Backup → On-chain."""
     await click_tooltip(d, "More options", delay=0.6)
     await click_label(d, "Export", delay=0.6)
-    await wait_for(d, "Descriptor", "Export choice sheet open")
-    await click_label(d, "Descriptor", delay=0.6)
-    await wait_for(d, "Publish Backup", "Descriptor export sheet open")
+    await wait_for(d, "Publish Backup", "Export choice sheet open")
     await click_label(d, "Publish Backup", delay=0.6)
     flat = await d.cs_flat_text()
     if "Backup not recommended" in flat:
@@ -294,11 +292,10 @@ async def _verify_confirm_broadcast(d):
     assert parsed["anchor_count"] >= 2, f"expected ≥ 2 anchors, got {parsed['anchor_count']}"
     print(f"    [ok] anchor count = {parsed['anchor_count']} (≥ 2)")
 
-    # Per §5.4: vault_sats = max(330, reveal_fee − N_anchors × 330).
-    # Validate that the change output after TX_REVEAL is ≥ 330 (P2TR dust).
-    change_value = parsed["vault"] + (parsed["anchor_count"] * parsed["anchor_amount"]) - parsed["total_fee"]
-    assert change_value >= 330, f"change output {change_value} sats below dust (330)"
-    print(f"    [ok] change output {change_value} sats ≥ 330 dust threshold")
+    # All displayed change outputs must be above P2TR dust (330 sats).
+    for ch in parsed.get("changes", []):
+        assert ch >= 330, f"change output {ch} sats below dust (330)"
+    print(f"    [ok] all change outputs ≥ 330 dust threshold")
 
     assert parsed["vault"] > 0 and parsed["commit_fee"] > 0
     assert parsed["reveal_fee"] > 0 and parsed["package_vb"] > 0

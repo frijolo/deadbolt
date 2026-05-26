@@ -120,7 +120,9 @@ pub fn plan_intents<R: Rng + ?Sized>(
     let mut cum_delta: u32 = 0;
     for utxo in ordered {
         let gap = sample_inclusive_u32(rng, params.delay_blocks_min, params.delay_blocks_max);
-        cum_delta = cum_delta.saturating_add(gap);
+        cum_delta = cum_delta
+            .checked_add(gap)
+            .ok_or_else(|| anyhow!("cumulative nlocktime delta overflows u32"))?;
         let rel_floor = rel_timelock_floor(tip_height, rel_timelock_blocks, utxo.conf_height);
         let delta = cum_delta.max(rel_floor);
         // Advance the anchor so the next gap stacks on the actually-used

@@ -424,13 +424,12 @@ async def _build_psbt(d):
     print("\n  [phase 6] Build TX_COMMIT")
     await click_label(d, "Build TX_COMMIT", delay=1.0)
     # Wait for either awaiting-signature or an error toast.
+    # Indicators of awaitingSignature: signer list title ("Signatures ("),
+    # HW sign button ("Sign with HW"), or import button ("Import signed").
     for _ in range(30):
         flat = await d.cs_flat_text()
-        if "Sign with hot key" in flat or "Sign with HW" in flat:
+        if '"Signatures (' in flat or "Sign with HW" in flat or "Import signed" in flat:
             print("    [ok] PSBT built — awaiting signature")
-            assert "Sign with hot key" in flat, (
-                "expected 'Sign with hot key' but got different signing option"
-            )
             return
         if "Build TX_COMMIT" not in flat and "Building PSBT" not in flat:
             # phase changed to something else — likely error toast brought us back
@@ -441,9 +440,11 @@ async def _build_psbt(d):
 
 async def _sign_with_hot_key(d) -> bool:
     print("\n  [phase 7] Sign with first available hot key")
+    # The new _BackupSignerRow uses a FilledButton.tonalIcon with label "Sign"
+    # (exact) for hot keys, replacing the old "Sign with hot key (MFP)" button.
     rect = (
-        await d.cs_find_by_label_part_containing("Sign with hot key")
-        or await d.cs_find_label_containing("Sign with hot key")
+        await d.cs_find_by_label("Sign")
+        or await d.cs_find_by_label_part("Sign")
     )
     if rect is None:
         print("    [skip] no hot key available — cannot reach confirm-broadcast")
@@ -578,7 +579,7 @@ async def _back_out_without_broadcasting(d):
         "still on confirm-broadcast after Back — would have remained one "
         "tap away from a real signet broadcast"
     )
-    assert "Sign with hot key" in flat or "Sign with HW" in flat, (
+    assert '"Sign"' in flat or "Sign with HW" in flat or "Import signed" in flat, (
         "did not return to awaiting-signature view after Back"
     )
     print("    [ok] returned to awaiting-signature without broadcasting")

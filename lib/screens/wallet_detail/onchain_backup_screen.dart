@@ -11,7 +11,8 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/screens/coin_selector_screen.dart';
 import 'package:deadbolt/screens/create_tx/selected_path_card.dart';
 import 'package:deadbolt/services/mempool_blocks_service.dart';
-import 'package:deadbolt/src/rust/api/model.dart' show APISpendPath, APIUtxo, APIRelativeTimelockType;
+import 'package:deadbolt/src/rust/api/model.dart' show APIPsbtAnalysis, APISpendPath, APIUtxo, APIRelativeTimelockType;
+import 'package:deadbolt/widgets/mfp_badge.dart';
 import 'package:deadbolt/theme/app_theme.dart' show AppAlpha;
 import 'package:deadbolt/models/timelock_types.dart' show AbsoluteTimelockType;
 import 'package:deadbolt/src/rust/api/tor.dart' show isTorRunning, torSocksAddr;
@@ -75,6 +76,7 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
   APISpendPath? _selectedPath;
   rust_backup.OnchainBackupPsbt? _onchainPsbt;
   String? _signedPsbt;
+  APIPsbtAnalysis? _psbtAnalysis;
   rust_backup.OnchainBackupResult? _result;
   rust_backup.WalletBackupStatus? _backupStatus;
   double _feeRate = 1.0;
@@ -121,11 +123,12 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
         setState(() {
           _phase = _Phase.utxoSelection;
           _onchainPsbt = null;
+          _signedPsbt = null;
+          _psbtAnalysis = null;
         });
       case _Phase.confirmBroadcast:
         setState(() {
           _phase = _Phase.awaitingSignature;
-          _signedPsbt = null;
         });
       default:
         break;
@@ -402,8 +405,51 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
     }
   }
 
-  void _doSignWithHotKey(String mfp) {
-    final psbtBase64 = _onchainPsbt?.commitPsbtBase64 ?? '';
+  /// Returns the latest accumulator (signed PSBT base64 if any sigs are
+  /// already collected, otherwise the freshly built unsigned commit PSBT).
+  String get _currentCommitPsbt =>
+      _signedPsbt ?? _onchainPsbt?.commitPsbtBase64 ?? '';
+
+  /// Merge `signed` into `_signedPsbt`, refresh the analysis, and advance to
+  /// the broadcast phase only when the PSBT is fully signed/finalized.
+  Future<void> _absorbSigned(String signed) async {
+    try {
+      final base = _signedPsbt;
+      final combined = base == null
+          ? signed
+          : widget.state.walletHandle.combinePsbts(
+              aBase64: base,
+              bBase64: signed,
+            );
+      await _refreshAnalysis(combined);
+    } catch (e) {
+      if (mounted) showErrorToastException(e);
+    }
+  }
+
+  Future<void> _refreshAnalysis(String signedPsbtBase64) async {
+    final mfps = _selectedPath?.mfps ?? const <String>[];
+    final analysis = await widget.state.walletHandle.analyzePsbt(
+      psbtBase64: signedPsbtBase64,
+      mfps: mfps,
+    );
+    if (!mounted) return;
+    final threshold = _selectedPath?.threshold ?? mfps.length;
+    final signedCount = analysis.signers.where((s) => s.hasSigned).length;
+    // Advance when: (a) PSBT is already finalized (imported from external
+    // device), or (b) enough partial sigs have been collected to meet the
+    // threshold.  sign_backup_psbt uses try_finalize:false, so (b) is the
+    // normal hot-key path.
+    final ready = analysis.isFinalized || signedCount >= threshold;
+    setState(() {
+      _signedPsbt = signedPsbtBase64;
+      _psbtAnalysis = analysis;
+      _phase = ready ? _Phase.confirmBroadcast : _Phase.awaitingSignature;
+    });
+  }
+
+  Future<void> _doSignWithHotKey(String mfp) async {
+    final psbtBase64 = _currentCommitPsbt;
     if (psbtBase64.isEmpty) return;
     setState(() => _phase = _Phase.signingHotKey);
     try {
@@ -411,39 +457,31 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
         psbtBase64: psbtBase64,
         mfp: mfp,
       );
-      setState(() {
-        _signedPsbt = signed;
-        _phase = _Phase.confirmBroadcast;
-      });
+      await _refreshAnalysis(signed);
     } catch (e) {
       showErrorToastException(e);
-      setState(() => _phase = _Phase.awaitingSignature);
+      if (mounted) setState(() => _phase = _Phase.awaitingSignature);
     }
   }
 
   Future<void> _doSignWithHw() async {
-    final psbtBase64 = _onchainPsbt?.commitPsbtBase64 ?? '';
+    final psbtBase64 = _currentCommitPsbt;
     if (psbtBase64.isEmpty) return;
     final signed = await showHwSignSheet(
       context,
       psbtBase64: psbtBase64,
       network: widget.state.walletInfo.network,
       descriptor: widget.state.walletInfo.descriptor,
+      keyChanges: _selectedPath?.keyChanges,
     );
     if (signed == null || !mounted) return;
-    setState(() {
-      _signedPsbt = signed;
-      _phase = _Phase.confirmBroadcast;
-    });
+    await _absorbSigned(signed);
   }
 
   Future<void> _doImportSigned() async {
     final psbtBase64 = await showPsbtImportSheet(context);
     if (psbtBase64 == null || psbtBase64.isEmpty || !mounted) return;
-    setState(() {
-      _signedPsbt = psbtBase64;
-      _phase = _Phase.confirmBroadcast;
-    });
+    await _absorbSigned(psbtBase64);
   }
 
   Future<void> _doFinalize(String signedPsbtBase64) async {
@@ -691,15 +729,25 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
 
   Widget _buildAwaitingSignature(BuildContext context) {
     final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    final ts = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final ts = theme.textTheme;
     final psbt = _onchainPsbt!;
+    final path = _selectedPath;
+    final analysis = _psbtAnalysis;
 
-    final visibleHotKeys = _selectedPath != null
-        ? widget.state.hotKeys
-            .where((k) => _selectedPath!.mfps.contains(k.mfp))
-            .toList()
-        : widget.state.hotKeys;
+    final pathMfps = path?.mfps ?? const <String>[];
+    final threshold = path?.threshold ?? pathMfps.length;
+    final hotKeyMfps =
+        widget.state.hotKeys.map((k) => k.mfp).toSet();
+    final signedCount =
+        analysis?.signers.where((s) => s.hasSigned).length ?? 0;
+    // If the analysis is missing (no sign attempt yet) treat every required
+    // path MFP as "missing" so the user sees the full signer list up-front.
+    final signerEntries = analysis?.signers
+            .map((s) => (mfp: s.mfp, hasSigned: s.hasSigned))
+            .toList() ??
+        pathMfps.map((m) => (mfp: m, hasSigned: false)).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -731,17 +779,25 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          if (visibleHotKeys.isNotEmpty) ...[
-            for (final hk in visibleHotKeys)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.vpn_key_outlined),
-                  label: Text('${l10n.onChainBackupSignWithHotKey} (${hk.mfp.substring(0, 8)})'),
-                  onPressed: () => _doSignWithHotKey(hk.mfp),
-                ),
+          const SizedBox(height: 16),
+          if (signerEntries.isNotEmpty) ...[
+            Text(
+              l10n.psbtSignaturesTitle(
+                  signedCount, threshold, signerEntries.length),
+              style: ts.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            for (final entry in signerEntries)
+              _BackupSignerRow(
+                mfp: entry.mfp,
+                label: _keyLabels[entry.mfp],
+                hasSigned: entry.hasSigned,
+                isOptional: !entry.hasSigned && signedCount >= threshold,
+                onSign: (hotKeyMfps.contains(entry.mfp) && !entry.hasSigned)
+                    ? () => _doSignWithHotKey(entry.mfp)
+                    : null,
               ),
+            const SizedBox(height: 8),
             const Divider(height: 16),
           ],
           OutlinedButton.icon(
@@ -754,7 +810,7 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
             icon: const Icon(Icons.qr_code),
             label: Text(l10n.onChainBackupExportPsbt),
             onPressed: () {
-              final psbtBase64 = _onchainPsbt?.commitPsbtBase64 ?? '';
+              final psbtBase64 = _currentCommitPsbt;
               if (psbtBase64.isNotEmpty) {
                 showPsbtExportSheet(context, psbtBase64: psbtBase64);
               }
@@ -1013,6 +1069,89 @@ class _OnchainBackupScreenState extends State<OnchainBackupScreen> {
           _initParams();
         },
         child: Text(l10n.scanAccountsRetry),
+      ),
+    );
+  }
+}
+
+class _BackupSignerRow extends StatelessWidget {
+  final String mfp;
+  final String? label;
+  final bool hasSigned;
+  final bool isOptional;
+  final VoidCallback? onSign;
+
+  const _BackupSignerRow({
+    required this.mfp,
+    required this.label,
+    required this.hasSigned,
+    this.isOptional = false,
+    this.onSign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final Color color;
+    final String statusText;
+    final IconData icon;
+
+    if (hasSigned) {
+      color = Colors.green;
+      statusText = l10n.psbtSignerSigned;
+      icon = Icons.check_circle;
+    } else if (isOptional) {
+      color = theme.colorScheme.onSurface.withAlpha(AppAlpha.pale);
+      statusText = l10n.psbtSignerOptional;
+      icon = Icons.radio_button_unchecked;
+    } else {
+      color = theme.colorScheme.outline;
+      statusText = l10n.psbtSignerMissing;
+      icon = Icons.radio_button_unchecked;
+    }
+
+    final dimmed = isOptional;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          MfpBadge(
+            label: mfp.substring(0, 8).toUpperCase(),
+            color: dimmed
+                ? theme.colorScheme.onSurface.withAlpha(AppAlpha.pale)
+                : theme.colorScheme.outline,
+          ),
+          const SizedBox(width: 8),
+          if (label != null && label!.isNotEmpty)
+            Expanded(
+              child: Text(
+                label!,
+                overflow: TextOverflow.ellipsis,
+                style: dimmed
+                    ? TextStyle(
+                        color: theme.colorScheme.onSurface
+                            .withAlpha(AppAlpha.pale))
+                    : null,
+              ),
+            )
+          else
+            const Spacer(),
+          if (onSign != null)
+            FilledButton.tonalIcon(
+              onPressed: onSign,
+              icon: const Icon(Icons.key_outlined, size: 16),
+              label: Text(l10n.signButton),
+            )
+          else
+            Text(
+              statusText,
+              style: TextStyle(color: color, fontSize: 12),
+            ),
+        ],
       ),
     );
   }

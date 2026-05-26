@@ -1478,8 +1478,17 @@ impl APIWallet {
         let n_anchors = anchor_addrs.len();
         let n_inputs = utxo_txids.len();
 
-        // Compute fees (CPFP split).
-        let commit_wu = descriptor_backup::commit_weight(n_inputs, n_anchors);
+        // Compute fees (CPFP split). The TX_COMMIT fee is set as an absolute
+        // amount on the builder, so the per-input weight must match the actual
+        // witness for the selected spend path — otherwise BDK builds a heavier
+        // tx than we paid for and broadcast fails with "min relay fee not met".
+        let per_input_wu = core
+            .cached_spend_paths()
+            .ok()
+            .and_then(|paths| paths.iter().find(|p| p.id == spend_path_id))
+            .map(|sp| sp.wu_in as u64)
+            .unwrap_or(descriptor_backup::KEYPATH_INPUT_WU);
+        let commit_wu = descriptor_backup::commit_weight(n_inputs, n_anchors, per_input_wu);
         let reveal_wu = descriptor_backup::reveal_weight(tapscript.len(), n_anchors);
         let (commit_fee, reveal_fee) = descriptor_backup::split_package_fees(
             commit_wu,
@@ -1610,6 +1619,20 @@ impl APIWallet {
         let mut psbt = psbt_from_base64(&psbt_base64)?;
         sign_psbt_in_place(&mut core, &mut psbt, &mfp)?;
         Ok(psbt_to_base64(&psbt))
+    }
+
+    /// Combine partial signatures from two PSBTs of the same transaction.
+    ///
+    /// Both PSBTs must refer to the same unsigned tx. Returns the merged PSBT
+    /// in base64. Used by the on-chain backup flow, which signs an ephemeral
+    /// PSBT across multiple keys without storing it in the wallet DB.
+    #[frb(sync)]
+    pub fn combine_psbts(&self, a_base64: String, b_base64: String) -> Result<String> {
+        let _core = self.lock_wallet()?;
+        let mut a = psbt_from_base64(&a_base64)?;
+        let b = psbt_from_base64(&b_base64)?;
+        a.combine(b)?;
+        Ok(psbt_to_base64(&a))
     }
 
     /// Broadcast a signed TX_COMMIT and emit TX_REVEAL to complete the backup.
@@ -1785,7 +1808,12 @@ impl APIWallet {
         let compressed_payload = descriptor_backup::zstd_compress(&payload_json);
         let tapscript = descriptor_backup::vault_tapscript(&compressed_payload);
 
-        let commit_vbytes = descriptor_backup::commit_weight(1, n).div_ceil(4);
+        // Baseline assumes a single taproot key-path input. Flutter rescales
+        // the value against the selected `SpendPath::wu_in` (see
+        // `_commitVbytes` in `onchain_backup_screen.dart`) before showing
+        // fees or computing the minimum UTXO size.
+        let commit_vbytes =
+            descriptor_backup::commit_weight(1, n, descriptor_backup::KEYPATH_INPUT_WU).div_ceil(4);
         let reveal_vbytes = descriptor_backup::reveal_weight(tapscript.len(), n).div_ceil(4);
 
         let anchor_addresses: Vec<String> = triples

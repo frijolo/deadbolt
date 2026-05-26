@@ -41,6 +41,11 @@ pub(crate) const ANCHOR_SATS: u64 = 330;
 const SEGWIT_OVERHEAD_WU: u64 = 2;
 const INPUT_NW_BYTES: u64 = 41;
 const KEYPATH_WITNESS_WU: u64 = 1 + 1 + 64;
+/// Full per-input weight delta (non-witness bytes * 4 + witness WU) for a
+/// taproot key-path spend. Used as a baseline when the actual spend path
+/// weight isn't known yet — callers that *do* know it (e.g. `prepare_backup_psbt`)
+/// must pass `SpendPath::wu_in` instead so the fee matches the real witness.
+pub(crate) const KEYPATH_INPUT_WU: u64 = INPUT_NW_BYTES * 4 + KEYPATH_WITNESS_WU;
 
 // TX_COMMIT is kept below standard relay minimum so it cannot be mined alone.
 // TX_REVEAL carries the bulk of the fees, forming a CPFP package with TX_COMMIT.
@@ -112,12 +117,21 @@ pub struct WalletBackupStatus {
 // Weight calculation (same as PoC)
 // ---------------------------------------------------------------------------
 
-pub(crate) fn commit_weight(n_inputs: usize, n_anchors: usize) -> u64 {
+/// Weight of TX_COMMIT in WU.
+///
+/// `per_input_wu` is the full per-input weight delta (non-witness bytes * 4
+/// plus witness WU). For a taproot key-path spend this is `KEYPATH_INPUT_WU`;
+/// for multisig or script-path spends it must be the `SpendPath::wu_in` value
+/// measured against the actual descriptor, otherwise the fee will be set from
+/// an underestimated weight and broadcast may be rejected with a "min relay
+/// fee not met" error.
+pub(crate) fn commit_weight(n_inputs: usize, n_anchors: usize, per_input_wu: u64) -> u64 {
     let ni = n_inputs as u64;
     let n_outputs = (2 + n_anchors) as u64;
-    let nw: u64 = 4 + 1 + INPUT_NW_BYTES * ni + 1 + 43 * n_outputs + 4;
-    let w: u64 = SEGWIT_OVERHEAD_WU + KEYPATH_WITNESS_WU * ni;
-    nw * 4 + w
+    // Non-witness bytes excluding inputs (version + n_in varint + n_out varint
+    // + outputs + lock_time). Inputs contribute via `per_input_wu`.
+    let nw_no_inputs: u64 = 4 + 1 + 1 + 43 * n_outputs + 4;
+    nw_no_inputs * 4 + SEGWIT_OVERHEAD_WU + per_input_wu * ni
 }
 
 pub(crate) fn reveal_weight(tapscript_len: usize, n_anchors: usize) -> u64 {

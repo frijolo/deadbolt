@@ -6,6 +6,7 @@ import 'package:deadbolt/cubit/wallet_detail/lifecycle.dart';
 import 'package:deadbolt/cubit/wallet_detail_session.dart' show WalletInfo;
 import 'package:deadbolt/cubit/wallet_detail_state.dart';
 import 'package:deadbolt/cubit/wallet_op_result.dart' show Ok, Err;
+import 'package:deadbolt/errors.dart' show formatRustError;
 import 'package:deadbolt/src/rust/api/model.dart';
 
 /// Biometric slot enable/disable + protection-tier change (DeviceKey /
@@ -128,7 +129,7 @@ mixin WalletDetailProtection
     } catch (e, st) {
       logError('WalletDetailProtection.renameWallet()', e, st);
       final err = loadedState;
-      if (err != null) emit(err.copyWith(errorMessage: e.toString()));
+      if (err != null) emit(err.copyWith(errorMessage: formatRustError(e)));
       return false;
     }
 

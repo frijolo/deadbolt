@@ -57,7 +57,7 @@ fn anchor_key_derivation_is_deterministic() {
 #[test]
 fn weight_calculations_are_positive() {
     for n in 1..=6usize {
-        assert!(commit_weight(1, n) > 0);
+        assert!(commit_weight(1, n, KEYPATH_INPUT_WU) > 0);
         assert!(reveal_weight(1536, n) > 0);
     }
 }

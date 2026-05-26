@@ -7,6 +7,7 @@ All notable changes to Deadbolt are documented here, newest first.
 ## [Unreleased]
 
 ### New Features
+- **Multisig on-chain backup** — The Publish Backup flow now handles multisig wallets. Each required signer is shown with a signed/missing/optional badge; partial signatures are accumulated via `combine_psbts` and the flow advances to broadcast only once the threshold is met. Hardware wallets and QR import are supported alongside hot keys.
 - **Rename wallet** — A new "Rename wallet" entry in the wallet menu lets you update the display name in place. The change is persisted inside the encrypted wallet DB and mirrored to the unencrypted sidecar so locked UserPassword/XpubKey wallets show the new name in the wallet list before being unlocked.
 - **Background auto-broadcast on Android** — DeviceKey-protected wallets now broadcast matured spaced-plan and future-dated PSBTs while Deadbolt is in the background or closed. An alarm-driven scheduler enumerates eligible wallets when the app pauses, wakes near the next nLockTime, and posts a notification when transactions are broadcast (or when broadcasting fails). A new Settings → Background section surfaces battery-optimization exemption status; a dismissible banner on Android prompts users to grant the exemption when relevant.
 
@@ -28,6 +29,7 @@ All notable changes to Deadbolt are documented here, newest first.
 - **Multi-leaf taproot signing with non-canonical multipath pairs** — HW signing now keeps every multipath lane a key contributes (e.g. both `8` and `9` for `<8;9>/*`) when pruning `tap_key_origins`, so change UTXOs derived via the second lane are recognised and signed instead of failing with "Could not find our key in an input".
 - **Orphaned hot seed when removing a key from a project** — Removing a key that had a stored seed now cascade-deletes the seed from `project_seeds.db` instead of leaving the secret orphaned with no UI to reach it.
 - **On-chain backup minimum UTXO ignored spend path** — `_minUtxoSats` now feeds the path-adjusted commit vbytes into the Rust helper so the threshold scales with the selected spend path and extra inputs instead of the 1-input baseline.
+- **On-chain backup fee underestimated for non-keypath spends** — `commit_weight` now receives the actual per-input WU from the selected spend path instead of the taproot key-path baseline; without this, BDK built a heavier TX than the fee covered and broadcast failed with "min relay fee not met" for multisig or script-path wallets.
 - **Tap-to-edit selecting to end of line on Android** — Added `dragStartBehavior: DragStartBehavior.down` to the coin selector list and the TX planning idle view so tapping a field no longer selects from the tap point onwards.
 
 ## [v1.9.7]

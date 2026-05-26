@@ -472,6 +472,13 @@ abstract class ApiWallet implements RustOpaqueInterface {
   /// user labels).
   void clearSpacedPlanLabels({required PlatformInt64 planId});
 
+  /// Combine partial signatures from two PSBTs of the same transaction.
+  ///
+  /// Both PSBTs must refer to the same unsigned tx. Returns the merged PSBT
+  /// in base64. Used by the on-chain backup flow, which signs an ephemeral
+  /// PSBT across multiple keys without storing it in the wallet DB.
+  String combinePsbts({required String aBase64, required String bBase64});
+
   /// Verify every child PSBT of a `DRAFT` plan is fully signed and arm it
   /// for auto-broadcast.
   ///
