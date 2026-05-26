@@ -9,6 +9,7 @@ import 'package:deadbolt/cubit/settings_cubit.dart';
 import 'package:deadbolt/cubit/wallet_list_cubit.dart';
 import 'package:deadbolt/data/database.dart';
 import 'package:deadbolt/l10n/l10n.dart';
+import 'package:deadbolt/services/background_broadcast_scheduler.dart';
 import 'package:deadbolt/services/biometric_service.dart';
 import 'package:deadbolt/services/nostr_relay_settings.dart';
 import 'package:deadbolt/services/wallet_service.dart';
@@ -27,6 +28,7 @@ Future<void> main() async {
       WidgetsFlutterBinding.ensureInitialized();
       await RustLib.init();
       await NostrRelaySettings().applyToRust();
+      await BackgroundBroadcastScheduler.instance.init();
 
       // Global error handler for Flutter framework errors
       FlutterError.onError = (FlutterErrorDetails details) {
