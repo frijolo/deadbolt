@@ -4,7 +4,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
-## [Unreleased]
+## [v1.9.8]
 
 ### New Features
 - **Multisig on-chain backup** — The Publish Backup flow now handles multisig wallets. Each required signer is shown with a signed/missing/optional badge; partial signatures are accumulated via `combine_psbts` and the flow advances to broadcast only once the threshold is met. Hardware wallets and QR import are supported alongside hot keys.
@@ -494,6 +494,7 @@ Initial release of Deadbolt.
 - Re-analyze descriptors while preserving existing labels.
 - Dark theme with orange accent.
 
+[v1.9.8]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.8
 [v1.9.7]: https://github.com/frijolo/deadbolt/releases/tag/v1.9.7
 [v1.7.0]: https://github.com/frijolo/deadbolt/releases/tag/v1.7.0
 [v1.6.2]: https://github.com/frijolo/deadbolt/releases/tag/v1.6.2
