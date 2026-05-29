@@ -413,6 +413,29 @@ pub(crate) fn participant_triples(descriptor: &str) -> Vec<(String, String, Stri
 // Reveal TX / inscription envelope helpers (used by descriptor_recovery.rs too)
 // ---------------------------------------------------------------------------
 
+/// True when any input of `tx` is a taproot script-path spend whose tapscript is
+/// a valid Deadbolt inscription envelope.
+///
+/// Used to tell a genuine TX_REVEAL apart from an unrelated transaction that
+/// merely spends a commit output (e.g. the commit's change output). Without this
+/// check, `find_reveal_tx` would return the change-spending transaction as a
+/// false reveal whenever the vault is not the first non-anchor output scanned.
+pub(crate) fn tx_has_inscription_envelope(tx: &Transaction) -> bool {
+    tx.input.iter().any(|input| {
+        let witness = &input.witness;
+        let n = witness.len();
+        if n < 2 {
+            return false;
+        }
+        let control_block = witness.iter().last().unwrap();
+        if control_block.first().map(|&b| b & 0xfe) != Some(0xc0) {
+            return false;
+        }
+        let tapscript = witness.iter().nth(n - 2).unwrap();
+        extract_raw_from_tapscript(tapscript).is_ok()
+    })
+}
+
 pub(crate) fn find_reveal_tx(
     client: &Client,
     vault_spk: &ScriptBuf,
@@ -428,7 +451,13 @@ pub(crate) fn find_reveal_tx(
             continue;
         }
         if let Ok(tx) = client.transaction_get(&item.tx_hash) {
-            if tx.input.iter().any(|i| i.previous_output == vault_outpoint) {
+            // A genuine TX_REVEAL both spends the vault outpoint *and* carries
+            // the inscription envelope. Requiring the envelope rejects an
+            // unrelated transaction that spends the commit's change output,
+            // which would otherwise be returned as a false reveal.
+            if tx.input.iter().any(|i| i.previous_output == vault_outpoint)
+                && tx_has_inscription_envelope(&tx)
+            {
                 return Some((item.tx_hash, tx, item.height.max(0) as usize));
             }
         }

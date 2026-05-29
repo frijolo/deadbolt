@@ -1922,26 +1922,34 @@ impl APIWallet {
             })
             .collect();
 
-        // Collect unique candidate txids preserving insertion order.
+        // Collect unique candidate txids with their confirmation height, then
+        // sort most-recent-first. Electrum returns confirmed history in
+        // ascending height order, but that is not guaranteed by the protocol,
+        // so we order explicitly: unconfirmed (height <= 0) first, then by
+        // descending height. This makes "report the most recent backup"
+        // deterministic when several commits share the same anchors.
         let mut seen: HashSet<bdk_wallet::bitcoin::Txid> = HashSet::new();
-        let mut candidate_txids: Vec<bdk_wallet::bitcoin::Txid> = Vec::new();
+        let mut candidates: Vec<(bdk_wallet::bitcoin::Txid, i32)> = Vec::new();
         for history in &anchor_histories {
             for item in history {
                 if seen.insert(item.tx_hash) {
-                    candidate_txids.push(item.tx_hash);
+                    candidates.push((item.tx_hash, item.height));
                 }
             }
         }
 
-        if candidate_txids.is_empty() {
+        if candidates.is_empty() {
             return Ok(not_found);
         }
 
-        // Scan candidate commits from most recent to oldest. For each commit
-        // that pays to all anchor addresses, try to decrypt the TX_REVEAL and
-        // check whether its descriptor matches this wallet. The first match
-        // wins; if none match the wallet's descriptor the backup is discarded.
-        for txid in candidate_txids.iter().rev() {
+        let height_key = |h: i32| if h <= 0 { i64::MAX } else { h as i64 };
+        candidates.sort_by_key(|c| std::cmp::Reverse(height_key(c.1)));
+
+        // For each commit that pays to all anchor addresses, try to decrypt the
+        // TX_REVEAL and check whether its descriptor matches this wallet. The
+        // first match wins; if none match the wallet's descriptor the backup is
+        // discarded.
+        for (txid, _) in &candidates {
             let tx = match client.transaction_get(txid) {
                 Ok(tx) => tx,
                 Err(_) => continue,
@@ -1961,20 +1969,28 @@ impl APIWallet {
                     &anchor_spks,
                 ) {
                     Some((rtxid, rtx, _)) => {
-                        let verified = triples.iter().any(|(_, xpub, _)| {
-                            descriptor_backup::extract_descriptor_from_reveal(&rtx, xpub)
-                                .ok()
-                                .map(|(d, _, _)| {
-                                    super::discovery::first_address_from_descriptor(
-                                        d.clone(),
-                                        network.into(),
-                                    )
-                                    .map(super::discovery::sha256_hex)
-                                    .unwrap_or_default()
-                                        == wallet_first_addr_hash
-                                })
-                                .unwrap_or(false)
-                        });
+                        // An empty wallet hash means BDK could not derive the
+                        // wallet's first address; in that case we cannot verify
+                        // any backup, so never treat one as matching (empty ==
+                        // empty would otherwise be a false positive across
+                        // wallets that share anchors).
+                        let verified = !wallet_first_addr_hash.is_empty()
+                            && triples.iter().any(|(_, xpub, _)| {
+                                descriptor_backup::extract_descriptor_from_reveal(&rtx, xpub)
+                                    .ok()
+                                    .map(|(d, _, _)| {
+                                        let reveal_hash =
+                                            super::discovery::first_address_from_descriptor(
+                                                d.clone(),
+                                                network.into(),
+                                            )
+                                            .map(super::discovery::sha256_hex)
+                                            .unwrap_or_default();
+                                        !reveal_hash.is_empty()
+                                            && reveal_hash == wallet_first_addr_hash
+                                    })
+                                    .unwrap_or(false)
+                            });
                         (Some(rtxid.to_string()), verified)
                     }
                     None => (None, false),

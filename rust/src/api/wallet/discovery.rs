@@ -230,8 +230,12 @@ pub fn derive_xpubs_for_nostr(
     }
 
     // BIP48 multisig: m/48'/{coin}'/{account}'/{script_type}'
-    // script_type: 1 = P2SH-P2WSH, 2 = P2WSH (native), 3 = P2TR / Tapscript
-    //           4 = P2WSH-P2SH (nested segwit), 9 = Miniscript / Liana
+    // script_type: 1 = P2SH-P2WSH (nested), 2 = P2WSH (native segwit).
+    // BIP-48 itself only standardises 1 and 2 (the ben-kaufman PR adding
+    // 3 = P2TR was merged then reverted in May 2025). We still sweep 3 for
+    // taproot multisig descriptors (Ledger-style), 4 for Coldcard / Specter
+    // P2WSH-P2SH variants, and 9 for Liana / miniscript imports, but our own
+    // defaults only generate /2' for taproot multisig (Sparrow-compatible).
     for account_index in 0..account_count {
         for script_type in ["1", "2", "3", "4", "9"] {
             let path_str = format!("m/48'/{coin}'/{account_index}'/{script_type}'");

@@ -4,6 +4,15 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ---
 
+## [Unreleased]
+
+### Improvements
+- **Faster hardware-wallet recovery** — Wallet recovery now exports each wallet type's xpubs in a single batched device round-trip. On BitBox02 firmware ≥ v9.24.0 every xpub comes back in one Noise message; older firmware transparently falls back to one request per path. Recovering wallets that scan 100+ derivation paths no longer pays USB setup/teardown per xpub.
+- **Smarter default derivation paths** — Native-segwit multisig (P2WSH) now defaults to `m/48'/…/2'` and unclassified imported descriptors fall back to BIP84 (`m/84'`) instead of BIP86, which is less surprising for mainnet single-sig. When attaching a private key to an existing watch-only key, the path of the first existing key is suggested instead of a BIP86 placeholder.
+
+### Fixes
+- **False on-chain backup detection** — Backup recovery now requires a candidate reveal transaction to actually carry a Deadbolt inscription envelope, rejecting an unrelated transaction that merely spends the commit's change output. Candidate commits are also scanned most-recent-first deterministically, and an empty wallet-address hash can no longer match a backup as a false positive across wallets that share anchors.
+
 ## [v1.9.8]
 
 ### New Features

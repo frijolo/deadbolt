@@ -398,6 +398,74 @@ pub async fn btc_get_xpub(
     ))
 }
 
+/// Exports many xpubs in a single device round-trip.
+///
+/// Uses the firmware-native `BtcXpubsRequest` (firmware ≥ v9.24.0), which
+/// returns every requested xpub in one Noise message. On older firmware the
+/// underlying `btc_xpubs` transparently falls back to one `BtcPubRequest` per
+/// path, so callers always get the full list regardless of firmware version.
+///
+/// Returns descriptor-ready keyspecs (`[mfp/path]xpub…`) in the same order as
+/// `derivation_paths`. No screen confirmation is required for standard paths.
+pub async fn btc_get_xpubs(
+    session: &mut ConnectedSession,
+    derivation_paths: &[String],
+    network: APINetwork,
+) -> Result<Vec<String>> {
+    use bdk_wallet::bitcoin::bip32::DerivationPath;
+    use bitbox_api::pb::btc_xpubs_request::XPubType;
+    use bitbox_api::pb::BtcCoin;
+    use bitbox_api::Keypath;
+    use std::str::FromStr;
+
+    let btc_network = api_network_to_btc_network(network);
+    session.device.network = btc_network;
+    let is_mainnet = btc_network == bdk_wallet::bitcoin::Network::Bitcoin;
+
+    let paths: Vec<DerivationPath> = derivation_paths
+        .iter()
+        .map(|p| {
+            DerivationPath::from_str(p).map_err(|e| anyhow!("Invalid derivation path '{p}': {e}"))
+        })
+        .collect::<Result<_>>()?;
+    let keypaths: Vec<Keypath> = paths.iter().map(Keypath::from).collect();
+
+    let coin = if is_mainnet {
+        BtcCoin::Btc
+    } else {
+        BtcCoin::Tbtc
+    };
+    let xpub_type = if is_mainnet {
+        XPubType::Xpub
+    } else {
+        XPubType::Tpub
+    };
+
+    let xpubs = session
+        .device
+        .client
+        .btc_xpubs(coin, &keypaths, xpub_type)
+        .await
+        .map_err(|e| anyhow!("get_xpubs failed: {e}"))?;
+
+    if xpubs.len() != derivation_paths.len() {
+        return Err(anyhow!(
+            "device returned {} xpubs for {} paths",
+            xpubs.len(),
+            derivation_paths.len()
+        ));
+    }
+
+    Ok(derivation_paths
+        .iter()
+        .zip(xpubs)
+        .map(|(path, xpub)| {
+            let descriptor_path = path.strip_prefix("m/").unwrap_or(path);
+            format!("[{}/{}]{}", session.root_fingerprint, descriptor_path, xpub)
+        })
+        .collect())
+}
+
 pub async fn btc_sign_psbt(
     session: &mut ConnectedSession,
     psbt_base64: &str,

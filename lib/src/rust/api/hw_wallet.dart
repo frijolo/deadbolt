@@ -121,6 +121,26 @@ Future<String> hwGetXpub({
   network: network,
 );
 
+/// Exports a batch of extended public keys in a single FFI / Android-dispatch
+/// round trip. Holds the session lock once and iterates inside Rust, so the
+/// USB I/O pipeline stays warm between paths instead of paying setup/teardown
+/// per xpub. Used by wallet recovery, where 100+ paths are common.
+///
+/// On firmware ≥ v9.24.0 the device returns every xpub in one Noise message;
+/// older firmware falls back to one request per path inside `btc_xpubs`.
+///
+/// Returns the keyspecs in the same order as `derivation_paths`. On the first
+/// failure the call returns `Err` with the partial progress dropped.
+Future<List<String>> hwGetXpubs({
+  required String sessionId,
+  required List<String> derivationPaths,
+  required APINetwork network,
+}) => RustLib.instance.api.crateApiHwWalletHwGetXpubs(
+  sessionId: sessionId,
+  derivationPaths: derivationPaths,
+  network: network,
+);
+
 /// Registers a descriptor/policy with the connected BitBox02.
 ///
 /// Returns `true` if newly registered, `false` if already registered.

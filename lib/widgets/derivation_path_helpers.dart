@@ -32,10 +32,14 @@ String defaultDerivationPath(
     APIWalletType.p2Pkh => "m/44'/$coin'/$a",
     APIWalletType.p2Wpkh => "m/84'/$coin'/$a",
     APIWalletType.p2Sh || APIWalletType.p2ShWpkh => "m/49'/$coin'/$a",
-    APIWalletType.p2Wsh || APIWalletType.p2ShWsh => "m/48'/$coin'/$a/1'",
+    APIWalletType.p2Wsh => "m/48'/$coin'/$a/2'",
+    APIWalletType.p2ShWsh => "m/48'/$coin'/$a/1'",
     APIWalletType.p2Tr =>
       (isMultiPath || existingKeyCount > 0) ? "m/48'/$coin'/$a/2'" : "m/86'/$coin'/$a",
-    APIWalletType.unknown => "m/86'/$coin'/$a",
+    // Unknown script type (e.g. externally-imported descriptor the analyzer
+    // could not classify) → fall back to BIP84, the most common mainnet
+    // single-sig path today. Less surprising than defaulting to BIP86.
+    APIWalletType.unknown => "m/84'/$coin'/$a",
   };
 }
 

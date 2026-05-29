@@ -46,6 +46,11 @@ class MnemonicConfirmStep extends StatefulWidget {
   /// Forces the BIP48 multipath default (e.g. inheritance / miniscript).
   final bool isMultiPath;
 
+  /// Path to suggest when [walletType] is null (e.g. wallet mode attaching a
+  /// private key to an existing watch-only key). Avoids defaulting to BIP86
+  /// on multisig wallets. Expected with or without the leading "m/".
+  final String? fallbackPath;
+
   /// Show the account index stepper (only meaningful when [walletType] is set).
   final bool showAccountStepper;
 
@@ -67,6 +72,7 @@ class MnemonicConfirmStep extends StatefulWidget {
     this.walletType,
     this.existingKeyCount = 0,
     this.isMultiPath = false,
+    this.fallbackPath,
     this.showAccountStepper = true,
     this.requiredMfp,
     this.initialPassphrase = '',
@@ -135,6 +141,10 @@ class _MnemonicConfirmStepState extends State<MnemonicConfirmStep> {
         widget.existingKeyCount,
         isMultiPath: widget.isMultiPath,
       ).replaceFirst('m/', '');
+    }
+    final fallback = widget.fallbackPath;
+    if (fallback != null && fallback.isNotEmpty) {
+      return fallback.startsWith('m/') ? fallback.substring(2) : fallback;
     }
     return "86'/${widget.network.coinType}'/0'";
   }

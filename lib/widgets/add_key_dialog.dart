@@ -69,6 +69,13 @@ Future<void> showAddKeySheet(
         k.mfp.toLowerCase(): k.customName!,
   };
   final existingKeyCount = state.editedKeys!.length;
+  // Project keys are always multi-path under BIP-48 when:
+  //   - the policy has more than one spend path (inheritance / miniscript), or
+  //   - the script is multisig (p2wsh / p2sh-p2wsh are always multisig here).
+  // This avoids the first taproot key falling back to m/86' (single-sig).
+  final isMultiPath = (state.editedPaths?.length ?? 1) > 1 ||
+      walletType == APIWalletType.p2Wsh ||
+      walletType == APIWalletType.p2ShWsh;
 
   await showSheet<void>(
     context,
@@ -79,6 +86,7 @@ Future<void> showAddKeySheet(
       existingMfps: existingMfps,
       hotMfps: hotMfps,
       keyLabels: keyLabels,
+      isMultiPath: isMultiPath,
       editingKey: editingKey,
       onKeyAdded: onKeyAdded,
       onAddKey: (key) => cubit.addKey(key),
@@ -663,6 +671,11 @@ class _AddKeySheetState extends State<_AddKeySheet> {
   }
 
   Future<void> _onHardwareTapped() async {
+    // Suggestion priority:
+    //   1. walletType available → BIP44/49/84/86/48 default for that script.
+    //   2. wallet mode → reuse the path of the first existing watch-only key,
+    //      so the HW request lands on the same canonical path the wallet uses.
+    //   3. last resort → BIP86 single-sig placeholder.
     final suggested = widget.walletType != null
         ? defaultDerivationPath(
             widget.walletType!,
@@ -670,7 +683,9 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             widget.existingKeyCount,
             isMultiPath: widget.isMultiPath,
           )
-        : "m/86'/0'/0'";
+        : (widget.walletKeys.isNotEmpty
+            ? widget.walletKeys.first.derivationPath
+            : "m/86'/0'/0'");
     final path = await showDerivationPathPicker(context, suggested);
     if (path == null || !mounted) return;
     final keyspec = await showHwXpubSheet(
@@ -943,6 +958,9 @@ class _AddKeySheetState extends State<_AddKeySheet> {
             walletType: widget.walletType,
             existingKeyCount: widget.existingKeyCount,
             isMultiPath: widget.isMultiPath,
+            fallbackPath: widget.walletMode && widget.walletKeys.isNotEmpty
+                ? widget.walletKeys.first.derivationPath
+                : null,
             showAccountStepper: widget.keyspecMode && widget.walletType != null,
             requiredMfp: _isEditMode ? widget.editingKey!.mfp : null,
             onResultChanged: (result) {

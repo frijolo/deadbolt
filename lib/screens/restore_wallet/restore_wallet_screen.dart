@@ -387,28 +387,27 @@ class _RestoreWalletScreenState extends State<RestoreWalletScreen>
       if (!mounted) return;
       setState(() => _totalToDeriving = total);
 
-      // 2. Derive xpubs from device.
+      // 2. Derive xpubs from device. Each wallet type is fetched in a single
+      // batched round-trip (firmware ≥ v9.24.0 returns them all in one Noise
+      // message; older firmware falls back to per-path inside Rust), instead
+      // of one device round-trip per path.
       final cubit = context.read<HwWalletCubit>();
       final keyspecsByType = <rust_discovery.APIWalletTypeKeyspecs>[];
       for (final typeEntry in pathsByType) {
-        final keyspecs = <String>[];
-        for (final path in typeEntry.paths) {
-          final keyspec = await cubit.callHw(
-            rust_hw.hwGetXpub(
-              sessionId: sessionId,
-              derivationPath: path,
-              network: _selectedNetwork,
-            ),
-          );
-          keyspecs.add(keyspec);
-          _derivedCount++;
-          if (!mounted) return;
-          setState(() {});
-        }
+        final keyspecs = await cubit.callHw(
+          rust_hw.hwGetXpubs(
+            sessionId: sessionId,
+            derivationPaths: typeEntry.paths,
+            network: _selectedNetwork,
+          ),
+        );
         keyspecsByType.add(rust_discovery.APIWalletTypeKeyspecs(
           walletType: typeEntry.walletType,
           keyspecs: keyspecs,
         ));
+        _derivedCount += typeEntry.paths.length;
+        if (!mounted) return;
+        setState(() {});
       }
 
       if (!mounted) return;
