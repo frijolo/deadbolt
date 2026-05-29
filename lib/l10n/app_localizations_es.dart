@@ -2328,7 +2328,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Problemas de conexión con algunos relays Nostr. Es posible que algún backup no se haya encontrado.';
 
   @override
-  String get publishBackupMenu => 'Publicar Respaldo';
+  String get publishBackupMenu => 'Publicar Descriptor';
 
   @override
   String get publishBackupTitle => 'Publicar Respaldo';

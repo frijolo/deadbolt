@@ -1084,7 +1084,7 @@
   "nostrRelayTimeoutLabel": "Tiempo de espera (segundos)",
   "nostrRelayMaxAttemptsLabel": "Intentos por relay",
   "nostrSearchNetworkWarning": "Problemas de conexión con algunos relays Nostr. Es posible que algún backup no se haya encontrado.",
-  "publishBackupMenu": "Publicar Respaldo",
+  "publishBackupMenu": "Publicar Descriptor",
   "publishBackupTitle": "Publicar Respaldo",
   "publishBackupSinglesigTitle": "Respaldo no recomendado",
   "publishBackupSinglesigBody": "Esta es una wallet singlesig. Su descriptor se recupera por completo desde la seed (o el xpub) mediante el discovery estándar — no necesita respaldo externo. Publicarlo en Nostr u on-chain solo añade un riesgo de privacidad al asociar tu xpub a datos públicos adicionales.",

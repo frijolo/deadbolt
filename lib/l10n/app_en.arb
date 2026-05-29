@@ -1101,7 +1101,7 @@
   "nostrRelayTimeoutLabel": "Timeout (seconds)",
   "nostrRelayMaxAttemptsLabel": "Attempts per relay",
   "nostrSearchNetworkWarning": "Connection issues with some Nostr relays. Some backups may not have been found.",
-  "publishBackupMenu": "Publish Backup",
+  "publishBackupMenu": "Publish Descriptor",
   "@publishBackupMenu": {},
   "publishBackupTitle": "Publish Backup",
   "@publishBackupTitle": {},

@@ -2309,7 +2309,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Connection issues with some Nostr relays. Some backups may not have been found.';
 
   @override
-  String get publishBackupMenu => 'Publish Backup';
+  String get publishBackupMenu => 'Publish Descriptor';
 
   @override
   String get publishBackupTitle => 'Publish Backup';

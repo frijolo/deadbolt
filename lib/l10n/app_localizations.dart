@@ -4259,7 +4259,7 @@ abstract class AppLocalizations {
   /// No description provided for @publishBackupMenu.
   ///
   /// In en, this message translates to:
-  /// **'Publish Backup'**
+  /// **'Publish Descriptor'**
   String get publishBackupMenu;
 
   /// No description provided for @publishBackupTitle.
