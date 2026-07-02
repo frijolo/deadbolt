@@ -59,6 +59,15 @@ use crate::core::wallet_persistence::{
 };
 
 pub mod backup;
+pub mod bed_backup;
+#[cfg(test)]
+pub mod bed_backup_ffi_tests;
+#[cfg(test)]
+pub mod bed_backup_tests;
+#[cfg(test)]
+pub mod bed_fixture;
+#[cfg(test)]
+pub mod bed_interop_tests;
 pub mod descriptor_backup;
 pub mod descriptor_recovery;
 pub mod descriptor_sig;
@@ -79,6 +88,7 @@ mod detail_rbf;
 mod detail_tx;
 
 pub use backup::*;
+pub use bed_backup::*;
 pub use descriptor_backup::{
     BackupParams, ExistingBackupInfo, OnchainBackupPsbt, OnchainBackupResult,
 };

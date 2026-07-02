@@ -478,7 +478,8 @@ fn test_preview_rate_abs_idempotence() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// rbf_min_fee_sats = sum(orig_fee + descendant_fees) + new_vbytes + 1.
+/// rbf_min_fee_sats = sum(orig_fee + descendant_fees) + floor(new_vbytes / 10) + 1.
+/// Bandwidth cost uses Bitcoin Core 30.0 default incrementalrelayfee = 0.1 sat/vB.
 /// Empty rbf_infos → None.
 #[test]
 fn test_preview_rbf_min_fee_sats() -> anyhow::Result<()> {
@@ -531,10 +532,11 @@ fn test_preview_rbf_min_fee_sats() -> anyhow::Result<()> {
         }],
     )?;
     let new_vbytes = ((with_rbf.total_wu as f64) / 4.0).ceil() as u64;
+    let incremental_fee = new_vbytes / 10; // 0.1 sat/vB, floor
     assert_eq!(
         with_rbf.rbf_min_fee_sats,
-        Some(1_000 + 500 + new_vbytes + 1),
-        "rbf_min must equal orig_fee + descendant_fees + new_vbytes + 1"
+        Some(1_000 + 500 + incremental_fee + 1),
+        "rbf_min = orig_fee + descendant_fees + floor(new_vbytes/10) + 1"
     );
     Ok(())
 }

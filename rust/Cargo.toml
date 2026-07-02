@@ -58,6 +58,9 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 # get_default().is_none() check and the second install_default() fails.
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs"] }
 zstd = "0.13"
+# BED (Bitcoin Encrypted Descriptor) backup — BIP-138 / `bitcoin-encrypted-backup`
+# Pinned to the same commit as `descriptor-cifrado` and Liana 13 for byte-level interop.
+bitcoin-encrypted-backup = { git = "https://github.com/pythcoiner/bitcoin-encrypted-backup", rev = "cd7ee382bf5ca0798d4f81697e2f9efb5e32fe40", default-features = false, features = ["miniscript_latest"] }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # USB HID only available on desktop targets

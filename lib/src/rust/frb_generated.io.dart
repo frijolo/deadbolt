@@ -10,6 +10,7 @@ import 'api/model.dart';
 import 'api/tor.dart';
 import 'api/wallet.dart';
 import 'api/wallet/backup.dart';
+import 'api/wallet/bed_backup.dart';
 import 'api/wallet/descriptor_backup.dart';
 import 'api/wallet/descriptor_recovery.dart';
 import 'api/wallet/descriptor_sig.dart';
@@ -380,6 +381,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BackupParams dco_decode_backup_params(dynamic raw);
+
+  @protected
+  BEDExportResult dco_decode_bed_export_result(dynamic raw);
+
+  @protected
+  BEDImportResult dco_decode_bed_import_result(dynamic raw);
 
   @protected
   BgWalletHeader dco_decode_bg_wallet_header(dynamic raw);
@@ -1070,6 +1077,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BackupParams sse_decode_backup_params(SseDeserializer deserializer);
+
+  @protected
+  BEDExportResult sse_decode_bed_export_result(SseDeserializer deserializer);
+
+  @protected
+  BEDImportResult sse_decode_bed_import_result(SseDeserializer deserializer);
 
   @protected
   BgWalletHeader sse_decode_bg_wallet_header(SseDeserializer deserializer);
@@ -1949,6 +1962,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_backup_params(BackupParams self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bed_export_result(
+    BEDExportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bed_import_result(
+    BEDImportResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bg_wallet_header(

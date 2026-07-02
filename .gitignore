@@ -78,6 +78,7 @@ serve_releases.sh
 .env
 .env.local
 .env.*.local
+.env.test
 
 # Backup files
 *~

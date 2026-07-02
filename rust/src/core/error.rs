@@ -24,6 +24,12 @@ pub enum WalletError {
     NetworkDetectionFailed,
     #[error("Single-path descriptor (e.g. /0/*) is not supported. Use <0;1>/* format instead.")]
     SinglePathDescriptor,
+    #[error("Could not decrypt this BED backup — wrong xpub or corrupted file.")]
+    BedDecryptionFailed,
+    #[error("This file is not a recognized BED backup (binary or ASCII-armored).")]
+    BedFormatUnknown,
+    #[error("This BED backup does not contain a descriptor (unsupported content type).")]
+    BedUnsupportedContent,
     #[error("BuilderError: {0}")]
     BuilderError(String),
 

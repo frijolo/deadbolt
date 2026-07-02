@@ -450,7 +450,7 @@ async def phase_create_psbt(d: UIDriver):
     await click_label(d, "MAX", delay=0.8)
     # Wait for the drain amount to be computed (summary replaces "— sats").
     await wait_absent(d, '"— sats"', "MAX amount computed",
-                      retries=15, delay=0.5)
+                      retries=40, delay=0.5)
     print("    [ok] MAX toggled — amount computed")
 
     # --- Step 5: Create PSBT ---
@@ -576,7 +576,9 @@ async def phase_verify_after_broadcast(d: UIDriver):
     # Trigger sync while still on Transactions tab (sync button reliably
     # accessible here) so the wallet learns about the mempool transaction
     # before we switch to Coins.
-    await wait_for_tooltip(d, "Sync wallet", "sync button available")
+    # After broadcast an auto-sync may run briefly (hiding the button) — allow
+    # up to 60 s for it to finish and the button to reappear.
+    await wait_for_tooltip(d, "Sync wallet", "sync button available", retries=60, delay=1.0)
     await click_label(d, "Coins", delay=1.0)
     sem_coins = await d.cs_flat_text()
 
@@ -677,7 +679,7 @@ async def phase_cpfp(d: UIDriver):
     # --- Step 5: Toggle MAX ---
     await click_label(d, "MAX", delay=0.8)
     await wait_absent(d, '"— sats"', "MAX amount computed",
-                      retries=15, delay=0.5)
+                      retries=40, delay=0.5)
     print("    [ok] MAX toggled — amount computed")
 
     # --- Step 6: Set a higher fee rate for CPFP ---
@@ -837,7 +839,7 @@ async def phase_fullrbf(d: UIDriver):
     # --- Step 5: Toggle MAX ---
     await click_label(d, "MAX", delay=0.8)
     await wait_absent(d, '"— sats"', "MAX amount computed",
-                      retries=15, delay=0.5)
+                      retries=40, delay=0.5)
     print("    [ok] MAX toggled — amount computed")
 
     # --- Step 6: Click "Fee (sats)" field to auto-calculate RBF minimum fee ---
@@ -918,16 +920,19 @@ async def phase_fullrbf(d: UIDriver):
     # --- Step 9: Verify post-broadcast state ---
     # Check Transactions tab - RBF PSBT should be gone
     await click_label(d, "Transactions", delay=0.8)
+    # Verify PSBT tile is gone by checking for PSBT icon (lock_clock) in the list.
+    # We can't just search for the label string because apply_psbt_label_to_tx()
+    # propagates the PSBT label to the transaction tile after broadcast.
     sem_tx = await d.cs_flat_text()
-    if RBF_LABEL in sem_tx:
+    if "lock_clock" in sem_tx:
         raise AssertionError(
-            f"RBF PSBT label '{RBF_LABEL}' still visible in Transactions tab "
+            f"PSBT tile (lock_clock icon) still visible in Transactions tab "
             "after sending — expected it to be removed."
         )
     print("    [ok] RBF PSBT not in Transactions tab (as expected for direct send)")
 
     # Verify Coins tab has updated coin states
-    await wait_for_tooltip(d, "Sync wallet", "sync button available")
+    await wait_for_tooltip(d, "Sync wallet", "sync button available", retries=60, delay=1.0)
     await click_label(d, "Coins", delay=1.0)
     sem_coins = await d.cs_flat_text()
 

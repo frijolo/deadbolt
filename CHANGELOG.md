@@ -6,6 +6,9 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ## [Unreleased]
 
+### New Features
+- **BED backup export/import** — Wallet descriptors can now be exported to and imported from BED (Bitcoin Encrypted Descriptor) files, encrypted with the wallet's xpub for byte-level interoperability with Sparrow and Liana.
+
 ### Improvements
 - **Clearer export menu label** — The Export menu entry that opens the publish flow now reads "Publish Descriptor" instead of "Publish Backup", making it explicit that what gets published is the wallet descriptor.
 - **Faster hardware-wallet recovery** — Wallet recovery now exports each wallet type's xpubs in a single batched device round-trip. On BitBox02 firmware ≥ v9.24.0 every xpub comes back in one Noise message; older firmware transparently falls back to one request per path. Recovering wallets that scan 100+ derivation paths no longer pays USB setup/teardown per xpub.
@@ -13,6 +16,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### Fixes
 - **False on-chain backup detection** — Backup recovery now requires a candidate reveal transaction to actually carry a Deadbolt inscription envelope, rejecting an unrelated transaction that merely spends the commit's change output. Candidate commits are also scanned most-recent-first deterministically, and an empty wallet-address hash can no longer match a backup as a false positive across wallets that share anchors.
+- **RBF minimum fee too high** — The minimum replacement fee shown when bumping a transaction now uses Bitcoin Core's actual `incrementalrelayfee` (0.1 sat/vB) instead of 1 sat/vB, so the suggested fee no longer overshoots BIP-125 Rule 4.
 
 ## [v1.9.8]
 

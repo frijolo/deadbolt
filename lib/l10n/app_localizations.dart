@@ -3263,7 +3263,7 @@ abstract class AppLocalizations {
   /// No description provided for @walletCreateFromBackupSub.
   ///
   /// In en, this message translates to:
-  /// **'Restore a wallet from a .deadbolt file'**
+  /// **'Restore a wallet from a .deadbolt or .bed file'**
   String get walletCreateFromBackupSub;
 
   /// No description provided for @projectCreateFromScratch.
@@ -3307,6 +3307,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wallet'**
   String get walletExportLabel;
+
+  /// No description provided for @bedExportOption.
+  ///
+  /// In en, this message translates to:
+  /// **'BED backup'**
+  String get bedExportOption;
+
+  /// No description provided for @bedExportColocationWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Decryptable with any xpub in this wallet — never store it next to one.'**
+  String get bedExportColocationWarning;
+
+  /// No description provided for @bedExportWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you export'**
+  String get bedExportWarningTitle;
+
+  /// No description provided for @bedExportWarningContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get bedExportWarningContinue;
 
   /// No description provided for @walletTypeSinglesig.
   ///

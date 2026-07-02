@@ -17,7 +17,7 @@ static XPUB_MFP_KEY_REGEX: OnceLock<Regex> = OnceLock::new();
 static XPUB_DERIVATION_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// Returns true if the descriptor uses a single derivation path (e.g. /0/*) instead of <0;1>/*.
-fn is_single_path(descriptor: &str) -> bool {
+pub(crate) fn is_single_path(descriptor: &str) -> bool {
     let re = SINGLE_PATH_REGEX.get_or_init(|| Regex::new(r"/\d+/\*").expect("static regex"));
     re.is_match(descriptor)
 }

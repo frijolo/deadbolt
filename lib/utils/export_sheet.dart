@@ -13,7 +13,7 @@ import 'package:deadbolt/src/rust/api/analyzer.dart' show formatDescriptorForLia
 import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/descriptor_tab.dart' show DescriptorDisplay;
 import 'package:deadbolt/widgets/dialog_helpers.dart' show SheetHandle, showSheet;
-import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet, showQrDialog;
+import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportSheet, showQrDialog, ExportSheetAction;
 
 /// Shows the Liana/Standard format dialog when the descriptor has a NUMS
 /// unspendable key, then opens the export sheet with the chosen text.
@@ -21,11 +21,15 @@ import 'package:deadbolt/widgets/text_export_sheet.dart' show showTextExportShee
 /// The QR action always uses the standard descriptor regardless of the
 /// format choice — it's meant for hardware-wallet and scanner consumption,
 /// which never expect the Liana-flavored encoding.
+///
+/// Pass [extraItems] to append additional actions (e.g. "BED backup") below
+/// the standard copy/QR/save/share/show-as-text options.
 Future<void> showDescriptorExportSheet(
   BuildContext context, {
   required String descriptor,
   required String fileName,
   required String copiedMessage,
+  List<ExportSheetAction> extraItems = const [],
 }) async {
   final lianaDescriptor = await formatDescriptorForLiana(descriptor: descriptor);
 
@@ -71,6 +75,7 @@ Future<void> showDescriptorExportSheet(
     qrText: descriptor,
     fileName: fileName,
     copiedMessage: copiedMessage,
+    extraItems: extraItems,
     showAsTextBuilder: (ctx, text) => DescriptorDisplay(
       descriptor: text,
       shrinkWrap: true,

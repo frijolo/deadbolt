@@ -177,7 +177,8 @@ pub(super) async fn get_rbf_info_inner(
         descendant_fee_sat: desc_fee_opt,
         descendant_vsize: desc_vsize,
         // Rule 4: total conflict fees + relay fee for new tx bandwidth.
-        // orig_vsize used as proxy for new_vsize (Dart refines with actual vsize).
+        // incrementalrelayfee = 1 sat/vB (Core's default) → vsize × 1.
+        // orig_vsize is a proxy for new_vsize; the Dart layer refines with the actual vsize.
         min_fee_sat: total_conflict_fee + vsize as u64,
         // Package rate: the ImprovesFeerateDiagram constraint for the whole cluster.
         min_fee_rate_sat_per_vb: package_rate,

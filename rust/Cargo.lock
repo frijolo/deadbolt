@@ -159,9 +159,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "argon2"
@@ -513,6 +513,16 @@ dependencies = [
  "hex_lit",
  "secp256k1",
  "serde",
+]
+
+[[package]]
+name = "bitcoin-encrypted-backup"
+version = "0.0.2"
+source = "git+https://github.com/pythcoiner/bitcoin-encrypted-backup?rev=cd7ee382bf5ca0798d4f81697e2f9efb5e32fe40#cd7ee382bf5ca0798d4f81697e2f9efb5e32fe40"
+dependencies = [
+ "aes-gcm",
+ "miniscript",
+ "num_enum",
 ]
 
 [[package]]
@@ -3334,6 +3344,7 @@ dependencies = [
  "bdk_wallet",
  "bitbox-api",
  "bitcoin",
+ "bitcoin-encrypted-backup",
  "flutter_rust_bridge",
  "futures",
  "hex",

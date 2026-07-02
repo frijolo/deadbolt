@@ -7,7 +7,7 @@ import '../core/spend_path.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 class APIAbsoluteTimelock {
   final APIAbsoluteTimelockType timelockType;
@@ -956,7 +956,8 @@ class APIRbfInfo {
   final int descendantVsize;
 
   /// Minimum absolute fee for a replacement tx (BIP-125 Rule 4 / PaysForRBF).
-  /// = sum(orig_fee + descendant_fees) + orig_vsize × 1 sat/vB
+  /// = sum(orig_fee + descendant_fees) + floor(orig_vsize × 0.1 sat/vB)
+  /// Uses Bitcoin Core 30.0 default incrementalrelayfee = 0.1 sat/vB.
   /// orig_vsize is used as a proxy for new_vsize (unknown at query time).
   /// The Dart layer refines this with the actual new tx vsize.
   final BigInt minFeeSat;
@@ -2305,4 +2306,66 @@ class APIXpubSlot {
           runtimeType == other.runtimeType &&
           mfp == other.mfp &&
           derivationHint == other.derivationHint;
+}
+
+/// Result of exporting a wallet descriptor to a BED file.
+class BEDExportResult {
+  /// The encrypted backup payload (raw bytes).
+  final Uint8List backupBytes;
+
+  /// The wallet descriptor used for encryption.
+  final String descriptor;
+
+  /// The wallet name at export time.
+  final String walletName;
+
+  /// Network (bitcoin | testnet | testnet4 | signet | regtest).
+  final String network;
+
+  /// Unix timestamp (seconds) of export.
+  final PlatformInt64 createdAt;
+
+  const BEDExportResult({
+    required this.backupBytes,
+    required this.descriptor,
+    required this.walletName,
+    required this.network,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      backupBytes.hashCode ^
+      descriptor.hashCode ^
+      walletName.hashCode ^
+      network.hashCode ^
+      createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BEDExportResult &&
+          runtimeType == other.runtimeType &&
+          backupBytes == other.backupBytes &&
+          descriptor == other.descriptor &&
+          walletName == other.walletName &&
+          network == other.network &&
+          createdAt == other.createdAt;
+}
+
+/// Result of importing a wallet from a BED file.
+class BEDImportResult {
+  final APIWalletInfo wallet;
+
+  const BEDImportResult({required this.wallet});
+
+  @override
+  int get hashCode => wallet.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BEDImportResult &&
+          runtimeType == other.runtimeType &&
+          wallet == other.wallet;
 }

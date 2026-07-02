@@ -3,6 +3,7 @@
 #
 # Equivalent to the /test skill: sets DISPLAY=:0, runs prepare_test_build.sh,
 # then executes all regression_NN scripts in order.
+# Uses PID file (/tmp/deadbolt_test.pid) for exact process tracking.
 #
 # Usage (from project root):
 #   bash scripts/run_tests.sh                  # full build + all tests
@@ -15,6 +16,7 @@ export DISPLAY=:0
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPTS="$ROOT/scripts"
+PID_FILE="/tmp/deadbolt_test.pid"
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
 RUST_ONLY=false
@@ -45,7 +47,7 @@ else
   bash "$SCRIPTS/prepare_test_build.sh"
 fi
 
-# ── Step 2: Collect regression scripts ───────────────────────────────────────
+# ── Step 2: Collect regression scripts ────────────────────────────────────────
 ALL_SCRIPTS=( $(ls "$SCRIPTS"/regression_[0-9][0-9]_*.py | sort) )
 
 if [[ ${#SELECTED_TESTS[@]} -gt 0 ]]; then
@@ -62,10 +64,47 @@ else
   RUN_SCRIPTS=("${ALL_SCRIPTS[@]}")
 fi
 
-# ── Step 3: Run tests ─────────────────────────────────────────────────────────
+# ── Step 3: PID-file cleanup helper ───────────────────────────────────────────
+# Kill only the tracked deadbolt process via PID file.
+# NEVER use pkill -f — it matches the script's own command line, killing itself.
+kill_stale_deadbolt() {
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$pid" ]; then
+            echo "[cleanup] PID file exists (PID=$pid)"
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "[cleanup] Process $pid still alive — sending SIGKILL"
+                kill -9 "$pid" 2>/dev/null || true
+                local waited=0
+                while [ $waited -lt 50 ]; do
+                    if ! kill -0 "$pid" 2>/dev/null; then
+                        echo "[cleanup] Process $pid exited"
+                        break
+                    fi
+                    sleep 0.1
+                    waited=$((waited + 1))
+                done
+                if kill -0 "$pid" 2>/dev/null; then
+                    echo "[cleanup] Process $pid did not exit in time"
+                fi
+            else
+                echo "[cleanup] PID $pid not alive — stale file"
+            fi
+        fi
+        rm -f "$PID_FILE"
+    fi
+    # No PID file → the Python finally block already killed deadbolt cleanly.
+    # Nothing to do. Never use pkill -f (it matches our own process).
+}
+
+# ── Step 4: Run tests ─────────────────────────────────────────────────────────
 PASS=0
 FAIL=0
 FAILED_NAMES=()
+
+# Kill any leftover processes before starting
+kill_stale_deadbolt
 
 for script in "${RUN_SCRIPTS[@]}"; do
   name="$(basename "$script")"
@@ -73,6 +112,10 @@ for script in "${RUN_SCRIPTS[@]}"; do
   echo "──────────────────────────────────────────────"
   echo "  Running: $name"
   echo "──────────────────────────────────────────────"
+
+  # Cleanup BEFORE each test to prevent zombies from previous test
+  kill_stale_deadbolt
+
   if DISPLAY=:0 python3 "$script"; then
     echo "  PASS: $name"
     (( PASS++ )) || true

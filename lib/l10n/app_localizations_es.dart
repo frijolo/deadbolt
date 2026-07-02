@@ -1769,7 +1769,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletCreateFromBackupSub =>
-      'Restaura un wallet desde un archivo .deadbolt';
+      'Restaura un wallet desde un archivo .deadbolt o .bed';
 
   @override
   String get projectCreateFromScratch => 'Desde cero';
@@ -1794,6 +1794,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get walletExportLabel => 'Wallet';
+
+  @override
+  String get bedExportOption => 'Backup BED';
+
+  @override
+  String get bedExportColocationWarning =>
+      'Descifrable con cualquier xpub de este wallet — nunca lo guardes junto a uno.';
+
+  @override
+  String get bedExportWarningTitle => 'Antes de exportar';
+
+  @override
+  String get bedExportWarningContinue => 'Exportar';
 
   @override
   String get walletTypeSinglesig => 'Singlesig';

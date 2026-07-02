@@ -6,7 +6,7 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `anchor_p2tr_address`, `build_encrypted_payload`, `build_reveal`, `commit_weight`, `decrypt_onchain_backup`, `derive_anchor_key`, `extract_descriptor_from_reveal`, `extract_raw_from_tapscript`, `find_reveal_tx_for_commit`, `find_reveal_tx`, `participant_triples`, `reveal_weight`, `sign_reveal`, `split_package_fees`, `vault_taproot`, `vault_tapscript`, `zstd_compress`
+// These functions are ignored because they are not marked as `pub`: `anchor_p2tr_address`, `build_encrypted_payload`, `build_reveal`, `commit_weight`, `decrypt_onchain_backup`, `derive_anchor_key`, `extract_descriptor_from_reveal`, `extract_raw_from_tapscript`, `find_reveal_tx_for_commit`, `find_reveal_tx`, `participant_triples`, `reveal_weight`, `sign_reveal`, `split_package_fees`, `tx_has_inscription_envelope`, `vault_taproot`, `vault_tapscript`, `zstd_compress`
 
 /// Minimum total UTXO sats required to perform the backup at the given fee rate.
 ///

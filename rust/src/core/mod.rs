@@ -1,4 +1,5 @@
 pub mod address;
+pub mod bed_container;
 pub mod bip322;
 pub mod descriptor;
 pub mod descriptor_builder;

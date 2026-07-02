@@ -235,6 +235,26 @@ class _CrosshairPainter extends CustomPainter {
 # Driver
 # ---------------------------------------------------------------------------
 
+def _load_test_env() -> dict[str, str]:
+    """Read key=value pairs from .env.test in the project root.
+
+    Returns a dict with every variable found. Returns empty dict if the file
+    does not exist. Lines starting with ``#`` and blank lines are ignored.
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env.test"
+    if not env_path.exists():
+        return {}
+    env: dict[str, str] = {}
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            k, _, v = line.partition("=")
+            env[k.strip()] = v.strip()
+    return env
+
+
 def _reset_sandbox():
     """Wipe and recreate the sandbox directories so the app starts empty."""
     if SANDBOX_DIR.exists():
@@ -250,6 +270,25 @@ def _reset_sandbox():
     user_dirs.write_text(
         f'XDG_DOCUMENTS_DIR="{SANDBOX_DOCUMENTS_DIR}"\n'
     )
+
+    # Pre-seed SharedPreferences with a local Signet Electrum server from
+    # .env.test (if present) so regression tests that sync on Signet work
+    # without external connectivity. If the file is absent, skip — tests that
+    # need Signet will sync against the default public endpoints.
+    #
+    # NOTE: The shared_preferences plugin prefixes keys with "flutter." and
+    # strips that prefix on read (see shared_preferences_legacy.dart:22).
+    # Keys must be stored with the "flutter." prefix to survive the filter.
+    test_env = _load_test_env()
+    electrum_url = test_env.get("SIGNET_ELECTRUM_URL", "").strip()
+    if electrum_url:
+        prefs_dir = SANDBOX_DATA_DIR / "com.deadbolt.deadbolt"
+        prefs_dir.mkdir(parents=True, exist_ok=True)
+        (prefs_dir / "shared_preferences.json").write_text(
+            json.dumps({"flutter.electrumSignet": electrum_url})
+        )
+        print(f"[sandbox] Pre-seed Signet Electrum: {electrum_url}")
+
     print(f"[sandbox] Reset: {SANDBOX_DIR}")
 
 
@@ -335,7 +374,7 @@ class UIDriver:
             for line in self.proc.stdout:
                 stripped = line.rstrip()
                 self._app_log.append(stripped)
-                if any(k in stripped for k in ("[FATAL", "Unhandled exception", "flutter:", "Error:", "[mouse]")):
+                if any(k in stripped for k in ("[FATAL", "Unhandled exception", "flutter:", "Error:", "[mouse]", "[toast:")):
                     print(f"  [app] {stripped}")
         threading.Thread(target=_drain, daemon=True).start()
 

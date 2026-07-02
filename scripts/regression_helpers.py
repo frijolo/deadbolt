@@ -10,7 +10,7 @@ Usage:
       fill_field, click_popup_item,
       create_project, go_back, delete_project_from_list,
       go_back_to_wallet_list, delete_wallet_from_list,
-      set_active_network_signet, run_regression,
+      set_active_network, set_active_network_signet, run_regression,
   )
 """
 
@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 
 # ---------------------------------------------------------------------------
@@ -723,18 +724,117 @@ async def delete_wallet_from_list(d, wallet_name: str):
     print(f"    [ok] wallet '{wallet_name}' deleted")
 
 
-async def set_active_network_signet(d):
+async def set_active_network(d, network_label: str):
     """
-    Set the active network to Signet via the AppBar network badge.
+    Set the active network via the AppBar network badge.
 
-    Flow: navigate to Wallets → tap 'Select network' badge → select 'Signet'.
+    Flow: navigate to Wallets → tap 'Select network' badge → select
+    `network_label` (e.g. 'Signet', 'Mainnet', 'Testnet').
     """
-    print("\n  [phase 0] set Active Network to Signet")
+    print(f"\n  [phase 0] set Active Network to {network_label}")
     await navigate_wallets(d)
     await click_label(d, "Select network", delay=0.5)
-    await wait_for(d, "Signet", "network picker sheet opened", retries=10, delay=0.5)
-    await click_label(d, "Signet", delay=1.0)
-    print("    [ok] Active Network set to Signet")
+    await wait_for(d, network_label, "network picker sheet opened", retries=10, delay=0.5)
+    await click_label(d, network_label, delay=1.0)
+    print(f"    [ok] Active Network set to {network_label}")
+
+
+async def set_active_network_signet(d):
+    """Set the active network to Signet. See [set_active_network]."""
+    await set_active_network(d, "Signet")
+
+
+_PID_FILE = "/tmp/deadbolt_test.pid"
+
+
+def _pid_is_alive(pid: int) -> bool:
+    """Check if a process with the given PID is currently running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def _read_pid_file() -> int | None:
+    """Read the stored deadbolt PID from the PID file.
+    
+    Returns the PID as an integer, or None if the file is absent or empty.
+    Does NOT check if the process is alive — caller must verify.
+    """
+    try:
+        with open(_PID_FILE, "r") as f:
+            content = f.read().strip()
+        if content:
+            return int(content)
+    except (FileNotFoundError, ValueError):
+        pass
+    return None
+
+
+def _write_pid_file(pid: int) -> None:
+    """Write a PID to the PID file. Overwrites any existing file."""
+    with open(_PID_FILE, "w") as f:
+        f.write(str(pid))
+
+
+def _delete_pid_file() -> None:
+    """Remove the PID file, releasing the deadbolt test lock."""
+    try:
+        os.unlink(_PID_FILE)
+    except FileNotFoundError:
+        pass
+
+
+def _wait_for_pid_death(pid: int, timeout: float = 30.0) -> bool:
+    """Wait for a specific PID to exit. Returns True if it died, False on timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _pid_is_alive(pid):
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _kill_stale_deadbolt():
+    """Kill a stale deadbolt process left over from a previous test run.
+
+    If a PID file exists, reads the PID, verifies it is alive, kills it,
+    and waits for it to exit — this is the normal path, since run_tests.sh
+    is the only harness and always records the PID it launches.
+
+    If no PID file exists but a deadbolt process is still running, we can't
+    tell a leftover test process from the developer's own wallet session,
+    so we abort loudly instead of guessing — never pkill -f by path, which
+    could kill a real, unrelated deadbolt instance.
+    """
+    pid = _read_pid_file()
+    if pid is not None:
+        print(f"    [kill] PID file exists (PID={pid})")
+        if _pid_is_alive(pid):
+            print(f"    [kill] Process {pid} still alive — sending SIGKILL")
+            try:
+                os.kill(pid, 9)
+            except ProcessLookupError:
+                pass  # died between read and kill
+            # Wait briefly for graceful shutdown
+            if _wait_for_pid_death(pid, timeout=5.0):
+                print(f"    [kill] Process {pid} exited")
+            else:
+                print(f"    [kill] Process {pid} did not exit in time — continuing")
+        else:
+            print(f"    [kill] PID {pid} not alive — stale file, removing")
+        # Remove the file regardless
+        _delete_pid_file()
+        return
+
+    other = subprocess.run(["pgrep", "-x", "deadbolt"], capture_output=True, text=True)
+    if other.stdout.strip():
+        pids = other.stdout.strip().split("\n")
+        raise RuntimeError(
+            f"Another deadbolt instance is running (PID={pids[0]}) with no test "
+            f"PID file tracking it. Kill it with 'kill {pids[0]}' before running this test."
+        )
 
 
 async def run_regression(test_func, test_id: str):
@@ -745,29 +845,32 @@ async def run_regression(test_func, test_id: str):
     and prints PASS/FAIL.  On failure the semantics tree is written to
     /tmp/<test_id>_cs_tree for debugging.
 
-    Checks that no other deadbolt instance is running before launching,
-    to avoid clicking on the wrong window.
+    PID file protocol:
+      - Before launching: calls _kill_stale_deadbolt() to clean up any
+        previously recorded PID.
+      - After launch: writes d.proc.pid to _PID_FILE so that Bash scripts
+        and other harnesses can track exactly which process to kill.
+      - On exit (any path): deletes _PID_FILE. Never uses pkill -f — only
+        os.kill() on the tracked PID or the kernel's automatic cleanup when
+        the Python process exits.
 
     Usage in each script's main():
 
         if __name__ == "__main__":
             asyncio.run(run_regression(test_foo, "reg01"))
     """
-    other = subprocess.run(
-        ["pgrep", "-x", "deadbolt"],
-        capture_output=True, text=True,
-    )
-    if other.stdout.strip():
-        pids = other.stdout.strip().split("\n")
-        raise RuntimeError(
-            f"Another deadbolt instance is running (PID={pids[0]}). "
-            f"Kill it with 'kill {pids[0]}' before running this test."
-        )
+    # Kill any stale deadbolt from a previous test run (PID file or zombie).
+    _kill_stale_deadbolt()
 
     from ui_driver import UIDriver  # imported here to avoid circular dependency
     d = UIDriver(sandbox=True)
     try:
         await d.launch()
+        # d.proc is set synchronously inside launch(), so it can't be None here.
+        assert d.proc is not None
+        # Record PID so Bash wrappers and other harnesses can kill exactly this process.
+        _write_pid_file(d.proc.pid)
+        print(f"    [pid] recorded PID {d.proc.pid}")
         d.raise_window()
         await dismiss_startup_dialogs(d)
         await test_func(d)
@@ -788,18 +891,10 @@ async def run_regression(test_func, test_id: str):
         await d.close()
         raise
     finally:
+        # Close the Flutter app (terminate/kill the subprocess).
         try:
             await d.close()
         except Exception:
             pass
-        # Kill any lingering deadbolt process (grandchild of test script).
-        # Without this, the shell tool waits indefinitely for the zombie.
-        _pgrep = subprocess.run(
-            ["pgrep", "-x", "deadbolt"], capture_output=True, text=True,
-        )
-        if _pgrep.returncode == 0 and _pgrep.stdout.strip():
-            for _pid in _pgrep.stdout.strip().split():
-                try:
-                    os.kill(int(_pid), 9)
-                except ProcessLookupError:
-                    pass
+        # Remove the PID file — this test no longer owns deadbolt.
+        _delete_pid_file()

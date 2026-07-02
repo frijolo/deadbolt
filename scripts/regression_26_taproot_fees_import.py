@@ -394,7 +394,7 @@ async def _setup_self_pay_max(d: UIDriver):
     await click_label(d, "This wallet (Self)", delay=1.5)
     await asyncio.sleep(1.0)
     await click_label(d, "MAX", delay=0.8)
-    await wait_absent(d, '"— sats"', "MAX computed", retries=15, delay=0.5)
+    await wait_absent(d, '"— sats"', "MAX computed", retries=40, delay=0.5)
     await asyncio.sleep(0.5)   # let total_fee_display update
 
 

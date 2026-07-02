@@ -964,9 +964,14 @@ class _OpReturnRow extends StatelessWidget {
                   style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
                 ),
                 const SizedBox(height: 2),
-                SelectableText(
-                  display,
-                  style: const TextStyle(fontSize: 12, fontFamily: kMonospaceFontFamily),
+                Semantics(
+                  textDirection: TextDirection.ltr,
+                  value: display,
+                  tooltip: display,
+                  child: SelectableText(
+                    display,
+                    style: const TextStyle(fontSize: 12, fontFamily: kMonospaceFontFamily),
+                  ),
                 ),
               ],
             ),

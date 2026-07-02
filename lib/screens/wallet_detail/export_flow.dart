@@ -12,6 +12,7 @@ import 'package:deadbolt/screens/export_backup_dialog.dart' show showExportBacku
 import 'package:deadbolt/utils/export_sheet.dart' show saveBytes, shareBytes, showDescriptorExportSheet;
 import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
+import 'package:deadbolt/src/rust/api/wallet/bed_backup.dart' as rust_bed;
 
 enum ExportChoice { labels, descriptor, publishDescriptor, wallet }
 
@@ -85,6 +86,13 @@ Future<void> exportDescriptor(
     descriptor: state.walletInfo.descriptor,
     fileName: '${safeName}_descriptor',
     copiedMessage: l10n.copiedToClipboard,
+    extraItems: [
+      (
+        icon: Icons.lock_outline,
+        label: l10n.bedExportOption,
+        onTap: () => exportBedBackup(context, state),
+      ),
+    ],
   );
 }
 
@@ -138,5 +146,78 @@ Future<void> exportBackup(
       Uint8List.fromList(backupBytes),
       fileName: fileName,
     );
+  }
+}
+
+Future<void> exportBedBackup(
+  BuildContext context,
+  WalletDetailLoaded state,
+) async {
+  final l10n = context.l10n;
+
+  // The colocation warning must be acknowledged before export — on Android
+  // a toast shown right before the native share sheet opens gets hidden
+  // behind it, so this has to be a blocking dialog instead.
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.info_outline,
+              color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(child: Text(l10n.bedExportWarningTitle)),
+        ],
+      ),
+      content: Text(l10n.bedExportColocationWarning),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(l10n.bedExportWarningContinue),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  final walletPath = state.walletInfo.walletPath;
+  final walletName = state.walletInfo.name;
+  final service = context.read<WalletService>();
+  final deviceKey = await service.getOrCreateEncryptionKey();
+  final openPassword = service.getCachedPassword(walletPath);
+
+  if (!context.mounted) return;
+
+  final result = await guard(
+    context,
+    () async => rust_bed.exportBedBackup(
+      walletPath: walletPath,
+      deviceKeyHex: deviceKey,
+      password: openPassword,
+    ),
+  );
+  if (result == null) return;
+
+  if (!context.mounted) return;
+
+  final safeName = safeFileBase(walletName);
+  final fileName = '$safeName.bed';
+  final backupBytes = Uint8List.fromList(result.backupBytes);
+
+  if (defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS) {
+    await shareBytes(
+      context,
+      backupBytes,
+      fileName: fileName,
+      mimeType: 'application/octet-stream',
+      subject: fileName,
+    );
+  } else {
+    await saveBytes(context, backupBytes, fileName: fileName);
   }
 }

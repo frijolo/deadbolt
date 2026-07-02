@@ -113,12 +113,9 @@ async def test_hot_keys(d: UIDriver):
     # 7b. Enter mnemonic via clipboard paste (fill_field uses xclip + Ctrl+V)
     await fill_field(d, "word1 word2 word3 ...", MNEMONIC)
 
-    # Wait for Rust BIP39 validation (debounce 250 ms + key derivation ~1-2 s)
-    await asyncio.sleep(3.5)
-    tree = await d.cs_flat_text()
-    if "24 / 24" not in tree:
-        raise AssertionError("Mnemonic not validated — '24 / 24' not found in widget tree")
-    print("    [ok] mnemonic validated: 24/24 words")
+    # Wait for Rust BIP39 validation (debounce 250 ms + key derivation ~1-2 s).
+    # Poll instead of a fixed sleep — key derivation time varies under load.
+    await wait_for(d, "24 / 24", "mnemonic validated: 24/24 words", retries=12, delay=1.0)
 
     # 8. Confirm — the sheet title and the FilledButton share the label
     #    "Add private key"; cs_find_all_by_label returns both, the button
@@ -148,9 +145,11 @@ async def test_hot_keys(d: UIDriver):
 
     # 10. Click "Delete stored seed" → confirmation AlertDialog
     await click_label(d, "Delete stored seed", delay=0.6)
-    # Dialog title is also "Delete stored seed"; the confirm button is "Delete seed"
-    await wait_for(d, '"Delete stored seed"', "confirmation dialog visible",
-                   retries=6, delay=0.5)
+    # Wait for the confirm button ("Delete seed") to appear — the dialog title also
+    # says "Delete stored seed" which is always present, so we wait for the unique
+    # confirm button label instead.
+    await wait_for(d, '"Delete seed"', "confirmation dialog visible",
+                   retries=10, delay=0.5)
 
     # 11. Confirm deletion ("Delete seed" = deletePrivateKeyConfirm i18n key)
     await click_label(d, "Delete seed", delay=1.5)

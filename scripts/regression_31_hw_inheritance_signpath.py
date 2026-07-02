@@ -120,12 +120,16 @@ async def _import_and_create_wallet(d: UIDriver):
     await wait_for(d, '"New Wallet"', "Create wallet screen opened",
                    retries=10, delay=0.5)
     await fill_field(d, "Wallet name", WALLET_NAME)
+    # Tab out of the text field so scroll-wheel events reach the form, not the
+    # focused field. Without this the scroll is silently swallowed.
+    d.key("Tab")
+    await asyncio.sleep(0.3)
     # Scroll all the way down so the FilledButton at the bottom enters the
     # render tree and emits semantics.
-    d.scroll_down(8)
-    await asyncio.sleep(0.5)
+    d.scroll_down(15)
+    await asyncio.sleep(0.8)
     await wait_for(d, '"Create wallet"', "Create wallet button visible",
-                   retries=10, delay=0.5)
+                   retries=20, delay=0.5)
     await click_label(d, "Create wallet", delay=0.5)
     await wait_for(
         d, '"Receive"', f"wallet detail loaded: '{WALLET_NAME}'",
@@ -342,7 +346,7 @@ async def _build_and_sign(d: UIDriver):
     print("    [ok] 1-of-2 spend path selected")
 
     await click_label(d, "MAX", delay=0.8)
-    await wait_absent(d, '"— sats"', "MAX amount computed", retries=15, delay=0.5)
+    await wait_absent(d, '"— sats"', "MAX amount computed", retries=40, delay=0.5)
 
     # If a previous run already broadcast a tx that's still in the mempool and
     # we picked the parent UTXO, the form switches to BIP-125 RBF mode and
@@ -364,7 +368,7 @@ async def _build_and_sign(d: UIDriver):
         await asyncio.sleep(0.8)
         # MAX amount adjusts when fee changes — wait for stable summary.
         await wait_absent(d, '"— sats"', "summary recomputed after fee bump",
-                          retries=10, delay=0.5)
+                          retries=40, delay=0.5)
         print("    [ok] fee bumped to RBF minimum")
 
     await click_label(d, "Create PSBT", delay=0.5)

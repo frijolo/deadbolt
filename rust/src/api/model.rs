@@ -694,7 +694,8 @@ pub struct APIRbfInfo {
     /// Total virtual size of all unconfirmed descendants (vbytes).
     pub descendant_vsize: u32,
     /// Minimum absolute fee for a replacement tx (BIP-125 Rule 4 / PaysForRBF).
-    /// = sum(orig_fee + descendant_fees) + orig_vsize × 1 sat/vB
+    /// = sum(orig_fee + descendant_fees) + floor(orig_vsize × 0.1 sat/vB)
+    /// Uses Bitcoin Core 30.0 default incrementalrelayfee = 0.1 sat/vB.
     /// orig_vsize is used as a proxy for new_vsize (unknown at query time).
     /// The Dart layer refines this with the actual new tx vsize.
     pub min_fee_sat: u64,
@@ -1209,6 +1210,31 @@ pub struct APIBatchSignReport {
 pub struct APIBatchSignFailure {
     pub psbt_id: i64,
     pub error: String,
+}
+
+//////////////////////
+// BED Export/Import //
+//////////////////////
+
+/// Result of exporting a wallet descriptor to a BED file.
+#[derive(Clone)]
+pub struct BEDExportResult {
+    /// The encrypted backup payload (raw bytes).
+    pub backup_bytes: Vec<u8>,
+    /// The wallet descriptor used for encryption.
+    pub descriptor: String,
+    /// The wallet name at export time.
+    pub wallet_name: String,
+    /// Network (bitcoin | testnet | testnet4 | signet | regtest).
+    pub network: String,
+    /// Unix timestamp (seconds) of export.
+    pub created_at: i64,
+}
+
+/// Result of importing a wallet from a BED file.
+#[derive(Clone)]
+pub struct BEDImportResult {
+    pub wallet: APIWalletInfo,
 }
 
 /// Plan-level signing context (descriptor + policy info) plus every

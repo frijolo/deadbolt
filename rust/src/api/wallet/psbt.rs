@@ -791,17 +791,32 @@ impl APIWallet {
             })
             .collect();
 
-        // BIP-125 Rule 4 / PaysForRBF: replacement fee must strictly exceed
-        // sum(orig_fee + descendant_fees) + new_vsize × 1 sat/vB.
+        // BIP-125 Rule 4 / PaysForRBF:
+        //   min_fee = Σ(evicted_fees) + incrementalrelayfee × new_vsize
+        // Bitcoin Core 30.0 default: incrementalrelayfee = 0.1 sat/vB
+        //   (DEFAULT_INCREMENTAL_RELAY_FEE = 100 sat/kvB, src/policy/policy.h,
+        //   lowered from 1000 in bitcoin/bitcoin#33106)
+        //   → bandwidth = floor(new_vbytes / 10)  [Core's integer arithmetic]
+        // We add +1 so Deadbolt's threshold sits strictly above Core's accepted minimum,
+        // absorbing any ±1 sat rounding in our weight→vsize conversion.
         let rbf_min_fee_sats = if rbf_infos.is_empty() {
             None
         } else {
             let cluster: u64 = rbf_infos
                 .iter()
-                .map(|i| i.orig_fee_sat + i.descendant_fee_sat.unwrap_or(0))
+                .map(|i| {
+                    let descendant_fee = i.descendant_fee_sat.unwrap_or_else(|| {
+                        // Descendant fee unknown (e.g. CPFP with external inputs).
+                        // Conservative fallback: 1 sat/vB × descendant_vsize to avoid
+                        // under-paying Rule 4 when descendants carry real fees.
+                        i.descendant_vsize as u64
+                    });
+                    i.orig_fee_sat + descendant_fee
+                })
                 .sum();
             let new_vbytes = vbytes.ceil() as u64;
-            Some(cluster + new_vbytes + 1)
+            let incremental_fee = new_vbytes / 10; // 0.1 sat/vB, floor (mirrors Core's GetFee)
+            Some(cluster + incremental_fee + 1)
         };
 
         Ok(APITxPreview {

@@ -14,6 +14,7 @@ import 'package:deadbolt/services/wallet_service.dart';
 import 'package:deadbolt/services/wallet_sync_service.dart';
 import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet/backup.dart' as rust_backup;
+import 'package:deadbolt/src/rust/api/wallet/bed_backup.dart' as rust_bed;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/enum_formatters.dart';
@@ -545,8 +546,13 @@ class _WalletListScreenState extends State<WalletListScreen> {
     }
   }
 
+  /// Imports either a `.deadbolt` or a `.bed` backup file, auto-detected from
+  /// the picked bytes — the two formats are trivially distinguishable
+  /// (`.deadbolt` is a JSON envelope, `.bed` starts with a binary magic byte
+  /// or a PEM-style armor header), so there is no need to ask the user which
+  /// kind of file they picked.
   Future<void> _importBackup(BuildContext context) async {
-    // 1. Pick the .deadbolt file
+    // 1. Pick the backup file
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       withData: true,
@@ -557,7 +563,15 @@ class _WalletListScreenState extends State<WalletListScreen> {
 
     if (!context.mounted) return;
 
-    // 2. Inspect backup to determine protection type
+    if (rust_bed.sniffBedFormat(backupBytes: bytes) != 'unknown') {
+      await _importBedBackup(context, bytes);
+    } else {
+      await _importDeadboltBackup(context, bytes);
+    }
+  }
+
+  Future<void> _importDeadboltBackup(BuildContext context, List<int> bytes) async {
+    // 1. Inspect backup to determine protection type
     final backupTypeResult = await guard<APIProtectionType>(
       context,
       () => rust_backup.inspectWalletBackup(backupBytes: bytes),
@@ -567,7 +581,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
 
     if (!context.mounted) return;
 
-    // 3. Prompt for import credential
+    // 2. Prompt for import credential
     String? importCredential;
     if (backupType == APIProtectionType.xpubKey) {
       importCredential = await showXpubUnlockDialog(context, walletPath: '');
@@ -582,7 +596,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
 
     if (!context.mounted) return;
 
-    // 4. Import
+    // 3. Import
     try {
       final service = context.read<WalletService>();
       final deviceKey = await service.getOrCreateEncryptionKey();
@@ -598,6 +612,46 @@ class _WalletListScreenState extends State<WalletListScreen> {
       if (!context.mounted) return;
 
       // Refresh list
+      await context.read<WalletListCubit>().refresh();
+
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WalletDetailScreen(walletPath: result.wallet.walletPath),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) showErrorToastException(e);
+    }
+  }
+
+  Future<void> _importBedBackup(BuildContext context, List<int> bytes) async {
+    // 1. Prompt for a decryption xpub — any one of the descriptor's keys,
+    // no private key required.
+    final xpubCredential = await showXpubUnlockDialog(context, walletPath: '');
+    if (xpubCredential == null) return;
+
+    if (!context.mounted) return;
+
+    // 2. Import
+    try {
+      final service = context.read<WalletService>();
+      final networkHint = context.read<SettingsCubit>().state.network.name;
+      final deviceKey = await service.getOrCreateEncryptionKey();
+      final walletsDir = await service.getWalletsDir();
+
+      final result = await rust_bed.importBedBackup(
+        backupBytes: bytes,
+        xpubCredential: xpubCredential,
+        deviceKeyHex: deviceKey,
+        walletsDir: walletsDir,
+        networkHint: networkHint,
+      );
+
+      if (!context.mounted) return;
+
       await context.read<WalletListCubit>().refresh();
 
       if (context.mounted) {

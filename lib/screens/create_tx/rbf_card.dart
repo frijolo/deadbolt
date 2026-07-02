@@ -44,8 +44,9 @@ class RbfCard extends StatelessWidget {
     final totalConflictFee = _totalConflictFee(resolvedInfos);
     final int? actualNewVsize =
         summary != null ? (summary.totalWu / 4.0).ceil() : null;
+    // incrementalrelayfee = 0.1 sat/vB  →  floor(vsize / 10)  (mirrors Core's GetFee).
     final int minFeeSat = actualNewVsize != null
-        ? totalConflictFee + actualNewVsize
+        ? totalConflictFee + actualNewVsize ~/ 10
         : resolvedInfos.fold<int>(0, (m, i) => max(m, i.minFeeSat.toInt()));
     final bool absFeeTooLow = resolvedInfos.isNotEmpty &&
         summary != null &&
