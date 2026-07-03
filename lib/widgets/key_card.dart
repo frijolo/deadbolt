@@ -5,6 +5,7 @@ import 'package:deadbolt/l10n/l10n.dart';
 import 'package:deadbolt/src/rust/api/model.dart' show APINetwork;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/widgets/colored_group_text.dart';
+import 'package:deadbolt/widgets/hot_badge.dart';
 import 'package:deadbolt/widgets/key_edit_sheet.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
 
@@ -97,7 +98,7 @@ class KeyCard extends StatelessWidget {
             ),
             if (isHot) ...[
               const SizedBox(width: 6),
-              _HotBadge(),
+              const HotBadge(),
             ],
           ],
         ),
@@ -151,32 +152,6 @@ class KeyCard extends StatelessWidget {
           onDeletePrivateInfo: onDeletePrivateInfo,
           deletePrivateInfoDisclaimer: deletePrivateInfoDisclaimer,
           network: network,
-        ),
-      ),
-    );
-  }
-}
-
-
-/// Small orange "HOT" pill badge shown inline next to the key label.
-class _HotBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: AppAccent.color.withAlpha(AppAlpha.dim),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppAccent.color.withAlpha(AppAlpha.deleteAction), width: 1),
-      ),
-      child: Text(
-        l10n.hotKeyBadge,
-        style: const TextStyle(
-          color: Colors.orange,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
         ),
       ),
     );

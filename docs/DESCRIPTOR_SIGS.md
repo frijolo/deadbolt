@@ -37,7 +37,7 @@ message = "deadbolt-descriptor-v1:\n" + hex(SHA-256(canonical_descriptor))
 
 `canonical_descriptor` is the descriptor string produced by `DescriptorAnalyzer::canonical_descriptor_str()` — a normalized form that strips checksum and trailing whitespace for stability.
 
-The `SHA-256` hash keeps the message at a fixed ~85 characters regardless of descriptor length, which stays within hardware wallet message-signing limits (e.g. Coldcard ≤ 240 chars, BitBox02 also has limits).
+The `SHA-256` hash keeps the message at a fixed 88 characters (`"deadbolt-descriptor-v1:\n"` + 64 hex chars) regardless of descriptor length, which stays within hardware wallet message-signing limits (e.g. Coldcard ≤ 240 chars, BitBox02 also has limits).
 
 **Rust source:** `rust/src/core/bip322.rs` → `descriptor_sig_message()`
 

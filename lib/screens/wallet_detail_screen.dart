@@ -407,13 +407,11 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(state.walletInfo.name),
+          title: Text(
+            state.walletInfo.name,
+            overflow: TextOverflow.ellipsis,
+          ),
           actions: [
-            MfpBadge(
-              label: localizedNetworkDisplayName(context, network.name),
-              color: AppAccent.color,
-              letterSpacing: 0.0,
-            ),
             Builder(builder: (context) {
               final spendPaths = state.descriptorAnalysis?.spendPaths;
               if (spendPaths == null || spendPaths.isEmpty) {
@@ -426,8 +424,16 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
                 hotKeys: state.hotKeys,
                 minTimelockBlocks: minBlocks,
               );
-              return WalletTemperatureIcon(temperature: temperature);
+              return Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: WalletTemperatureIcon(temperature: temperature),
+              );
             }),
+            MfpBadge(
+              label: localizedNetworkDisplayName(context, network.name),
+              color: AppAccent.color,
+              letterSpacing: 0.0,
+            ),
             if (state.isSyncing)
               const SizedBox(
                 width: 40,

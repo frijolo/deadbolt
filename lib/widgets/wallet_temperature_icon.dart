@@ -44,6 +44,9 @@ class WalletTemperatureIcon extends StatelessWidget {
       icon: Icon(icon, color: color.withAlpha(AppAlpha.high), size: 18),
       tooltip: message,
       onPressed: () => showInfoToast(message),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      visualDensity: VisualDensity.compact,
     );
   }
 }

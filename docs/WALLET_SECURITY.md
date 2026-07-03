@@ -226,8 +226,8 @@ Each `.db` file has a companion `<uuid>.db.meta` file containing JSON. This file
   "type": "user_password",
   "version": 1,
   "salt": "<hex>",
-  "m_cost": 4096,
-  "t_cost": 1,
+  "m_cost": 65536,
+  "t_cost": 5,
   "p_cost": 1,
   "wrapped_key": "<hex>",
   "display_name": "My Wallet",
@@ -295,7 +295,7 @@ Each `<uuid>.db` is a standard [SQLCipher](https://www.zetetic.net/sqlcipher/) (
 PRAGMA key = "x'<data_key_hex>'";
 ```
 
-This bypasses SQLCipher's own PBKDF2 derivation — the 32-byte data key is used directly as the AES-256 key material. The rest follows SQLCipher defaults (AES-256-CBC, PBKDF2 HMAC-SHA1 with 64000 iterations is skipped because a raw hex key is used).
+This bypasses SQLCipher's own PBKDF2 derivation entirely — the 32-byte data key is used directly as the AES-256 key material, so the KDF iteration count SQLCipher would otherwise apply (PBKDF2-HMAC-SHA512, 256000 iterations by default in SQLCipher 4.x, the version vendored here) never runs. The rest follows SQLCipher defaults (AES-256-CBC page encryption, HMAC-SHA512 page authentication).
 
 ### Internal Tables
 

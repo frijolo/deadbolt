@@ -8,8 +8,10 @@ import 'package:deadbolt/src/rust/api/model.dart';
 import 'package:deadbolt/src/rust/api/wallet.dart' show ApiWallet;
 import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
+import 'package:deadbolt/utils/wallet_temperature.dart';
 import 'package:deadbolt/widgets/add_key_dialog.dart' show showAddPrivateKeySheet;
 import 'package:deadbolt/widgets/descriptor_tab.dart';
+import 'package:deadbolt/widgets/hot_badge.dart';
 import 'package:deadbolt/widgets/key_card.dart';
 import 'package:deadbolt/widgets/loading_indicator.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
@@ -73,6 +75,7 @@ class DescriptorView extends StatelessWidget {
                   keyLabels: state.keyLabels,
                   pathLabels: state.pathLabels,
                   isTaproot: isTaproot,
+                  hotKeys: state.hotKeys,
                 ),
                 WalletKeysTab(
                   keys: analysis.keys,
@@ -191,6 +194,7 @@ class WalletSpendPathsTab extends StatelessWidget {
   final Map<String, String> keyLabels;
   final Map<int, String> pathLabels;
   final bool isTaproot;
+  final List<APIHotKeyInfo> hotKeys;
 
   const WalletSpendPathsTab({
     super.key,
@@ -199,6 +203,7 @@ class WalletSpendPathsTab extends StatelessWidget {
     required this.keyLabels,
     required this.pathLabels,
     required this.isTaproot,
+    required this.hotKeys,
   });
 
   Color _colorForMfp(BuildContext context, String mfp) {
@@ -211,6 +216,7 @@ class WalletSpendPathsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (paths.isEmpty) return const SizedBox.shrink();
+    final hotMfps = hotKeys.map((k) => k.mfp.toLowerCase()).toSet();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       children: [
@@ -221,6 +227,7 @@ class WalletSpendPathsTab extends StatelessWidget {
             isTaproot: isTaproot,
             mfpColorProvider: (mfp) => _colorForMfp(context, mfp),
             keyLabelProvider: _keyLabel,
+            isHot: isSatisfiedPath(path, hotMfps),
           ),
       ],
     );
@@ -233,6 +240,7 @@ class WalletPathCard extends StatelessWidget {
   final bool isTaproot;
   final Color Function(String mfp) mfpColorProvider;
   final String Function(String mfp) keyLabelProvider;
+  final bool isHot;
 
   const WalletPathCard({
     super.key,
@@ -240,6 +248,7 @@ class WalletPathCard extends StatelessWidget {
     required this.isTaproot,
     required this.mfpColorProvider,
     required this.keyLabelProvider,
+    required this.isHot,
     this.label,
   });
 
@@ -289,6 +298,10 @@ class WalletPathCard extends StatelessWidget {
             if (hasTimelock)
               PathTimelockBadge(isRelative: hasRelTimelock, label: timelockLabel),
             if (isTaproot && isKeyPath) const PathKeyPathBadge(),
+            if (isHot) ...[
+              const SizedBox(width: 6),
+              const HotBadge(),
+            ],
           ],
         ),
         trailing: const Icon(Icons.chevron_right, size: 18),

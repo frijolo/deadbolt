@@ -29,7 +29,10 @@ flutter build apk --release       # Android
 flutter build linux --release     # Linux
 flutter build windows --release   # Windows
 
-# Binaries will be in build/<platform>/release/
+# Binaries will be in (path differs per platform):
+#   build/app/outputs/flutter-apk/app-release.apk   (Android)
+#   build/linux/x64/release/bundle/                 (Linux)
+#   build/windows/x64/runner/Release/               (Windows)
 ```
 
 ## Running Tests
@@ -45,23 +48,35 @@ cd rust && cargo test
 
 # Linting
 flutter analyze
-cd rust && cargo clippy
+cd rust && cargo clippy --all-features --all-targets -- -D warnings   # matches CI; plain `cargo clippy` won't lint test targets or fail on warnings
 cd rust && cargo machete   # checks for unused dependencies (matches CI)
 ```
 
 ## Integration Tests
 
-Integration tests require a running display. Prepare the test build once after each code change, then run the Python regression scripts:
+Integration tests require a running display. The easiest way to run the full
+regression suite is `scripts/run_tests.sh`, which sets `DISPLAY=:0`, runs
+`prepare_test_build.sh`, and then executes every `regression_NN_*.py` script
+in order:
+
+```bash
+bash scripts/run_tests.sh                  # full build + all tests
+bash scripts/run_tests.sh --rust-only      # skip Flutter rebuild, all tests
+bash scripts/run_tests.sh --skip-build     # skip build entirely, all tests
+bash scripts/run_tests.sh 01 03            # full build + only tests 01 and 03
+```
+
+To run scripts manually instead:
 
 ```bash
 # Prepare test build (patches Rust bindings for headless use)
 DISPLAY=:0 bash scripts/prepare_test_build.sh
 
-# Run regression scripts (repeat for 01 through 09)
+# Run regression scripts (there are dozens under scripts/regression_NN_*.py —
+# check `ls scripts/regression_*.py` for the current list)
 DISPLAY=:0 python3 scripts/regression_01_singlesig.py
 DISPLAY=:0 python3 scripts/regression_02_multisig_wsh.py
 # ...
-DISPLAY=:0 python3 scripts/regression_09_restore_backup.py
 ```
 
 ## Regenerating FFI Bindings
