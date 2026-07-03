@@ -109,6 +109,10 @@ async def _create_wallet(d: UIDriver):
     await wait_for(d, '"Receive"', f"wallet detail loaded: '{WALLET_NAME}'",
                    retries=60, delay=1.0)
 
+    # Both cosigner hot keys are present, satisfying the (single) 2-of-2 path.
+    await wait_for(d, "Hot Wallet", "Hot Wallet temperature icon visible",
+                   retries=10, delay=0.5)
+
 
 # ---------------------------------------------------------------------------
 # Full receive address extraction (via Receive dialog → Copy)

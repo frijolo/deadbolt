@@ -549,6 +549,10 @@ async def test_labels_and_backup(d: UIDriver):
                    retries=20, delay=1.0)
     print("    [ok] wallet detail open")
 
+    # Watch-only wallet: no private key material in the app for any spend path.
+    await wait_for(d, "Cold Wallet", "Cold Wallet temperature icon visible",
+                   retries=10, delay=0.5)
+
     # Trigger manual sync and wait for on-chain data to arrive.
     print("    [info] triggering sync and waiting for transactions…")
     await click_tooltip(d, "Sync wallet", delay=1.5)

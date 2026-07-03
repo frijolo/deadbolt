@@ -10,6 +10,7 @@ import 'package:deadbolt/theme/app_theme.dart';
 import 'package:deadbolt/utils/bitcoin_formatter.dart';
 import 'package:deadbolt/utils/date_format.dart';
 import 'package:deadbolt/utils/spend_path_unlock.dart';
+import 'package:deadbolt/utils/wallet_temperature.dart';
 import 'package:deadbolt/screens/tx_planning/tx_planning_reserved_chip.dart';
 
 enum BalanceUnit { sats, btc, fiat }
@@ -81,9 +82,7 @@ class _OverviewViewState extends State<OverviewView> {
     final minBlocks =
         context.watch<SettingsCubit>().state.inheritanceMinTimelockBlocks;
     return state.descriptorAnalysis?.spendPaths
-            .where((p) =>
-                p.relTimelock.timelockType == APIRelativeTimelockType.blocks &&
-                p.relTimelock.value >= minBlocks)
+            .where((p) => isInheritancePath(p, minTimelockBlocks: minBlocks))
             .toList() ??
         [];
   }

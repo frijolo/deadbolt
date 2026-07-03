@@ -20,6 +20,8 @@ import 'package:deadbolt/utils/toast_helper.dart';
 import 'package:deadbolt/widgets/password_prompt_dialog.dart';
 import 'package:deadbolt/screens/wallet_security_screen.dart';
 import 'package:deadbolt/widgets/mfp_badge.dart';
+import 'package:deadbolt/widgets/wallet_temperature_icon.dart';
+import 'package:deadbolt/utils/wallet_temperature.dart';
 import 'package:deadbolt/widgets/hw_actions_sheet.dart' show showHwActionsSheet;
 import 'package:deadbolt/widgets/popup_menu_helpers.dart';
 import 'package:deadbolt/widgets/dialog_helpers.dart';
@@ -412,6 +414,20 @@ class _WalletDetailViewState extends State<_WalletDetailView> {
               color: AppAccent.color,
               letterSpacing: 0.0,
             ),
+            Builder(builder: (context) {
+              final spendPaths = state.descriptorAnalysis?.spendPaths;
+              if (spendPaths == null || spendPaths.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final minBlocks =
+                  context.watch<SettingsCubit>().state.inheritanceMinTimelockBlocks;
+              final temperature = computeWalletTemperature(
+                spendPaths: spendPaths,
+                hotKeys: state.hotKeys,
+                minTimelockBlocks: minBlocks,
+              );
+              return WalletTemperatureIcon(temperature: temperature);
+            }),
             if (state.isSyncing)
               const SizedBox(
                 width: 40,

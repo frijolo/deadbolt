@@ -445,6 +445,11 @@ async def test_inheritance_wallet(d: UIDriver):
     assert_no_error_toast(sem)
     print("    [ok] wallet created successfully")
 
+    # Owner's hot key satisfies the taproot key-path spend (main path, no
+    # timelock) — this makes the wallet Hot, not just Warm/inheritance-only.
+    await wait_for(d, "Hot Wallet", "Hot Wallet temperature icon visible",
+                   retries=10, delay=0.5)
+
     # ---- Phase 6b: Export descriptor ----
     print("\n  [phase 6b] export descriptor")
     descriptor = await _get_descriptor(d)

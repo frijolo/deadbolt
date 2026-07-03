@@ -1334,6 +1334,24 @@ abstract class AppLocalizations {
   /// **'Nested Segwit (P2SH-WPKH)'**
   String get walletTypeP2shWpkh;
 
+  /// No description provided for @walletTemperatureHotToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Hot Wallet: you have enough keys in the app to sign for the main spend path.'**
+  String get walletTemperatureHotToast;
+
+  /// No description provided for @walletTemperatureWarmToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm Wallet: you only have enough keys to sign for the inheritance/recovery path, not the main one.'**
+  String get walletTemperatureWarmToast;
+
+  /// No description provided for @walletTemperatureColdToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Cold Wallet: no private key is stored in the app for this wallet. Read-only.'**
+  String get walletTemperatureColdToast;
+
   /// No description provided for @walletTypeP2shWsh.
   ///
   /// In en, this message translates to:

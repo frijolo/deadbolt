@@ -8,6 +8,7 @@ All notable changes to Deadbolt are documented here, newest first.
 
 ### New Features
 - **BED backup export/import** — Wallet descriptors can now be exported to and imported from BED (Bitcoin Encrypted Descriptor) files, encrypted with the wallet's xpub for byte-level interoperability with Sparrow and Liana.
+- **Wallet temperature indicator** — The wallet detail screen now shows a small Hot/Warm/Cold Wallet icon reflecting whether the app holds enough private key material to sign for the main spend path, only for an inheritance/recovery path, or none at all.
 
 ### Improvements
 - **Clearer export menu label** — The Export menu entry that opens the publish flow now reads "Publish Descriptor" instead of "Publish Backup", making it explicit that what gets published is the wallet descriptor.

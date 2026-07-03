@@ -676,6 +676,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get walletTypeP2shWpkh => 'Nested Segwit (P2SH-WPKH)';
 
   @override
+  String get walletTemperatureHotToast =>
+      'Hot Wallet: tienes claves suficientes en la app para firmar por la ruta de gasto principal.';
+
+  @override
+  String get walletTemperatureWarmToast =>
+      'Warm Wallet: solo tienes claves suficientes para firmar por la ruta de herencia/recuperación, no por la principal.';
+
+  @override
+  String get walletTemperatureColdToast =>
+      'Cold Wallet: no hay ninguna clave privada guardada en la app para esta cartera. Solo lectura.';
+
+  @override
   String get walletTypeP2shWsh => 'Nested Segwit (P2SH-WSH)';
 
   @override
